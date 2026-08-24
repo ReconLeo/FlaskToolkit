@@ -1,6 +1,10 @@
 # Flask插件框架开发规范
 
-## 版本：v4.1（插件包机制） | 更新日期：2026年08月23日
+## 版本：v4.2（卸载清单 + 前端工具访问控制） | 更新日期：2026年08月24日
+
+### 版本说明（v4.2 变更）
+- **插件包卸载升级为 installed_files 清单机制**（5.6.6）：安装时把插件引入文件的相对路径清单写入 `plugins/<name>.json`，卸载按清单逐个删除（支持多 `.py` 插件包彻底卸载，无残留），无清单回退旧逻辑（兼容存量插件）。
+- **前端工具访问控制**（4.6 / 6.5）：`/frontend/<name>` 页面与 `/frontend-static/` 静态资源按工具的 `permission` 字段做三层校验（`public`/`user`/`admin`，`auth` 未安装时全员放行）；上传/更新缺省 `permission=public`；新增改权限接口 `POST /api/admin/frontend/<name>/permission`；管理后台插件页提供前端工具权限下拉。
 
 ### 版本说明（v4.1 变更）
 - 后端插件分发改为**插件包（.zip）**机制：新增 5.6 节描述 plugin.json 描述文件、解压映射、静态资源访问与生命周期行为。
@@ -72,19 +76,25 @@ FlaskToolkit/
 │   ├── base_plugin.py         #   插件基类 + @permission 装饰器 + 生命周期钩子
 │   ├── auth.py                #   可选鉴权插件（PBKDF2 / HttpOnly Cookie + CSRF）
 │   └── user_manage.py         #   内置用户管理插件（BUILTIN，受 Factory Reset 保护）
+├── examples/                  # 官方示例插件/工具包（5 个）+ install_all.py 一键安装
 ├── tools/                     # 开发运维命令行工具（python tools/xxx.py）
 │   ├── config.py              #   配置管理 CLI（show/set/unset/reset/check/env）
 │   ├── package.py             #   插件包打包/签名/校验 CLI（genkey/pack/verify/show）
 │   ├── backup.py              #   手动备份/恢复工具（Factory Reset 前备份关键数据）
 │   └── reset.py               #   深度重置工具（服务停止时使用，绕过运行时文件锁定）
 ├── tests/                     # 回归测试套件（12 脚本 222 项 + 端到端链路验证）
-├── templates/                 # 页面模板（首页/登录/错误码页/admin 管理后台/插件页/前端工具/插件页）
-├── static/                    # 静态资源（js/plugin_common.js、css/error.css 统一错误页样式）
+├── templates/                 # 页面模板（首页/登录/错误码页 400-500/admin 管理后台/插件页）
+│   ├── admin/                 #   管理后台（dashboard / plugins / logs / stats / system）
+│   ├── frontend_tools/        #   前端工具模板
+│   └── plugins/               #   插件页面模板
+├── static/                    # 静态资源（js/plugin_common.js 统一鉴权前端、css/error.css 统一错误页样式）
 ├── .github/workflows/ci.yml   # GitHub Actions CI 工作流
 ├── data/                      # 运行时数据（统计/审计/用户配置，已 gitignore）
 ├── logs/                      # 运行日志（已 gitignore）
 ├── documents/                 # 开发规范 / Roadmap / CI 上手指南
-└── LICENSE                    # MIT 许可
+├── LICENSE                    # MIT 许可
+├── CONTRIBUTING.md            # 贡献指南
+└── .gitignore                 # 运行时数据与归档文档忽略规则
 ```
 
 ---
@@ -164,6 +174,10 @@ from .base_plugin import permission as permission_required
 ### 4.5 可选鉴权（auth 未安装）
 
 `auth` 插件未安装时，系统处于**无鉴权模式**：所有请求放行、所有工具可见。安装 `auth` 插件后立即启用三层权限校验。
+
+### 4.6 前端工具访问控制（v4.2 新增）
+
+前端工具（页面与静态资源）同样按 `permission` 字段做三层校验（`public`/`user`/`admin`，默认 `public`），与 API 权限模型一致、共用同一套校验逻辑；`auth` 未安装时全员放行。详见 6.5。
 
 ---
 
@@ -331,7 +345,7 @@ def get_item(self, item_id):
 
 - **上传**：校验描述文件 + 主 `.py` 文件名一致性 → 安全解压 → 自动加载（`load_plugins`）。
 - **更新**：校验包内插件名与目标一致 + 新版本必须高于当前版本 → 覆盖解压 → 重载。
-- **卸载**：删除主 `.py`、描述文件 `plugins/<name>.json`、`templates/plugins/<name>.html` 与 `templates/plugins/static/<name>/` 目录。
+- **卸载**：按安装时写入 `plugins/<name>.json` 的 `installed_files` 清单（相对路径）逐个删除插件引入的文件（主 `.py`、辅助 `.py` 模块、描述文件、模板、静态资源），并清理残留空目录；老插件无清单时回退为删除主 `.py`、描述文件 `plugins/<name>.json`、`templates/plugins/<name>.html` 与 `templates/plugins/static/<name>/` 目录。
 
 #### 5.6.7 Demo：UserManage 插件包
 
@@ -434,7 +448,7 @@ my_tool.zip
 }
 ```
 
-可选字段：`title`、`author`、`description`、`require_framework_version`、`permission`（默认 user）。
+可选字段：`title`、`author`、`description`、`require_framework_version`、`permission`（默认 `public`，访问控制见 6.5）。
 
 ### 6.2 使用 plugin_common.js
 
@@ -478,6 +492,28 @@ my_tool.zip
 - 访问：`/frontend/password_generator`（首页卡片入口）。
 - 功能：密码长度 6-64、四类字符集勾选、排除易混淆字符（`0O1lI|`'".,`）、批量生成 1-10 个、密码学安全随机（`crypto.getRandomValues`）、强度分级（熵 ≥100 极强 / ≥70 强 / ≥45 中 / 否则弱）、一键复制（`navigator.clipboard` + 降级方案）。
 - 纯前端实现：**不调用任何后端 API、不上传数据**，仅本地生成，可作为不依赖后端的静态前端工具范式；若前端工具需要调用后端接口，按 6.2 引入 `plugin_common.js`。
+
+### 6.5 前端工具访问控制（v4.2 新增）
+
+每个前端工具在 `frontend_tools.json` 中声明 `permission` 字段（`public` / `user` / `admin`），控制页面与静态资源的访问：
+
+| 值 | 含义 |
+|------|------|
+| `public`（默认） | 游客可直接访问 |
+| `user` | 需登录；未登录访问页面/静态资源跳转登录页（携带 redirect） |
+| `admin` | 仅管理员；普通用户访问返回 403 页，未登录跳转登录页 |
+
+- 页面路由 `/frontend/<name>` 与静态资源路由 `/frontend-static/<name>/<path>` 均做该校验（与 API 共用 `core/permission._check_permission` 统一逻辑）。
+- `auth` 插件未安装时全员放行（可选鉴权），与 API 权限模型一致。
+- 上传/更新时工具缺省 `permission=public`；`frontend_tools.json` 可声明 `permission` 覆盖（内置密码生成器已改为 `public`）。
+- 修改权限：管理后台「插件管理 → 前端工具」权限下拉，或调用管理接口：
+
+```
+POST /api/admin/frontend/<name>/permission
+Content-Type: application/json
+X-CSRF-Token: <csrf_token>
+{"permission": "admin"}   # 仅接受 public / user / admin
+```
 
 ---
 

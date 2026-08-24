@@ -66,6 +66,7 @@ FlaskToolkit/
 │   ├── base_plugin.py         #   插件基类 + @permission 装饰器
 │   ├── auth.py                #   可选鉴权插件（PBKDF2 密码 / HttpOnly Cookie + CSRF）
 │   └── user_manage.py         #   内置用户管理插件（BUILTIN，受 Factory Reset 保护）
+├── examples/                  # 官方示例插件/工具包（5 个）+ install_all.py 一键安装
 ├── tools/                     # 开发运维命令行工具（python tools/xxx.py）
 │   ├── config.py              #   配置管理 CLI（show/set/unset/reset/check/env）
 │   ├── package.py             #   插件包打包/签名/校验 CLI（genkey/pack/verify/show）
@@ -111,6 +112,17 @@ class MyPlugin(BasePlugin):
 
 > 注意：插件类内若声明 `permission` 属性（如 `permission = "admin"`）会遮蔽装饰器，
 > 请用别名导入 `from .base_plugin import permission as permission_required`。
+
+### 前端工具访问控制
+
+前端工具同样支持按权限控制访问：每个工具在 `frontend_tools.json` 中声明 `permission` 字段（`public` / `user` / `admin`），访问 `/frontend/<name>` 页面与 `/frontend-static/<name>/<path>` 静态资源时按该字段做三层校验（与 API 共用同一套校验逻辑）：
+
+- `public`（默认）：游客可直接访问。
+- `user`：需登录，未登录跳转登录页。
+- `admin`：仅管理员，普通用户访问返回 403。
+- `auth` 未安装时全员放行（可选鉴权）。
+
+上传/更新的工具缺省 `permission=public`；可在管理后台插件页为前端工具下拉修改权限，或调用 `POST /api/admin/frontend/<name>/permission`（body `{"permission":"public|user|admin"}`）。
 
 ## 插件生命周期钩子
 
@@ -226,7 +238,7 @@ class MyPlugin(BasePlugin):
 
 - **上传**：校验 `plugin.json` 与主 `.py` 文件名一致性 → 安全解压（内置 zip slip 防路径穿越）→ 自动加载。
 - **更新**：校验包内插件名与目标一致 + 新版本必须高于当前版本 → 覆盖解压 → 重载。
-- **卸载**：删除主 `.py`、描述文件、`templates/plugins/<name>.html` 与 `templates/plugins/static/<name>/` 目录。
+- **卸载**：按安装时记录的 `installed_files` 清单（写入 `plugins/<name>.json`）逐个删除插件引入的文件（主 `.py`、辅助 `.py` 模块、描述文件、模板、静态资源），并清理残留空目录；老插件无清单时回退为删除主 `.py`、描述文件、`templates/plugins/<name>.html` 与 `templates/plugins/static/<name>/` 目录。
 
 ### Demo
 
@@ -237,6 +249,8 @@ class MyPlugin(BasePlugin):
 框架内置前端工具示例 **随机密码生成器**（`password_generator`）：`templates/frontend_tools/password_generator.html` + `frontend_tools.json` 注册（分类：安全工具），访问 `/frontend/password_generator`。纯前端实现（密码学安全随机、强度分级、一键复制），不调用后端 API、数据不上传，可作为静态前端工具的参考模板；需要调用后端接口的前端工具按开发规范 6.2 引入 `plugin_common.js`。
 
 前端工具 zip 包支持携带 **`static/` 静态资源目录**（CSS/JS/图片等），解压到 `templates/frontend_tools/static/<name>/`，经 `/frontend-static/<name>/<path>` 访问（安全解压 + zip slip 防护，详见开发规范 6.1/6.3）；更新时先清理旧 static 目录、卸载时一并删除。模板自动重载已开启，工具 html 更新后即时生效。
+
+前端工具支持按 `permission` 字段做**访问控制**（`public`/`user`/`admin`，默认 `public`）：页面与静态资源均校验，管理后台可下拉修改权限（见上文「权限模型 → 前端工具访问控制」）。
 
 ## 错误码与错误页面
 
@@ -262,7 +276,7 @@ class MyPlugin(BasePlugin):
 | 页面 | 路径 | 功能 |
 |------|------|------|
 | 仪表盘 | `/admin/dashboard` | 统计卡片（插件/前端工具/API 调用）+ 系统信息 + 快捷入口 + 内置插件列表 |
-| 插件管理 | `/admin/plugins` | 上传 / 更新 / 卸载 / 启用 / 禁用 / 配置 / 全部重置 |
+| 插件管理 | `/admin/plugins` | 上传 / 更新 / 卸载 / 启用 / 禁用 / 配置 / 前端工具权限修改 / 全部重置 |
 | 日志 | `/admin/logs` | 按级别（debug/info/warning/error/critical）与行数查看日志，支持按插件过滤 |
 | 统计 | `/admin/stats` | API 调用 Top100（可搜索）+ 前端工具访问 Top100 |
 | 系统管理 | `/admin/system` | 系统信息 + Factory Reset（分 scope 勾选 / 全部重置，见上文） |
