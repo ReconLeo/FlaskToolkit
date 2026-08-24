@@ -77,7 +77,7 @@ def on_server_shutdown(signal_num=None, frame=None):
     app.logger.info("所有插件停止处理完成，正在退出...", extra={'plugin': 'system'})
     
     # 强制终止进程，避免Flask/scheduler继续运行
-    sys.exit(0)
+    os._exit(0)  # 见 on_server_shutdown 注释：atexit 中 sys.exit 会打印警告并可能污染退出码
  
 # 注册停止钩子
 atexit.register(on_server_shutdown)

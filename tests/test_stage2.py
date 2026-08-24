@@ -58,7 +58,7 @@ for route in auth.routes:
 plugins["auth"] = auth
 
 # ---- A1 密码哈希 ----
-cfg_path = _PROJECT_ROOT + '\\plugins\\configs\\auth.json'
+cfg_path = os.path.join(_PROJECT_ROOT, 'plugins', 'configs', 'auth.json')
 with open(cfg_path, "r", encoding="utf-8") as f:
     cfg = json.load(f)
 admin = [u for u in cfg["users"] if u["username"] == "admin"][0]
