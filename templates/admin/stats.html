@@ -1,0 +1,123 @@
+{% extends 'admin/base.html' %}
+{% block title %}统计 · FlaskToolkit 管理后台{% endblock %}
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">📈 统计详情</h1>
+        <p class="page-subtitle">API 调用与前端工具访问明细（数据来源 data/stats.json）</p>
+    </div>
+    <button class="btn btn-primary" onclick="loadStats()">🔄 刷新</button>
+</div>
+
+<div class="stats-grid">
+    <div class="stat-card c-blue">
+        <span class="stat-value" id="stPlugins">-</span>
+        <span class="stat-label">后端插件（已加载）</span>
+    </div>
+    <div class="stat-card c-green">
+        <span class="stat-value" id="stFrontend">-</span>
+        <span class="stat-label">前端工具</span>
+    </div>
+    <div class="stat-card c-orange">
+        <span class="stat-value" id="stApiCalls">-</span>
+        <span class="stat-label">API 累计调用</span>
+    </div>
+    <div class="stat-card c-teal">
+        <span class="stat-value" id="stFrontendAccess">-</span>
+        <span class="stat-label">前端页面访问</span>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-title">🔌 API 调用明细（Top 100）
+        <input type="text" id="apiFilter" placeholder="搜索插件名/路径..." style="max-width:240px; margin-left:auto; font-size:13px;"
+               oninput="renderTables()">
+    </div>
+    <div class="table-wrap">
+        <table class="data-table">
+            <thead><tr><th style="width:50px;">#</th><th>插件</th><th>接口路径</th><th style="width:120px;">调用次数</th></tr></thead>
+            <tbody id="apiDetailBody"><tr><td colspan="4" class="loading">加载中...</td></tr></tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-title">🌐 前端工具访问明细（Top 100）</div>
+    <div class="table-wrap">
+        <table class="data-table">
+            <thead><tr><th style="width:50px;">#</th><th>工具名</th><th style="width:120px;">访问次数</th></tr></thead>
+            <tbody id="frontendDetailBody"><tr><td colspan="3" class="loading">加载中...</td></tr></tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let apiDetails = [];
+    let frontendDetails = [];
+
+    function fmt(n) { return Number(n || 0).toLocaleString('zh-CN'); }
+    function esc(s) {
+        return String(s == null ? '' : s).replace(/[&<>"']/g, c =>
+            ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    function loadStats() {
+        fetch('/api/admin/stats', { credentials: 'include' })
+            .then(r => r.json())
+            .then(res => {
+                if (res.code !== 200) return;
+                const d = res.data;
+                document.getElementById('stPlugins').textContent = fmt(d.total_plugins);
+                document.getElementById('stFrontend').textContent = fmt(d.total_frontend_tools);
+                document.getElementById('stApiCalls').textContent = fmt(d.total_api_calls);
+                document.getElementById('stFrontendAccess').textContent = fmt(d.total_frontend_access);
+
+                apiDetails = Object.entries(d.api_call_details || {})
+                    .map(([key, count]) => {
+                        const idx = key.indexOf(':');
+                        return { plugin: idx > 0 ? key.slice(0, idx) : key, path: idx > 0 ? key.slice(idx + 1) : '', count };
+                    })
+                    .sort((a, b) => b.count - a.count)
+                    .slice(0, 100);
+
+                frontendDetails = Object.entries(d.frontend_access_details || {})
+                    .map(([key, count]) => ({ name: key.replace(/^frontend:/, ''), count }))
+                    .sort((a, b) => b.count - a.count)
+                    .slice(0, 100);
+
+                renderTables();
+            }).catch(() => {});
+    }
+
+    function renderTables() {
+        const kw = (document.getElementById('apiFilter').value || '').trim().toLowerCase();
+        const filtered = kw ? apiDetails.filter(r =>
+            r.plugin.toLowerCase().includes(kw) || r.path.toLowerCase().includes(kw)) : apiDetails;
+
+        const apiBody = document.getElementById('apiDetailBody');
+        if (filtered.length === 0) {
+            apiBody.innerHTML = '<tr><td colspan="4" class="empty-state">暂无 API 调用记录</td></tr>';
+        } else {
+            apiBody.innerHTML = filtered.map((r, i) =>
+                `<tr><td>${i + 1}</td><td><span class="badge badge-blue">${esc(r.plugin)}</span></td>
+                 <td style="font-family:monospace; font-size:13px;">${esc(r.path)}</td>
+                 <td><b>${fmt(r.count)}</b></td></tr>`
+            ).join('');
+        }
+
+        const fBody = document.getElementById('frontendDetailBody');
+        if (frontendDetails.length === 0) {
+            fBody.innerHTML = '<tr><td colspan="3" class="empty-state">暂无前端工具访问记录</td></tr>';
+        } else {
+            fBody.innerHTML = frontendDetails.map((r, i) =>
+                `<tr><td>${i + 1}</td><td><span class="badge badge-purple">${esc(r.name)}</span></td>
+                 <td><b>${fmt(r.count)}</b></td></tr>`
+            ).join('');
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', loadStats);
+</script>
+{% endblock %}

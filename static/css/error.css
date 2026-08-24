@@ -1,0 +1,143 @@
+/* ==========================================================================
+   FlaskToolkit 统一错误码页面样式（400/401/403/404/405/500 共享）
+   设计风格：居中卡片 + 大号渐变错误码 + 状态图标 + 操作按钮
+   ========================================================================== */
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: system-ui, -apple-system, "Segoe UI", "PingFang SC",
+        "Microsoft YaHei", Arial, sans-serif;
+    background: linear-gradient(135deg, #f5f7fa 0%, #eef2f7 100%);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.error-wrap {
+    width: 100%;
+    max-width: 620px;
+    text-align: center;
+}
+
+.error-card {
+    background: #ffffff;
+    border-radius: 16px;
+    padding: 56px 40px 44px;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.08);
+    border: 1px solid #e9ecef;
+}
+
+.error-icon {
+    font-size: 56px;
+    line-height: 1;
+    margin-bottom: 8px;
+}
+
+.error-code {
+    font-size: 96px;
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: 2px;
+    background: linear-gradient(135deg, #e74c3c 0%, #e67e22 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 8px;
+}
+
+/* 401/403 用更柔和的配色 */
+.error-card.is-warning .error-code {
+    background: linear-gradient(135deg, #e67e22 0%, #f1c40f 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.error-title {
+    font-size: 24px;
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 14px;
+}
+
+.error-message {
+    font-size: 15px;
+    line-height: 1.7;
+    color: #7f8c8d;
+    margin-bottom: 30px;
+    word-break: break-word;
+}
+
+.error-actions {
+    display: flex;
+    justify-content: center;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+
+.error-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 11px 24px;
+    border-radius: 8px;
+    font-size: 15px;
+    text-decoration: none;
+    border: none;
+    cursor: pointer;
+    transition: all 0.25s ease;
+}
+
+.error-btn-primary {
+    background: #3498db;
+    color: #ffffff;
+}
+
+.error-btn-primary:hover {
+    background: #2980b9;
+    transform: translateY(-1px);
+}
+
+.error-btn-secondary {
+    background: #ecf0f1;
+    color: #34495e;
+}
+
+.error-btn-secondary:hover {
+    background: #dfe6e9;
+}
+
+.error-btn-success {
+    background: #27ae60;
+    color: #ffffff;
+}
+
+.error-btn-success:hover {
+    background: #229954;
+    transform: translateY(-1px);
+}
+
+.error-footer {
+    margin-top: 20px;
+    color: #95a5a6;
+    font-size: 12px;
+}
+
+@media (max-width: 480px) {
+    .error-card {
+        padding: 40px 20px 32px;
+    }
+    .error-code {
+        font-size: 68px;
+    }
+    .error-title {
+        font-size: 20px;
+    }
+}

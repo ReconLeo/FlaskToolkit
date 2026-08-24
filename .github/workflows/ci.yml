@@ -1,0 +1,85 @@
+name: CI
+
+# 触发条件：
+# - push 到 main / master 分支
+# - 任何 pull request（PR）
+# - 手动触发（GitHub Actions 页面 → Run workflow）
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: 回归测试（Python ${{ matrix.python-version }}）
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false            # 一个版本失败不中断其他版本
+      matrix:
+        python-version: ['3.10', '3.11', '3.12']
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 设置 Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip              # 缓存 pip 依赖加速
+
+      - name: 安装依赖
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: 语法编译检查
+        run: |
+          python -m compileall -q app.py global_var.py core routes plugins tools tests || true
+
+      - name: 框架完整性自检
+        run: python core/selfcheck.py
+
+      - name: 配置/工具 CLI 冒烟
+        run: |
+          python tools/config.py show
+          python tools/package.py --help
+          python tools/reset.py list
+          python tools/backup.py list
+
+      - name: 运行回归测试套件（12 脚本，测试间自动清理）
+        run: |
+          set -e
+          TESTS=(test_permission test_stage2 test_zip_slip test_pack_meta test_reload_race \
+                 test_meta_e2e test_frontend_zip_slip test_frontend_chain test_admin_api \
+                 test_factory_reset test_error_pages test_package_sign)
+          for t in "${TESTS[@]}"; do
+            echo "===== $t ====="
+            python "tests/$t.py"
+            echo "===== 清理测试污染 ====="
+            python tests/ci_cleanup.py
+          done
+
+      - name: 打包/签名工具端到端（genkey → pack → verify）
+        run: |
+          set -e
+          python tools/package.py genkey -o /tmp/ci_key.pem --pub /tmp/ci_key_pub.pem
+          mkdir -p /tmp/ci_tool/static/css
+          echo 'body{}' > /tmp/ci_tool/static/css/x.css
+          echo '<html>ci</html>' > /tmp/ci_tool/ci_tool.html
+          printf '{"name":"ci_tool","version":"1.0.0","category":"测试"}' > /tmp/ci_tool/config.json
+          python tools/package.py pack /tmp/ci_tool -o /tmp/ci_tool.zip --type frontend \
+            --sign /tmp/ci_key.pem --signer "CI"
+          python tools/package.py verify /tmp/ci_tool.zip --public-key /tmp/ci_key_pub.pem
+
+      - name: 上传失败日志（测试失败时）
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-logs-py${{ matrix.python-version }}
+          path: |
+            logs/*.log
+            tests/*.py
+          if-no-files-found: ignore

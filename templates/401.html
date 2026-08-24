@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>401 未登录</title>
+    <link rel="stylesheet" href="/static/css/error.css">
+</head>
+<body>
+    <div class="error-wrap">
+        <div class="error-card is-warning">
+            <div class="error-icon">🔒</div>
+            <div class="error-code">401</div>
+            <h1 class="error-title">未登录或会话已过期</h1>
+            <p class="error-message">{{ message | default('请先登录后再访问该资源。') }}</p>
+            <div class="error-actions">
+                <a href="/login" class="error-btn error-btn-success">🔑 去登录</a>
+                <a href="/" class="error-btn error-btn-secondary">返回首页</a>
+            </div>
+        </div>
+        <div class="error-footer">FlaskToolkit · 统一错误码页面</div>
+    </div>
+</body>
+</html>

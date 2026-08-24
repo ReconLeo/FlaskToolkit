@@ -1,0 +1,518 @@
+{% extends 'admin/base.html' %}
+{% block title %}插件管理 · FlaskToolkit 管理后台{% endblock %}
+{% block head %}
+<style>
+    .file-info { font-size: 13px; color: #7f8c8d; margin-top: 8px; }
+    .file-info.error { color: #e74c3c; }
+    .upload-progress { height: 8px; background: #ecf0f1; border-radius: 4px; margin-top: 10px; overflow: hidden; }
+    .upload-progress.hidden { display: none; }
+    .upload-progress-bar { height: 100%; width: 0; background: #3498db; border-radius: 4px; transition: width 0.2s; }
+    .upload-progress-bar.error { background: #e74c3c; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">🔌 插件管理</h1>
+        <p class="page-subtitle">后端插件包（.zip）与前端工具（.zip）的安装 / 更新 / 启用 / 禁用 / 卸载</p>
+    </div>
+    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+        <button class="btn btn-success" onclick="openUploadModal()">+ 上传新插件/工具</button>
+        <a class="btn btn-info" href="/admin/system">⚙️ 系统管理</a>
+        <button class="btn btn-danger" onclick="openResetModal()">♻️ 恢复出厂设置</button>
+        <button class="btn btn-primary" onclick="loadPlugins()">🔄 刷新</button>
+    </div>
+</div>
+
+<!-- 统计概览 -->
+<div class="stats-grid">
+    <div class="stat-card c-blue">
+        <span class="stat-value">{{ stats.total_plugins }}</span>
+        <span class="stat-label">后端插件总数（已加载）</span>
+    </div>
+    <div class="stat-card c-purple">
+        <span class="stat-value">{{ stats.total_plugins_catalog }}</span>
+        <span class="stat-label">插件目录（含禁用/未加载）</span>
+    </div>
+    <div class="stat-card c-green">
+        <span class="stat-value">{{ stats.total_frontend_tools }}</span>
+        <span class="stat-label">前端工具总数</span>
+    </div>
+    <div class="stat-card c-orange">
+        <span class="stat-value">{{ stats.total_calls }}</span>
+        <span class="stat-label">累计调用（API + 前端访问）</span>
+    </div>
+</div>
+
+<div id="plugin-list">
+    <div class="loading">加载中...</div>
+</div>
+
+<!-- 确认对话框 -->
+<div id="confirm-modal" class="modal">
+    <div class="modal-content">
+        <h3 id="modal-title" style="margin-bottom:12px;">确认操作</h3>
+        <p id="modal-message" style="color:#34495e; line-height:1.7;"></p>
+        <div class="modal-buttons">
+            <button class="btn btn-info" onclick="closeModal()">取消</button>
+            <button class="btn btn-danger" id="modal-confirm-btn">确认</button>
+        </div>
+    </div>
+</div>
+
+<!-- 上传新插件/前端工具对话框 -->
+<div id="upload-modal" class="modal">
+    <div class="modal-content">
+        <h3 id="upload-modal-title" style="margin-bottom:14px;">上传新插件</h3>
+        <div class="form-group">
+            <label>上传类型</label>
+            <div style="display:flex; gap:20px; margin-top:5px;">
+                <label style="cursor:pointer; font-size:14px;">
+                    <input type="radio" name="upload-type" value="backend" checked onchange="switchUploadType()">
+                    后端插件包 (.zip)
+                </label>
+                <label style="cursor:pointer; font-size:14px;">
+                    <input type="radio" name="upload-type" value="frontend" onchange="switchUploadType()">
+                    前端工具 (.zip)
+                </label>
+            </div>
+        </div>
+        <div class="form-group">
+            <label id="upload-file-label">选择插件包 (.zip)</label>
+            <input type="file" id="upload-file" accept=".zip" onchange="handleFileSelected('upload')">
+            <div class="file-info" id="upload-file-info"></div>
+            <div class="upload-progress hidden" id="upload-progress">
+                <div class="upload-progress-bar" id="upload-progress-bar" style="width:0%"></div>
+            </div>
+        </div>
+        <div class="form-group" style="font-size:13px; color:#7f8c8d;">
+            <p id="upload-tip">上传的 .zip 插件包需包含 plugin.json 和主插件 .py（可附带 templates/static 资源），将自动安装并加载，请确保来源安全。</p>
+        </div>
+        <div class="modal-buttons">
+            <button class="btn btn-info" onclick="closeUploadModal()">取消</button>
+            <button class="btn btn-success" onclick="confirmUpload()">上传安装</button>
+        </div>
+    </div>
+</div>
+
+<!-- 更新插件/前端工具对话框 -->
+<div id="update-modal" class="modal">
+    <div class="modal-content">
+        <h3 id="update-modal-title" style="margin-bottom:14px;">更新插件</h3>
+        <div class="form-group">
+            <label id="update-file-label">选择插件包 (.zip)</label>
+            <input type="file" id="update-file" accept=".zip" onchange="handleFileSelected('update')">
+            <div class="file-info" id="update-file-info"></div>
+            <div class="upload-progress hidden" id="update-progress">
+                <div class="upload-progress-bar" id="update-progress-bar" style="width:0%"></div>
+            </div>
+        </div>
+        <div class="modal-buttons">
+            <button class="btn btn-info" onclick="closeUpdateModal()">取消</button>
+            <button class="btn btn-success" onclick="confirmUpdate()">上传更新</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let currentPlugin = null;
+    let currentConfig = {};
+    let currentUpdateType = 'backend';
+    let currentUpdateName = '';
+
+    const UPLOAD_MAX_SIZE = 10 * 1024 * 1024; // 与服务端 PACKAGE_MAX_UPLOAD_SIZE 一致（10MB）
+
+    function formatFileSize(bytes) {
+        if (bytes >= 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+        if (bytes >= 1024) return (bytes / 1024).toFixed(1) + ' KB';
+        return bytes + ' B';
+    }
+
+    function handleFileSelected(mode) {
+        const isUpload = mode === 'upload';
+        const fileInput = document.getElementById(isUpload ? 'upload-file' : 'update-file');
+        const infoEl = document.getElementById(isUpload ? 'upload-file-info' : 'update-file-info');
+        const progressWrap = document.getElementById(isUpload ? 'upload-progress' : 'update-progress');
+        const barEl = document.getElementById(isUpload ? 'upload-progress-bar' : 'update-progress-bar');
+        progressWrap.classList.add('hidden');
+        barEl.style.width = '0%';
+        const file = fileInput.files[0];
+        if (!file) { infoEl.textContent = ''; infoEl.classList.remove('error'); return; }
+        infoEl.textContent = '已选：' + file.name + '（' + formatFileSize(file.size) + '）';
+        infoEl.classList.remove('error');
+        if (file.size > UPLOAD_MAX_SIZE) {
+            infoEl.textContent = '文件过大：' + formatFileSize(file.size) + '，超过上限 ' + formatFileSize(UPLOAD_MAX_SIZE) + '，无法上传。';
+            infoEl.classList.add('error');
+        }
+    }
+
+    function uploadWithProgress(url, file, onSuccess) {
+        const isUpdate = url.indexOf('/update') !== -1;
+        const progressWrap = document.getElementById(isUpdate ? 'update-progress' : 'upload-progress');
+        const barEl = document.getElementById(isUpdate ? 'update-progress-bar' : 'upload-progress-bar');
+        progressWrap.classList.remove('hidden');
+        barEl.style.width = '0%';
+        barEl.classList.remove('error');
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', url);
+        xhr.upload.onprogress = (e) => {
+            if (e.lengthComputable) {
+                barEl.style.width = Math.round((e.loaded / e.total) * 100) + '%';
+            }
+        };
+        xhr.onload = () => {
+            let data = {};
+            try { data = JSON.parse(xhr.responseText); } catch (err) {}
+            if (xhr.status === 200 && data.code === 200) {
+                barEl.style.width = '100%';
+                setTimeout(() => progressWrap.classList.add('hidden'), 500);
+                onSuccess(data);
+            } else {
+                barEl.classList.add('error');
+                showToast('上传失败: ' + (data.message || xhr.status), 'error');
+            }
+        };
+        xhr.onerror = () => { barEl.classList.add('error'); showToast('上传失败: 网络错误', 'error'); };
+        const formData = new FormData();
+        formData.append('file', file);
+        xhr.send(formData);
+    }
+
+    // ==================== 插件列表 ====================
+    async function loadPlugins() {
+        const container = document.getElementById('plugin-list');
+        container.innerHTML = '<div class="loading">加载中...</div>';
+        try {
+            const response = await fetch('/api/admin/plugins');
+            const data = await response.json();
+            if (data.code === 200) {
+                renderPluginList(data.data || []);
+            } else {
+                container.innerHTML = `<div class="empty-state">加载插件列表失败：${(data.message || '')}</div>`;
+            }
+        } catch (e) {
+            container.innerHTML = `<div class="empty-state">加载失败：${e.message}</div>`;
+        }
+    }
+
+    function renderPluginList(plugins) {
+        const container = document.getElementById('plugin-list');
+        if (plugins.length === 0) {
+            container.innerHTML = '<div class="empty-state">暂无插件</div>';
+            return;
+        }
+
+        container.innerHTML = plugins.map(plugin => `
+            <div class="card" style="border-left:4px solid ${plugin.enabled ? '#3498db' : '#95a5a6'}; opacity:${plugin.enabled ? 1 : 0.7};">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px; margin-bottom:10px;">
+                    <div>
+                        <h3 style="font-size:17px; color:#2c3e50; margin-bottom:6px;">
+                            ${plugin.title ? plugin.title : plugin.name} <span style="color:#95a5a6; font-weight:400; font-size:13px;">v${plugin.version}</span>
+                            ${plugin.builtin ? '<span class="badge badge-orange" style="margin-left:8px;">内置</span>' : ''}
+                            ${plugin.type === 'frontend' ? '<span class="badge badge-blue" style="margin-left:8px;">前端工具</span>' : ''}
+                            ${plugin.enabled ? '<span class="badge badge-green" style="margin-left:8px;">已启用</span>' : '<span class="badge badge-red" style="margin-left:8px;">已禁用</span>'}
+                            ${plugin.loaded ? '<span class="badge badge-purple" style="margin-left:8px;">已加载</span>' : ''}
+                        </h3>
+                        <div style="font-size:13px; color:#7f8c8d;">
+                            标识符：${plugin.name} ｜ 分类：${plugin.category || '-'} ｜ 作者：${plugin.author || '-'} ｜
+                            ${plugin.require_framework_version ? `要求框架：v${plugin.require_framework_version} ｜ ` : ''}
+                            依赖：${(plugin.dependencies && plugin.dependencies.length) ? plugin.dependencies.join(', ') : '无'} ｜
+                            调用：<b>${plugin.api_calls || 0}</b>
+                            ${plugin.install_time ? `<br>安装：${plugin.install_time}` : ''}
+                            ${plugin.source ? ` ｜ 来源：${plugin.source}` : ''}
+                            ${(plugin.history && plugin.history.length > 1) ? ` ｜ 版本历史：${plugin.history.map(h => h.version).join(' → ')}` : ''}
+                        </div>
+                    </div>
+                    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                        ${plugin.type === 'frontend'
+                            ? (plugin.enabled
+                                ? `<button class="btn btn-warning btn-sm" onclick="disableFrontendTool('${plugin.name}')">禁用</button>`
+                                : `<button class="btn btn-success btn-sm" onclick="enableFrontendTool('${plugin.name}')">启用</button>`)
+                            : (plugin.enabled
+                                ? `<button class="btn btn-warning btn-sm" onclick="togglePlugin('${plugin.name}', false)">禁用</button>`
+                                : `<button class="btn btn-success btn-sm" onclick="togglePlugin('${plugin.name}', true)">启用</button>`)}
+                        ${plugin.type !== 'frontend' ? `<button class="btn btn-info btn-sm" onclick="toggleConfig('${plugin.name}')">配置</button>` : ''}
+                        <button class="btn btn-primary btn-sm" onclick="openUpdateModal('${plugin.name}', '${plugin.type || 'backend'}')">更新</button>
+                        <button class="btn btn-danger btn-sm" onclick="confirmUninstall('${plugin.name}', '${plugin.type || 'backend'}')">卸载</button>
+                    </div>
+                </div>
+                <p style="font-size:14px; color:#34495e; margin-bottom:14px;">${plugin.description || ''}</p>
+
+                ${plugin.type !== 'frontend' ? `
+                <div style="display:none;" id="config-${plugin.name}">
+                    <div style="border-top:1px solid #eee; padding-top:16px;">
+                        <h4 style="margin-bottom:14px; font-size:15px; color:#2c3e50;">插件配置</h4>
+                        <div id="config-form-${plugin.name}" class="form-grid"
+                             style="display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:12px;">
+                            <div style="color:#95a5a6; padding:10px;">加载中...</div>
+                        </div>
+                        <div style="text-align:right; margin-top:12px;">
+                            <button class="btn btn-success btn-sm" onclick="saveConfig('${plugin.name}')">保存配置</button>
+                        </div>
+                    </div>
+                </div>
+                ` : ''}
+            </div>
+        `).join('');
+    }
+
+    // ==================== 启用/禁用 ====================
+    async function togglePlugin(name, enable) {
+        try {
+            const response = await fetch(`/api/admin/plugins/${name}/${enable ? 'enable' : 'disable'}`, { method: 'POST' });
+            const data = await response.json();
+            if (data.code === 200) {
+                showToast(`插件已${enable ? '启用' : '禁用'}`, 'success');
+                loadPlugins();
+            } else {
+                showToast('操作失败: ' + data.message, 'error');
+            }
+        } catch (e) {
+            showToast('操作失败: ' + e.message, 'error');
+        }
+    }
+
+    async function enableFrontendTool(toolName) {
+        try {
+            const response = await fetch(`/api/admin/frontend/${toolName}/enable`, { method: 'POST' });
+            const data = await response.json();
+            if (data.code === 200) { showToast(data.message, 'success'); loadPlugins(); }
+            else { showToast(data.message, 'error'); }
+        } catch (e) { showToast('启用失败: ' + e.message, 'error'); }
+    }
+
+    async function disableFrontendTool(toolName) {
+        try {
+            const response = await fetch(`/api/admin/frontend/${toolName}/disable`, { method: 'POST' });
+            const data = await response.json();
+            if (data.code === 200) { showToast(data.message, 'success'); loadPlugins(); }
+            else { showToast(data.message, 'error'); }
+        } catch (e) { showToast('禁用失败: ' + e.message, 'error'); }
+    }
+
+    // ==================== 配置 ====================
+    async function toggleConfig(name) {
+        const configSection = document.getElementById(`config-${name}`);
+        if (!configSection) return;
+        const isActive = configSection.style.display === 'block';
+        if (isActive) { configSection.style.display = 'none'; return; }
+
+        try {
+            const response = await fetch(`/api/${name}/config`);
+            const data = await response.json();
+            if (data.code === 200) {
+                currentConfig[name] = data.data;
+                renderConfigForm(name, data.data);
+                configSection.style.display = 'block';
+            } else {
+                showToast('加载配置失败: ' + data.message, 'error');
+            }
+        } catch (e) {
+            showToast('该插件没有配置接口', 'error');
+        }
+    }
+
+    function renderConfigForm(pluginName, config) {
+        const formContainer = document.getElementById(`config-form-${pluginName}`);
+        const fields = Object.entries(config).map(([key, value]) => {
+            if (typeof value === 'boolean') {
+                return `
+                    <div class="form-group">
+                        <label>${key}</label>
+                        <select id="config-${pluginName}-${key}">
+                            <option value="true" ${value ? 'selected' : ''}>是</option>
+                            <option value="false" ${!value ? 'selected' : ''}>否</option>
+                        </select>
+                    </div>`;
+            } else if (typeof value === 'number') {
+                return `
+                    <div class="form-group">
+                        <label>${key}</label>
+                        <input type="number" id="config-${pluginName}-${key}" value="${value}">
+                    </div>`;
+            } else {
+                return `
+                    <div class="form-group">
+                        <label>${key}</label>
+                        <input type="text" id="config-${pluginName}-${key}" value="${value}">
+                    </div>`;
+            }
+        }).join('');
+        formContainer.innerHTML = fields;
+    }
+
+    async function saveConfig(pluginName) {
+        const config = {};
+        const originalConfig = currentConfig[pluginName];
+        for (const key in originalConfig) {
+            const element = document.getElementById(`config-${pluginName}-${key}`);
+            if (!element) continue;
+            const value = element.value;
+            if (typeof originalConfig[key] === 'boolean') config[key] = value === 'true';
+            else if (typeof originalConfig[key] === 'number') config[key] = parseInt(value);
+            else config[key] = value;
+        }
+        try {
+            const response = await fetch(`/api/${pluginName}/config`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(config)
+            });
+            const data = await response.json();
+            if (data.code === 200) { showToast('配置保存成功', 'success'); currentConfig[pluginName] = data.data; }
+            else { showToast('保存失败: ' + data.message, 'error'); }
+        } catch (e) { showToast('保存失败: ' + e.message, 'error'); }
+    }
+
+    // ==================== 上传 ====================
+    function switchUploadType() {
+        const uploadType = document.querySelector('input[name="upload-type"]:checked').value;
+        const fileInput = document.getElementById('upload-file');
+        const fileLabel = document.getElementById('upload-file-label');
+        const modalTitle = document.getElementById('upload-modal-title');
+        const uploadTip = document.getElementById('upload-tip');
+        if (uploadType === 'frontend') {
+            modalTitle.textContent = '上传新前端工具';
+            fileLabel.textContent = '选择前端工具包 (.zip)';
+            uploadTip.textContent = '上传的 zip 包需包含 config.json 和对应 html 文件，将自动注册到工具列表，请确保来源安全。';
+        } else {
+            modalTitle.textContent = '上传新插件包';
+            fileLabel.textContent = '选择插件包 (.zip)';
+            uploadTip.textContent = '上传的 .zip 插件包需包含 plugin.json 和主插件 .py（可附带 templates/static 资源），将自动安装并加载，请确保插件来源安全。';
+        }
+        fileInput.value = '';
+    }
+
+    function openUploadModal() {
+        switchUploadType();
+        showModal('upload-modal');
+    }
+
+    function closeUploadModal() { hideModal('upload-modal'); }
+
+    function confirmUpload() {
+        const uploadType = document.querySelector('input[name="upload-type"]:checked').value;
+        const fileInput = document.getElementById('upload-file');
+        if (!fileInput.files[0]) {
+            showToast(uploadType === 'frontend' ? '请选择前端工具包' : '请选择插件包', 'error');
+            return;
+        }
+        const file = fileInput.files[0];
+        if (file.size > UPLOAD_MAX_SIZE) {
+            showToast('文件大小 ' + formatFileSize(file.size) + ' 超过上限 ' + formatFileSize(UPLOAD_MAX_SIZE) + '，无法上传。', 'error');
+            return;
+        }
+        const uploadUrl = uploadType === 'frontend' ? '/api/admin/frontend/upload' : '/api/admin/plugins/upload';
+        const successMsg = uploadType === 'frontend' ? '前端工具上传安装成功' : '插件上传安装成功';
+        uploadWithProgress(uploadUrl, file, () => {
+            showToast(successMsg, 'success');
+            closeUploadModal();
+            loadPlugins();
+        });
+    }
+
+    // ==================== 更新 ====================
+    function openUpdateModal(name, type = 'backend') {
+        currentUpdateName = name;
+        currentUpdateType = type;
+        document.getElementById('update-modal-title').textContent =
+            (type === 'frontend' ? `更新前端工具: ${name}` : `更新插件: ${name}`);
+        document.getElementById('update-file').value = '';
+        showModal('update-modal');
+    }
+
+    function closeUpdateModal() {
+        hideModal('update-modal');
+        currentPlugin = null;
+    }
+
+    function confirmUpdate() {
+        const fileInput = document.getElementById('update-file');
+        if (!fileInput.files[0]) {
+            showToast(currentUpdateType === 'frontend' ? '请选择前端工具更新包' : '请选择插件包', 'error');
+            return;
+        }
+        const file = fileInput.files[0];
+        if (file.size > UPLOAD_MAX_SIZE) {
+            showToast('文件大小 ' + formatFileSize(file.size) + ' 超过上限 ' + formatFileSize(UPLOAD_MAX_SIZE) + '，无法上传。', 'error');
+            return;
+        }
+        const updateUrl = currentUpdateType === 'frontend'
+            ? `/api/admin/frontend/${currentUpdateName}/update`
+            : `/api/admin/plugins/${currentUpdateName}/update`;
+        const successMsg = currentUpdateType === 'frontend' ? '前端工具更新成功' : '插件更新成功';
+        uploadWithProgress(updateUrl, file, () => {
+            showToast(successMsg, 'success');
+            closeUpdateModal();
+            loadPlugins();
+        });
+    }
+
+    // ==================== 卸载 ====================
+    function confirmUninstall(name, type = 'backend') {
+        currentPlugin = name;
+        const typeName = type === 'frontend' ? '前端工具' : '插件';
+        document.getElementById('modal-title').textContent = '确认卸载';
+        document.getElementById('modal-message').textContent =
+            `确定要卸载${typeName} "${name}" 吗？此操作会删除文件和配置，不可恢复。`;
+        document.getElementById('modal-confirm-btn').onclick = () => uninstallPlugin(name, type);
+        showModal('confirm-modal');
+    }
+
+    async function uninstallPlugin(name, type = 'backend') {
+        closeModal();
+        const uninstallUrl = type === 'frontend'
+            ? `/api/admin/frontend/${name}/uninstall`
+            : `/api/admin/plugins/${name}/uninstall`;
+        const successMsg = type === 'frontend' ? '前端工具已卸载' : '插件已卸载';
+        try {
+            const response = await fetch(uninstallUrl, { method: 'POST' });
+            const data = await response.json();
+            if (data.code === 200) { showToast(successMsg, 'success'); loadPlugins(); }
+            else { showToast('卸载失败: ' + data.message, 'error'); }
+        } catch (e) { showToast('卸载失败: ' + e.message, 'error'); }
+    }
+
+    // ==================== Factory Reset（全部重置，细分在系统管理页） ====================
+    function openResetModal() {
+        document.getElementById('modal-title').textContent = '恢复出厂设置';
+        document.getElementById('modal-message').innerHTML =
+            '确定要执行 <strong>全部重置</strong> 吗？<br>' +
+            '将清除：自定义插件、前端工具、统计与日志、登录会话、临时文件，并重置内置插件配置（auth 恢复默认 admin/admin123）。<br>' +
+            '<span style="color:#e74c3c; font-weight:600;">该操作不可撤销！请务必先手动备份关键数据（plugins/configs、data、frontend_tools.json 等），恢复出厂后不可回退。</span><br>' +
+            '<span style="font-size:12px; color:#95a5a6;">如需仅重置部分范围，请前往「系统管理」页按需勾选。</span>';
+        document.getElementById('modal-confirm-btn').onclick = resetFactory;
+        showModal('confirm-modal');
+    }
+
+    async function resetFactory() {
+        closeModal();
+        try {
+            const response = await fetch('/api/admin/factory-reset', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': _getCsrfCookie() },
+                body: JSON.stringify({ scope: 'all' })
+            });
+            const data = await response.json();
+            if (data.code === 200) {
+                const fail = (data.data && data.data.failed && data.data.failed.length)
+                    ? '，失败 ' + data.data.failed.length + ' 项' : '';
+                const cleaned = (data.data && data.data.cleaned) ? data.data.cleaned.length : 0;
+                showToast(`重置完成：清理 ${cleaned} 项${fail}`, fail ? 'warning' : 'success');
+            } else {
+                showToast('重置失败：' + (data.message || '未知错误'), 'error');
+            }
+            loadPlugins();
+        } catch (e) {
+            showToast('重置异常：' + e.message, 'error');
+        }
+    }
+
+    // ==================== 确认弹窗 ====================
+    function closeModal() { hideModal('confirm-modal'); currentPlugin = null; }
+
+    window.onload = loadPlugins;
+</script>
+{% endblock %}

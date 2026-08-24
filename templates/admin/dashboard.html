@@ -1,0 +1,118 @@
+{% extends 'admin/base.html' %}
+{% block title %}仪表盘 · FlaskToolkit 管理后台{% endblock %}
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">📊 系统仪表盘</h1>
+        <p class="page-subtitle">FlaskToolkit 运行状态总览</p>
+    </div>
+    <button class="btn btn-info" onclick="refreshAll()">🔄 刷新</button>
+</div>
+
+<!-- 统计卡片 -->
+<div class="stats-grid">
+    <div class="stat-card c-blue">
+        <span class="stat-value" id="stPlugins">-</span>
+        <span class="stat-label">后端插件（已加载）</span>
+    </div>
+    <div class="stat-card c-purple">
+        <span class="stat-value" id="stCatalog">-</span>
+        <span class="stat-label">插件目录（含禁用）</span>
+    </div>
+    <div class="stat-card c-green">
+        <span class="stat-value" id="stFrontend">-</span>
+        <span class="stat-label">前端工具</span>
+    </div>
+    <div class="stat-card c-orange">
+        <span class="stat-value" id="stApiCalls">-</span>
+        <span class="stat-label">API 累计调用</span>
+    </div>
+    <div class="stat-card c-teal">
+        <span class="stat-value" id="stFrontendAccess">-</span>
+        <span class="stat-label">前端页面访问</span>
+    </div>
+</div>
+
+<div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:20px;">
+    <!-- 系统信息 -->
+    <div class="card">
+        <h3 class="card-title">🖥️ 系统信息</h3>
+        <div class="table-wrap">
+            <table class="data-table">
+                <tbody id="sysInfoBody">
+                    <tr><td colspan="2" class="loading">加载中...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 快捷入口 -->
+    <div class="card">
+        <h3 class="card-title">🧭 快捷入口</h3>
+        <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:12px;">
+            <a href="/admin/plugins" class="btn btn-primary" style="justify-content:center; padding:18px 0;">🔌 插件管理</a>
+            <a href="/admin/logs" class="btn btn-info" style="justify-content:center; padding:18px 0;">📄 日志查看</a>
+            <a href="/admin/stats" class="btn btn-success" style="justify-content:center; padding:18px 0;">📈 统计详情</a>
+            <a href="/admin/system" class="btn btn-warning" style="justify-content:center; padding:18px 0;">⚙️ 系统管理</a>
+            <a href="/" class="btn btn-info" style="justify-content:center; padding:18px 0;">🏠 返回首页</a>
+        </div>
+        <h3 class="card-title" style="margin-top:24px;">📌 内置插件</h3>
+        <div id="builtinList" class="loading">加载中...</div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function fmt(n) { return Number(n || 0).toLocaleString('zh-CN'); }
+
+    function loadStats() {
+        return fetch('/api/admin/stats', { credentials: 'include' })
+            .then(r => r.json())
+            .then(res => {
+                if (res.code === 200) {
+                    document.getElementById('stPlugins').textContent = fmt(res.data.total_plugins);
+                    document.getElementById('stCatalog').textContent = fmt(res.data.total_plugins_catalog);
+                    document.getElementById('stFrontend').textContent = fmt(res.data.total_frontend_tools);
+                    document.getElementById('stApiCalls').textContent = fmt(res.data.total_api_calls);
+                    document.getElementById('stFrontendAccess').textContent = fmt(res.data.total_frontend_access);
+                }
+            }).catch(() => {});
+    }
+
+    function loadSysInfo() {
+        fetch('/api/admin/system/info', { credentials: 'include' })
+            .then(r => r.json())
+            .then(res => {
+                if (res.code !== 200) return;
+                const d = res.data;
+                const rows = [
+                    ['框架版本', '<span class="badge badge-blue">v' + d.framework_version + '</span>'],
+                    ['Python 版本', d.python_version],
+                    ['运行平台', d.platform],
+                    ['绑定地址', d.host + (d.debug ? '（调试模式）' : '')],
+                    ['项目目录', '<code style="font-size:12px; word-break:break-all;">' + d.base_dir + '</code>'],
+                    ['插件目录（含禁用）', fmt(d.total_plugins_catalog) + ' 项'],
+                    ['前端工具', fmt(d.total_frontend_tools) + ' 项'],
+                ];
+                document.getElementById('sysInfoBody').innerHTML = rows.map(r =>
+                    `<tr><td style="width:130px; color:#7f8c8d; font-weight:600;">${r[0]}</td><td>${r[1]}</td></tr>`
+                ).join('');
+                // 内置插件
+                const builtins = (d.builtin_plugins || []).map(name =>
+                    `<span class="badge badge-orange" style="margin-right:6px;">${name}</span>`
+                ).join(' ') || '无';
+                document.getElementById('builtinList').innerHTML = builtins;
+                document.getElementById('builtinList').classList.remove('loading');
+            }).catch(() => {});
+    }
+
+    function refreshAll() {
+        document.getElementById('sysInfoBody').innerHTML = '<tr><td colspan="2" class="loading">加载中...</td></tr>';
+        loadStats();
+        loadSysInfo();
+    }
+
+    document.addEventListener('DOMContentLoaded', () => { loadStats(); loadSysInfo(); });
+</script>
+{% endblock %}

@@ -1,0 +1,13 @@
+{
+  "name": "user_manage",
+  "title": "用户账号管理",
+  "version": "1.0.1",
+  "author": "System",
+  "category": "系统管理",
+  "description": "用户账号管理插件，支持用户增删改查、密码重置、权限配置",
+  "permission": "admin",
+  "dependencies": [
+    "auth"
+  ],
+  "require_framework_version": "4.0.0"
+}

@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>用户管理 - {{ plugin_name }}</title>
+    <link rel="stylesheet" href="/plugin-static/user_manage/css/user_manage.css">
+    <!-- 标准鉴权公共逻辑：HttpOnly token Cookie 自动携带 + CSRF 双提交注入 + 401/403 统一处理 -->
+    <script src="/static/js/plugin_common.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+        }
+        body {
+            background-color: #f5f7fa;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .page-header {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .page-title {
+            font-size: 24px;
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+        .page-subtitle {
+            color: #7f8c8d;
+            font-size: 14px;
+        }
+        .toolbar {
+            background: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .search-bar {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .search-input {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            width: 200px;
+        }
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .btn-primary {
+            background: #3498db;
+            color: white;
+        }
+        .btn-primary:hover {
+            background: #2980b9;
+        }
+        .btn-success {
+            background: #27ae60;
+            color: white;
+        }
+        .btn-success:hover {
+            background: #229954;
+        }
+        .btn-warning {
+            background: #f39c12;
+            color: white;
+        }
+        .btn-warning:hover {
+            background: #d35400;
+        }
+        .btn-danger {
+            background: #e74c3c;
+            color: white;
+        }
+        .btn-danger:hover {
+            background: #c0392b;
+        }
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .table-container {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #ecf0f1;
+        }
+        th {
+            background: #f8f9fa;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        tr:hover {
+            background: #f8f9fa;
+        }
+        .role-tag {
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .role-admin {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+        .role-user {
+            background: #e8f5e9;
+            color: #388e3c;
+        }
+        .action-buttons {
+            display: flex;
+            gap: 5px;
+        }
+        .action-btn {
+            padding: 4px 8px;
+            font-size: 12px;
+            border-radius: 3px;
+        }
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .pagination-info {
+            font-size: 14px;
+            color: #7f8c8d;
+        }
+        /* 模态框样式 */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        .modal-content {
+            background-color: white;
+            margin: 10% auto;
+            padding: 20px;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 500px;
+            position: relative;
+        }
+        .close-modal {
+            position: absolute;
+            right: 15px;
+            top: 15px;
+            font-size: 24px;
+            cursor: pointer;
+            color: #aaa;
+        }
+        .close-modal:hover {
+            color: #333;
+        }
+        .modal-title {
+            font-size: 18px;
+            margin-bottom: 20px;
+            color: #2c3e50;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 14px;
+            color: #2c3e50;
+        }
+        .form-input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .form-select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .form-tip {
+            font-size: 12px;
+            color: #7f8c8d;
+            margin-top: 3px;
+        }
+        .error-tip {
+            color: #e74c3c;
+            font-size: 14px;
+            margin-bottom: 15px;
+            display: none;
+        }
+        .modal-footer {
+            text-align: right;
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #95a5a6;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #7f8c8d;
+        }
+        /* 消息提示 */
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            border-radius: 4px;
+            color: white;
+            font-size: 14px;
+            z-index: 2000;
+            display: none;
+        }
+        .toast.success {
+            background: #27ae60;
+        }
+        .toast.error {
+            background: #e74c3c;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 页面头部 -->
+        <div class="page-header">
+            <h1 class="page-title">👥 用户管理</h1>
+            <p class="page-subtitle">{{ plugin_description }} (v{{ plugin_version }})</p>
+        </div>
+
+        <!-- 工具栏 -->
+        <div class="toolbar">
+            <div class="search-bar">
+                <input type="text" id="keyword" class="search-input" placeholder="搜索用户名/昵称">
+                <button class="btn btn-primary" onclick="loadUserList()">搜索</button>
+            </div>
+            <button class="btn btn-success" onclick="openCreateModal()">+ 新建用户</button>
+        </div>
+
+        <!-- 用户列表 -->
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>用户名</th>
+                        <th>昵称</th>
+                        <th>角色</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="userTableBody">
+                    <tr>
+                        <td colspan="5" class="loading">加载中...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 分页 -->
+        <div class="pagination">
+            <button class="btn" id="prevBtn" onclick="changePage(currentPage - 1)" disabled>上一页</button>
+            <span class="pagination-info" id="paginationInfo">第 1 页 / 共 0 页</span>
+            <button class="btn" id="nextBtn" onclick="changePage(currentPage + 1)" disabled>下一页</button>
+        </div>
+    </div>
+
+    <!-- 新建用户模态框 -->
+    <div id="createModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeCreateModal()">&times;</span>
+            <h2 class="modal-title">新建用户</h2>
+            <div class="error-tip" id="createErrorTip"></div>
+            <div class="form-group">
+                <label class="form-label">用户名 <span style="color: #e74c3c;">*</span></label>
+                <input type="text" id="createUsername" class="form-input" placeholder="请输入用户名">
+            </div>
+            <div class="form-group">
+                <label class="form-label">密码 <span style="color: #e74c3c;">*</span></label>
+                <input type="password" id="createPassword" class="form-input" placeholder="请输入密码">
+            </div>
+            <div class="form-group">
+                <label class="form-label">昵称</label>
+                <input type="text" id="createNickname" class="form-input" placeholder="请输入用户昵称（可选）">
+            </div>
+            <div class="form-group">
+                <label class="form-label">角色</label>
+                <select id="createRole" class="form-select">
+                    <option value="user">普通用户</option>
+                    <option value="admin">管理员</option>
+                </select>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="closeCreateModal()">取消</button>
+                <button class="btn btn-success" id="createSubmitBtn" onclick="createUser()">创建用户</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 编辑用户模态框 -->
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeEditModal()">&times;</span>
+            <h2 class="modal-title">编辑用户</h2>
+            <div class="error-tip" id="editErrorTip"></div>
+            <input type="hidden" id="editUserId">
+            <div class="form-group">
+                <label class="form-label">用户名</label>
+                <input type="text" id="editUsername" class="form-input" disabled>
+            </div>
+            <div class="form-group">
+                <label class="form-label">昵称</label>
+                <input type="text" id="editNickname" class="form-input" placeholder="请输入用户昵称">
+            </div>
+            <div class="form-group">
+                <label class="form-label">角色</label>
+                <select id="editRole" class="form-select">
+                    <option value="user">普通用户</option>
+                    <option value="admin">管理员</option>
+                </select>
+                <div class="form-tip" id="editRoleTip" style="display: none; color: #e74c3c;">超级管理员角色不可修改</div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="closeEditModal()">取消</button>
+                <button class="btn btn-primary" id="editSubmitBtn" onclick="updateUser()">保存修改</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 重置密码模态框 -->
+    <div id="resetPasswordModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeResetPasswordModal()">&times;</span>
+            <h2 class="modal-title">重置密码</h2>
+            <div class="error-tip" id="resetErrorTip"></div>
+            <input type="hidden" id="resetUserId">
+            <div class="form-group">
+                <label class="form-label">用户名</label>
+                <input type="text" id="resetUsername" class="form-input" disabled>
+            </div>
+            <div class="form-group">
+                <label class="form-label">新密码 <span style="color: #e74c3c;">*</span></label>
+                <input type="password" id="newPassword" class="form-input" placeholder="请输入新密码">
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="closeResetPasswordModal()">取消</button>
+                <button class="btn btn-warning" id="resetSubmitBtn" onclick="resetPassword()">确认重置</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 删除确认模态框 -->
+    <div id="deleteModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeDeleteModal()">&times;</span>
+            <h2 class="modal-title">确认删除</h2>
+            <p style="margin-bottom: 20px;">确定要删除用户 <span id="deleteUsername" style="font-weight: bold; color: #e74c3c;"></span> 吗？此操作不可撤销。</p>
+            <div class="error-tip" id="deleteErrorTip"></div>
+            <input type="hidden" id="deleteUserId">
+            <div class="modal-footer">
+                <button class="btn" onclick="closeDeleteModal()">取消</button>
+                <button class="btn btn-danger" id="deleteSubmitBtn" onclick="deleteUser()">确认删除</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 消息提示 -->
+    <div id="toast" class="toast"></div>
+    <!-- 插件静态资源演示徽章（样式由 static/css/user_manage.css 提供） -->
+    <div id="pluginStaticBadge" class="plugin-static-badge"></div>
+
+    <script>
+        // ===== 插件静态资源演示（plugin-static demo）=====
+        // 探测 /plugin-static/<插件名>/ 下的静态资源是否可访问
+        (function () {
+            const badge = document.getElementById('pluginStaticBadge');
+            if (!badge) return;
+            badge.textContent = '插件静态资源加载中...';
+            fetch('/plugin-static/user_manage/css/user_manage.css', { method: 'HEAD' })
+                .then(function (r) {
+                    if (r.ok) {
+                        badge.textContent = '✓ 插件静态资源已加载（/plugin-static/user_manage/）';
+                        badge.classList.add('loaded');
+                    } else {
+                        badge.textContent = '✗ 插件静态资源不可访问';
+                    }
+                })
+                .catch(function () {
+                    badge.textContent = '✗ 插件静态资源不可访问';
+                });
+        })();
+
+        // 全局变量
+        let currentPage = 1;
+        const pageSize = 10;
+        let currentKeyword = '';
+
+        // 鉴权统一由 /static/js/plugin_common.js 处理：
+        // - 会话 token 为 HttpOnly Cookie，浏览器自动携带，前端无需读取（getToken 读 document.cookie 恒为 null，曾导致误判未登录而循环跳转登录页）
+        // - CSRF 双提交：plugin_common 对非 GET 请求自动注入 X-CSRF-Token 头
+        // - 401/403 由 plugin_common 全局拦截处理（401 跳登录、403 跳 403 页）
+        // 本页面不再自定义 getToken() 或 XHR 拦截器，避免与 plugin_common 冲突。
+
+        // 消息提示
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = `toast ${type}`;
+            toast.style.display = 'block';
+            setTimeout(() => {
+                toast.style.display = 'none';
+            }, 3000);
+        }
+
+        // 加载用户列表
+        function loadUserList() {
+            currentKeyword = document.getElementById('keyword').value.trim();
+            const tbody = document.getElementById('userTableBody');
+            tbody.innerHTML = '<tr><td colspan="5" class="loading">加载中...</td></tr>';
+
+            const xhr = new XMLHttpRequest();
+            let url = `/api/user_manage/list?page=${currentPage}&page_size=${pageSize}`;
+            if (currentKeyword) {
+                url += `&keyword=${encodeURIComponent(currentKeyword)}`;
+            }
+            
+            xhr.open('GET', url, true);
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4) {
+                    if (xhr.status === 200) {
+                        try {
+                            const res = JSON.parse(xhr.responseText);
+                            if (res.code === 200) {
+                                renderUserList(res.data);
+                            } else {
+                                tbody.innerHTML = '<tr><td colspan="5" class="empty-state">加载失败：' + (res.message || res.msg || '未知错误') + '</td></tr>';
+                                showToast('加载用户列表失败', 'error');
+                            }
+                        } catch (e) {
+                            tbody.innerHTML = '<tr><td colspan="5" class="empty-state">响应解析失败</td></tr>';
+                            showToast('加载用户列表失败', 'error');
+                        }
+                    } else {
+                        tbody.innerHTML = '<tr><td colspan="5" class="empty-state">加载失败，HTTP状态码：' + xhr.status + '</td></tr>';
+                        showToast('加载用户列表失败', 'error');
+                    }
+                }
+            };
+            xhr.send();
+        }
+
+        // 渲染用户列表
+        function renderUserList(data) {
+            const tbody = document.getElementById('userTableBody');
+            const { list, total, page, page_size } = data;
+            const totalPages = Math.ceil(total / page_size);
+
+            if (list.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="empty-state">暂无用户数据</td></tr>';
+            } else {
+                tbody.innerHTML = list.map(user => `
+                    <tr>
+                        <td>${user.id}</td>
+                        <td>${user.username}</td>
+                        <td>${user.nickname || user.username}</td>
+                        <td>
+                            <span class="role-tag ${user.role === 'admin' ? 'role-admin' : 'role-user'}">
+                                ${user.role === 'admin' ? '管理员' : '普通用户'}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="action-buttons">
+                                <button class="btn action-btn btn-primary" onclick="openEditModal(${JSON.stringify(user).replace(/"/g, '&quot;')})">编辑</button>
+                                <button class="btn action-btn btn-warning" onclick="openResetPasswordModal(${user.id}, '${user.username}')">重置密码</button>
+                                <button class="btn action-btn btn-danger" onclick="openDeleteModal(${user.id}, '${user.username}')" ${user.username === 'admin' ? 'disabled title="超级管理员不可删除"' : ''}>删除</button>
+                            </div>
+                        </td>
+                    </tr>
+                `).join('');
+            }
+
+            // 更新分页
+            document.getElementById('paginationInfo').textContent = `第 ${page} 页 / 共 ${totalPages} 页（共 ${total} 条）`;
+            document.getElementById('prevBtn').disabled = page <= 1;
+            document.getElementById('nextBtn').disabled = page >= totalPages;
+        }
+
+        // 分页切换
+        function changePage(page) {
+            if (page < 1) return;
+            currentPage = page;
+            loadUserList();
+        }
+
+        // 新建用户模态框
+        function openCreateModal() {
+            document.getElementById('createModal').style.display = 'block';
+            document.getElementById('createUsername').value = '';
+            document.getElementById('createPassword').value = '';
+            document.getElementById('createNickname').value = '';
+            document.getElementById('createRole').value = 'user';
+            document.getElementById('createErrorTip').style.display = 'none';
+        }
+
+        function closeCreateModal() {
+            document.getElementById('createModal').style.display = 'none';
+        }
+
+        function createUser() {
+            const username = document.getElementById('createUsername').value.trim();
+            const password = document.getElementById('createPassword').value.trim();
+            const nickname = document.getElementById('createNickname').value.trim();
+            const role = document.getElementById('createRole').value;
+            const errorTip = document.getElementById('createErrorTip');
+            const submitBtn = document.getElementById('createSubmitBtn');
+
+            if (!username || !password) {
+                errorTip.textContent = '用户名和密码不能为空';
+                errorTip.style.display = 'block';
+                return;
+            }
+
+            submitBtn.disabled = true;
+            submitBtn.textContent = '创建中...';
+            errorTip.style.display = 'none';
+
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', '/api/user_manage/create', true);
+            xhr.setRequestHeader('Content-Type', 'application/json');
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4) {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = '创建用户';
+                    try {
+                        const res = JSON.parse(xhr.responseText);
+                        if (res.code === 200) {
+                            showToast('用户创建成功');
+                            closeCreateModal();
+                            loadUserList();
+                        } else {
+                            errorTip.textContent = res.message || res.msg || '创建失败';
+                            errorTip.style.display = 'block';
+                        }
+                    } catch (e) {
+                        errorTip.textContent = '响应异常，请重试';
+                        errorTip.style.display = 'block';
+                    }
+                }
+            };
+            xhr.send(JSON.stringify({
+                username: username,
+                password: password,
+                nickname: nickname || undefined,
+                role: role
+            }));
+        }
+
+        // 编辑用户模态框
+        function openEditModal(user) {
+            document.getElementById('editModal').style.display = 'block';
+            document.getElementById('editUserId').value = user.id;
+            document.getElementById('editUsername').value = user.username;
+            document.getElementById('editNickname').value = user.nickname || '';
+            document.getElementById('editRole').value = user.role;
+            document.getElementById('editErrorTip').style.display = 'none';
+            
+            // 超级管理员禁止修改角色
+            if (user.username === 'admin') {
+                document.getElementById('editRole').disabled = true;
+                document.getElementById('editRoleTip').style.display = 'block';
+            } else {
+                document.getElementById('editRole').disabled = false;
+                document.getElementById('editRoleTip').style.display = 'none';
+            }
+        }
+
+        function closeEditModal() {
+            document.getElementById('editModal').style.display = 'none';
+        }
+
+        function updateUser() {
+            const userId = document.getElementById('editUserId').value;
+            const nickname = document.getElementById('editNickname').value.trim();
+            const role = document.getElementById('editRole').value;
+            const errorTip = document.getElementById('editErrorTip');
+            const submitBtn = document.getElementById('editSubmitBtn');
+
+            submitBtn.disabled = true;
+            submitBtn.textContent = '保存中...';
+            errorTip.style.display = 'none';
+
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', '/api/user_manage/update', true);
+            xhr.setRequestHeader('Content-Type', 'application/json');
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4) {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = '保存修改';
+                    try {
+                        const res = JSON.parse(xhr.responseText);
+                        if (res.code === 200) {
+                            showToast('用户信息更新成功');
+                            closeEditModal();
+                            loadUserList();
+                        } else {
+                            errorTip.textContent = res.message || res.msg || '更新失败';
+                            errorTip.style.display = 'block';
+                        }
+                    } catch (e) {
+                        errorTip.textContent = '响应异常，请重试';
+                        errorTip.style.display = 'block';
+                    }
+                }
+            };
+            xhr.send(JSON.stringify({
+                user_id: parseInt(userId),
+                nickname: nickname || undefined,
+                role: role
+            }));
+        }
+
+        // 重置密码模态框
+        function openResetPasswordModal(userId, username) {
+            document.getElementById('resetPasswordModal').style.display = 'block';
+            document.getElementById('resetUserId').value = userId;
+            document.getElementById('resetUsername').value = username;
+            document.getElementById('newPassword').value = '';
+            document.getElementById('resetErrorTip').style.display = 'none';
+        }
+
+        function closeResetPasswordModal() {
+            document.getElementById('resetPasswordModal').style.display = 'none';
+        }
+
+        function resetPassword() {
+            const userId = document.getElementById('resetUserId').value;
+            const newPassword = document.getElementById('newPassword').value.trim();
+            const errorTip = document.getElementById('resetErrorTip');
+            const submitBtn = document.getElementById('resetSubmitBtn');
+
+            if (!newPassword) {
+                errorTip.textContent = '新密码不能为空';
+                errorTip.style.display = 'block';
+                return;
+            }
+
+            submitBtn.disabled = true;
+            submitBtn.textContent = '重置中...';
+            errorTip.style.display = 'none';
+
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', '/api/user_manage/reset_password', true);
+            xhr.setRequestHeader('Content-Type', 'application/json');
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4) {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = '确认重置';
+                    try {
+                        const res = JSON.parse(xhr.responseText);
+                        if (res.code === 200) {
+                            showToast('密码重置成功');
+                            closeResetPasswordModal();
+                        } else {
+                            errorTip.textContent = res.message || res.msg || '重置失败';
+                            errorTip.style.display = 'block';
+                        }
+                    } catch (e) {
+                        errorTip.textContent = '响应异常，请重试';
+                        errorTip.style.display = 'block';
+                    }
+                }
+            };
+            xhr.send(JSON.stringify({
+                user_id: parseInt(userId),
+                new_password: newPassword
+            }));
+        }
+
+        // 删除确认模态框
+        function openDeleteModal(userId, username) {
+            document.getElementById('deleteModal').style.display = 'block';
+            document.getElementById('deleteUserId').value = userId;
+            document.getElementById('deleteUsername').textContent = username;
+            document.getElementById('deleteErrorTip').style.display = 'none';
+        }
+
+        function closeDeleteModal() {
+            document.getElementById('deleteModal').style.display = 'none';
+        }
+
+        function deleteUser() {
+            const userId = document.getElementById('deleteUserId').value;
+            const errorTip = document.getElementById('deleteErrorTip');
+            const submitBtn = document.getElementById('deleteSubmitBtn');
+
+            submitBtn.disabled = true;
+            submitBtn.textContent = '删除中...';
+            errorTip.style.display = 'none';
+
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', '/api/user_manage/delete', true);
+            xhr.setRequestHeader('Content-Type', 'application/json');
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4) {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = '确认删除';
+                    try {
+                        const res = JSON.parse(xhr.responseText);
+                        if (res.code === 200) {
+                            showToast('用户删除成功');
+                            closeDeleteModal();
+                            loadUserList();
+                        } else {
+                            errorTip.textContent = res.message || res.msg || '删除失败';
+                            errorTip.style.display = 'block';
+                        }
+                    } catch (e) {
+                        errorTip.textContent = '响应异常，请重试';
+                        errorTip.style.display = 'block';
+                    }
+                }
+            };
+            xhr.send(JSON.stringify({
+                user_id: parseInt(userId)
+            }));
+        }
+
+        // 点击模态框外部关闭
+        window.onclick = function(event) {
+            if (event.target.classList.contains('modal')) {
+                event.target.style.display = 'none';
+            }
+        };
+
+        // 回车搜索
+        document.getElementById('keyword').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                currentPage = 1;
+                loadUserList();
+            }
+        });
+
+        // 页面加载时加载用户列表
+        // 登录态由 plugin_common.js 自动校验（调用 /api/auth/user/info，Cookie 自动携带）：
+        // 未登录时 list 接口返回 401，由 plugin_common 全局拦截跳转登录页；
+        // 已登录时直接加载（不再因 HttpOnly token 读不到而死循环刷新）。
+        window.onload = function() {
+            loadUserList();
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,44 @@
+# ---------- Python ----------
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+
+# ---------- FlaskToolkit 运行时数据（首次启动自动生成，无需提交） ----------
+# 统计数据 / 审计日志 / 用户配置 / 首次自检标记
+data/stats.json
+data/audit.log
+data/user_config.json
+data/.initialized
+data/*.json
+# 日志与临时目录
+logs/
+temp/
+backups/
+.plugin_cache/
+# 插件运行时状态（auth 首次启动自动重建 admin/admin123）
+plugins/data/
+plugins/temp/
+plugins/configs/auth.json
+plugins/status.json
+
+# ---------- 沙箱/探针残留 ----------
+_t_hook.txt
+
+# ---------- AI 助手本地数据骨架（users/ 非项目内容，保留本地不入库） ----------
+users/
+data/.write_probe
+data/.*
+
+# ---------- 历史版本文档归档（开源仓库仅保留当前版本 v4.0 / Roadmap / 指南） ----------
+# 历史版本文档统一归档在 documents/archive/（不入库），当前文档保留在 documents/ 根目录
+documents/archive/
+
+# ---------- 操作系统 / 编辑器 ----------
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp

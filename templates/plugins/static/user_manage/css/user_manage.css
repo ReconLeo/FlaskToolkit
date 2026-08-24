@@ -1,0 +1,25 @@
+/* ============================================================
+   UserManage 插件静态资源示例
+   ------------------------------------------------------------
+   说明：插件包可携带 static/ 目录（可选），解压后通过
+   /plugin-static/<插件名>/<路径> 访问。
+   本文件演示：页面底部徽章样式由插件静态资源提供，
+   若静态资源成功加载，徽章将可见（证明静态资源路由生效）。
+   ============================================================ */
+
+.plugin-static-badge {
+    display: none;               /* 默认隐藏 */
+    margin-top: 20px;
+    padding: 8px 14px;
+    border: 1px dashed #3498db;
+    border-radius: 4px;
+    background: #eaf6ff;
+    color: #2980b9;
+    font-size: 12px;
+    text-align: center;
+}
+
+/* 由本 css 控制的类：当资源加载成功时徽章显示 */
+.plugin-static-badge.loaded {
+    display: block;
+}

@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ plugin_name }} - {{ plugin_description }}</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+        }
+        .container {
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 0 20px;
+        }
+        .header {
+            margin-bottom: 30px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #eee;
+        }
+        .back-btn {
+            display: inline-block;
+            margin-bottom: 20px;
+            padding: 8px 16px;
+            background: #3498db;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+        }
+        .back-btn:hover {
+            background: #2980b9;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .plugin-meta {
+            color: #666;
+            font-size: 14px;
+        }
+        .api-card {
+            background: #f5f5f5;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .api-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+        .api-path {
+            color: #3498db;
+            font-family: monospace;
+            margin-bottom: 10px;
+        }
+        .param-input {
+            margin: 10px 0;
+        }
+        .param-input label {
+            display: inline-block;
+            width: 100px;
+            font-weight: 500;
+        }
+        .param-input input, .param-input textarea {
+            padding: 8px;
+            width: 300px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .param-input textarea {
+            height: 100px;
+            resize: vertical;
+        }
+        button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        button:hover {
+            background: #2980b9;
+        }
+        .result {
+            margin-top: 15px;
+            padding: 15px;
+            background: #e8f4f8;
+            border-radius: 4px;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+		.param-input textarea { width: 100%; min-height: 60px; font-family: monospace; }
+        .param-hint { font-size: 12px; color: #888; margin-top: 2px; }
+        .result { background: #1e1e1e; color: #d4d4d4; padding: 12px; border-radius: 4px; font-family: monospace; white-space: pre-wrap; overflow-x: auto; margin-top: 10px; }
+        .type-badge { display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 11px; margin-left: 6px; }
+        .type-badge.string { background: #e3f2fd; color: #1565c0; }
+        .type-badge.number { background: #e8f5e9; color: #2e7d32; }
+        .type-badge.int { background: #e8f5e9; color: #2e7d32; }
+        .type-badge.boolean { background: #fff3e0; color: #e65100; }
+        .type-badge.array { background: #f3e5f5; color: #6a1b9a; }
+        .type-badge.file { background: #fce4ec; color: #c62828; }
+        .type-badge.object { background: #e0f7fa; color: #00695c; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/" class="back-btn">← 返回工具集首页</a>
+        <div class="header">
+            <h1>{{ plugin_name }}</h1>
+            <div class="plugin-meta">
+                <p>分类: {{ plugin_category }}</p>
+                <p>版本: {{ plugin_version }}</p>
+                <p>描述: {{ plugin_description }}</p>
+            </div>
+        </div>
+        
+        {% for api in apis %}
+        <div class="api-card">
+            <div class="api-title">{{ api.name }}</div>
+            <div class="api-path">{{ api.methods[0] }} {{ api.path }}</div>
+            
+            {% for param in api.params %}
+            <div class="param-input">
+                <label>
+                    {{ param.name }}
+                    {% if param.required is not defined or param.required %}
+                    <span style="color:red;">*</span>
+                    {% endif %}
+                    <span class="type-badge {{ param.type }}">{{ param.type }}</span>
+                </label>
+                {% if param.type in ('string', 'text') %}
+                <textarea class="param" data-name="{{ param.name }}" 
+                          data-type="{{ param.type }}"
+                          placeholder="{{ param.description or '' }}"
+                          {{ 'data-default="' ~ param.default ~ '"' if param.default is defined and param.default is not none else '' }}>{{ param.default if param.default is defined and param.default is not none else '' }}</textarea>
+                {% elif param.type == 'boolean' %}
+                <select class="param" data-name="{{ param.name }}" data-type="{{ param.type }}">
+                    <option value="">-- 请选择 --</option>
+                    <option value="true" {{ 'selected' if param.default == true or param.default == 'true' else '' }}>true</option>
+                    <option value="false" {{ 'selected' if param.default == false or param.default == 'false' else '' }}>false</option>
+                </select>
+                {% elif param.type == 'file' %}
+                <input type="file" class="param" data-name="{{ param.name }}" data-type="{{ param.type }}">
+                {% elif param.type == 'array' %}
+                <textarea class="param" data-name="{{ param.name }}" 
+                          data-type="{{ param.type }}"
+                          placeholder="{{ 'JSON数组，如: [\"a\",\"b\",\"c\"]  或逗号分隔: a,b,c' }}"
+                >{{ param.default | tojson if param.default is defined and param.default is not none else '' }}</textarea>
+                <div class="param-hint">支持 JSON 数组格式 或 逗号分隔值</div>
+                {% elif param.type == 'object' %}
+                <textarea class="param" data-name="{{ param.name }}" 
+                          data-type="{{ param.type }}"
+                          placeholder='JSON对象，如: {"key":"value"}'
+                >{{ param.default | tojson if param.default is defined and param.default is not none else '' }}</textarea>
+                <div class="param-hint">请输入 JSON 对象格式</div>
+                {% else %}
+                <input type="text" class="param" data-name="{{ param.name }}" 
+                       data-type="{{ param.type }}"
+                       placeholder="{{ param.description or '' }}"
+                       value="{{ param.default if param.default is defined and param.default is not none else '' }}">
+                {% endif %}
+            </div>
+            {% endfor %}
+            
+            <button onclick="callApi('{{ api.path }}', '{{ api.methods[0] }}', this)">调用</button>
+            <div class="result" style="display: none;"></div>
+        </div>
+        {% endfor %}
+    </div>
+ 
+    <script>
+        /**
+         * 尝试将字符串解析为 JSON 值（对象/数组），失败则返回原字符串
+         */
+        function tryParseJSON(value) {
+            if (typeof value !== 'string' || value.trim() === '') {
+                return value;
+            }
+            const trimmed = value.trim();
+            // 只有以 { 或 [ 开头的才尝试 JSON 解析，避免误伤普通字符串
+            if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+                try {
+                    return JSON.parse(trimmed);
+                } catch (e) {
+                    return value;  // 解析失败，保持原字符串
+                }
+            }
+            return value;
+        }
+ 
+        function callApi(path, method, button) {
+            const card = button.closest('.api-card');
+            const paramElements = card.querySelectorAll('.param');
+            const resultEl = card.querySelector('.result');
+            
+            const params = {};
+            let hasFiles = false;
+            const formData = new FormData();
+ 
+            paramElements.forEach(el => {
+                const name = el.dataset.name;
+                const type = el.dataset.type;
+ 
+                // 文件类型特殊处理
+                if (type === 'file') {
+                    const files = el.files;
+                    if (files && files.length > 0) {
+                        hasFiles = true;
+                        formData.append(name, files[0]);
+                    }
+                    return;
+                }
+ 
+                const rawValue = el.value;
+ 
+                // 空值跳过
+                if (rawValue === '' || rawValue === null || rawValue === undefined) {
+                    return;
+                }
+ 
+                // ★ 核心改进：根据类型进行 JSON 化处理
+                if (type === 'array' || type === 'object') {
+                    // 尝试 JSON 解析，如果是合法 JSON 则用解析后的值
+                    params[name] = tryParseJSON(rawValue);
+                } else if (type === 'boolean') {
+                    // 布尔类型：下拉选择的值直接保留字符串 'true'/'false'
+                    params[name] = rawValue;
+                } else if (type === 'number' || type === 'int') {
+                    // 数字类型：尝试转数字，失败则保留字符串
+                    const num = Number(rawValue);
+                    params[name] = isNaN(num) ? rawValue : num;
+                } else {
+                    params[name] = rawValue;
+                }
+            });
+ 
+            // ★ 构建请求
+            const options = {
+                method: method,
+                headers: {}
+            };
+ 
+            if (hasFiles) {
+                // 文件上传：使用 FormData，不设置 Content-Type（让浏览器自动设置）
+                for (const [key, value] of Object.entries(params)) {
+                    formData.append(key, typeof value === 'object' ? JSON.stringify(value) : String(value));
+                }
+                options.body = formData;
+            } else if (method.toUpperCase() === 'POST') {
+                // JSON 方式：Content-Type 为 application/json，body 为 JSON 字符串
+                options.headers['Content-Type'] = 'application/json';
+                options.body = JSON.stringify(params);
+            } else {
+                // GET 请求：将参数拼接到 URL 查询字符串
+                // ★ 对复杂类型进行 JSON.stringify 后再 encodeURIComponent
+                const urlParams = new URLSearchParams();
+                for (const [key, value] of Object.entries(params)) {
+                    if (typeof value === 'object') {
+                        urlParams.append(key, JSON.stringify(value));
+                    } else {
+                        urlParams.append(key, String(value));
+                    }
+                }
+                const queryString = urlParams.toString();
+                if (queryString) {
+                    path += '?' + queryString;
+                }
+            }
+ 
+            // 显示加载状态
+            resultEl.style.display = 'block';
+            resultEl.textContent = '请求中...';
+ 
+            fetch(path, options)
+                .then(res => res.json())
+                .then(data => {
+                    resultEl.style.display = 'block';
+                    resultEl.textContent = JSON.stringify(data, null, 2);
+                })
+                .catch(err => {
+                    resultEl.style.display = 'block';
+                    resultEl.textContent = '错误: ' + err.message;
+                });
+        }
+    </script>
+</body>
+</html>

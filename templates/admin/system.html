@@ -1,0 +1,210 @@
+{% extends 'admin/base.html' %}
+{% block title %}系统管理 · FlaskToolkit 管理后台{% endblock %}
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">⚙️ 系统管理</h1>
+        <p class="page-subtitle">系统信息查看与 Factory Reset 恢复出厂设置</p>
+    </div>
+    <button class="btn btn-info" onclick="loadSysInfo()">🔄 刷新</button>
+</div>
+
+<div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:20px;">
+    <!-- 系统信息 -->
+    <div class="card">
+        <h3 class="card-title">🖥️ 系统信息</h3>
+        <div class="table-wrap">
+            <table class="data-table">
+                <tbody id="sysInfoBody">
+                    <tr><td colspan="2" class="loading">加载中...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Factory Reset -->
+    <div class="card">
+        <h3 class="card-title">♻️ Factory Reset（恢复出厂设置）</h3>
+        <p style="font-size:13px; color:#7f8c8d; margin-bottom:16px;">
+            将部分/全部框架数据还原至安装初始状态。<strong style="color:#e74c3c;">重置操作不可撤销</strong>，请谨慎操作。
+        </p>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:16px;">
+            <label class="scope-item" style="display:flex; align-items:center; gap:8px; font-size:14px; cursor:pointer;">
+                <input type="checkbox" value="plugins" class="scope-chk"> 自定义插件（内置受保护）
+            </label>
+            <label class="scope-item" style="display:flex; align-items:center; gap:8px; font-size:14px; cursor:pointer;">
+                <input type="checkbox" value="frontend_tools" class="scope-chk"> 前端工具
+            </label>
+            <label class="scope-item" style="display:flex; align-items:center; gap:8px; font-size:14px; cursor:pointer;">
+                <input type="checkbox" value="stats_logs" class="scope-chk"> 统计与日志
+            </label>
+            <label class="scope-item" style="display:flex; align-items:center; gap:8px; font-size:14px; cursor:pointer;">
+                <input type="checkbox" value="sessions" class="scope-chk"> 登录会话
+            </label>
+            <label class="scope-item" style="display:flex; align-items:center; gap:8px; font-size:14px; cursor:pointer;">
+                <input type="checkbox" value="temp" class="scope-chk"> 临时文件
+            </label>
+        </div>
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <button class="btn btn-warning" onclick="resetSelected()">重置所选范围</button>
+            <button class="btn btn-danger" onclick="openResetAllConfirm()">⚠️ 全部重置</button>
+        </div>
+        <div id="resetResult" style="margin-top:14px; font-size:13px; display:none;"></div>
+    </div>
+
+    <!-- 审计日志（最近操作） -->
+    <div class="card">
+        <h3 class="card-title">🔍 最近操作（审计日志）</h3>
+        <div style="display:flex; justify-content:flex-end; margin-bottom:10px;">
+            <button class="btn btn-info btn-sm" onclick="loadAuditLog()">刷新</button>
+        </div>
+        <div class="table-wrap">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th style="width:150px;">时间</th>
+                        <th style="width:100px;">操作者</th>
+                        <th style="width:110px;">动作</th>
+                        <th style="width:140px;">目标</th>
+                        <th style="width:60px;">结果</th>
+                        <th>详情</th>
+                    </tr>
+                </thead>
+                <tbody id="auditLogBody">
+                    <tr><td colspan="6" class="loading">加载中...</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <p style="font-size:12px; color:#95a5a6; margin-top:8px;">
+            审计日志记录管理后台敏感操作（安装/更新/卸载/启用/禁用/重置），存储于 <code>data/audit.log</code>，Factory Reset 各范围均不会清除。
+        </p>
+    </div>
+</div>
+
+<!-- 确认弹窗 -->
+<div id="reset-modal" class="modal">
+    <div class="modal-content">
+        <h3 id="reset-modal-title" style="margin-bottom:12px;">确认重置</h3>
+        <p id="reset-modal-message" style="color:#34495e; line-height:1.7;"></p>
+        <div class="modal-buttons">
+            <button class="btn btn-info" onclick="hideModal('reset-modal')">取消</button>
+            <button class="btn btn-danger" id="reset-modal-confirm" onclick="doReset()">确认重置</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let pendingScope = null;
+
+    function fmt(n) { return Number(n || 0).toLocaleString('zh-CN'); }
+
+    function loadSysInfo() {
+        fetch('/api/admin/system/info', { credentials: 'include' })
+            .then(r => r.json())
+            .then(res => {
+                if (res.code !== 200) return;
+                const d = res.data;
+                const rows = [
+                    ['框架版本', '<span class="badge badge-blue">v' + d.framework_version + '</span>'],
+                    ['Python 版本', d.python_version],
+                    ['运行平台', d.platform],
+                    ['绑定地址', d.host + (d.debug ? '（调试模式）' : '')],
+                    ['项目目录', '<code style="font-size:12px; word-break:break-all;">' + d.base_dir + '</code>'],
+                    ['后端插件（已加载）', fmt(d.total_plugins) + ' 项'],
+                    ['插件目录（含禁用）', fmt(d.total_plugins_catalog) + ' 项'],
+                    ['前端工具', fmt(d.total_frontend_tools) + ' 项'],
+                    ['内置插件', (d.builtin_plugins || []).map(n =>
+                        `<span class="badge badge-orange" style="margin-right:4px;">${n}</span>`).join('') || '无'],
+                ];
+                document.getElementById('sysInfoBody').innerHTML = rows.map(r =>
+                    `<tr><td style="width:150px; color:#7f8c8d; font-weight:600;">${r[0]}</td><td>${r[1]}</td></tr>`
+                ).join('');
+            }).catch(() => {});
+    }
+
+    function loadAuditLog() {
+        fetch('/api/admin/audit?lines=50', { credentials: 'include' })
+            .then(r => r.json())
+            .then(res => {
+                const body = document.getElementById('auditLogBody');
+                if (res.code !== 200) { body.innerHTML = '<tr><td colspan="6" class="empty-state">加载失败</td></tr>'; return; }
+                const list = res.data || [];
+                if (list.length === 0) { body.innerHTML = '<tr><td colspan="6" class="empty-state">暂无操作记录</td></tr>'; return; }
+                body.innerHTML = list.map(a => `
+                    <tr>
+                        <td>${a.time}</td>
+                        <td>${a.actor}</td>
+                        <td><span class="badge badge-blue">${a.action}</span></td>
+                        <td>${a.target || '-'}</td>
+                        <td>${a.result === 'ok' ? '<span class="badge badge-green">成功</span>' : '<span class="badge badge-red">失败</span>'}</td>
+                        <td style="font-size:12px; color:#7f8c8d;">${a.detail || ''}</td>
+                    </tr>`).join('');
+            }).catch(() => {});
+    }
+
+    function getSelectedScopes() {
+        return Array.from(document.querySelectorAll('.scope-chk:checked')).map(el => el.value);
+    }
+
+    function resetSelected() {
+        const scopes = getSelectedScopes();
+        if (scopes.length === 0) {
+            showToast('请至少选择一个重置范围', 'warning');
+            return;
+        }
+        pendingScope = scopes;
+        document.getElementById('reset-modal-title').textContent = '确认重置所选范围';
+        document.getElementById('reset-modal-message').innerHTML =
+            `即将重置：<strong>${scopes.join('、')}</strong><br>该操作将清除对应数据，<span style="color:#e74c3c;">不可撤销！请务必先手动备份关键数据（plugins/configs、data、frontend_tools.json 等）。</span>`;
+        showModal('reset-modal');
+    }
+
+    function openResetAllConfirm() {
+        pendingScope = 'all';
+        document.getElementById('reset-modal-title').textContent = '确认全部重置';
+        document.getElementById('reset-modal-message').innerHTML =
+            '即将执行 <strong>全部重置</strong>：清除自定义插件、前端工具、统计与日志、登录会话、临时文件，<br>' +
+            '并重置内置插件配置（auth 恢复默认 <code>admin/admin123</code>）。<br>' +
+            '<span style="color:#e74c3c; font-weight:600;">该操作不可撤销！请务必先手动备份关键数据（plugins/configs、data、frontend_tools.json 等），恢复出厂后不可回退。</span>';
+        showModal('reset-modal');
+    }
+
+    function doReset() {
+        hideModal('reset-modal');
+        const btn = document.getElementById('reset-modal-confirm');
+        btn.disabled = true;
+        fetch('/api/admin/factory-reset', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': _getCsrfCookie() },
+            credentials: 'include',
+            body: JSON.stringify({ scope: pendingScope })
+        })
+            .then(r => r.json())
+            .then(res => {
+                const resultBox = document.getElementById('resetResult');
+                resultBox.style.display = 'block';
+                if (res.code === 200) {
+                    const cleaned = (res.data && res.data.cleaned) || [];
+                    const failed = (res.data && res.data.failed) || [];
+                    resultBox.innerHTML = `<div class="badge badge-green" style="font-size:13px; margin-bottom:6px;">✅ 重置完成</div>
+                        <div style="font-size:13px; color:#155724;">清理 ${cleaned.length} 项${failed.length ? '，失败 ' + failed.length + ' 项' : ''}</div>` +
+                        (failed.length ? `<div style="font-size:12px; color:#c0392b; margin-top:6px;">${failed.join('<br>')}</div>` : '');
+                    showToast(`重置完成：清理 ${cleaned.length} 项` + (failed.length ? `，失败 ${failed.length} 项` : ''), failed.length ? 'warning' : 'success');
+                } else {
+                    resultBox.innerHTML = `<div class="badge badge-red" style="font-size:13px;">❌ 重置失败：${(res.message || '未知错误')}</div>`;
+                    showToast('重置失败：' + (res.message || '未知错误'), 'error');
+                }
+                // 清空勾选
+                document.querySelectorAll('.scope-chk').forEach(el => el.checked = false);
+            })
+            .catch(e => {
+                showToast('重置异常：' + e.message, 'error');
+            })
+            .finally(() => { btn.disabled = false; });
+    }
+
+    document.addEventListener('DOMContentLoaded', () => { loadSysInfo(); loadAuditLog(); });
+</script>
+{% endblock %}

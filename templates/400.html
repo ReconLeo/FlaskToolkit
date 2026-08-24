@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>400 请求错误</title>
+    <link rel="stylesheet" href="/static/css/error.css">
+</head>
+<body>
+    <div class="error-wrap">
+        <div class="error-card">
+            <div class="error-icon">⚠️</div>
+            <div class="error-code">400</div>
+            <h1 class="error-title">请求错误</h1>
+            <p class="error-message">{{ message | default('请求参数有误或格式不正确，请检查后重试。') }}</p>
+            <div class="error-actions">
+                <a href="javascript:history.back()" class="error-btn error-btn-secondary">← 返回上一页</a>
+                <a href="/" class="error-btn error-btn-primary">返回首页</a>
+            </div>
+        </div>
+        <div class="error-footer">FlaskToolkit · 统一错误码页面</div>
+    </div>
+</body>
+</html>
