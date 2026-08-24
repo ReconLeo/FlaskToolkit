@@ -5,6 +5,7 @@
 ### 版本说明（v4.2 变更）
 - **插件包卸载升级为 installed_files 清单机制**（5.6.6）：安装时把插件引入文件的相对路径清单写入 `plugins/<name>.json`，卸载按清单逐个删除（支持多 `.py` 插件包彻底卸载，无残留），无清单回退旧逻辑（兼容存量插件）。
 - **前端工具访问控制**（4.6 / 6.5）：`/frontend/<name>` 页面与 `/frontend-static/` 静态资源按工具的 `permission` 字段做三层校验（`public`/`user`/`admin`，`auth` 未安装时全员放行）；上传/更新缺省 `permission=public`；新增改权限接口 `POST /api/admin/frontend/<name>/permission`；管理后台插件页提供前端工具权限下拉。
+- **回归测试套件扩充至 15 脚本 289 项**（12 章）：新增 `test_plugin_cleanup.py`（卸载 installed_files 清单 + clean_old + 越界防御 23 项）、`test_frontend_permission.py`（前端工具三层权限 + 改权限 API + update 保留 permission 25 项）、`test_tools_ops.py`（backup/reset/config 运维工具 19 项），均隔离目录模式、已纳入 CI。
 
 ### 版本说明（v4.1 变更）
 - 后端插件分发改为**插件包（.zip）**机制：新增 5.6 节描述 plugin.json 描述文件、解压映射、静态资源访问与生命周期行为。
@@ -82,7 +83,7 @@ FlaskToolkit/
 │   ├── package.py             #   插件包打包/签名/校验 CLI（genkey/pack/verify/show）
 │   ├── backup.py              #   手动备份/恢复工具（Factory Reset 前备份关键数据）
 │   └── reset.py               #   深度重置工具（服务停止时使用，绕过运行时文件锁定）
-├── tests/                     # 回归测试套件（12 脚本 222 项 + 端到端链路验证）
+├── tests/                     # 回归测试套件（15 脚本 289 项 + 端到端链路验证）
 ├── templates/                 # 页面模板（首页/登录/错误码页 400-500/admin 管理后台/插件页）
 │   ├── admin/                 #   管理后台（dashboard / plugins / logs / stats / system）
 │   ├── frontend_tools/        #   前端工具模板
@@ -729,7 +730,9 @@ FLASKTOOLKIT_HOST=0.0.0.0 FLASKTOOLKIT_PORT=8000 python app.py
 | `test_factory_reset.py` | Factory Reset 范围测试（部分/全部删除与保留、内置插件保护、空/非法 scope 无副作用） | 37 项 |
 | `test_error_pages.py` | 统一错误码页面渲染（404/405 真实触发 + 400/401/403/500 模板，双环境无 auth/带 auth） | 12 项 |
 | `test_package_sign.py` | 插件包完整性校验与签名专项（篡改/加料/缺失检测、签名验证、strict/warn/off 模式、路由集成） | 22 项 |
-| `smoke_pack_test.py` | 插件包端到端冒烟（需先启动服务） | 8 项 |
+| `test_plugin_cleanup.py` | 插件卸载 installed_files 清单专项（多 .py 包安装清单完整/卸载全清/clean_old 更新清理/越界路径防御） | 23 项 |
+| `test_frontend_permission.py` | 前端工具访问控制（三层权限 + 改权限 API 鉴权/边界 + 静态资源一致 + update 保留 permission） | 25 项 |
+| `test_tools_ops.py` | 开发运维工具回归（backup 创建/恢复、reset 范围、config 设置/非法值/unset） | 19 项 |
 
 ```bash
 cd FlaskToolkit   # 在项目根目录执行
@@ -745,7 +748,10 @@ python tests/test_admin_api.py        # 21 项（管理端 API，隔离目录）
 python tests/test_factory_reset.py    # 37 项（Factory Reset 范围，隔离目录）
 python tests/test_error_pages.py      # 12 项（错误码页面，隔离目录）
 python tests/test_package_sign.py     # 22 项（完整性校验/签名，隔离目录）
-# 合计 12 个脚本 222 项
+python tests/test_plugin_cleanup.py    # 23 项（插件卸载 installed_files 清单，隔离目录）
+python tests/test_frontend_permission.py # 25 项（前端工具访问控制，隔离目录）
+python tests/test_tools_ops.py         # 19 项（backup/reset/config 运维工具，隔离目录）
+# 合计 15 个脚本 289 项
 ```
 
 说明：`test_meta_e2e.py` 与 `test_frontend_chain.py` / `test_admin_api.py` / `test_factory_reset.py` / `test_error_pages.py` / `test_package_sign.py` 均通过 mock 基础目录 + `sys.path` 指向临时插件目录运行，不污染真实项目，可重复执行；`test_reload_race.py` 使用 Flask test client，在测试开头手动调用 `load_plugins()` 初始化（`load_plugins` 仅在 `app.py` 的 `main` 段自动调用）。

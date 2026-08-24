@@ -72,7 +72,7 @@ FlaskToolkit/
 │   ├── package.py             #   插件包打包/签名/校验 CLI（genkey/pack/verify/show）
 │   ├── backup.py              #   手动备份/恢复工具（Factory Reset 前备份关键数据）
 │   └── reset.py               #   深度重置工具（服务停止时使用，绕过运行时文件锁定）
-├── tests/                     # 回归测试套件（12 脚本 222 项 + 端到端链路验证）
+├── tests/                     # 回归测试套件（15 脚本 289 项 + 端到端链路验证）
 ├── templates/                 # 页面模板（首页/登录/错误码页 400-500/admin 管理后台/插件页）
 │   ├── admin/                 #   管理后台（dashboard / plugins / logs / stats / system）
 │   ├── frontend_tools/        #   前端工具模板
@@ -327,7 +327,10 @@ python tests/test_admin_api.py        # 管理端 API 21 项（隔离目录）
 python tests/test_factory_reset.py    # Factory Reset 范围 37 项（隔离目录）
 python tests/test_error_pages.py      # 错误码页面渲染 12 项（隔离目录）
 python tests/test_package_sign.py     # 完整性校验/签名专项 22 项（隔离目录）
-# 合计 12 个脚本 222 项
+python tests/test_plugin_cleanup.py    # 插件卸载 installed_files 清单 23 项（隔离目录）
+python tests/test_frontend_permission.py # 前端工具访问控制三层 25 项（隔离目录）
+python tests/test_tools_ops.py         # 开发运维工具 backup/reset/config 19 项（隔离目录）
+# 合计 15 个脚本 289 项
 ```
 
 ## 开发运维工具
@@ -361,13 +364,13 @@ python core/selfcheck.py
 
 本项目已为 GitHub 开源与持续集成做好准备：
 
-- **CI 工作流**：[`.github/workflows/ci.yml`](.github/workflows/ci.yml) —— push / PR 时在 Python 3.10/3.11/3.12 上自动运行完整回归测试（`tests/`，222 项）+ 框架完整性自检 + 打包/签名工具端到端。
+- **CI 工作流**：[`.github/workflows/ci.yml`](.github/workflows/ci.yml) —— push / PR 时在 Python 3.10/3.11/3.12 上自动运行完整回归测试（`tests/`，289 项）+ 框架完整性自检 + 打包/签名工具端到端。
 - **开源配套**：`LICENSE`（MIT）、`CONTRIBUTING.md`（贡献指南）、`.gitignore`（排除运行时数据）。
 - **操作指导**：首次接触 GitHub Actions？从发布到贡献的完整步骤见 [GitHub Actions 上手与开源发布指南](documents/GitHub-Actions-上手与开源发布指南.md)。
 
 ## 人工智能辅助开发声明
 
-本项目在开发过程中使用了 AI 辅助编程工具，包括但不限于：代码生成与重构、代码审查、测试用例编写、文档撰写。所有由 AI 辅助生成或修改的内容，均已由开发者进行人工审查，并通过项目自身的回归测试套件（`tests/`，222 项）与启动完整性自检验证后才会合入。
+本项目在开发过程中使用了 AI 辅助编程工具，包括但不限于：代码生成与重构、代码审查、测试用例编写、文档撰写。所有由 AI 辅助生成或修改的内容，均已由开发者进行人工审查，并通过项目自身的回归测试套件（`tests/`，289 项）与启动完整性自检验证后才会合入。
 
 对贡献者的透明性约定：
 

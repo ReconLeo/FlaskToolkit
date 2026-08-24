@@ -49,12 +49,13 @@ jobs:
           python tools/reset.py list
           python tools/backup.py list
 
-      - name: 运行回归测试套件（12 脚本，测试间自动清理）
+      - name: 运行回归测试套件（15 脚本，测试间自动清理）
         run: |
           set -e
           TESTS=(test_permission test_stage2 test_zip_slip test_pack_meta test_reload_race \
                  test_meta_e2e test_frontend_zip_slip test_frontend_chain test_admin_api \
-                 test_factory_reset test_error_pages test_package_sign)
+                 test_factory_reset test_error_pages test_package_sign \
+                 test_plugin_cleanup test_frontend_permission test_tools_ops)
           for t in "${TESTS[@]}"; do
             echo "===== $t ====="
             python "tests/$t.py"
