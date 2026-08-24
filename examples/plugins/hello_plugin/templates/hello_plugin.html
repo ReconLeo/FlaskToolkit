@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ config.greeting }} - {{ plugin.title }}</title>
+    <!-- 标准鉴权公共逻辑：HttpOnly token Cookie 自动携带 + CSRF 双提交注入 + 401/403 统一处理 -->
+    <script src="/static/js/plugin_common.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: Arial, sans-serif; }
+        body { background-color: #f5f7fa; padding: 24px; }
+        .container { max-width: 900px; margin: 0 auto; }
+        .card {
+            background: white; border-radius: 8px; padding: 20px 24px;
+            margin-bottom: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .page-title { font-size: 22px; color: #2c3e50; margin-bottom: 6px; }
+        .page-subtitle { color: #7f8c8d; font-size: 14px; margin-bottom: 16px; }
+        .badge {
+            display: inline-block; padding: 2px 10px; border-radius: 12px;
+            font-size: 12px; color: white; margin-left: 8px;
+        }
+        .badge-public { background: #95a5a6; }
+        .badge-user { background: #3498db; }
+        .badge-admin { background: #e74c3c; }
+        button {
+            border: none; border-radius: 6px; padding: 8px 16px; cursor: pointer;
+            font-size: 14px; color: white; margin: 4px 8px 4px 0;
+        }
+        .btn-public { background: #7f8c8d; }
+        .btn-user { background: #3498db; }
+        .btn-admin { background: #e74c3c; }
+        .btn-green { background: #27ae60; }
+        pre {
+            background: #f8f9fa; border: 1px solid #e1e4e8; border-radius: 6px;
+            padding: 12px; font-size: 13px; overflow-x: auto; margin-top: 8px;
+        }
+        label { display: block; margin: 10px 0 4px; color: #555; font-size: 14px; }
+        input[type=text] {
+            width: 100%; padding: 8px 10px; border: 1px solid #ddd; border-radius: 6px;
+        }
+        .meta { color: #95a5a6; font-size: 13px; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="card">
+        <div class="page-title">{{ config.greeting }}
+            <span class="badge badge-user">示例插件</span>
+        </div>
+        <div class="page-subtitle">{{ plugin.description }}</div>
+        <div class="meta">
+            版本 {{ plugin.version }} · 当前登录用户：
+            <strong id="curUser">{{ username or '未登录' }}</strong>
+            · 配置访问次数：<strong id="visits">{{ config.visits or 0 }}</strong>
+        </div>
+    </div>
+
+    <div class="card">
+        <div style="font-size:16px;font-weight:bold;margin-bottom:10px;">三层权限路由演示</div>
+        <div>
+            <button class="btn-public" onclick="callApi('public')">GET /api/hello_plugin/public</button>
+            <button class="btn-user" onclick="callApi('user')">GET /api/hello_plugin/user</button>
+            <button class="btn-admin" onclick="callApi('admin')">GET /api/hello_plugin/admin</button>
+        </div>
+        <pre id="apiResult">点击上方按钮，体验不同权限层级的访问结果。</pre>
+    </div>
+
+    <div class="card">
+        <div style="font-size:16px;font-weight:bold;margin-bottom:10px;">配置读写（保存需管理员权限）</div>
+        <label>问候语（greeting）</label>
+        <input type="text" id="greeting" value="{{ config.greeting }}">
+        <label><input type="checkbox" id="showTimestamp" {% if config.show_timestamp %}checked{% endif %}> 显示时间戳</label>
+        <div style="margin-top:12px;">
+            <button class="btn-user" onclick="readConfig()">读取配置</button>
+            <button class="btn-green" onclick="saveConfig()">保存配置</button>
+        </div>
+        <pre id="configResult"></pre>
+    </div>
+</div>
+
+<script>
+    // 全局 fetch 已被 plugin_common.js 拦截：自动注入 X-CSRF-Token、401 跳登录
+    async function callApi(level) {
+        const el = document.getElementById('apiResult');
+        el.textContent = '请求中...';
+        try {
+            const resp = await fetch(`/api/hello_plugin/${level}`);
+            const data = await resp.json();
+            el.textContent = `HTTP ${resp.status}\n` + JSON.stringify(data, null, 2);
+        } catch (e) {
+            el.textContent = '请求失败: ' + e.message;
+        }
+    }
+
+    async function readConfig() {
+        const el = document.getElementById('configResult');
+        try {
+            const resp = await fetch('/api/hello_plugin/config');
+            const data = await resp.json();
+            el.textContent = JSON.stringify(data, null, 2);
+            if (data.data && data.data.visits !== undefined) {
+                document.getElementById('visits').textContent = data.data.visits;
+            }
+        } catch (e) {
+            el.textContent = '请求失败: ' + e.message;
+        }
+    }
+
+    async function saveConfig() {
+        const el = document.getElementById('configResult');
+        const payload = {
+            greeting: document.getElementById('greeting').value,
+            show_timestamp: document.getElementById('showTimestamp').checked,
+        };
+        try {
+            // CSRF 头由 plugin_common.js 自动注入
+            const resp = await fetch('/api/hello_plugin/config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+            const data = await resp.json();
+            el.textContent = `HTTP ${resp.status}\n` + JSON.stringify(data, null, 2);
+        } catch (e) {
+            el.textContent = '请求失败: ' + e.message;
+        }
+    }
+
+    // 刷新当前用户显示
+    (async function () {
+        const logged = await PluginCommon.isLoggedIn();
+        if (logged) {
+            try {
+                const resp = await fetch('/api/auth/user/info');
+                const data = await resp.json();
+                if (data.data && data.data.username) {
+                    document.getElementById('curUser').textContent = data.data.username;
+                }
+            } catch (e) { /* 忽略 */ }
+        }
+    })();
+</script>
+</body>
+</html>

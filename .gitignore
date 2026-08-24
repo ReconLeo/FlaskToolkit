@@ -32,6 +32,9 @@ users/
 data/.write_probe
 data/.*
 
+# ---------- 示例打包产物（install_all.py --pack-only 生成） ----------
+examples/dist/
+
 # ---------- 历史版本文档归档（开源仓库仅保留当前版本 v4.0 / Roadmap / 指南） ----------
 # 历史版本文档统一归档在 documents/archive/（不入库），当前文档保留在 documents/ 根目录
 documents/archive/

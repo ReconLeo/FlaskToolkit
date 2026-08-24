@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ plugin.title }}</title>
+    <script src="/static/js/plugin_common.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: Arial, sans-serif; }
+        body { background-color: #f5f7fa; padding: 24px; }
+        .container { max-width: 760px; margin: 0 auto; }
+        .card {
+            background: white; border-radius: 8px; padding: 20px 24px;
+            margin-bottom: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .page-title { font-size: 22px; color: #2c3e50; margin-bottom: 6px; }
+        .page-subtitle { color: #7f8c8d; font-size: 14px; margin-bottom: 16px; }
+        code { background: #f0f2f5; padding: 1px 6px; border-radius: 4px; font-size: 13px; }
+        button {
+            border: none; border-radius: 6px; padding: 8px 16px; cursor: pointer;
+            font-size: 14px; color: white; margin: 4px 8px 4px 0;
+        }
+        .btn-admin { background: #e74c3c; }
+        .btn-user { background: #3498db; }
+        input[type=text] {
+            padding: 8px 10px; border: 1px solid #ddd; border-radius: 6px; width: 200px;
+        }
+        pre {
+            background: #f8f9fa; border: 1px solid #e1e4e8; border-radius: 6px;
+            padding: 12px; font-size: 13px; overflow-x: auto; margin-top: 12px;
+        }
+        .note { font-size: 13px; color: #7f8c8d; line-height: 1.9; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="card">
+        <div class="page-title">{{ plugin.title }}</div>
+        <div class="page-subtitle">{{ plugin.description }}</div>
+        <div class="note">
+            <b>依赖声明</b>：<code>dependencies = ["auth"]</code> —— 插件加载器按拓扑排序先加载 auth，
+            若 auth 未安装则拒绝加载并提示缺失依赖。<br>
+            <b>跨插件调用</b>：<code>self.call_plugin_method("auth", "get_all_users")</code> 直接复用
+            auth 插件的用户数据能力，无需重复实现。
+        </div>
+    </div>
+
+    <div class="card">
+        <div style="font-size:16px;font-weight:bold;margin-bottom:10px;">跨插件调用演示</div>
+        <button class="btn-admin" onclick="getUsers()">GET /api/dependent_demo/users（admin）</button>
+        <div style="margin-top:10px;">
+            <input type="text" id="username" placeholder="输入用户名，如 admin">
+            <button class="btn-user" onclick="getUser()">查询用户（user）</button>
+        </div>
+        <pre id="result">点击按钮体验跨插件调用 auth 插件的方法。</pre>
+    </div>
+</div>
+
+<script>
+    async function getUsers() {
+        const el = document.getElementById('result');
+        el.textContent = '请求中...';
+        try {
+            const resp = await fetch('/api/dependent_demo/users');
+            const data = await resp.json();
+            el.textContent = `HTTP ${resp.status}\n` + JSON.stringify(data, null, 2);
+        } catch (e) {
+            el.textContent = '请求失败: ' + e.message;
+        }
+    }
+
+    async function getUser() {
+        const el = document.getElementById('result');
+        const username = document.getElementById('username').value.trim() || 'admin';
+        el.textContent = '请求中...';
+        try {
+            const resp = await fetch(`/api/dependent_demo/user/${encodeURIComponent(username)}`);
+            const data = await resp.json();
+            el.textContent = `HTTP ${resp.status}\n` + JSON.stringify(data, null, 2);
+        } catch (e) {
+            el.textContent = '请求失败: ' + e.message;
+        }
+    }
+</script>
+</body>
+</html>

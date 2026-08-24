@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ plugin.title }}</title>
+    <script src="/static/js/plugin_common.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: Arial, sans-serif; }
+        body { background-color: #f5f7fa; padding: 24px; }
+        .container { max-width: 760px; margin: 0 auto; }
+        .card {
+            background: white; border-radius: 8px; padding: 20px 24px;
+            margin-bottom: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .page-title { font-size: 22px; color: #2c3e50; margin-bottom: 6px; }
+        .page-subtitle { color: #7f8c8d; font-size: 14px; margin-bottom: 16px; }
+        .drop-zone {
+            border: 2px dashed #bdc3c7; border-radius: 8px; padding: 30px;
+            text-align: center; color: #7f8c8d; cursor: pointer; transition: all .2s;
+        }
+        .drop-zone:hover, .drop-zone.drag { border-color: #3498db; background: #f0f8ff; }
+        button {
+            border: none; border-radius: 6px; padding: 10px 20px; cursor: pointer;
+            font-size: 14px; color: white; background: #3498db; margin-top: 12px;
+        }
+        button:disabled { background: #bdc3c7; cursor: not-allowed; }
+        #progress { margin-top: 16px; display: none; }
+        .result-item {
+            display: flex; justify-content: space-between; padding: 10px 12px;
+            border-bottom: 1px solid #eee; font-size: 14px;
+        }
+        .result-item .k { color: #7f8c8d; }
+        .result-item .v { font-weight: bold; color: #2c3e50; }
+        a.download {
+            display: inline-block; margin-top: 12px; color: white;
+            background: #27ae60; padding: 10px 20px; border-radius: 6px;
+            text-decoration: none; font-size: 14px;
+        }
+        .status-line { font-size: 14px; color: #555; margin-top: 12px; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="card">
+        <div class="page-title">{{ plugin.title }}</div>
+        <div class="page-subtitle">{{ plugin.description }}</div>
+        <p style="font-size:13px;color:#7f8c8d;">
+            上传后立即返回 <code>task_id</code>，文件在后台线程处理（此处模拟耗时 2 秒），
+            前端轮询状态直到 <code>success</code>，再下载统计结果。
+            允许类型：{{ allowed | join('、') }}（超过 10MB 会被框架拒绝，返回 413）。
+        </p>
+    </div>
+
+    <div class="card">
+        <div class="drop-zone" id="dropZone">
+            点击选择文件，或拖拽到这里<br>
+            <span style="font-size:12px;">支持 .txt / .log / .csv / .json / .md</span>
+        </div>
+        <input type="file" id="fileInput" accept=".txt,.log,.csv,.json,.md" style="display:none;">
+        <div style="text-align:center;">
+            <button id="uploadBtn" onclick="upload()">上传并启动异步处理</button>
+        </div>
+
+        <div id="progress">
+            <div class="status-line" id="statusLine">提交中...</div>
+            <div id="resultBox"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    let selectedFile = null;
+
+    dropZone.addEventListener('click', () => fileInput.click());
+    dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('drag'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag'));
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('drag');
+        if (e.dataTransfer.files.length) selectFile(e.dataTransfer.files[0]);
+    });
+    fileInput.addEventListener('change', () => { if (fileInput.files.length) selectFile(fileInput.files[0]); });
+
+    function selectFile(f) {
+        selectedFile = f;
+        dropZone.innerHTML = `<strong>${f.name}</strong>（${(f.size / 1024).toFixed(1)} KB）`;
+    }
+
+    async function upload() {
+        if (!selectedFile) { alert('请先选择文件'); return; }
+        const btn = document.getElementById('uploadBtn');
+        btn.disabled = true;
+        document.getElementById('progress').style.display = 'block';
+        document.getElementById('resultBox').innerHTML = '';
+        const statusLine = document.getElementById('statusLine');
+
+        try {
+            // CSRF 头由 plugin_common.js 自动注入
+            const fd = new FormData();
+            fd.append('file', selectedFile);
+            const resp = await fetch('/api/async_file_demo/upload', { method: 'POST', body: fd });
+            const data = await resp.json();
+            if (!resp.ok) {
+                statusLine.textContent = `上传失败（HTTP ${resp.status}）: ${data.message || ''}`;
+                btn.disabled = false;
+                return;
+            }
+            const taskId = data.data.task_id;
+            statusLine.textContent = `任务已启动，task_id=${taskId}，轮询状态中...`;
+
+            // 轮询任务状态
+            for (let i = 0; i < 30; i++) {
+                await new Promise(r => setTimeout(r, 500));
+                const sResp = await fetch(`/api/async_file_demo/status/${taskId}`);
+                const sData = await sResp.json();
+                const st = sData.data || {};
+                statusLine.textContent = `轮询中... 状态: ${st.status}`;
+                if (st.status === 'success') {
+                    renderResult(st.summary, taskId);
+                    break;
+                }
+                if (st.status === 'failed') {
+                    statusLine.textContent = `任务失败: ${st.error || ''}`;
+                    break;
+                }
+            }
+        } catch (e) {
+            statusLine.textContent = '请求异常: ' + e.message;
+        } finally {
+            btn.disabled = false;
+        }
+    }
+
+    function renderResult(summary, taskId) {
+        const box = document.getElementById('resultBox');
+        let html = '<div style="margin-top:14px;border:1px solid #e1e4e8;border-radius:8px;overflow:hidden;">';
+        html += `<div class="result-item"><span class="k">文件名</span><span class="v">${summary.filename}</span></div>`;
+        html += `<div class="result-item"><span class="k">行数</span><span class="v">${summary.lines}</span></div>`;
+        html += `<div class="result-item"><span class="k">单词数</span><span class="v">${summary.words}</span></div>`;
+        html += `<div class="result-item"><span class="k">字符数</span><span class="v">${summary.chars}</span></div>`;
+        html += '</div>';
+        html += `<a class="download" href="/api/async_file_demo/result/${taskId}">下载统计结果</a>`;
+        box.innerHTML = html;
+    }
+</script>
+</body>
+</html>

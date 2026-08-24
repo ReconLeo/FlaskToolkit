@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ plugin.title }}</title>
+    <script src="/static/js/plugin_common.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: Arial, sans-serif; }
+        body { background-color: #f5f7fa; padding: 24px; }
+        .container { max-width: 900px; margin: 0 auto; }
+        .card {
+            background: white; border-radius: 8px; padding: 20px 24px;
+            margin-bottom: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .page-title { font-size: 22px; color: #2c3e50; margin-bottom: 6px; }
+        .page-subtitle { color: #7f8c8d; font-size: 14px; margin-bottom: 16px; }
+        .stat-row { display: flex; gap: 16px; margin: 12px 0; }
+        .stat-box {
+            flex: 1; background: #f8f9fa; border-radius: 8px; padding: 14px;
+            text-align: center; border: 1px solid #e1e4e8;
+        }
+        .stat-box .num { font-size: 26px; font-weight: bold; color: #2c3e50; }
+        .stat-box .label { font-size: 13px; color: #7f8c8d; margin-top: 4px; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #eee; }
+        th { background: #f8f9fa; color: #555; }
+        .tag {
+            display: inline-block; padding: 1px 8px; border-radius: 10px;
+            font-size: 12px; color: white;
+        }
+        .tag-interval { background: #3498db; }
+        .tag-cron { background: #e67e22; }
+        button {
+            border: none; border-radius: 6px; padding: 8px 16px; cursor: pointer;
+            font-size: 14px; color: white; background: #3498db; margin-bottom: 12px;
+        }
+        #schedulerInfo { font-size: 13px; color: #555; margin-top: 8px; line-height: 1.8; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="card">
+        <div class="page-title">{{ plugin.title }}</div>
+        <div class="page-subtitle">{{ plugin.description }}</div>
+        <p style="font-size:13px;color:#7f8c8d;">
+            本插件通过 <code>scheduled_tasks</code> 属性声明两个定时任务（由框架自动注册到 APScheduler）：
+            <br>· <b>interval</b>：每 30 秒执行一次心跳
+            <br>· <b>cron</b>：每分钟整点执行一次统计
+            <br>心跳数据持久化到 <code>data/scheduler_demo.json</code>，重启服务后仍保留。
+        </p>
+        <div id="schedulerInfo"></div>
+    </div>
+
+    <div class="card">
+        <div class="stat-row">
+            <div class="stat-box"><div class="num">{{ total }}</div><div class="label">心跳总数</div></div>
+            <div class="stat-box"><div class="num" id="jobCount">-</div><div class="label">调度任务数</div></div>
+            <div class="stat-box"><div class="num" id="running">-</div><div class="label">调度器状态</div></div>
+        </div>
+        <button onclick="loadStats()">刷新统计 / 调度器状态</button>
+        <pre id="statsDetail" style="display:none;background:#f8f9fa;border-radius:6px;padding:10px;font-size:12px;"></pre>
+    </div>
+
+    <div class="card">
+        <div style="font-size:16px;font-weight:bold;margin-bottom:10px;">最近心跳记录</div>
+        <table>
+            <thead><tr><th>时间</th><th>类型</th><th>内容</th></tr></thead>
+            <tbody>
+            {% for hb in heartbeats %}
+            <tr>
+                <td>{{ hb.ts }}</td>
+                <td><span class="tag tag-{{ hb.type }}">{{ hb.type }}</span></td>
+                <td>{{ hb.message }}</td>
+            </tr>
+            {% endfor %}
+            {% if not heartbeats %}
+            <tr><td colspan="3" style="text-align:center;color:#95a5a6;">暂无记录，等待定时任务执行…（最多约 30 秒出现第一条心跳）</td></tr>
+            {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    async function loadStats() {
+        try {
+            const resp = await fetch('/api/scheduler_demo/stats');
+            const data = await resp.json();
+            const s = data.data || {};
+            document.getElementById('jobCount').textContent = (s.jobs || []).length;
+            document.getElementById('running').textContent = s.scheduler_running ? '运行中' : '未运行';
+            const el = document.getElementById('statsDetail');
+            el.style.display = 'block';
+            el.textContent = JSON.stringify(s, null, 2);
+        } catch (e) {
+            console.error(e);
+        }
+    }
+    loadStats();
+</script>
+</body>
+</html>

@@ -1,0 +1,33 @@
+/* dashboard_demo 前端工具静态资源（随 zip 的 static/ 目录上传） */
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: Arial, sans-serif; }
+body { background-color: #f5f7fa; padding: 24px; }
+.container { max-width: 960px; margin: 0 auto; }
+.page-header {
+    background: white; padding: 20px 24px; border-radius: 8px;
+    margin-bottom: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+.page-title { font-size: 22px; color: #2c3e50; margin-bottom: 6px; }
+.page-subtitle { color: #7f8c8d; font-size: 14px; margin-bottom: 12px; }
+.tag {
+    display: inline-block; padding: 2px 10px; border-radius: 12px;
+    font-size: 12px; color: white; background: #e74c3c;
+}
+.cards { display: flex; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
+.stat-card {
+    flex: 1; min-width: 140px; background: white; border-radius: 8px;
+    padding: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); text-align: center;
+}
+.stat-card .num { font-size: 28px; font-weight: bold; color: #2c3e50; }
+.stat-card .label { font-size: 13px; color: #7f8c8d; margin-top: 4px; }
+.card {
+    background: white; border-radius: 8px; padding: 20px 24px;
+    margin-bottom: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+.card-title { font-size: 16px; font-weight: bold; color: #2c3e50; margin-bottom: 12px; }
+.sys-info { font-size: 13px; color: #555; line-height: 1.9; }
+.tip { font-size: 13px; color: #7f8c8d; line-height: 1.9; margin-bottom: 12px; }
+code { background: #f0f2f5; padding: 1px 6px; border-radius: 4px; }
+button {
+    border: none; border-radius: 6px; padding: 8px 16px; cursor: pointer;
+    font-size: 14px; color: white; background: #3498db;
+}

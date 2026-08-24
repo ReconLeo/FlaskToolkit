@@ -273,6 +273,28 @@ class MyPlugin(BasePlugin):
 - `GET /api/admin/stats`：插件数（含 catalog）、前端工具数、API 调用与前端访问统计明细。
 - `GET /api/admin/logs`：按 `level`/`lines`/`plugin` 读取日志；级别映射到 `app.log`（INFO+）与 `error.log`（ERROR+），warning/critical 按行内 ` - LEVEL - ` 标记二次过滤。
 
+## 官方示例
+
+[`examples/`](examples/README.md) 目录提供一套**随仓库分发、可一键安装**的示例插件/工具包，完整展示框架能力，也是新插件开发的起始模板：
+
+| 示例 | 类型 | 展示能力 |
+|------|------|---------|
+| `hello_plugin` | 后端插件 | 生命周期钩子、三层权限路由、配置读写、自定义页面 |
+| `scheduler_demo` | 后端插件 | APScheduler 定时任务（interval/cron 触发器、实时调度历史） |
+| `async_file_demo` | 后端插件 | 文件上传限制、异步任务、状态轮询、结果下载 |
+| `dependent_demo` | 后端插件 | 插件依赖声明、跨插件调用 |
+| `dashboard_demo` | 前端工具包 | admin 权限、调用后端 API、ECharts 图表、静态资源 |
+
+一键安装（需服务运行 + 管理员账号）：
+
+```bash
+pip install -r requirements.txt -r requirements-dev.txt   # 安装 requests
+python app.py                                             # 启动服务
+python examples/install_all.py                            # 一键安装全部示例
+```
+
+详见 [examples/README.md](examples/README.md)。
+
 ## 测试
 
 回归测试套件位于项目 `tests/` 目录（项目根路径自动推导，可在任意位置运行，不污染项目文件）：

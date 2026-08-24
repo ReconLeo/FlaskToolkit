@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ tool.title }}</title>
+    <!-- 前端工具包静态资源：随 zip 的 static/ 目录上传，经 /frontend-static/<name>/ 提供 -->
+    <link rel="stylesheet" href="/frontend-static/dashboard_demo/dashboard.css">
+    <!-- 标准鉴权公共逻辑：HttpOnly token Cookie 自动携带 + CSRF 注入 + 401/403 处理 -->
+    <script src="/static/js/plugin_common.js"></script>
+    <!-- ECharts（示例用 CDN，生产可下载到 static/ 本地化） -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+</head>
+<body>
+<div class="container">
+    <div class="page-header">
+        <div class="page-title">{{ tool.title }}</div>
+        <div class="page-subtitle">{{ tool.description }}</div>
+        <div class="tag">permission: {{ tool.permission }}（页面访问 + 后端 admin API 联动）</div>
+    </div>
+
+    <div id="cards" class="cards"></div>
+
+    <div class="card">
+        <div class="card-title">系统信息</div>
+        <div id="sysInfo" class="sys-info">加载中...</div>
+    </div>
+
+    <div class="card">
+        <div class="card-title">各插件 API 调用次数（stats）</div>
+        <div id="chart" style="height:320px;"></div>
+    </div>
+
+    <div class="card">
+        <div class="card-title">后端 API 权限演示</div>
+        <p class="tip">
+            本工具标注为 <b>admin</b> 权限。前端工具页面本身可访问，但其调用的后端 API
+            <code>/api/admin/system/info</code> 与 <code>/api/admin/stats</code> 受
+            <code>@admin_api</code> 保护——未登录/非管理员会被 plugin_common.js 拦截跳转登录或 403。
+        </p>
+        <button onclick="loadAll()">刷新数据</button>
+    </div>
+</div>
+
+<script src="/frontend-static/dashboard_demo/dashboard.js"></script>
+</body>
+</html>

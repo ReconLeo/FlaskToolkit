@@ -1,0 +1,13 @@
+{
+  "name": "dependent_demo",
+  "title": "示例：插件依赖与跨插件调用",
+  "version": "1.0.0",
+  "author": "FlaskToolkit Examples",
+  "category": "示例",
+  "description": "依赖与协作示例：声明 dependencies 依赖 auth 插件（未安装时框架拒绝加载并提示缺失），通过 call_plugin_method 跨插件调用 auth 的用户数据能力。",
+  "permission": "user",
+  "dependencies": [
+    "auth"
+  ],
+  "require_framework_version": "4.1.0"
+}
