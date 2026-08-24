@@ -31,6 +31,7 @@ class MultiToolDemo(BasePlugin):
     author = "FlaskToolkit Examples"
     category = "示例"
     permission = "user"
+    require_framework_version = "4.2.0"  # 页面路由 page=True 为 v4.2 能力
 
     @property
     def routes(self) -> List[Dict]:

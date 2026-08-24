@@ -42,7 +42,7 @@ class SchedulerDemoPlugin(BasePlugin):
     author = "FlaskToolkit Examples"
     category = "示例"
     permission = "user"
-    require_framework_version = "4.1.0"
+    require_framework_version = "4.2.0"
 
     def __init__(self):
         super().__init__()

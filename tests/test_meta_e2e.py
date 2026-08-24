@@ -154,7 +154,7 @@ def main():
     check('低版本 update 拒绝', r.status_code == 400 and '版本必须高于' in r.get_json().get('message', ''),
           f'status={r.status_code}')
 
-    # 8. require_framework_version 5.0.0（> 4.1.0）→ 拒绝
+    # 8. require_framework_version 5.0.0（> 4.2.0）→ 拒绝
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as zf:
         zf.writestr('plugin.json', json.dumps(

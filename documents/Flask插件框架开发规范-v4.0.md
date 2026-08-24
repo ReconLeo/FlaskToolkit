@@ -8,6 +8,7 @@
 - **回归测试套件扩充至 16 脚本 306 项**（12 章）：新增 `test_plugin_cleanup.py`（卸载 installed_files 清单 + clean_old + 越界防御 23 项）、`test_frontend_permission.py`（前端工具三层权限 + 改权限 API + update 保留 permission 25 项）、`test_tools_ops.py`（backup/reset/config 运维工具 19 项）、`test_page_router.py`（大插件多模板页面路由 17 项），均隔离目录模式、已纳入 CI。
 - **公共页面体验升级（8.1）**：首页新增搜索与排序（默认/热度/字母，热度取 API 调用与访问统计）；登录页支持记住用户名、显示/隐藏密码；首页/登录/登出/裸插件调试四页面样式统一为 `static/css/main.css` 设计体系，脚本抽离至 `static/js/`。
 - **裸插件调试页增强（8.1）**：支持**路径参数**输入与替换（`<name>`/`<int:name>`，如 async_file_demo 的 `/status/<task_id>`）；**非安全方法自动携带 X-CSRF-Token**（修复带鉴权接口无法调试的 CSRF 403）；PUT/DELETE 改发 JSON body；展示 HTTP 状态/耗时/业务 code/实际 URL；结果一键复制与折叠、会话内请求历史。
+- **框架版本升级至 v4.2.0**（`global_var.FRAMEWORK_VERSION`）：页面路由 page=True / 模板命名空间 / render·render_index 助手（见 5.5.1）等大插件多模板能力随 v4.2 对齐；官方示例 `require_framework_version` 同步为 4.2.0。
 
 ### 版本说明（v4.1 变更）
 - 后端插件分发改为**插件包（.zip）**机制：新增 5.6 节描述 plugin.json 描述文件、解压映射、静态资源访问与生命周期行为。
@@ -406,7 +407,7 @@ UserManage/
 后端插件可声明 `require_framework_version`（`plugin.json` 或插件类属性，非强制），用于声明插件所需的最低框架版本，以支撑框架持续迭代：
 
 - **未声明**：不检查，任意框架版本可用。
-- **声明了**：上传/更新时与 `global_var.FRAMEWORK_VERSION`（当前 `4.1.0`）做点分版本比较（`compare_versions`，修复了前端工具原先字符串比较的缺陷）；插件要求高于框架版本 → 拒绝安装并报告。
+- **声明了**：上传/更新时与 `global_var.FRAMEWORK_VERSION`（当前 `4.2.0`）做点分版本比较（`compare_versions`，修复了前端工具原先字符串比较的缺陷）；插件要求高于框架版本 → 拒绝安装并报告。
 - **运行时双重校验**：`load_plugins` 加载时同样校验（防止手工放置插件绕过上传校验），不满足则跳过加载并报错。
 - 参与描述一致性对齐（冲突拒绝/缺失补全），见 5.6.3。
 

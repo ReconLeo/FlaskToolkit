@@ -6,5 +6,5 @@
   "category": "示例",
   "description": "前端工具包完整形态：admin 权限 + 调用后端 API（系统信息/调用统计）+ ECharts 图表 + 自定义静态资源，区别于纯前端工具（如密码生成器）。",
   "permission": "admin",
-  "require_framework_version": "4.1.0"
+  "require_framework_version": "4.2.0"
 }

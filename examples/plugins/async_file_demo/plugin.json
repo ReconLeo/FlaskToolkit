@@ -6,5 +6,5 @@
   "category": "示例",
   "description": "文件处理示例：上传文本文件（类型/大小限制）→ 异步任务处理（统计行数/词数/字符数）→ 轮询任务状态 → 下载处理结果，展示 save_uploaded_file / run_async_task / send_file_response。",
   "permission": "user",
-  "require_framework_version": "4.1.0"
+  "require_framework_version": "4.2.0"
 }

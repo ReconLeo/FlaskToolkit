@@ -34,7 +34,7 @@ class HelloPlugin(BasePlugin):
     author = "FlaskToolkit Examples"
     category = "示例"
     permission = "user"
-    require_framework_version = "4.1.0"
+    require_framework_version = "4.2.0"
 
     # 默认配置（可被 plugins/configs/hello_plugin.json 覆盖）
     DEFAULT_CONFIG = {

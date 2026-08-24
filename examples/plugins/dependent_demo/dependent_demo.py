@@ -30,7 +30,7 @@ class DependentDemoPlugin(BasePlugin):
     category = "示例"
     permission = "user"
     dependencies = ["auth"]  # 依赖声明：加载器先加载 auth，缺失则拒绝加载
-    require_framework_version = "4.1.0"
+    require_framework_version = "4.2.0"
 
     # ---------------- 路由 ----------------
     @property

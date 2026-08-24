@@ -4,7 +4,7 @@
   <img src="https://github.com/ReconLeo/FlaskToolkit/actions/workflows/ci.yml/badge.svg" alt="CI">
   <img src="https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB?logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/License-MIT-yellow" alt="License">
-  <img src="https://img.shields.io/badge/version-4.1.0-blue" alt="Version">
+  <img src="https://img.shields.io/badge/version-4.2.0-blue" alt="Version">
 </p>
 
 > 一个把零散的 Flask / 纯前端小工具"收进同一个家"的插件化工具箱。

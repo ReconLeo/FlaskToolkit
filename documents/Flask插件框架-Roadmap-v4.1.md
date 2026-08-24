@@ -52,5 +52,6 @@
 
 | 版本 | 状态 |
 |------|------|
-| v4.1.0（当前） | P0/P1/P2 全落地；回归测试入项目 tests/（222 项）；配置 CLI（tools/config.py）；tools/backup.py + reset.py 备份/深度重置；启动完整性自检；待补 CI（P1-3） |
-| v4.2.0（规划） | CI 接入；P2 项按需选取 |
+| v4.2.0（当前） | 框架版本升级 4.1.0→4.2.0；大插件多模板页面路由（page=True + 模板命名空间 + render 助手）；示例 multitool_demo；回归测试 16 脚本 306 项（CI 已接入） |
+| v4.1.0（已完成） | P0/P1/P2 全落地；回归测试入项目 tests/（222 项）；配置 CLI（tools/config.py）；tools/backup.py + reset.py 备份/深度重置；启动完整性自检；CI 接入 |
+| v4.1.0（规划） | CI 接入；P2 项按需选取 |
