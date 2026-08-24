@@ -1,5 +1,12 @@
 # FlaskToolkit
 
+<p align="center">
+  <img src="https://github.com/ReconLeo/FlaskToolkit/actions/workflows/ci.yml/badge.svg" alt="CI">
+  <img src="https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB?logo=python&logoColor=white" alt="Python">
+  <img src="https://img.shields.io/badge/License-MIT-yellow" alt="License">
+  <img src="https://img.shields.io/badge/version-4.1.0-blue" alt="Version">
+</p>
+
 基于 Flask 的插件化全栈工具集。核心特性：
 
 - **插件化**：后端插件（Python）与前端工具（HTML 包）均可动态安装/更新/卸载/启用/禁用。
@@ -321,3 +328,13 @@ python core/selfcheck.py
 - **CI 工作流**：[`.github/workflows/ci.yml`](.github/workflows/ci.yml) —— push / PR 时在 Python 3.10/3.11/3.12 上自动运行完整回归测试（`tests/`，222 项）+ 框架完整性自检 + 打包/签名工具端到端。
 - **开源配套**：`LICENSE`（MIT）、`CONTRIBUTING.md`（贡献指南）、`.gitignore`（排除运行时数据）。
 - **操作指导**：首次接触 GitHub Actions？从发布到贡献的完整步骤见 [GitHub Actions 上手与开源发布指南](documents/GitHub-Actions-上手与开源发布指南.md)。
+
+## 人工智能辅助开发声明
+
+本项目在开发过程中使用了 AI 辅助编程工具，包括但不限于：代码生成与重构、代码审查、测试用例编写、文档撰写。所有由 AI 辅助生成或修改的内容，均已由开发者进行人工审查，并通过项目自身的回归测试套件（`tests/`，222 项）与启动完整性自检验证后才会合入。
+
+对贡献者的透明性约定：
+
+- 使用 AI 辅助工具（如 GitHub Copilot、各类 AI 编程助手等）是被允许的，但请对提交代码的**正确性、安全性、合规性**负全责。
+- AI 生成的代码必须通过项目的回归测试与代码审查（流程见 `CONTRIBUTING.md`）。
+- 若 PR 中大量使用 AI 生成内容，建议在 PR 描述中注明，便于维护者审阅。

@@ -2,10 +2,13 @@
 # 安装：pip install -r requirements.txt -r requirements-dev.txt
 
 # 插件包签名（tools/package.py --sign / core/package_sign 验签）与 test_package_sign.py 依赖
-cryptography>=42.0.0
+# 锁定 44.x：兼容 CI 矩阵 Python 3.10-3.12 的保守稳定版（42+ 亦可，但为可复现统一锁定）
+cryptography==44.0.0
+
+# 端到端 HTTP 链路验证（tests/verify_frontend_chain*.py，用真实 HTTP 请求验证上传/更新/卸载）
+requests==2.32.3
 
 # 说明：
 # - 回归测试（tests/test_*.py）为纯 Python 自建框架，不依赖 pytest 等测试框架。
 # - 全部回归测试命令（在项目根目录执行）：
 #     for t in tests/test_*.py; do python "$t"; done
-# - 端到端 HTTP 链路验证（tests/verify_*.py）使用 requests（非 CI 主流程）。
