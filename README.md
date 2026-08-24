@@ -22,8 +22,9 @@
 
 - 从单文件插件，长出了**插件包（.zip）**——插件连同自己的模板、静态资源一起分发，安装即用；
 - 纯前端的 HTML 小工具，也能作为"一等公民"装进来，和 Python 插件平起平坐；
+- 大插件也能拆得清清爽爽——**多模板 + 辅助模块 + 静态资源**，一个插件可以有自己的子页面、工具模块与样式脚本（页面路由 page=True）；
 - 有了统一的三层权限、可选鉴权、审计日志、热重载——页面改了保存即生效，不用重启；
-- 补上了插件包的完整性校验与签名、Factory Reset、备份/恢复、启动自检，以及一套 289 项的回归测试和 GitHub Actions CI。
+- 补上了插件包的完整性校验与签名、Factory Reset、备份/恢复、启动自检，以及一套 306 项的回归测试和 GitHub Actions CI。
 
 坦白说，这框架远谈不上"完善"。它更多是"自娱自乐"的产物：站在 Flask、APScheduler、Werkzeug 这些巨人的肩膀上，把我需要的那部分想法落了地。也因此，它的安全模型是朴素直接的——**安装插件即信任其作者**。所以它更适合自己的电脑或可信局域网，而不是对外开放的生产环境。
 
@@ -55,7 +56,7 @@ python app.py
 
 ```bash
 pip install -r requirements.txt -r requirements-dev.txt   # install_all.py 依赖 requests
-python examples/install_all.py                            # 一键安装 5 个官方示例
+python examples/install_all.py                            # 一键安装 6 个官方示例
 ```
 
 ### 运行环境变量
@@ -76,6 +77,7 @@ python examples/install_all.py                            # 一键安装 5 个�
 | `scheduler_demo` | 后端插件 | APScheduler 定时任务（interval/cron） |
 | `async_file_demo` | 后端插件 | 文件上传限制、异步任务、状态轮询、结果下载 |
 | `dependent_demo` | 后端插件 | 插件依赖声明、跨插件调用 |
+| `multitool_demo` | 后端插件 | 大插件多模板：多模板页面路由、辅助 .py、静态资源 |
 | `dashboard_demo` | 前端工具包 | 管理员权限、调用后端 API、ECharts 图表、静态资源 |
 
 详见 [examples/README.md](examples/README.md)。
@@ -90,10 +92,10 @@ python examples/install_all.py                            # 一键安装 5 个�
 
 ## 测试与 CI
 
-`tests/` 15 个脚本共 289 项回归测试（隔离目录模式，不污染项目文件）；GitHub Actions 在 Python 3.10 / 3.11 / 3.12 上自动执行，覆盖权限、插件包 / 前端工具链路、完整性签名、卸载清单、Factory Reset、运维工具等。
+`tests/` 16 个脚本共 306 项回归测试（隔离目录模式，不污染项目文件）；GitHub Actions 在 Python 3.10 / 3.11 / 3.12 上自动执行，覆盖权限、插件包 / 前端工具链路、完整性签名、卸载清单、Factory Reset、大插件多模板页面路由、运维工具等。
 
 <details>
-<summary>展开：15 个测试脚本</summary>
+<summary>展开：16 个测试脚本</summary>
 
 ```bash
 cd FlaskToolkit
@@ -112,7 +114,8 @@ python tests/test_package_sign.py          # 完整性校验/签名 22 项
 python tests/test_plugin_cleanup.py        # 插件卸载 installed_files 清单 23 项
 python tests/test_frontend_permission.py   # 前端工具访问控制 25 项
 python tests/test_tools_ops.py             # 运维工具 backup/reset/config 19 项
-# 合计 15 个脚本 289 项
+python tests/test_page_router.py           # 大插件多模板页面路由 17 项
+# 合计 16 个脚本 306 项
 ```
 
 </details>
@@ -129,7 +132,7 @@ MIT License · 贡献指南见 [CONTRIBUTING.md](CONTRIBUTING.md) · 开发过�
 
 ### 人工智能辅助开发声明
 
-本项目在开发过程中使用了 AI 辅助编程工具，包括但不限于：代码生成与重构、代码审查、测试用例编写、文档撰写。所有 AI 辅助生成或修改的内容，均已由开发者人工审查，并通过项目自身的回归测试套件（`tests/`，289 项）与启动完整性自检验证后才会合入。
+本项目在开发过程中使用了 AI 辅助编程工具，包括但不限于：代码生成与重构、代码审查、测试用例编写、文档撰写。所有 AI 辅助生成或修改的内容，均已由开发者人工审查，并通过项目自身的回归测试套件（`tests/`，306 项）与启动完整性自检验证后才会合入。
 
 对贡献者的透明性约定：
 

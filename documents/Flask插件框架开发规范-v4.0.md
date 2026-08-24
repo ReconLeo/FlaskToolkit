@@ -79,7 +79,7 @@ FlaskToolkit/
 │   ├── base_plugin.py         #   插件基类 + @permission 装饰器 + 生命周期钩子
 │   ├── auth.py                #   可选鉴权插件（PBKDF2 / HttpOnly Cookie + CSRF）
 │   └── user_manage.py         #   内置用户管理插件（BUILTIN，受 Factory Reset 保护）
-├── examples/                  # 官方示例插件/工具包（5 个）+ install_all.py 一键安装
+├── examples/                  # 官方示例插件/工具包（6 个）+ install_all.py 一键安装
 ├── tools/                     # 开发运维命令行工具（python tools/xxx.py）
 │   ├── config.py              #   配置管理 CLI（show/set/unset/reset/check/env）
 │   ├── package.py             #   插件包打包/签名/校验 CLI（genkey/pack/verify/show）
@@ -309,7 +309,7 @@ def get_item(self, item_id):
 - `self.render(template, **context)`：自动定位命名空间（回退旧式 `plugins/<template>`），返回 `Response`，视图函数可直接 `return self.render(...)`；
 - 无任何自定义主入口时回退裸插件调试页（见 8.1）。
 
-**④ 示例**：`hello_plugin` 展示主入口 `page()` + 子页 `about`/`usage`/`greet/<name>`（路径参数）；`tests/test_page_router.py` 17 项固化页面路由回归。
+**④ 示例**：`hello_plugin` 展示主入口 `page()` + 子页 `about`/`usage`/`greet/<name>`（路径参数）；`multitool_demo` 完整演示大插件三要素（多模板 + 辅助 .py multitool_utils + 静态资源 css/js，含文本分析 API）；`tests/test_page_router.py` 17 项固化页面路由回归。
 
 ### 5.6 插件包（.zip）分发规范（v4.0 新增）
 
