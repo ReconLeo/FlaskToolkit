@@ -21,7 +21,8 @@ backups/
 # 插件运行时状态（auth 首次启动自动重建 admin/admin123）
 plugins/data/
 plugins/temp/
-plugins/configs/auth.json
+# 插件运行时配置（auth 首次启动自动重建；hello_plugin 等插件配置均不入库）
+plugins/configs/*.json
 plugins/status.json
 
 # ---------- 沙箱/探针残留 ----------

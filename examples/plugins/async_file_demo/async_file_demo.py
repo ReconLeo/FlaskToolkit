@@ -168,9 +168,4 @@ class AsyncFileDemoPlugin(BasePlugin):
 
     # ---------------- 页面 ----------------
     def page(self):
-        from flask import render_template
-        return render_template(
-            "plugins/async_file_demo.html",
-            plugin=self,
-            allowed=self.allowed_upload_types,
-        )
+        return self.render("async_file_demo.html", allowed=self.allowed_upload_types)

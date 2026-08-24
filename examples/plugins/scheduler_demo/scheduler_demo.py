@@ -164,11 +164,5 @@ class SchedulerDemoPlugin(BasePlugin):
 
     # ---------------- 页面 ----------------
     def page(self):
-        from flask import render_template
         data = self._load()
-        return render_template(
-            "plugins/scheduler_demo.html",
-            plugin=self,
-            heartbeats=data[-30:],
-            total=len(data),
-        )
+        return self.render("scheduler_demo.html", heartbeats=data[-30:], total=len(data))

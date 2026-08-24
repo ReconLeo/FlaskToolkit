@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from functools import wraps
-from flask import request, jsonify, render_template, send_file, redirect, Response
+from flask import request, jsonify, render_template, send_file, redirect, Response, make_response
 import urllib.parse
 import os
 from io import BytesIO
@@ -532,7 +532,51 @@ class BasePlugin(ABC):
         # 前端请求封装以 body.code 判断业务结果，HTTP 状态码用于网关/监控/调试语义对齐。
         return jsonify({"code": code, "message": message, "msg": message, "status": "failed", "data": None}), code
 
+    def _resolve_template(self, template):
+        """解析插件模板路径：优先插件命名空间 plugins/<name>/<template>，回退旧式 plugins/<template>。
+        返回可直接传给 render_template 的模板名（正斜杠，Jinja 模板名须为 POSIX 风格），不存在返回 None。"""
+        template = template.replace('\\', '/')
+        candidates = [
+            f'plugins/{self.name}/{template}',
+            f'plugins/{template}',
+        ]
+        from flask import current_app
+        for cand in candidates:
+            try:
+                current_app.jinja_env.get_template(cand)
+                return cand
+            except Exception:
+                continue
+        return None
+
+    def render(self, template, **context):
+        """渲染插件模板（自动定位到插件模板命名空间 templates/plugins/<name>/）。
+        等价 render_template('plugins/<name>/<template>', plugin=self, **context)。
+        若命名空间模板不存在则回退到旧式 plugins/<template>（兼容）。"""
+        resolved = self._resolve_template(template)
+        if resolved is None:
+            raise ValueError(f"插件模板不存在: {template}（已查找 {self.name} 命名空间与 plugins/ 根目录）")
+        # 返回 Response 而非字符串：插件视图函数可直接 return self.render(...) 作为页面响应
+        return make_response(render_template(resolved, plugin=self, **context))
+
+    def render_index(self):
+        """主入口 index 模板的数据注入钩子：插件可选覆盖，返回渲染上下文 dict。
+        默认无额外数据（模板可自行通过 plugin 对象访问属性/方法）。"""
+        return {}
+
     def render_plugin_page(self):
+        # 兼容旧式：插件类自身定义了 page()（基类无此方法，旧式自定义页面入口）→ 走插件渲染逻辑
+        if hasattr(type(self), 'page'):
+            return self.page()
+        # 主入口模板：命名空间 index.html 或 <name>.html（同名主入口优先 index）
+        main_tpl = self._resolve_template('index.html') or self._resolve_template(f'{self.name}.html')
+        if main_tpl:
+            context = self.render_index()
+            if not isinstance(context, dict):
+                context = {}
+            return render_template(main_tpl, plugin=self, **context)
+
+        # 无自定义主入口 → 默认调试页
         api_info = []
         for route in self.routes:
             route_path = route['path']

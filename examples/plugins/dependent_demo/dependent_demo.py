@@ -94,8 +94,4 @@ class DependentDemoPlugin(BasePlugin):
 
     # ---------------- 页面 ----------------
     def page(self):
-        from flask import render_template
-        return render_template(
-            "plugins/dependent_demo.html",
-            plugin=self,
-        )
+        return self.render("dependent_demo.html")

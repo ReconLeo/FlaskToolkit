@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>问候 - {{ plugin.title }}</title>
+    <link rel="stylesheet" href="/static/css/main.css">
+</head>
+<body class="plugin-page">
+<div class="container">
+    <div class="card">
+        <div class="page-title">你好，{{ name }}！</div>
+        <div class="page-subtitle">路径参数 <code>&lt;name&gt;</code> 由分发器注入视图函数 kwargs</div>
+        <p>{{ greeting }}</p>
+        <p><a href="/plugin/{{ plugin.name }}">← 返回主页面</a></p>
+    </div>
+</div>
+</body>
+</html>

@@ -224,8 +224,12 @@ def extract_plugin_pack(zip_path: str, plugin_name: str, meta_override: dict = N
                     result['main'] = dest
                 result['py'].append(dest)
             elif parts[0] == 'templates':
-                # 模板 → templates/plugins/
-                dest = os.path.join(base, 'templates', 'plugins', *parts[1:])
+                # 模板 → templates/plugins/<plugin_name>/（插件模板命名空间，避免多插件模板名冲突）
+                # 兼容：zip 内 templates/<name>/xxx 或 templates/xxx 均进入插件命名空间
+                tpl_parts = parts[1:]
+                if len(tpl_parts) > 0 and tpl_parts[0] == plugin_name:
+                    tpl_parts = tpl_parts[1:]  # 去掉重复的插件名前缀
+                dest = os.path.join(base, 'templates', 'plugins', plugin_name, *tpl_parts)
                 _write_member(zf, member, dest)
                 result['templates'].append(dest)
             elif parts[0] == 'static':

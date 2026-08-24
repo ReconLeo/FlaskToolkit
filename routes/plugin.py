@@ -1,6 +1,10 @@
 # -*- coding: utf-8 -*-
 """插件路由：插件页面/API 分发、插件列表、手动重载"""
-from flask import jsonify, render_template, request
+import os
+import re
+import traceback
+
+from flask import Response, jsonify, render_template, request
 
 import global_var
 from core.plugin_loader import load_plugins
@@ -37,6 +41,49 @@ def register(app):
         if not plugin.enabled or not hasattr(plugin, '_wrapped_page'):
             return render_template('404.html', message=f"插件 {plugin_name} 已禁用或未加载"), 404
         return plugin._wrapped_page()
+
+    @app.route('/plugin/<plugin_name>/<path:sub_page>', methods=['GET', 'POST'])
+    def plugin_subpage_dispatcher(plugin_name, sub_page):
+        """插件子页面路由（大插件多模板支持）：按插件声明的 page 路由分发。
+        view_func 返回 dict → 渲染到插件模板（自动定位命名空间）；返回 Response → 原样返回。"""
+        plugin = global_var.plugins.get(plugin_name)
+        if plugin is None or not getattr(plugin, 'enabled', False) or not hasattr(plugin, '_wrapped_pages'):
+            return render_template('404.html', message=f"插件 {plugin_name} 不存在或未加载"), 404
+        if not plugin._wrapped_pages:
+            return render_template('404.html', message=f"插件 {plugin_name} 无子页面"), 404
+
+        sub_path = sub_page if sub_page.startswith('/') else '/' + sub_page
+        entry = None
+        kwargs = {}
+        # 精确匹配
+        if sub_path in plugin._wrapped_pages:
+            entry = plugin._wrapped_pages[sub_path]
+        else:
+            # 正则匹配（路径参数，如 /status/<task_id>）
+            for path, cand in plugin._wrapped_pages.items():
+                if '<' in path:
+                    pattern, param_names = parse_path_pattern(path)
+                    m = re.match(pattern, sub_path)
+                    if m:
+                        entry = cand
+                        kwargs = {param_names[i]: m.group(i + 1) for i in range(len(param_names))}
+                        break
+        if entry is None:
+            return render_template('404.html', message=f"插件子页面不存在: {sub_page}"), 404
+
+        try:
+            result = entry['view_func'](**kwargs)
+        except Exception as e:
+            logger = app.logger
+            logger.error(f"插件子页面渲染错误: {str(e)}\n{traceback.format_exc()}", extra={'plugin': plugin_name})
+            return render_template('500.html', message=f"页面加载失败: {str(e)}"), 500
+        if isinstance(result, Response):
+            return result
+        resolved = plugin._resolve_template(entry['template']) if hasattr(plugin, '_resolve_template') else None
+        if resolved is None:
+            resolved = f'plugins/{plugin_name}/{entry["template"].replace(chr(92), "/")}'
+        ctx = result if isinstance(result, dict) else {}
+        return render_template(resolved, plugin=plugin, **ctx)
 
     @app.route('/api/<plugin_name>/<path:api_path>', methods=['GET', 'POST', 'PUT', 'DELETE'])
     def api_dispatcher(plugin_name, api_path):

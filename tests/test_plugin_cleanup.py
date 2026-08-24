@@ -93,7 +93,7 @@ def main():
         check('安装后主 .py 存在', os.path.isfile(os.path.join(BASE, 'plugins', 'multi_plugin.py')))
         check('安装后辅助模块 helper_a 存在', os.path.isfile(os.path.join(BASE, 'plugins', 'helper_a.py')))
         check('安装后辅助模块 helper_b 存在', os.path.isfile(os.path.join(BASE, 'plugins', 'helper_b.py')))
-        check('安装后模板存在', os.path.isfile(os.path.join(BASE, 'templates', 'plugins', 'multi_plugin.html')))
+        check('安装后模板存在', os.path.isfile(os.path.join(BASE, 'templates', 'plugins', 'multi_plugin', 'multi_plugin.html')))
         check('py 清单含 3 个模块', len(result['py']) == 3, str(result['py']))
 
         meta_file = os.path.join(BASE, 'plugins', 'multi_plugin.json')
@@ -102,7 +102,7 @@ def main():
         installed = meta.get('installed_files', [])
         expect = {
             'plugins/multi_plugin.py', 'plugins/helper_a.py', 'plugins/helper_b.py',
-            'plugins/multi_plugin.json', 'templates/plugins/multi_plugin.html',
+            'plugins/multi_plugin.json', 'templates/plugins/multi_plugin/multi_plugin.html',
         }
         check('installed_files 清单完整', set(installed) == expect, str(installed))
 
@@ -111,7 +111,7 @@ def main():
         check('卸载后主 .py 已删', not os.path.exists(os.path.join(BASE, 'plugins', 'multi_plugin.py')))
         check('卸载后 helper_a 已删', not os.path.exists(os.path.join(BASE, 'plugins', 'helper_a.py')))
         check('卸载后 helper_b 已删', not os.path.exists(os.path.join(BASE, 'plugins', 'helper_b.py')))
-        check('卸载后模板已删', not os.path.exists(os.path.join(BASE, 'templates', 'plugins', 'multi_plugin.html')))
+        check('卸载后模板已删', not os.path.exists(os.path.join(BASE, 'templates', 'plugins', 'multi_plugin', 'multi_plugin.html')))
         check('卸载后描述文件已删', not os.path.exists(meta_file))
         check('卸载删除路径数 >= 5', len(removed) >= 5, str(removed))
 

@@ -166,8 +166,8 @@ def test_extract_normal_pack():
         ok = True
         ok &= os.path.isfile(os.path.join(root, 'plugins', 'demo.py'))
         ok &= os.path.isfile(os.path.join(root, 'plugins', 'demo.json'))
-        ok &= os.path.isfile(os.path.join(root, 'templates', 'plugins', 'demo.html'))
-        ok &= os.path.isfile(os.path.join(root, 'templates', 'plugins', 'sub', 'x.html'))
+        ok &= os.path.isfile(os.path.join(root, 'templates', 'plugins', 'demo', 'demo.html'))
+        ok &= os.path.isfile(os.path.join(root, 'templates', 'plugins', 'demo', 'sub', 'x.html'))
         ok &= os.path.isfile(os.path.join(root, 'templates', 'plugins', 'static', 'demo', 'css', 'style.css'))
         ok &= os.path.isfile(os.path.join(root, 'templates', 'plugins', 'static', 'demo', 'js', 'app.js'))
         check('正常包解压落位', ok, f"result={result}")

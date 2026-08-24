@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>接口使用说明 - {{ plugin.title }}</title>
+    <link rel="stylesheet" href="/static/css/main.css">
+</head>
+<body class="plugin-page">
+<div class="container">
+    <div class="card">
+        <div class="page-title">接口使用说明</div>
+        <div class="page-subtitle">本插件对外暴露的 API（页面路由 page=True 不计入 API 分发）：</div>
+        <ul class="feature-list">
+            {% for p in apis %}<li><code>{{ base }}{{ p }}</code></li>{% endfor %}
+        </ul>
+        <p>当前问候语：{{ greeting }} · <a href="/plugin/{{ plugin.name }}">← 返回主页面</a></p>
+    </div>
+</div>
+</body>
+</html>

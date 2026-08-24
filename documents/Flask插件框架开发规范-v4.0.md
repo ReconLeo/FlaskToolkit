@@ -5,7 +5,7 @@
 ### 版本说明（v4.2 变更）
 - **插件包卸载升级为 installed_files 清单机制**（5.6.6）：安装时把插件引入文件的相对路径清单写入 `plugins/<name>.json`，卸载按清单逐个删除（支持多 `.py` 插件包彻底卸载，无残留），无清单回退旧逻辑（兼容存量插件）。
 - **前端工具访问控制**（4.6 / 6.5）：`/frontend/<name>` 页面与 `/frontend-static/` 静态资源按工具的 `permission` 字段做三层校验（`public`/`user`/`admin`，`auth` 未安装时全员放行）；上传/更新缺省 `permission=public`；新增改权限接口 `POST /api/admin/frontend/<name>/permission`；管理后台插件页提供前端工具权限下拉。
-- **回归测试套件扩充至 15 脚本 289 项**（12 章）：新增 `test_plugin_cleanup.py`（卸载 installed_files 清单 + clean_old + 越界防御 23 项）、`test_frontend_permission.py`（前端工具三层权限 + 改权限 API + update 保留 permission 25 项）、`test_tools_ops.py`（backup/reset/config 运维工具 19 项），均隔离目录模式、已纳入 CI。
+- **回归测试套件扩充至 16 脚本 306 项**（12 章）：新增 `test_plugin_cleanup.py`（卸载 installed_files 清单 + clean_old + 越界防御 23 项）、`test_frontend_permission.py`（前端工具三层权限 + 改权限 API + update 保留 permission 25 项）、`test_tools_ops.py`（backup/reset/config 运维工具 19 项）、`test_page_router.py`（大插件多模板页面路由 17 项），均隔离目录模式、已纳入 CI。
 - **公共页面体验升级（8.1）**：首页新增搜索与排序（默认/热度/字母，热度取 API 调用与访问统计）；登录页支持记住用户名、显示/隐藏密码；首页/登录/登出/裸插件调试四页面样式统一为 `static/css/main.css` 设计体系，脚本抽离至 `static/js/`。
 - **裸插件调试页增强（8.1）**：支持**路径参数**输入与替换（`<name>`/`<int:name>`，如 async_file_demo 的 `/status/<task_id>`）；**非安全方法自动携带 X-CSRF-Token**（修复带鉴权接口无法调试的 CSRF 403）；PUT/DELETE 改发 JSON body；展示 HTTP 状态/耗时/业务 code/实际 URL；结果一键复制与折叠、会话内请求历史。
 
@@ -85,7 +85,7 @@ FlaskToolkit/
 │   ├── package.py             #   插件包打包/签名/校验 CLI（genkey/pack/verify/show）
 │   ├── backup.py              #   手动备份/恢复工具（Factory Reset 前备份关键数据）
 │   └── reset.py               #   深度重置工具（服务停止时使用，绕过运行时文件锁定）
-├── tests/                     # 回归测试套件（15 脚本 289 项 + 端到端链路验证）
+├── tests/                     # 回归测试套件（16 脚本 306 项 + 端到端链路验证）
 ├── templates/                 # 页面模板（首页/登录/错误码页 400-500/admin 管理后台/插件页）
 │   ├── admin/                 #   管理后台（dashboard / plugins / logs / stats / system）
 │   ├── frontend_tools/        #   前端工具模板
@@ -278,6 +278,38 @@ def get_item(self, item_id):
 ```
 
 可在 `validate_params` 中定义参数校验，失败自动返回 400。
+
+### 5.5.1 大插件多模板（页面路由 page=True，v4.2 新增）
+
+当后端插件需要**多个 HTML 模板**（主模板作入口 + 其它模板作功能分担或静态页）时，可通过**页面路由** + **模板命名空间**实现，聚焦大插件（多资源 + 多模块 + 多模板，但同名主入口一定存在）：
+
+**① 模板命名空间 `templates/plugins/<name>/`**
+
+插件包解压时，zip 内 `templates/xxx`（带或不带 `<name>/` 前缀）统一落位到 `templates/plugins/<name>/`，避免多插件模板名冲突（见 5.6.4 解压映射）。插件模板名恒为 `plugins/<name>/<template>`（**正斜杠**，Jinja 模板名须为 POSIX 风格；框架已自动归一化反斜杠）。
+
+**② 页面路由声明 `"page": True`**
+
+在 `routes` 中声明页面路由，条目不进 API 分发，由通配路由 `/plugin/<name>/<path:sub_page>` 分发（启动时注册一次，热加载友好）：
+
+```python
+{"path": "/status", "name": "状态子页", "methods": ["GET"],
+ "page": True, "template": "status.html", "view_func": self.page_status},
+{"path": "/user/<username>", "name": "用户子页", "methods": ["GET"],
+ "page": True, "template": "user.html", "view_func": self.page_user},
+```
+
+- 未声明 `template` 时默认取路径末段 + `.html`（如 `/about` → `about.html`）；
+- `view_func` 返回 **dict** → 分发器渲染命名空间模板（dict 作为上下文）；返回 **Response**（如 `self.render(...)`）→ 原样返回；
+- 路径参数 `<param>`/`<int:param>` 自动注入 `kwargs`（复用 `parse_path_pattern`）。
+
+**③ 主入口与渲染助手**
+
+- 主入口 `/plugin/<name>`：优先 `index.html`，回退 `<name>.html`；`render_index()` 钩子返回上下文 dict（默认 `{}`，模板可经 `plugin` 对象访问属性）；
+- 插件类**定义了 `page()`**（旧式自定义入口，基类无此方法）时优先调用 `page()`，兼容存量插件；
+- `self.render(template, **context)`：自动定位命名空间（回退旧式 `plugins/<template>`），返回 `Response`，视图函数可直接 `return self.render(...)`；
+- 无任何自定义主入口时回退裸插件调试页（见 8.1）。
+
+**④ 示例**：`hello_plugin` 展示主入口 `page()` + 子页 `about`/`usage`/`greet/<name>`（路径参数）；`tests/test_page_router.py` 17 项固化页面路由回归。
 
 ### 5.6 插件包（.zip）分发规范（v4.0 新增）
 
@@ -746,6 +778,7 @@ FLASKTOOLKIT_HOST=0.0.0.0 FLASKTOOLKIT_PORT=8000 python app.py
 | `test_plugin_cleanup.py` | 插件卸载 installed_files 清单专项（多 .py 包安装清单完整/卸载全清/clean_old 更新清理/越界路径防御） | 23 项 |
 | `test_frontend_permission.py` | 前端工具访问控制（三层权限 + 改权限 API 鉴权/边界 + 静态资源一致 + update 保留 permission） | 25 项 |
 | `test_tools_ops.py` | 开发运维工具回归（backup 创建/恢复、reset 范围、config 设置/非法值/unset） | 19 项 |
+| `test_page_router.py` | 大插件多模板（页面路由 page=True：主入口自动检测、dict/Response 分发、路径参数注入、正斜杠模板名、旧式 page() 兼容） | 17 项 |
 
 ```bash
 cd FlaskToolkit   # 在项目根目录执行
@@ -764,7 +797,8 @@ python tests/test_package_sign.py     # 22 项（完整性校验/签名，隔离
 python tests/test_plugin_cleanup.py    # 23 项（插件卸载 installed_files 清单，隔离目录）
 python tests/test_frontend_permission.py # 25 项（前端工具访问控制，隔离目录）
 python tests/test_tools_ops.py         # 19 项（backup/reset/config 运维工具，隔离目录）
-# 合计 15 个脚本 289 项
+python tests/test_page_router.py       # 17 项（大插件多模板页面路由，隔离目录）
+# 合计 16 个脚本 306 项
 ```
 
 说明：`test_meta_e2e.py` 与 `test_frontend_chain.py` / `test_admin_api.py` / `test_factory_reset.py` / `test_error_pages.py` / `test_package_sign.py` 均通过 mock 基础目录 + `sys.path` 指向临时插件目录运行，不污染真实项目，可重复执行；`test_reload_race.py` 使用 Flask test client，在测试开头手动调用 `load_plugins()` 初始化（`load_plugins` 仅在 `app.py` 的 `main` 段自动调用）。

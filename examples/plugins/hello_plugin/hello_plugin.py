@@ -7,10 +7,14 @@
 1. 生命周期钩子：on_load / on_shutdown / on_unload / on_uninstall
 2. 三层权限路由：public（游客）/ user（登录）/ admin（管理员）
 3. 配置持久化：load_config / save_config（存于 plugins/configs/<name>.json）
-4. 自定义页面：/plugin/hello_plugin 渲染自定义模板
+4. 自定义页面：/plugin/hello_plugin 渲染自定义模板（page() 旧式自定义入口）
+5. 多模板子页面：页面路由 page=True（主入口 + 功能分担子页 + 路径参数子页）
 
 安装方式见 examples/README.md。安装后可访问：
-- 页面   /plugin/hello_plugin
+- 页面   /plugin/hello_plugin                     （主入口，自定义页面）
+- 子页面 /plugin/hello_plugin/about               （功能分担：关于）
+- 子页面 /plugin/hello_plugin/usage               （功能分担：接口说明）
+- 子页面 /plugin/hello_plugin/greet/小明          （路径参数子页）
 - API    /api/hello_plugin/public   （游客可访问）
 - API    /api/hello_plugin/user     （登录后可访问）
 - API    /api/hello_plugin/admin    （仅管理员）
@@ -105,6 +109,20 @@ class HelloPlugin(BasePlugin):
                 ],
                 "view_func": self.save_config_api,
             },
+            # ---- 页面路由（page=True）：多模板子页面，不进 API 分发，走 /plugin/<name>/<sub_page> ----
+            # view_func 返回 dict → 分发器渲染命名空间模板；返回 Response（self.render）→ 原样返回
+            {
+                "path": "/about", "name": "关于本插件", "methods": ["GET"],
+                "page": True, "template": "about.html", "view_func": self.page_about,
+            },
+            {
+                "path": "/usage", "name": "接口使用说明", "methods": ["GET"],
+                "page": True, "template": "usage.html", "view_func": self.page_usage,
+            },
+            {
+                "path": "/greet/<name>", "name": "问候子页（路径参数）", "methods": ["GET"],
+                "page": True, "template": "greet.html", "view_func": self.page_greet,
+            },
         ]
 
     # ---------------- 视图函数 ----------------
@@ -161,16 +179,41 @@ class HelloPlugin(BasePlugin):
 
     # ---------------- 页面 ----------------
     def page(self):
-        """自定义插件页面：渲染 templates/plugins/hello_plugin.html"""
+        """自定义插件主入口：渲染模板命名空间下的 hello_plugin.html
+        （page() 为旧式自定义入口，框架检测到插件类定义了 page() 即优先调用；
+         self.render 会自动定位到 templates/plugins/hello_plugin/ 命名空间）"""
         self.load_config()
         cfg = self.config or dict(self.DEFAULT_CONFIG)
-        from flask import render_template
-        return render_template(
-            "plugins/hello_plugin.html",
-            plugin=self,
+        return self.render(
+            "hello_plugin.html",
             config=cfg,
             username=self._current_username(),
         )
+
+    # ---- 页面路由（page=True）子页面：由 routes/plugin.py 的 /plugin/<name>/<path:sub_page> 分发 ----
+    def page_about(self):
+        """子页面：关于本插件（返回 dict → 分发器渲染 about.html）"""
+        return {
+            "features": ["生命周期钩子", "三层权限路由", "配置持久化", "多模板子页面", "插件包机制"],
+            "name": self.name,
+            "version": self.version,
+        }
+
+    def page_usage(self):
+        """子页面：接口使用说明（返回 dict → 分发器渲染 usage.html）"""
+        self.load_config()
+        cfg = self.config or dict(self.DEFAULT_CONFIG)
+        return {
+            "apis": [r["path"] for r in self.routes if not r.get("page")],
+            "base": f"/api/{self.name}",
+            "greeting": cfg.get("greeting", "你好！"),
+        }
+
+    def page_greet(self, name):
+        """子页面：路径参数演示（<name> 注入 kwargs → 分发器渲染 greet.html）"""
+        self.load_config()
+        cfg = self.config or dict(self.DEFAULT_CONFIG)
+        return {"name": name, "greeting": cfg.get("greeting", "你好！")}
 
     # ---------------- 辅助 ----------------
     def _current_username(self) -> str:

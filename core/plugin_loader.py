@@ -205,10 +205,20 @@ def load_plugins():
 
             # 注册路由
             plugin_instance._wrapped_routes = {}
+            plugin_instance._wrapped_pages = {}  # 页面路由（大插件多模板）：path -> {'view_func','template'}
             for route in plugin_instance.routes:
                 wrapped_view = wrap_view_func(route['view_func'], plugin_instance.name, route)
                 path = route['path']
                 methods = tuple(route.get('methods', ['GET']))
+                # 页面路由：声明 page=True 时注册为插件子页面 /plugin/<name>/<subpath>，
+                # view_func 返回渲染上下文 dict（分发器渲染到插件模板）或 Response（原样返回）
+                if route.get('page'):
+                    page_tpl = route.get('template') or (path.strip('/').rsplit('/', 1)[-1] + '.html')
+                    plugin_instance._wrapped_pages[path] = {
+                        'view_func': wrapped_view,
+                        'template': page_tpl,
+                    }
+                    continue  # 页面路由不进 API 分发
                 if path not in plugin_instance._wrapped_routes:
                     plugin_instance._wrapped_routes[path] = {}
                 plugin_instance._wrapped_routes[path][methods] = wrapped_view
