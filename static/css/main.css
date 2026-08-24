@@ -236,3 +236,39 @@ body {
     .toolbar { flex-direction: column; align-items: stretch; }
     .navbar .container { padding: 0 12px; }
 }
+
+/* ---------------- 裸插件调试页增强（v4.2 UI） ---------------- */
+.path-params {
+    background: #f0f6fc; border: 1px dashed var(--primary);
+    border-radius: 6px; padding: 12px 14px; margin-bottom: 12px;
+}
+.path-params-title {
+    font-size: 13px; font-weight: bold; color: var(--primary); margin-bottom: 8px;
+}
+.path-param .param-input { margin: 8px 0; }
+
+.request-url {
+    margin-top: 10px; padding: 8px 12px; background: #fffbe6;
+    border: 1px solid #ffe58f; border-radius: 4px;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 13px; color: #8c6d1f; word-break: break-all;
+}
+.result-toolbar { margin-top: 10px; display: flex; gap: 8px; }
+.result-toolbar .btn { font-size: 12px; }
+.result.collapsed { max-height: 220px; overflow: auto; }
+
+/* 请求历史 */
+.history-panel {
+    background: var(--card-bg); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 14px 18px; margin-bottom: 40px;
+}
+.history-panel summary {
+    cursor: pointer; font-size: 15px; font-weight: bold; color: var(--text);
+    display: flex; align-items: center; gap: 10px;
+}
+.history-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
+.history-table th, .history-table td {
+    padding: 7px 10px; border-bottom: 1px solid var(--border); text-align: left;
+}
+.history-table th { color: var(--text-light); font-weight: 500; background: #f8f9fa; }
+.history-path { max-width: 480px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: 'Consolas', 'Courier New', monospace; }

@@ -21,17 +21,31 @@
         <div class="page-header">
             <h1>🔌 {{ plugin_name }}</h1>
             <div class="plugin-meta">
-                <p>分类：{{ plugin_category }} ｜ 版本：{{ plugin_version }}</p>
+                <p>分类：{{ plugin_category }} ｜ 版本：{{ plugin_version }} ｜ API 数：{{ apis | length }}</p>
                 <p>描述：{{ plugin_description }}</p>
             </div>
         </div>
 
         {% for api in apis %}
         <div class="api-card">
-            <div class="api-title">{{ api.name }}</div>
-            <div class="api-path">
-                <span class="method-badge {{ api.methods[0] }}">{{ api.methods[0] }}</span>{{ api.path }}
+            <div class="api-title">
+                {{ api.name }}
+                {% for m in api.methods %}<span class="method-badge {{ m }}">{{ m }}</span>{% endfor %}
             </div>
+            <div class="api-path"><code>{{ api.path }}</code></div>
+
+            {% if api.path_params %}
+            <div class="path-params">
+                <div class="path-params-title">路径参数</div>
+                {% for pp in api.path_params %}
+                <div class="param-input path-param">
+                    <label>路径参数 <code>{{ pp.name }}</code> <span style="color:red;">*</span></label>
+                    <input type="text" class="param path-param-input" data-path-param="{{ pp.name }}"
+                           placeholder="填入 {{ pp.name }} 的值（将替换到路径中）">
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
 
             {% for param in api.params %}
             <div class="param-input">
@@ -60,7 +74,7 @@
                           data-type="{{ param.type }}"
                           placeholder="{{ 'JSON数组，如: [\"a\",\"b\",\"c\"]  或逗号分隔: a,b,c' }}"
                 >{{ param.default | tojson if param.default is defined and param.default is not none else '' }}</textarea>
-                <div class="param-hint">支持 JSON 数组格式 或 逗号分隔值</div>
+                <div class="param-hint">支持 JSON 数组格式 或 逗号分隔值{% if param.element_type %} ｜ 元素类型：{{ param.element_type }}{% endif %}</div>
                 {% elif param.type == 'object' %}
                 <textarea class="param" data-name="{{ param.name }}"
                           data-type="{{ param.type }}"
@@ -76,11 +90,32 @@
             </div>
             {% endfor %}
 
-            <button class="btn btn-primary" onclick="callApi('{{ api.path }}', '{{ api.methods[0] }}', this)">调用</button>
-            <span class="call-status"></span>
-            <div class="result" style="display: none;"></div>
+            <div style="display:flex; align-items:center; margin-top:12px;">
+                <button class="btn btn-primary" onclick="callApi('{{ api.path }}', '{{ api.methods[0] }}', this)">调用</button>
+                <span class="call-status"></span>
+            </div>
+            <div class="request-url" style="display:none;"></div>
+            <div class="result-toolbar" style="display:none;">
+                <button class="btn btn-sm btn-ghost" onclick="copyResult(this)">📋 复制结果</button>
+                <button class="btn btn-sm btn-ghost" onclick="toggleFoldResult(this)">折叠 / 展开</button>
+            </div>
+            <div class="result" style="display:none;"></div>
         </div>
         {% endfor %}
+    </div>
+
+    <!-- 请求历史 -->
+    <div class="container" style="margin-top:32px;">
+        <details id="historyPanel" class="history-panel">
+            <summary>📜 请求历史（本次会话）<span id="historyCount" class="toolbar-count"></span></summary>
+            <div class="history-body">
+                <table class="history-table">
+                    <thead><tr><th>时间</th><th>方法</th><th>路径</th><th>HTTP</th><th>耗时</th></tr></thead>
+                    <tbody id="historyBody"></tbody>
+                </table>
+                <button class="btn btn-sm btn-ghost" id="historyClear" style="margin-top:8px;">清空历史</button>
+            </div>
+        </details>
     </div>
 
     <script src="/static/js/main.js"></script>

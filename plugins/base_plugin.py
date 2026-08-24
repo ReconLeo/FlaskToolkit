@@ -535,11 +535,18 @@ class BasePlugin(ABC):
     def render_plugin_page(self):
         api_info = []
         for route in self.routes:
+            route_path = route['path']
+            # 提取路径参数占位符 <name> 或 <int:name>，转为可输入的路径参数
+            path_params = [
+                {'name': m, 'type': 'string', 'required': True}
+                for m in re.findall(r'<(?:[^:>]+:)?(\w+)>', route_path)
+            ]
             api_info.append({
                 'name': route['name'],
-                'path': f'/api/{self.name}{route["path"]}',
+                'path': f'/api/{self.name}{route_path}',
                 'methods': route.get('methods', ['GET']),
-                'params': route.get('params', [])
+                'params': route.get('params', []),
+                'path_params': path_params
                 # params 中的每个字典现在支持以下字段：
                 #   name        - 参数名
                 #   type        - 类型：string/number/int/boolean/array/object/file

@@ -7,6 +7,7 @@
 - **前端工具访问控制**（4.6 / 6.5）：`/frontend/<name>` 页面与 `/frontend-static/` 静态资源按工具的 `permission` 字段做三层校验（`public`/`user`/`admin`，`auth` 未安装时全员放行）；上传/更新缺省 `permission=public`；新增改权限接口 `POST /api/admin/frontend/<name>/permission`；管理后台插件页提供前端工具权限下拉。
 - **回归测试套件扩充至 15 脚本 289 项**（12 章）：新增 `test_plugin_cleanup.py`（卸载 installed_files 清单 + clean_old + 越界防御 23 项）、`test_frontend_permission.py`（前端工具三层权限 + 改权限 API + update 保留 permission 25 项）、`test_tools_ops.py`（backup/reset/config 运维工具 19 项），均隔离目录模式、已纳入 CI。
 - **公共页面体验升级（8.1）**：首页新增搜索与排序（默认/热度/字母，热度取 API 调用与访问统计）；登录页支持记住用户名、显示/隐藏密码；首页/登录/登出/裸插件调试四页面样式统一为 `static/css/main.css` 设计体系，脚本抽离至 `static/js/`。
+- **裸插件调试页增强（8.1）**：支持**路径参数**输入与替换（`<name>`/`<int:name>`，如 async_file_demo 的 `/status/<task_id>`）；**非安全方法自动携带 X-CSRF-Token**（修复带鉴权接口无法调试的 CSRF 403）；PUT/DELETE 改发 JSON body；展示 HTTP 状态/耗时/业务 code/实际 URL；结果一键复制与折叠、会话内请求历史。
 
 ### 版本说明（v4.1 变更）
 - 后端插件分发改为**插件包（.zip）**机制：新增 5.6 节描述 plugin.json 描述文件、解压映射、静态资源访问与生命周期行为。
@@ -589,7 +590,7 @@ def validate_params(self, params):
 | 首页 | `/` | 工具卡片按分类展示；工具条支持**搜索**（名称/描述/作者/分类实时过滤）与**排序**（默认/热度/字母，分类内排序）；热度=后端插件 API 调用总数、前端工具访问数（渲染时注入 `data-heat`） |
 | 登录 | `/login` | 记住用户名（localStorage）、显示/隐藏密码、回车提交、防重复提交、登录成功页 + redirect 安全回跳（拒绝站外与 `/login` 自身） |
 | 登出 | `/logout` | 调用登出接口清理 Cookie + 成功页（自动/手动跳转登录） |
-| 裸插件调试 | `/plugin/<name>`（无自定义模板时） | 列出插件全部 API 与参数（string/boolean/file/array/object），可视化调用并展示 JSON 结果；属插件测试工具，功能改动需谨慎 |
+| 裸插件调试 | `/plugin/<name>`（无自定义模板时） | 列出插件全部 API 与参数（string/boolean/file/array/object **+ 路径参数 `<name>`/`<int:name>` 输入框**），可视化调用并展示 JSON 结果（**HTTP 状态码/耗时/业务 code/实际请求 URL**）；**非安全方法自动携带 CSRF**；**PUT/DELETE 与 POST 一致发 JSON body**；一键复制/折叠结果、请求历史；属插件测试工具，功能改动需谨慎 |
 
 ### 8.2 管理后台页面
 
