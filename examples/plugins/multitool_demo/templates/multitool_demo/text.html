@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文本统计 - {{ plugin.title }}</title>
+    <link rel="stylesheet" href="/plugin-static/{{ plugin.name }}/css/demo.css">
+    <!-- 标准鉴权：fetch 自动注入 X-CSRF-Token、401 跳登录 -->
+    <script src="/static/js/plugin_common.js"></script>
+</head>
+<body>
+<div class="ftk-card">
+    <h1>文本统计</h1>
+    <p class="ftk-muted">输入文本，调用 <code>{{ api_url }}</code>（复用辅助模块 multitool_utils）</p>
+    <textarea id="ftk-text" rows="4" placeholder="在此输入文本…"></textarea>
+    <button onclick="FtktText.analyze()">分析</button>
+    <pre id="ftk-result" class="ftk-muted">结果将显示在这里。</pre>
+    <p><a href="/plugin/{{ plugin.name }}">← 返回主入口</a></p>
+</div>
+<script>window.FtktText = { apiUrl: '{{ api_url }}' };</script>
+<script src="/plugin-static/{{ plugin.name }}/js/demo.js"></script>
+</body>
+</html>

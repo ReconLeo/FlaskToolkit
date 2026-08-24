@@ -1,0 +1,9 @@
+{
+  "name": "multitool_demo",
+  "title": "示例：大插件多模板",
+  "version": "1.0.0",
+  "author": "FlaskToolkit Examples",
+  "category": "示例",
+  "description": "大插件三要素演示：多模板（主入口 + 3 子页）+ 辅助 .py（multitool_utils）+ 静态资源（css/js）。文本分析小工具。",
+  "permission": "user"
+}

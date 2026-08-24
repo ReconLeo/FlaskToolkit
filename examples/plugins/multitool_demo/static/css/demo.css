@@ -1,0 +1,27 @@
+/* 大插件示例静态资源：demo 卡片样式（经 /plugin-static/multitool_demo/ 访问） */
+.ftk-card {
+    max-width: 720px;
+    margin: 24px auto;
+    background: #fff;
+    border-radius: 10px;
+    padding: 20px 28px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, .08);
+    font-family: Arial, sans-serif;
+}
+.ftk-card h1 { color: #2c3e50; font-size: 20px; margin-bottom: 6px; }
+.ftk-card h3 { color: #3498db; margin-top: 16px; }
+.ftk-list { padding-left: 20px; line-height: 1.9; }
+.ftk-list a { color: #3498db; text-decoration: none; }
+.ftk-muted { color: #7f8c8d; font-size: 13px; }
+.ftk-card button {
+    background: #3498db; color: #fff; border: none; border-radius: 6px;
+    padding: 8px 16px; cursor: pointer; margin-top: 8px; font-size: 14px;
+}
+.ftk-card textarea {
+    width: 100%; border: 1px solid #ddd; border-radius: 6px;
+    padding: 8px; font-size: 14px; font-family: inherit; box-sizing: border-box;
+}
+.ftk-card pre {
+    background: #f8f9fa; border: 1px solid #e1e4e8; border-radius: 6px;
+    padding: 10px; overflow-x: auto; font-size: 13px;
+}

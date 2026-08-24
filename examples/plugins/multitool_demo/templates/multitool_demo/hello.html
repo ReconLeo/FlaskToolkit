@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>问候 - {{ plugin.title }}</title>
+    <link rel="stylesheet" href="/plugin-static/{{ plugin.name }}/css/demo.css">
+</head>
+<body>
+<div class="ftk-card">
+    <h1>你好，{{ name }}！</h1>
+    <p class="ftk-muted">这是路径参数子页 <code>/hello/&lt;name&gt;</code> 的渲染结果（参数由分发器注入视图函数）。</p>
+    <p><a href="/plugin/{{ plugin.name }}">← 返回主入口</a></p>
+</div>
+</body>
+</html>

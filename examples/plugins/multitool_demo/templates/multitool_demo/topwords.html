@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>词频 Top-N - {{ plugin.title }}</title>
+    <link rel="stylesheet" href="/plugin-static/{{ plugin.name }}/css/demo.css">
+</head>
+<body>
+<div class="ftk-card">
+    <h1>词频 Top-N（辅助模块服务端渲染）</h1>
+    <p class="ftk-muted">示例文本：<code>{{ sample }}</code></p>
+    <ol class="ftk-list">
+        {% for item in top %}<li>{{ item.word }} × {{ item.count }}</li>{% endfor %}
+    </ol>
+    <p><a href="/plugin/{{ plugin.name }}">← 返回主入口</a></p>
+</div>
+</body>
+</html>

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }} - 大插件演示</title>
+    <link rel="stylesheet" href="/plugin-static/{{ name }}/css/demo.css">
+</head>
+<body>
+<div class="ftk-card">
+    <h1>{{ title }}</h1>
+    <p class="ftk-muted">插件名 <code>{{ name }}</code> · 大插件三要素演示</p>
+    <ul class="ftk-list">
+        <li>多模板：主入口 index.html + {{ sub_pages | length }} 个子页面（page=True 路由）</li>
+        <li>辅助 .py：multitool_utils（词频 / 文本统计纯函数）</li>
+        <li>静态资源：css/demo.css + js/demo.js（经 /plugin-static/ 访问）</li>
+    </ul>
+    <h3>子页面导航</h3>
+    <ul class="ftk-list">
+        {% for p in sub_pages %}<li><a href="/plugin/{{ name }}{{ p }}">{{ p }}</a></li>{% endfor %}
+    </ul>
+    <button onclick="FtktDemo.sayHello()">调用静态 JS</button>
+    <p id="ftk-js-msg" class="ftk-muted"></p>
+</div>
+<script src="/plugin-static/{{ name }}/js/demo.js"></script>
+</body>
+</html>

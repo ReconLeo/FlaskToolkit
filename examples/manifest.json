@@ -27,6 +27,13 @@
       "path": "plugins/dependent_demo",
       "type": "backend",
       "focus": ["dependencies 依赖声明（缺失依赖拒绝加载）", "call_plugin_method 跨插件调用 auth"]
+    },
+    {
+      "name": "multitool_demo",
+      "title": "示例：大插件多模板",
+      "path": "plugins/multitool_demo",
+      "type": "backend",
+      "focus": ["多模板：主入口 index.html + 页面路由 page=True 子页", "辅助 .py：multitool_utils 纯函数模块复用", "静态资源：css/js 经 /plugin-static/ 访问", "render_index 主入口数据钩子"]
     }
   ],
   "frontend_tools": [

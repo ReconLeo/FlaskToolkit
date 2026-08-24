@@ -10,6 +10,7 @@
 | `scheduler_demo`（APScheduler 定时任务） | 后端插件 | `/plugin/scheduler_demo` | `scheduled_tasks` 属性声明定时任务、interval 与 cron 双触发器、定时数据持久化、页面实时展示调度历史 |
 | `async_file_demo`（异步任务与文件上传） | 后端插件 | `/plugin/async_file_demo` | 上传类型/大小限制、`save_uploaded_file`、`run_async_task` 异步处理、状态轮询、`send_file_response` 下载结果 |
 | `dependent_demo`（插件依赖与跨插件调用） | 后端插件 | `/plugin/dependent_demo` | `dependencies` 依赖声明（缺失依赖拒绝加载）、`call_plugin_method` 跨插件调用 auth |
+| `multitool_demo`（大插件多模板） | 后端插件 | `/plugin/multitool_demo` | 大插件三要素：多模板（主入口 index + 页面路由 page=True 子页）、辅助 .py（multitool_utils 纯函数模块）、静态资源（css/js 经 `/plugin-static/` 访问）、`render_index` 数据钩子 |
 | `dashboard_demo`（Dashboard 管理面板） | 前端工具包 | `/frontend/dashboard_demo` | admin 权限前端工具、调用后端 admin API、ECharts 图表、zip 静态资源上传与访问 |
 
 ## 快速开始
@@ -110,7 +111,28 @@ class DependentDemoPlugin(BasePlugin):
 
 安装时若 auth 未安装，该插件会被拒绝安装——这正是依赖机制的演示。
 
-### 5. dashboard_demo —— 前端工具包完整形态
+### 5. multitool_demo —— 大插件多模板（多模板 + 辅助 .py + 静态资源）
+
+```python
+from plugins import multitool_utils  # 辅助 .py：插件包内多 .py，复用其纯函数
+
+class MultiToolDemo(BasePlugin):
+    # 1. 多模板：page=True 页面路由（主入口 index.html + 子页）
+    {"path": "/topwords", "name": "词频", "methods": ["GET"], "page": True,
+     "template": "topwords.html", "view_func": self.page_topwords},
+
+    def render_index(self):
+        return {...}                    # 2. 主入口 index.html 的数据钩子
+
+    def page_topwords(self):
+        return multitool_utils.top_words(sample, 5)   # 3. 辅助模块服务端渲染
+```
+
+- 静态资源 `static/css/demo.css`、`static/js/demo.js` 经 `/plugin-static/multitool_demo/` 提供；
+- 子页 `/plugin/multitool_demo/text` 页面内静态 JS 调 `POST /api/multitool_demo/analyze`（user 权限，`plugin_common.js` 自动注入 CSRF）；
+- 子页 `/plugin/multitool_demo/hello/小明` 演示路径参数注入。
+
+### 6. dashboard_demo —— 前端工具包完整形态
 
 区别于纯前端工具（如内置的密码生成器），本示例展示：
 
@@ -130,7 +152,8 @@ examples/
 │   ├── hello_plugin/          #   plugin.json + <name>.py + templates/
 │   ├── scheduler_demo/
 │   ├── async_file_demo/
-│   └── dependent_demo/
+│   ├── dependent_demo/
+│   └── multitool_demo/        #   大插件：多模板 + 辅助 .py + static/ 静态资源
 └── frontend_tools/            # 前端工具包示例
     └── dashboard_demo/        #   config.json + <name>.html + static/
 ```
