@@ -60,7 +60,7 @@ def load_frontend_tools():
             'description': tool.get('description', '暂无描述'),
             'category': tool.get('category', '其他工具'),
             'version': tool.get('version', '1.0.0'),
-            'permission': tool.get('permission', 'user'),
+            'permission': tool.get('permission', 'public'),
             'require_framework_version': tool.get('require_framework_version', ''),
             'enabled': tool.get('enabled', True),  # 缺省为启用状态
             'type': 'frontend'

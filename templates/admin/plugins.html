@@ -223,6 +223,11 @@
                             ${plugin.install_time ? `<br>安装：${plugin.install_time}` : ''}
                             ${plugin.source ? ` ｜ 来源：${plugin.source}` : ''}
                             ${(plugin.history && plugin.history.length > 1) ? ` ｜ 版本历史：${plugin.history.map(h => h.version).join(' → ')}` : ''}
+                            ${plugin.type === 'frontend' ? ` ｜ 权限：<select style="font-size:12px; padding:2px 4px; border:1px solid #ccc; border-radius:4px; background:#fff;" onchange="changeFrontendPermission('${plugin.name}', this.value)">
+                                <option value="public" ${plugin.permission === 'public' ? 'selected' : ''}>公开</option>
+                                <option value="user" ${plugin.permission === 'user' ? 'selected' : ''}>登录</option>
+                                <option value="admin" ${plugin.permission === 'admin' ? 'selected' : ''}>管理员</option>
+                            </select>` : ''}
                         </div>
                     </div>
                     <div style="display:flex; gap:8px; flex-wrap:wrap;">
@@ -290,6 +295,19 @@
             if (data.code === 200) { showToast(data.message, 'success'); loadPlugins(); }
             else { showToast(data.message, 'error'); }
         } catch (e) { showToast('禁用失败: ' + e.message, 'error'); }
+    }
+
+    async function changeFrontendPermission(toolName, permission) {
+        try {
+            const response = await fetch(`/api/admin/frontend/${toolName}/permission`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': _getCsrfCookie() },
+                body: JSON.stringify({ permission })
+            });
+            const data = await response.json();
+            if (data.code === 200) { showToast(data.message, 'success'); loadPlugins(); }
+            else { showToast('修改失败: ' + data.message, 'error'); }
+        } catch (e) { showToast('修改失败: ' + e.message, 'error'); }
     }
 
     // ==================== 配置 ====================

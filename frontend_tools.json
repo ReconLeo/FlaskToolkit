@@ -6,7 +6,7 @@
     "description": "纯前端随机密码生成器：长度 6-64、四类字符集、排除易混淆字符、批量生成、强度分级、一键复制，数据不上传。",
     "category": "安全工具",
     "version": "1.0.0",
-    "permission": "user",
+    "permission": "public",
     "require_framework_version": "",
     "enabled": true,
     "type": "frontend"

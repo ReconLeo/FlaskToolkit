@@ -177,17 +177,27 @@ def extract_class_meta_from_py(py_source: str) -> dict:
     return {}
 
 
-def extract_plugin_pack(zip_path: str, plugin_name: str, meta_override: dict = None) -> dict:
+def extract_plugin_pack(zip_path: str, plugin_name: str, meta_override: dict = None,
+                        clean_old: bool = True) -> dict:
     """
     安全解压插件包到对应位置（防 zip slip 路径穿越）：
     - 根目录 .py 文件     → plugins/
     - templates/ 目录文件 → templates/plugins/
     - static/ 目录文件    → templates/plugins/static/<plugin_name>/
 
-    返回解压结果 dict: {'main': 主文件路径, 'py': [...], 'templates': [...], 'static': [...]}
+    安装/更新时把“引入的全部文件”相对路径清单写入 plugins/<plugin_name>.json 的
+    installed_files 字段；clean_old=True 时先按旧清单删除旧版本引入的文件
+    （解决多 .py 插件包卸载/更新时辅助模块残留问题）。
+
+    返回解压结果 dict: {'main': 主文件路径, 'py': [...], 'templates': [...], 'static': [...], 'meta': None}
     """
     base = global_var.BASE_DIR
+    # 0. 更新场景：先按旧 installed_files 清单删除旧版本引入的文件（容错，文件不存在则忽略）
+    if clean_old:
+        _delete_installed_files(plugin_name)
+
     result = {'main': None, 'py': [], 'templates': [], 'static': [], 'meta': None}
+    meta_dest = None
     with zipfile.ZipFile(zip_path, 'r') as zf:
         for member in zf.namelist():
             # zip 内路径统一用 '/' 分隔（不能用 os.path.normpath，Windows 下会把 '/' 转成 '\\'）
@@ -203,14 +213,9 @@ def extract_plugin_pack(zip_path: str, plugin_name: str, meta_override: dict = N
                 raise ValueError(f"插件包包含绝对路径（非法）: {member}")
 
             if normalized == PLUGIN_PACK_DESC_FILE:
-                # 描述文件 → plugins/<plugin_name>.json（作为插件包元信息真相来源）
-                dest = os.path.join(base, 'plugins', f"{plugin_name}.json")
-                if meta_override is not None:
-                    # 落盘“对齐后”的描述（含缺失字段从类属性兜底补齐）
-                    _write_text(dest, json.dumps(meta_override, ensure_ascii=False, indent=2))
-                else:
-                    _write_member(zf, member, dest)
-                result['meta'] = dest
+                # 描述文件 → plugins/<plugin_name>.json（作为插件包元信息真相来源，循环后统一落盘）
+                meta_dest = os.path.join(base, 'plugins', f"{plugin_name}.json")
+                result['meta'] = meta_dest
             elif len(parts) == 1 and parts[0].endswith('.py'):
                 # 根目录 .py → plugins/
                 dest = os.path.join(base, 'plugins', parts[0])
@@ -230,6 +235,21 @@ def extract_plugin_pack(zip_path: str, plugin_name: str, meta_override: dict = N
                 result['static'].append(dest)
             else:
                 logger.warning(f"插件包包含未知条目，已忽略: {member}", extra={'plugin': 'system'})
+
+        # 统一落盘描述文件（合并 installed_files 安装文件清单）
+        if meta_dest:
+            if meta_override is not None:
+                meta = dict(meta_override)
+            else:
+                try:
+                    meta = json.loads(zf.read(PLUGIN_PACK_DESC_FILE).decode('utf-8'))
+                except Exception:
+                    meta = {}
+            _all_files = [meta_dest] + result['py'] + result['templates'] + result['static']
+            meta['installed_files'] = [
+                os.path.relpath(p, base).replace(os.sep, '/') for p in _all_files
+            ]
+            _write_text(meta_dest, json.dumps(meta, ensure_ascii=False, indent=2))
     return result
 
 
@@ -255,32 +275,84 @@ def _write_member(zf: zipfile.ZipFile, member: str, dest: str):
         shutil.copyfileobj(src, out)
 
 
+def _read_installed_files(plugin_name: str) -> list:
+    """读取插件描述文件中的安装文件清单（相对路径），无则返回空列表"""
+    meta_file = os.path.join(global_var.BASE_DIR, 'plugins', f"{plugin_name}.json")
+    if not os.path.isfile(meta_file):
+        return []
+    try:
+        with open(meta_file, 'r', encoding='utf-8') as f:
+            meta = json.load(f)
+        return [x for x in meta.get('installed_files', []) if isinstance(x, str)]
+    except Exception:
+        return []
+
+
+def _prune_empty_dirs(base: str, start_dirs: list):
+    """从给定目录向上逐级删除空目录（不越过项目根）"""
+    for d in start_dirs:
+        cur = d
+        while cur and os.path.isdir(cur) and cur != base and cur.startswith(base + os.sep):
+            try:
+                os.rmdir(cur)  # 仅删除空目录
+                cur = os.path.dirname(cur)
+            except OSError:
+                break
+
+
+def _delete_installed_files(plugin_name: str) -> list:
+    """按安装清单删除插件引入的文件（相对路径，安全校验防穿越），并清理空目录。
+    返回删除路径列表；无清单时返回 []。"""
+    base = global_var.BASE_DIR
+    removed = []
+    installed = _read_installed_files(plugin_name)
+    if not installed:
+        return removed
+    for rel in installed:
+        p = os.path.abspath(os.path.join(base, rel.replace('/', os.sep)))
+        if not (p == base or p.startswith(base + os.sep)):
+            continue  # 防御：清单路径必须在本项目内
+        try:
+            if os.path.isfile(p):
+                os.remove(p)
+                removed.append(p)
+            elif os.path.isdir(p):
+                shutil.rmtree(p, ignore_errors=True)
+                removed.append(p)
+        except OSError:
+            pass
+    # 清理因删除产生的空目录
+    _prune_empty_dirs(base, [os.path.dirname(p) for p in removed])
+    return removed
+
+
 def cleanup_plugin_resources(plugin_name: str) -> list:
     """
-    删除插件关联的资源文件（卸载时调用）：
-    - templates/plugins/<name>.html 及以 <name> 命名的模板文件
-    - templates/plugins/static/<name>/ 静态资源目录
+    删除插件关联的文件（卸载时调用）。
+    优先按安装清单（plugins/<name>.json 的 installed_files）删除全部引入文件
+    （主 .py + 辅助模块 + 模板 + 静态资源），并清理空目录；
+    老插件（无清单）回退到按命名约定删除主模板与静态目录。
     返回删除路径列表。
     """
     base = global_var.BASE_DIR
-    removed = []
+    # 1. 有安装清单：按清单删除（覆盖多 .py 插件包的辅助模块）
+    if _read_installed_files(plugin_name):
+        return _delete_installed_files(plugin_name)
 
-    # 插件包描述文件 plugins/<name>.json
+    # 2. 回退：无清单的老插件（按命名约定删除）
+    removed = []
     meta_file = os.path.join(base, 'plugins', f"{plugin_name}.json")
     if os.path.isfile(meta_file):
         os.remove(meta_file)
         removed.append(meta_file)
-
     main_tpl = os.path.join(base, 'templates', 'plugins', f"{plugin_name}.html")
     if os.path.isfile(main_tpl):
         os.remove(main_tpl)
         removed.append(main_tpl)
-
     static_dir = os.path.join(base, 'templates', 'plugins', 'static', plugin_name)
     if os.path.isdir(static_dir):
         shutil.rmtree(static_dir)
         removed.append(static_dir)
-
     return removed
 
 

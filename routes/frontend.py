@@ -11,7 +11,7 @@ from flask import jsonify, render_template, request, send_from_directory
 
 import global_var
 from core.frontend_tools import load_frontend_tools
-from core.permission import admin_api
+from core.permission import _check_permission, admin_api
 from core.package_sign import verify_package
 from core.plugin_pack import compare_versions
 from core.stats import increment_frontend_access, save_stats
@@ -114,6 +114,12 @@ def register(app):
             logger.warning(f"尝试访问已禁用的前端工具: {tool_name}", extra={'plugin': 'system'})
             return render_template('403.html', message="该工具已被禁用"), 403
 
+        # 访问控制：按 permission 字段校验（public/user/admin；auth 未安装时放行）
+        permission_level = tool.get('permission') or 'public'
+        auth_result = _check_permission(permission_level)
+        if auth_result is not None:
+            return auth_result
+
         logger.info(f"访问前端工具页面: {tool['title']}", extra={'plugin': f'frontend:{tool_name}'})
         increment_frontend_access(tool_name)
 
@@ -125,6 +131,13 @@ def register(app):
         tool = next((t for t in global_var.frontend_tools if t['name'] == tool_name), None)
         if not tool:
             return render_template('404.html', message="工具不存在"), 404
+
+        # 访问控制：静态资源与页面采用相同的权限校验
+        permission_level = tool.get('permission') or 'public'
+        auth_result = _check_permission(permission_level)
+        if auth_result is not None:
+            return auth_result
+
         static_dir = os.path.join(global_var.FRONTEND_TEMPLATE_DIR, 'static', tool_name)
         if not os.path.isdir(static_dir):
             return render_template('404.html', message="静态资源不存在"), 404
@@ -210,6 +223,7 @@ def register(app):
                 global_var.frontend_tools.append({
                     'name': tool_name,
                     'title': config.get('title', tool_name),  # 可选，缺省用name
+                    'permission': config.get('permission', 'public'),  # 可选，缺省公开（管理员后台可收紧）
                     'author': config.get('author', '佚名'),  # 可选，缺省佚名
                     'description': config.get('description', '暂无描述'),  # 可选，缺省暂无描述
                     'version': config['version'],  # 必填
@@ -323,7 +337,7 @@ def register(app):
                     'version': config['version'],
                     'category': config['category'],
                     'require_framework_version': config.get('require_framework_version', current_tool.get('require_framework_version', '')),
-                    'permission': config.get('permission', current_tool.get('permission', 'user'))
+                    'permission': config.get('permission', current_tool.get('permission', 'public'))
                 })
                 # 溯源：保留 install_time，追加版本历史
                 _now = time.strftime('%Y-%m-%d %H:%M:%S')
@@ -450,3 +464,43 @@ def register(app):
         logger.info(f"已禁用前端工具: {tool_name}", extra={'plugin': 'system'})
         log_audit('前端工具禁用', tool_name, 'ok')
         return jsonify({"code": 200, "message": f"前端工具 {tool_name} 已禁用"})
+
+    @app.route('/api/admin/frontend/<tool_name>/permission', methods=['POST'])
+    @admin_api
+    def change_frontend_permission(tool_name):
+        """修改前端工具访问权限（public/user/admin）"""
+        data = request.get_json(silent=True) or {}
+        new_permission = str(data.get('permission', '')).strip().lower()
+        if new_permission not in ('public', 'user', 'admin'):
+            return jsonify({"code": 400, "message": "权限值无效，仅支持 public/user/admin"}), 400
+
+        config_file = global_var.FRONTEND_CONFIG_FILE
+        if not os.path.exists(config_file):
+            return jsonify({"code": 404, "message": "前端工具配置文件不存在"}), 404
+
+        try:
+            with open(config_file, 'r', encoding='utf-8') as f:
+                config_data = json.load(f)
+        except Exception as e:
+            logger.error(f"读取配置文件失败: {str(e)}", extra={'plugin': 'system'})
+            return jsonify({"code": 500, "message": "配置文件读取失败"}), 500
+
+        tool_found = False
+        for tool in config_data:
+            if isinstance(tool, dict) and tool.get('name') == tool_name:
+                tool['permission'] = new_permission
+                tool_found = True
+                break
+
+        if not tool_found:
+            return jsonify({"code": 404, "message": "前端工具不存在"}), 404
+
+        with open(config_file, 'w', encoding='utf-8') as f:
+            json.dump(config_data, f, ensure_ascii=False, indent=2)
+
+        # 重新加载前端工具到内存
+        load_frontend_tools()
+
+        logger.info(f"已修改前端工具权限: {tool_name} -> {new_permission}", extra={'plugin': 'system'})
+        log_audit('前端工具权限修改', tool_name, 'ok', f"permission={new_permission}")
+        return jsonify({"code": 200, "message": f"前端工具 {tool_name} 权限已更新为 {new_permission}"})
