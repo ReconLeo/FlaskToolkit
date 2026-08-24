@@ -6,6 +6,7 @@
 - **插件包卸载升级为 installed_files 清单机制**（5.6.6）：安装时把插件引入文件的相对路径清单写入 `plugins/<name>.json`，卸载按清单逐个删除（支持多 `.py` 插件包彻底卸载，无残留），无清单回退旧逻辑（兼容存量插件）。
 - **前端工具访问控制**（4.6 / 6.5）：`/frontend/<name>` 页面与 `/frontend-static/` 静态资源按工具的 `permission` 字段做三层校验（`public`/`user`/`admin`，`auth` 未安装时全员放行）；上传/更新缺省 `permission=public`；新增改权限接口 `POST /api/admin/frontend/<name>/permission`；管理后台插件页提供前端工具权限下拉。
 - **回归测试套件扩充至 15 脚本 289 项**（12 章）：新增 `test_plugin_cleanup.py`（卸载 installed_files 清单 + clean_old + 越界防御 23 项）、`test_frontend_permission.py`（前端工具三层权限 + 改权限 API + update 保留 permission 25 项）、`test_tools_ops.py`（backup/reset/config 运维工具 19 项），均隔离目录模式、已纳入 CI。
+- **公共页面体验升级（8.1）**：首页新增搜索与排序（默认/热度/字母，热度取 API 调用与访问统计）；登录页支持记住用户名、显示/隐藏密码；首页/登录/登出/裸插件调试四页面样式统一为 `static/css/main.css` 设计体系，脚本抽离至 `static/js/`。
 
 ### 版本说明（v4.1 变更）
 - 后端插件分发改为**插件包（.zip）**机制：新增 5.6 节描述 plugin.json 描述文件、解压映射、静态资源访问与生命周期行为。
@@ -14,7 +15,7 @@
 - 新增**最低框架版本要求** `require_framework_version`（非强制，一经声明须满足，否则拒绝安装/加载），见 5.7。
 - 新增**内置插件**机制（`auth` / `user_manage`，`global_var.BUILTIN_PLUGINS`，不可卸载、受 Factory Reset 保护），见 5.8。
 - 新增 **Factory Reset（重置）**能力：部分/全部还原至安装初始状态，见 5.9。
-- 新增**管理后台**：`/admin/dashboard | plugins | logs | stats | system` 五页面（统一 `templates/admin/base.html` 布局 + `@admin_api` 权限保护）与系统信息接口 `GET /api/admin/system/info`，见 8.1 / 8.2。
+- 新增**管理后台**：`/admin/dashboard | plugins | logs | stats | system` 五页面（统一 `templates/admin/base.html` 布局 + `@admin_api` 权限保护）与系统信息接口 `GET /api/admin/system/info`，见 8.2 / 8.3。
 - 新增回归测试套件（zip slip 专项、描述一致性、重载竞态、元信息端到端），见 11 章。
 - `auth` 会话文件改为原子写（`.tmp` + `os.replace`），修复热加载重载时读到空文件的偶发 401 竞态。
 - 新增**前端工具静态资源支持**：工具包 zip 内 `static/` 目录随包分发，经 `/frontend-static/<name>/<path>` 通配路由访问（安全解压 + zip slip 防护），见 6.1 / 6.4。
@@ -88,7 +89,7 @@ FlaskToolkit/
 │   ├── admin/                 #   管理后台（dashboard / plugins / logs / stats / system）
 │   ├── frontend_tools/        #   前端工具模板
 │   └── plugins/               #   插件页面模板
-├── static/                    # 静态资源（js/plugin_common.js 统一鉴权前端、css/error.css 统一错误页样式）
+├── static/                    # 静态资源（css/main.css 统一设计体系 + error.css 错误页；js/plugin_common.js 统一鉴权前端 + main.js 公共脚本 + index/login/plugin_default/logout 页面脚本）
 ├── .github/workflows/ci.yml   # GitHub Actions CI 工作流
 ├── data/                      # 运行时数据（统计/审计/用户配置，已 gitignore）
 ├── logs/                      # 运行日志（已 gitignore）
@@ -579,7 +580,18 @@ def validate_params(self, params):
 - 管理端接口（`/api/admin/*`）框架已默认强制管理员权限，插件无需也不应声明。
 - 未加载/已禁用的插件访问返回 404（非 500）。
 
-### 8.1 管理后台页面
+### 8.1 公共页面（首页 / 登录 / 登出 / 裸插件调试）
+
+公共页面共享 `static/css/main.css` 统一设计体系（以首页风格为准：深色导航栏、主色蓝 `#3498db`、成功绿 `#27ae60`、卡片圆角）与 `static/js/main.js` 公共脚本（`FT.getCookie` / `FT.checkAuth` / `FT.doLogout`）：
+
+| 页面 | 路径 | 功能 |
+|------|------|------|
+| 首页 | `/` | 工具卡片按分类展示；工具条支持**搜索**（名称/描述/作者/分类实时过滤）与**排序**（默认/热度/字母，分类内排序）；热度=后端插件 API 调用总数、前端工具访问数（渲染时注入 `data-heat`） |
+| 登录 | `/login` | 记住用户名（localStorage）、显示/隐藏密码、回车提交、防重复提交、登录成功页 + redirect 安全回跳（拒绝站外与 `/login` 自身） |
+| 登出 | `/logout` | 调用登出接口清理 Cookie + 成功页（自动/手动跳转登录） |
+| 裸插件调试 | `/plugin/<name>`（无自定义模板时） | 列出插件全部 API 与参数（string/boolean/file/array/object），可视化调用并展示 JSON 结果；属插件测试工具，功能改动需谨慎 |
+
+### 8.2 管理后台页面
 
 管理后台提供前端页面管理 FlaskToolkit 应用（入口 `/admin/dashboard`，首页右上角「🛠️ 管理后台」按钮），统一继承 `templates/admin/base.html` 布局（顶部导航：仪表盘/插件管理/日志/统计/系统管理 + 用户信息 + 退出登录），**所有页面路由加 `@admin_api` 保护**（未登录 302 跳登录页携带 redirect、普通用户渲染 403 页、auth 未安装时放行）：
 
@@ -591,7 +603,7 @@ def validate_params(self, params):
 | 统计 | `/admin/stats` | API 调用 Top100（可搜索）+ 前端访问 Top100 |
 | 系统管理 | `/admin/system` | 系统信息 + Factory Reset 分 scope 勾选 / 全部重置（见 5.9） |
 
-### 8.2 管理端接口
+### 8.3 管理端接口
 
 - `GET /api/admin/system/info`：框架版本、内置插件列表、Python/平台版本、base_dir、host、debug 标志与各类统计数（仪表盘与系统页数据源）。
 - `GET /api/admin/stats`：插件数（含 catalog）、前端工具数、API 调用与前端访问统计明细。

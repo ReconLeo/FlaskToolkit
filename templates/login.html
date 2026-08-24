@@ -4,262 +4,47 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>系统登录</title>
-    <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: system-ui, -apple-system, sans-serif;
-        }
-        body {
-            background-color: #f5f7fa;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-        }
-        .login-box {
-            width: 100%;
-            max-width: 380px;
-            padding: 30px;
-            background: #fff;
-            border-radius: 8px;
-            box-shadow: 0 2px 12px rgba(0,0,0,0.1);
-        }
-        .login-title {
-            text-align: center;
-            margin-bottom: 25px;
-            color: #333;
-            font-size: 24px;
-        }
-        .form-item {
-            margin-bottom: 20px;
-        }
-        .form-item label {
-            display: block;
-            margin-bottom: 8px;
-            color: #666;
-            font-size: 14px;
-        }
-        .form-item input {
-            width: 100%;
-            padding: 10px 12px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 16px;
-        }
-        .form-item input:focus {
-            outline: none;
-            border-color: #409eff;
-        }
-        .login-btn {
-            width: 100%;
-            padding: 11px;
-            background-color: #409eff;
-            color: #fff;
-            border: none;
-            border-radius: 4px;
-            font-size: 16px;
-            cursor: pointer;
-            transition: background-color 0.2s;
-        }
-        .login-btn:hover {
-            background-color: #66b1ff;
-        }
-        .login-btn:disabled {
-            background-color: #909399;
-            cursor: not-allowed;
-        }
-        .tip {
-            margin-top: 15px;
-            text-align: center;
-            color: #999;
-            font-size: 12px;
-        }
-        .error-tip {
-            margin-top: 10px;
-            color: #f56c6c;
-            text-align: center;
-            font-size: 14px;
-            display: none;
-        }
-        /* 新增：登录成功提示区 */
-        .success-area {
-            display: none;
-            text-align: center;
-            padding: 20px 0;
-        }
-        .success-icon {
-            width: 50px;
-            height: 50px;
-            line-height: 50px;
-            border-radius: 50%;
-            background-color: #f0f9ff;
-            color: #67c23a;
-            font-size: 28px;
-            margin: 0 auto 15px;
-        }
-        .success-title {
-            font-size: 18px;
-            color: #333;
-            margin-bottom: 10px;
-        }
-        .success-tip {
-            font-size: 14px;
-            color: #666;
-            margin-bottom: 20px;
-        }
-        .manual-btn {
-            display: inline-block;
-            padding: 8px 20px;
-            background-color: #409eff;
-            color: #fff;
-            border-radius: 4px;
-            text-decoration: none;
-            font-size: 14px;
-            transition: background-color 0.2s;
-        }
-        .manual-btn:hover {
-            background-color: #66b1ff;
-        }
-    </style>
+    <link rel="stylesheet" href="/static/css/main.css">
 </head>
 <body>
-    <div class="login-box">
-        <!-- 登录表单区 -->
-        <div id="loginForm">
-            <h2 class="login-title">系统登录</h2>
-            <div class="form-item">
-                <label>用户名</label>
-                <input type="text" id="username" placeholder="请输入用户名" autocomplete="username">
+    <div class="auth-page">
+        <div class="auth-card">
+            <!-- 登录表单区 -->
+            <div id="loginForm">
+                <h2 class="auth-title">🔐 系统登录</h2>
+                <div class="form-item">
+                    <label>用户名</label>
+                    <div class="input-wrap">
+                        <input type="text" id="username" placeholder="请输入用户名" autocomplete="username">
+                    </div>
+                </div>
+                <div class="form-item">
+                    <label>密码</label>
+                    <div class="input-wrap">
+                        <input type="password" id="password" placeholder="请输入密码" autocomplete="current-password">
+                        <button type="button" id="pwdToggle" class="pwd-toggle" tabindex="-1">显示</button>
+                    </div>
+                </div>
+                <div class="form-item" style="display:flex; align-items:center; gap:6px; margin-bottom:20px;">
+                    <input type="checkbox" id="remember" style="width:auto; cursor:pointer;">
+                    <label for="remember" style="margin-bottom:0; font-size:13px; color:#666; cursor:pointer;">记住用户名</label>
+                </div>
+                <button class="btn btn-primary" id="loginBtn" style="width:100%; padding:11px; font-size:16px;">登录</button>
+                <div class="auth-error" id="errorTip"></div>
+                <div class="auth-tip">默认账号：admin / admin123</div>
             </div>
-            <div class="form-item">
-                <label>密码</label>
-                <input type="password" id="password" placeholder="请输入密码" autocomplete="current-password">
-            </div>
-            <button class="login-btn" onclick="handleLogin()" id="loginBtn">登录</button>
-            <div class="error-tip" id="errorTip"></div>
-            <div class="tip">默认账号：admin / admin123</div>
-        </div>
 
-        <!-- 登录成功提示区（默认隐藏） -->
-        <div id="successArea" class="success-area">
-            <div class="success-icon">✓</div>
-            <div class="success-title">登录成功</div>
-            <div class="success-tip" id="successTip">3秒后自动跳转到首页...</div>
-            <a href="javascript:goRedirect()" class="manual-btn">立即前往</a>
+            <!-- 登录成功提示区（默认隐藏） -->
+            <div id="successArea" class="auth-success">
+                <div class="status-icon">✓</div>
+                <div class="status-title">登录成功</div>
+                <div class="status-tip" id="successTip">3秒后自动跳转到首页...</div>
+                <a href="javascript:goRedirect()" class="btn btn-primary" style="width:auto; padding:8px 20px;">立即前往</a>
+            </div>
         </div>
     </div>
 
-    <script>
-        // 获取跳转来源
-		const params = new URLSearchParams(window.location.search);
-		let redirectUrl = params.get('redirect') || '/';
-		redirectUrl = decodeURIComponent(redirectUrl).replace(/[?&]$/, '');
-		// 安全校验：禁止跳转到登录页本身或站外地址
-		if (redirectUrl.startsWith('/login') || !redirectUrl.startsWith('/')) {
-			redirectUrl = '/';
-		}
-		
-		// 读Cookie方法：兼容所有浏览器
-		function getCookie(name) {
-			const value = `; ${document.cookie}`;
-			const parts = value.split(`; ${name}=`);
-			if (parts.length === 2) return parts.pop().split(';').shift();
-			return null;
-		}
-		
-		// 跳转方法：统一调用
-		window.goRedirect = function() {
-			window.location.replace(redirectUrl);
-		}
-		
-		// 已登录才跳转：通过 user/info 校验会话（HttpOnly Cookie 自动携带）
-		const xhr0 = new XMLHttpRequest();
-		xhr0.open('GET', '/api/auth/user/info', true);
-		xhr0.withCredentials = true;
-		xhr0.onreadystatechange = function() {
-			if (xhr0.readyState === 4) {
-				if (xhr0.status === 200) {
-					// 已登录且会话有效，显示成功页面后跳转
-					showSuccessPage();
-				} else {
-					// 未登录或会话过期，清除 csrf 残留，留在登录页
-					document.cookie = 'csrf_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-				}
-			}
-		};
-		xhr0.send();
-		
-		// 显示登录成功页面
-		function showSuccessPage() {
-			document.getElementById('loginForm').style.display = 'none';
-			document.getElementById('successArea').style.display = 'block';
-			// 根据跳转来源显示提示文本
-			const tipText = redirectUrl === '/' 
-				? '3秒后自动跳转到首页...' 
-				: `3秒后自动跳转到原页面...`;
-			document.getElementById('successTip').textContent = tipText;
-			// 3秒后自动跳转
-			setTimeout(goRedirect, 3000);
-		}
-		
-		function handleLogin() {
-			const username = document.getElementById('username').value.trim();
-			const password = document.getElementById('password').value.trim();
-			const errorTip = document.getElementById('errorTip');
-			const loginBtn = document.getElementById('loginBtn');
-		
-			if (!username || !password) {
-				errorTip.textContent = '请输入用户名和密码';
-				errorTip.style.display = 'block';
-				return;
-			}
-		
-			// 按钮置灰防重复提交
-			loginBtn.disabled = true;
-			loginBtn.textContent = '登录中...';
-			errorTip.style.display = 'none';
-		
-			const xhr = new XMLHttpRequest();
-			xhr.open('POST', '/api/auth/login', true);
-			xhr.setRequestHeader('Content-Type', 'application/json');
-			xhr.withCredentials = true;
-			xhr.onreadystatechange = function() {
-				if (xhr.readyState === 4) {
-					loginBtn.disabled = false;
-					loginBtn.textContent = '登录';
-					try {
-						const res = JSON.parse(xhr.responseText);
-						// 修复：判断条件与后端返回格式一致，code为200表示成功
-						if (xhr.status === 200 && res.code === 200 && res.data && res.data.token) {
-							// 登录成功：会话 token 已由后端写入 HttpOnly Cookie，CSRF token 写入 csrf_token Cookie，
-							// 前端无需再存储 token，仅清理可能残留的旧 localStorage
-							try { localStorage.removeItem('token'); } catch (e) {}
-							// 显示成功页面后跳转
-							showSuccessPage();
-						} else {
-							// 优先使用返回的错误提示，兼容不同字段
-							const errorMsg = res.message || res.msg || '用户名或密码错误';
-							errorTip.textContent = errorMsg;
-							errorTip.style.display = 'block';
-						}
-					} catch (e) {
-						errorTip.textContent = '登录响应异常，请重试';
-						errorTip.style.display = 'block';
-						console.error('登录响应解析失败:', e);
-					}
-				}
-			};
-			xhr.send(JSON.stringify({ username: username, password: password }));
-		}
-		
-		// 回车登录
-		document.addEventListener('keydown', function(e) {
-			if (e.key === 'Enter' && !document.getElementById('loginBtn').disabled) {
-				handleLogin();
-			}
-		});
-    </script>
+    <script src="/static/js/main.js"></script>
+    <script src="/static/js/login.js"></script>
 </body>
 </html>

@@ -4,213 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Flask 工具集</title>
-    <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: Arial, sans-serif;
-        }
-        .container {
-            max-width: 1200px;
-            margin: 30px auto;
-            padding: 0 20px;
-        }
-        h1 {
-            color: #333;
-            margin-bottom: 30px;
-            text-align: center;
-        }
-        .admin-bar {
-            text-align: right;
-            margin-bottom: 20px;
-        }
-        .admin-btn {
-            padding: 8px 16px;
-            background: #95a5a6;
-            color: white;
-            text-decoration: none;
-            border-radius: 4px;
-            transition: background 0.3s;
-        }
-        .admin-btn:hover {
-            background: #7f8c8d;
-        }
-        .category-section {
-            margin-bottom: 40px;
-        }
-        .category-title {
-            font-size: 24px;
-            color: #2c3e50;
-            margin-bottom: 20px;
-            padding-bottom: 10px;
-            border-bottom: 2px solid #3498db;
-        }
-        .tools-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 20px;
-        }
-        .tool-card {
-            background: #f8f9fa;
-            border-radius: 8px;
-            padding: 20px;
-            transition: all 0.3s ease;
-            border: 1px solid #e9ecef;
-        }
-        .tool-card:hover {
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-            transform: translateY(-2px);
-        }
-        .tool-header {
-            display: flex;
-            align-items: center;
-            margin-bottom: 10px;
-        }
-        .tool-icon {
-            font-size: 24px;
-            margin-right: 10px;
-        }
-        .tool-title {
-            font-size: 18px;
-            font-weight: bold;
-            color: #2c3e50;
-            flex: 1;
-			overflow: hidden;
-			text-overflow: ellipsis;
-			white-space: nowrap;
-        }
-        .tool-author {
-            font-size: 12px;
-            color: #7f8c8d;
-            background: #ecf0f1;
-            padding: 2px 6px;
-            border-radius: 3px;
-			min-height: 20px;
-			max-width: 70px;
-			align-content: center;
-			text-align: left;
-        }
-        .tool-description {
-            color: #666;
-            margin-bottom: 15px;
-            line-height: 1.5;
-            min-height: 40px;
-        }
-        .tool-footer {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-		.admin-badge {
-			font-size: 12px;
-			color: #ffffff;
-			background: #ffa500;
-			padding: 2px 6px;
-			border-radius: 3px;
-			min-height: 20px;
-			align-content: center;
-			margin-right: 5px;
-		}
-        .enter-btn {
-            padding: 8px 16px;
-            background: #27ae60;
-            color: white;
-            text-decoration: none;
-            border-radius: 4px;
-            transition: background 0.3s;
-        }
-        .enter-btn:hover {
-            background: #229954;
-        }
-        .empty-state {
-            text-align: center;
-            padding: 60px 20px;
-            color: #95a5a6;
-        }
-        /* 导航栏样式 */
-        .navbar {
-            background-color: #343a40;
-            padding: 1rem 0;
-            margin-bottom: 2rem;
-        }
-        .navbar .container {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin: 0 auto;
-        }
-        .navbar-brand {
-            color: white;
-            font-size: 1.25rem;
-            text-decoration: none;
-            font-weight: bold;
-        }
-        .navbar-right {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
-        .user-info {
-            color: white;
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-        }
-        .user-avatar {
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            background-color: #3498db;
-            color: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            font-size: 14px;
-        }
-        .user-text {
-            text-align: right;
-        }
-        .user-name {
-            font-size: 14px;
-            font-weight: 500;
-            margin-bottom: 2px;
-        }
-        .user-role {
-            font-size: 12px;
-            color: #ced4da;
-        }
-        .auth-btn {
-            padding: 6px 12px;
-            text-decoration: none;
-            border-radius: 4px;
-            font-size: 14px;
-            transition: all 0.3s;
-        }
-        .login-btn {
-            background: #27ae60;
-            color: white;
-            border: 1px solid #27ae60;
-        }
-        .login-btn:hover {
-            background: #229954;
-            border-color: #229954;
-        }
-        .logout-btn {
-            background: transparent;
-            color: white;
-            border: 1px solid white;
-        }
-        .logout-btn:hover {
-            background: white;
-            color: #343a40;
-        }
-        /* 管理员按钮权限控制 */
-        .admin-bar.hidden {
-            display: none;
-        }
-    </style>
+    <link rel="stylesheet" href="/static/css/main.css">
 </head>
 <body>
     <!-- 顶部导航栏 -->
@@ -218,12 +12,11 @@
         <div class="container">
             <a class="navbar-brand" href="/">FlaskToolkit v{{ FRAMEWORK_VERSION }}</a>
             <div class="navbar-right">
-                <!-- 新增右上角用户信息中的管理员标识（替换原有用户信息渲染部分） -->
-				<div id="userInfo" class="user-info">
-					{% if user_role == 'admin' %}
-					<div class="admin-indicator" title="超级管理员">⚙️ 管理员</div>
-					{% endif %}
-				</div>
+                <div id="userInfo" class="user-info">
+                    {% if user_role == 'admin' %}
+                    <div class="admin-indicator" title="超级管理员">⚙️ 管理员</div>
+                    {% endif %}
+                </div>
                 <div id="authButton">
                     <!-- 动态显示登录/退出按钮 -->
                 </div>
@@ -232,136 +25,87 @@
     </header>
 
     <div class="container">
-        <h1>🔧 Flask 全栈工具集</h1>
-        
-        <div id="adminBar" class="admin-bar hidden">
-            <a href="/admin/dashboard" class="admin-btn">🛠️ 管理后台</a>
+        <h1 style="text-align:center; margin: 0 0 24px;">🔧 Flask 全栈工具集</h1>
+
+        <div id="adminBar" class="admin-bar hidden" style="text-align:right; margin-bottom:16px;">
+            <a href="/admin/dashboard" class="btn btn-primary btn-sm">🛠️ 管理后台</a>
         </div>
-        
+
+        <!-- 工具条：搜索 + 排序 -->
+        <div class="toolbar">
+            <div class="search-box">
+                <span class="search-icon">🔍</span>
+                <input type="text" id="toolSearch" placeholder="搜索工具名称 / 描述 / 作者 / 分类...">
+            </div>
+            <select id="toolSort" class="sort-select" title="排序方式">
+                <option value="default">默认排序</option>
+                <option value="heat">🔥 按热度</option>
+                <option value="alpha">按字母</option>
+            </select>
+            <span id="toolCount" class="toolbar-count"></span>
+        </div>
+        <div id="searchEmpty" class="empty-state" style="display:none;">
+            <h2>没有匹配的工具</h2>
+            <p>换个关键词试试，或调整排序条件</p>
+        </div>
+
         {% if categories %}
-		{% for category, tools in categories.items() %}
-			<div class="category-section">
-				<h2 class="category-title">{{ category }}</h2>
-				{% set enabled_tools = tools | selectattr('enabled') | list %}
-				{% if enabled_tools %}
-				<div class="tools-grid">
-					{% for tool in enabled_tools %}
-					<div class="tool-card">
-						<div class="tool-header">
-							<span class="tool-icon">{% if tool.type == 'backend' %}🔌{% else %}🌐{% endif %}</span>
-							<h3 class="tool-title" title="{{ tool.title }}">{{ tool.title }}</h3>
-							<!-- 新增：管理员权限标识 -->
-							{% if tool.permission == 'admin' %}
-							<span class="admin-badge">管理</span>
-							{% endif %}
-							<span class="tool-author">by {{ tool.author }}</span>
-						</div>
-						<p class="tool-description">{{ tool.description }}</p>
-						<div class="tool-footer">
-							{% if tool.type == 'backend' %}
-							<span class="tool-version">v{{ tool.version }}</span>
-							<a href="/plugin/{{ tool.name }}" class="enter-btn">打开工具</a>
-							{% else %}
-							<span class="tool-version">前端工具</span>
-							<a href="/frontend/{{ tool.name }}" class="enter-btn">打开工具</a>
-							{% endif %}
-						</div>
-					</div>
-					{% endfor %}
-				</div>
-				{% else %}
-				<div class="empty-state">
-					<p>该分类下暂无可用工具</p>
-				</div>
-				{% endif %}
-			</div>
-			{% endfor %}
-		{% else %}
-		<div class="empty-state">
-			<h2>暂无可用工具</h2>
-			<p>请先安装或启用插件</p>
-		</div>
-		{% endif %}
+        {% for category, tools in categories.items() %}
+            <div class="category-section">
+                <h2 class="category-title">{{ category }}
+                    <span class="cat-count">({{ tools | selectattr('enabled') | list | length }})</span>
+                </h2>
+                {% set enabled_tools = tools | selectattr('enabled') | list %}
+                {% if enabled_tools %}
+                <div class="tools-grid">
+                    {% for tool in enabled_tools %}
+                    <div class="tool-card"
+                         data-title="{{ tool.title }}"
+                         data-name="{{ tool.name }}"
+                         data-author="{{ tool.author }}"
+                         data-desc="{{ tool.description }}"
+                         data-category="{{ tool.category }}"
+                         data-heat="{{ tool._heat }}">
+                        <div class="tool-header">
+                            <span class="tool-icon">{% if tool.type == 'backend' %}🔌{% else %}🌐{% endif %}</span>
+                            <h3 class="tool-title" title="{{ tool.title }}">{{ tool.title }}</h3>
+                            {% if tool.permission == 'admin' %}
+                            <span class="badge badge-admin">管理</span>
+                            {% endif %}
+                            {% if tool._heat > 0 %}
+                            <span class="tool-heat" title="累计访问/调用">🔥 {{ tool._heat }}</span>
+                            {% endif %}
+                            <span class="tool-author">by {{ tool.author }}</span>
+                        </div>
+                        <p class="tool-description">{{ tool.description }}</p>
+                        <div class="tool-footer">
+                            {% if tool.type == 'backend' %}
+                            <span class="tool-version">v{{ tool.version }}</span>
+                            <a href="/plugin/{{ tool.name }}" class="btn btn-success btn-sm">打开工具</a>
+                            {% else %}
+                            <span class="tool-version">前端工具</span>
+                            <a href="/frontend/{{ tool.name }}" class="btn btn-success btn-sm">打开工具</a>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <p>该分类下暂无可用工具</p>
+                </div>
+                {% endif %}
+            </div>
+        {% endfor %}
+        {% else %}
+        <div class="empty-state">
+            <h2>暂无可用工具</h2>
+            <p>请先安装或启用插件</p>
+        </div>
+        {% endif %}
     </div>
 
-    <script>
-		// 更新认证状态UI
-		function updateAuthUI(isLoggedIn, userData = null) {
-			const userInfoEl = document.getElementById('userInfo');
-			const authButtonEl = document.getElementById('authButton');
-			const adminBarEl = document.getElementById('adminBar');
-			
-			if (isLoggedIn && userData) {
-				// 已登录状态：显示用户信息和退出按钮
-				const userName = userData.nickname || userData.username;
-				userInfoEl.innerHTML = `
-					<div class="user-avatar">
-						${userName.charAt(0).toUpperCase()}
-					</div>
-					<div class="user-text">
-						<div class="user-name">${userName}</div>
-						<div class="user-role">${userData.role}</div>
-					</div>
-				`;
-				// 修改updateAuthUI方法中的退出按钮代码
-				authButtonEl.innerHTML = `<button id="logoutBtn" class="auth-btn logout-btn">退出登录</button>`;
-				
-				// 仅管理员显示插件管理按钮
-				if (userData.role === 'admin') {
-					adminBarEl.classList.remove('hidden');
-				} else {
-					adminBarEl.classList.add('hidden');
-				}
-			} else {
-				// 未登录状态：隐藏用户信息，显示登录按钮
-				userInfoEl.innerHTML = '';
-				authButtonEl.innerHTML = `<a href="/login" class="auth-btn login-btn">登录</a>`;
-				adminBarEl.classList.add('hidden');
-			}
-		}
-		
-		// 绑定登出事件（在updateAuthUI调用后执行，或使用事件委托）
-		document.addEventListener('click', function(e) {
-			if (e.target.id === 'logoutBtn') {
-				e.preventDefault();
-				// 执行登出请求
-				const xhr = new XMLHttpRequest();
-				xhr.open('POST', '/api/auth/logout', true);
-				xhr.withCredentials = true;
-				xhr.onreadystatechange = function() {
-					if (xhr.readyState === 4) {
-						// 清除localStorage
-						try {
-							localStorage.removeItem('token');
-						} catch (e) {}
-						// 跳转登录页
-						setTimeout(() => {
-							window.location.href = '/login';
-						}, 1500);
-					}
-				};
-				xhr.send();
-			}
-		});
-		
-		window.onload = () => {
-			// 通过 user/info 判断登录态（HttpOnly Cookie 自动携带）
-			const xhr = new XMLHttpRequest();
-			xhr.open('GET', '/api/auth/user/info', true);
-			xhr.withCredentials = true;
-			xhr.onreadystatechange = function() {
-				if (xhr.readyState === 4) {
-					if (xhr.status === 200) {
-						const res = JSON.parse(xhr.responseText);
-						updateAuthUI(true, res.data);
-					} else {
-						// 未登录：显示登录按钮（首页匿名可看，不跳转）
-						updateAuthUI(false);
-					}
-				}
-			};
-			xhr.send();
-		};
-    </script>
+    <script src="/static/js/main.js"></script>
+    <script src="/static/js/index.js"></script>
 </body>
 </html>

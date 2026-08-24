@@ -4,66 +4,19 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>退出登录</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            font-family: system-ui, sans-serif;
-        }
-        .container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-            background-color: #f5f7fa;
-        }
-        .message {
-            font-size: 20px;
-            color: #67c23a;
-            margin-bottom: 15px;
-        }
-        .tip {
-            color: #909399;
-            font-size: 14px;
-        }
-    </style>
+    <link rel="stylesheet" href="/static/css/main.css">
 </head>
 <body>
-    <div class="container">
-        <div class="message">已成功退出登录</div>
-        <div class="tip">3秒后跳转到登录页...</div>
+    <div class="auth-page">
+        <div class="auth-card">
+            <div class="status-icon" style="background:#fdf0ef; color:#e74c3c;">👋</div>
+            <div class="status-title">已成功退出登录</div>
+            <div class="status-tip">3秒后自动跳转到登录页...</div>
+            <a href="/login" class="btn btn-primary">立即前往登录</a>
+        </div>
     </div>
 
-    <script>
-		function getCookie(name) {
-			const value = `; ${document.cookie}`;
-			const parts = value.split(`; ${name}=`);
-			if (parts.length === 2) return parts.pop().split(';').shift();
-			return null;
-		}
-	
-		// 调用后端登出接口，确保Cookie被清除
-		const xhr = new XMLHttpRequest();
-		xhr.open('POST', '/api/auth/logout', true);
-		xhr.withCredentials = true;
-		const token = getCookie('token');
-		if (token) {
-			xhr.setRequestHeader('X-Token', token);
-		}
-		xhr.onreadystatechange = function() {
-			if (xhr.readyState === 4) {
-				// 尝试清除localStorage
-				try {
-					localStorage.removeItem('token');
-				} catch (e) {}
-				// 跳转登录页
-				setTimeout(() => {
-					window.location.href = '/login';
-				}, 1500);
-			}
-		};
-		xhr.send();
-	</script>
+    <script src="/static/js/main.js"></script>
+    <script src="/static/js/logout.js"></script>
 </body>
 </html>

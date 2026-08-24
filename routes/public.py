@@ -37,6 +37,17 @@ def register(app):
         all_tools = [dict(t) for t in global_var.plugin_catalog]
         all_tools.extend(global_var.frontend_tools)
 
+        # 热度：后端插件=该插件全部 API 调用数之和；前端工具=访问数（供首页搜索/排序）
+        heat_map = {}
+        for key, count in global_var.call_stats.items():
+            plugin_name = key.split(':', 1)[0]
+            heat_map[plugin_name] = heat_map.get(plugin_name, 0) + count
+        for key, count in global_var.frontend_access_stats.items():
+            tool_name = key.split(':', 1)[1] if ':' in key else key
+            heat_map[tool_name] = heat_map.get(tool_name, 0) + count
+        for tool in all_tools:
+            tool['_heat'] = heat_map.get(tool.get('name'), 0)
+
         # 获取当前登录用户角色（auth插件不存在时默认拥有所有权限）
         user_role = None
         if 'auth' in global_var.plugins:
