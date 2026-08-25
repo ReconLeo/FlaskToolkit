@@ -9,6 +9,28 @@
     "permission": "public",
     "require_framework_version": "",
     "enabled": true,
-    "type": "frontend"
+    "type": "frontend",
+    "_heat": 0
+  },
+  {
+    "name": "kaleido_v3",
+    "title": "Kaleido 智能刷题系统",
+    "permission": "public",
+    "author": "Recon Leo",
+    "description": "Kaleido 智能刷题系统 v3：学科/题库管理、明文与加密题库加载、答题计时、错题回顾、导出错题集、中英双语、暗色模式。依赖 kaleido_qbank / kaleido_search / kaleido_crypto 后端插件提供数据与密码学能力（数据不上传第三方）。",
+    "version": "3.5.0",
+    "category": "刷题工具",
+    "require_framework_version": "4.2.0",
+    "enabled": true,
+    "type": "frontend",
+    "install_time": "2026-08-25 15:33:21",
+    "source": "kaleido_v3.zip",
+    "history": [
+      {
+        "version": "3.5.0",
+        "time": "2026-08-25 15:33:21",
+        "source": "kaleido_v3.zip"
+      }
+    ]
   }
 ]

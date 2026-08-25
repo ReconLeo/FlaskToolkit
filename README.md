@@ -7,8 +7,8 @@
   <img src="https://img.shields.io/badge/version-4.2.0-blue" alt="Version">
 </p>
 
-> A plugin-ized toolbox that brings scattered Flask / pure-frontend mini tools under one roof.
-> Self-written, self-maintained, runs only on your own machine — no cloud, no data upload, drop in new tools anytime.
+> A Flask-based plugin **framework**: bring scattered Python plugins and pure-frontend tools into one unified runtime —
+> dynamically installable, hot-reloadable, permission-controlled. Self-written, self-maintained, runs only on your own machine.
 
 > **English**: this page · **中文**：[中文](README.zh-CN.md)
 
@@ -18,7 +18,7 @@ I have written a lot of "little things": sign-in scripts, scheduled tasks, file 
 
 What bothered me even more: more and more things that should stay lightweight were being pushed online — unusable offline, and quietly collecting my data. I did not want to register an account and accept a privacy policy just to use an internal mini tool. What I wanted were small programs running on my own computer (at most shared with a few people on a LAN).
 
-So FlaskToolkit was born: a "shell" that packs my "private little apps" in one by one.
+So FlaskToolkit was born: a plugin **framework** — not another run-of-the-mill tools site — that packs my "private little apps", along with their capabilities, into one reusable and extensible foundation.
 
 Over time it grew into what it is today:
 
@@ -34,14 +34,14 @@ My only principle: **need-driven, whatever is convenient**. So what you get is a
 
 ## What It Is
 
-A Flask-based plugin-ized **local tool collection**:
+A Flask-based plugin **framework** (self-hosted runtime):
 
 - Both **backend plugins (Python)** and **frontend tools (HTML packages)** can be dynamically installed / updated / uninstalled / enabled / disabled;
 - Auth is an **optional plugin** — skip it for guest mode, install it for login / permission control;
 - File-watching hot reload, changes take effect immediately;
 - Built-in admin panel (dashboard / plugin management / logs / stats / system reset).
 
-In one sentence: **a unified home for your local mini programs, plus a "foundation" you never have to rewrite.**
+In one sentence: this is a **plugin framework** — a unified home for your local mini programs, plus a "foundation" you never have to rewrite.
 
 ## Quick Start
 

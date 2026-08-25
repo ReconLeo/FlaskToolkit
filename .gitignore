@@ -46,6 +46,7 @@ plugins/kaleido_*.json
 templates/plugins/kaleido_*/
 templates/frontend_tools/kaleido_*.html
 templates/frontend_tools/static/
+frontend_tools.json  # 前端工具注册清单（运行时配置，install_all/上传时重建）
 .version
 
 # ---------- 操作系统 / 编辑器 ----------
