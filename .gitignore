@@ -40,6 +40,14 @@ examples/dist/
 # 历史版本文档统一归档在 documents/archive/（不入库），当前文档保留在 documents/ 根目录
 documents/archive/
 
+# ---------- Kaleido 插件子项目本地产物（不入主仓库） ----------
+plugins/kaleido_*.py
+plugins/kaleido_*.json
+templates/plugins/kaleido_*/
+templates/frontend_tools/kaleido_*.html
+templates/frontend_tools/static/
+.version
+
 # ---------- 操作系统 / 编辑器 ----------
 .DS_Store
 Thumbs.db

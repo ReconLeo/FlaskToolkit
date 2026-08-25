@@ -115,8 +115,9 @@ git push -u origin main
 | `LICENSE` | MIT 开源许可 |
 | `.gitignore` | 排除运行时数据（data/logs/temp/备份等） |
 | `CONTRIBUTING.md` | 贡献指南（环境、测试、Issue、PR 流程） |
-| `README.md` | 项目说明与快速开始 |
-| `tests/` | 12 个回归测试脚本（222 项）+ `ci_cleanup.py` |
+| `README.md` | 项目说明与快速开始（英文版） |
+| `README.zh-CN.md` | 项目说明与快速开始（中文版） |
+| `tests/` | 16 个回归测试脚本（310 项）+ `ci_cleanup.py` |
 | `documents/` | 开发规范（v4.0）+ Roadmap + 本指南 |
 
 发布到 GitHub 后，只需把仓库地址分享出去，别人就能 clone、提 Issue、提 PR，CI 会自动守护代码质量。
