@@ -4,7 +4,7 @@
   <img src="https://github.com/ReconLeo/FlaskToolkit/actions/workflows/ci.yml/badge.svg" alt="CI">
   <img src="https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB?logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/License-MIT-yellow" alt="License">
-  <img src="https://img.shields.io/badge/version-4.2.0-blue" alt="Version">
+  <img src="https://img.shields.io/badge/version-4.2.1-blue" alt="Version">
 </p>
 
 > 一个基于 Flask 的插件化**框架**：把散落的 Python 插件与纯前端工具装进统一的运行时，
@@ -26,7 +26,7 @@
 - 纯前端的 HTML 小工具，也能作为"一等公民"装进来，和 Python 插件平起平坐；
 - 大插件也能拆得清清爽爽——**多模板 + 辅助模块 + 静态资源**，一个插件可以有自己的子页面、工具模块与样式脚本（页面路由 page=True）；
 - 有了统一的三层权限、可选鉴权、审计日志、热重载——页面改了保存即生效，不用重启；
-- 补上了插件包的完整性校验与签名、Factory Reset、备份/恢复、启动自检，以及一套 310 项的回归测试和 GitHub Actions CI。
+- 补上了插件包的完整性校验与签名、Factory Reset、备份/恢复、启动自检，以及一套 319 项的回归测试和 GitHub Actions CI。
 
 坦白说，这框架远谈不上"完善"。它更多是"自娱自乐"的产物：站在 Flask、APScheduler、Werkzeug 这些巨人的肩膀上，把我需要的那部分想法落了地。也因此，它的安全模型是朴素直接的——**安装插件即信任其作者**。所以它更适合自己的电脑或可信局域网，而不是对外开放的生产环境。
 
@@ -94,10 +94,10 @@ python examples/install_all.py                            # 一键安装 6 个�
 
 ## 测试与 CI
 
-`tests/` 16 个脚本共 310 项回归测试（隔离目录模式，不污染项目文件）；GitHub Actions 在 Python 3.10 / 3.11 / 3.12 上自动执行，覆盖权限、插件包 / 前端工具链路、完整性签名、卸载清单、Factory Reset、大插件多模板页面路由、运维工具等。
+`tests/` 17 个脚本共 319 项回归测试（隔离目录模式，不污染项目文件）；GitHub Actions 在 Python 3.10 / 3.11 / 3.12 上自动执行，覆盖权限、插件包 / 前端工具链路、完整性签名、卸载清单、Factory Reset、大插件多模板页面路由、运维工具等。
 
 <details>
-<summary>展开：16 个测试脚本</summary>
+<summary>展开：17 个测试脚本</summary>
 
 ```bash
 cd FlaskToolkit
@@ -117,7 +117,8 @@ python tests/test_plugin_cleanup.py        # 插件卸载 installed_files 清单
 python tests/test_frontend_permission.py   # 前端工具访问控制 25 项
 python tests/test_tools_ops.py             # 运维工具 backup/reset/config 19 项
 python tests/test_page_router.py           # 大插件多模板页面路由 + 纯 API 无 name 插件调试页回归 21 项
-# 合计 16 个脚本 310 项
+python tests/test_framework_fixes.py       # 框架小修复：public_page 豁免 + CSRF 单值注入 9 项
+# 合计 17 个脚本 319 项
 ```
 
 </details>
@@ -134,7 +135,7 @@ MIT License · 贡献指南见 [CONTRIBUTING.md](CONTRIBUTING.md) · 开发过�
 
 ### 人工智能辅助开发声明
 
-本项目在开发过程中使用了 AI 辅助编程工具，包括但不限于：代码生成与重构、代码审查、测试用例编写、文档撰写。所有 AI 辅助生成或修改的内容，均已由开发者人工审查，并通过项目自身的回归测试套件（`tests/`，310 项）与启动完整性自检验证后才会合入。
+本项目在开发过程中使用了 AI 辅助编程工具，包括但不限于：代码生成与重构、代码审查、测试用例编写、文档撰写。所有 AI 辅助生成或修改的内容，均已由开发者人工审查，并通过项目自身的回归测试套件（`tests/`，319 项）与启动完整性自检验证后才会合入。
 
 对贡献者的透明性约定：
 

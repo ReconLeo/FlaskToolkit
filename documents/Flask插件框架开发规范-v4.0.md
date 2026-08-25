@@ -1,6 +1,18 @@
 # Flask插件框架开发规范
 
-## 版本：v4.2（卸载清单 + 前端工具访问控制） | 更新日期：2026年08月24日
+## 版本：v4.2.1（插件公开页面豁免 + CSRF 单值注入回归） | 更新日期：2026年08月26日
+
+### 版本补充说明（2026-08-26，AirDrop 插件化改造同步）
+- **插件公开页面能力（8.1 / 4.5.1）**：`/plugin/<name>` 页面默认要求登录（全局守卫）。新增插件级豁免：插件实例声明 `public_page=True` 时其 `/plugin/` 页面免登录（对局域网公开工具 / 信息落地页友好，默认 False 不影响其他插件）。
+- **plugin_common.js 复核修复（6.2）**：`PluginCommon.request()` 曾与全局 XHR 拦截**双重注入 X-CSRF-Token**（同名头被浏览器逗号拼接为 `token, token`），鉴权模式下写请求后端 CSRF 双提交校验失败返回 403。已移除 `request()` 内手动注入（依赖全局拦截单次注入），浏览器端到端复核确认。
+- **AirDrop 插件落地（`plugins/airdrop`）**：局域网文件共享插件（上传/下载/删除/批量删除/批量下载 zip/过期清理/局域网地址/服务端打开上传文件夹），**可配置双模式鉴权**（`configs/airdrop.json` 的 `auth_required`：false 全 public 免登录、true 按权限矩阵），数据目录经配置指向原 AirDrop `uploads`，零迁移。
+- 注：以上为 AirDrop 插件化改造期间的文档补充（2026-08-26）。
+
+### 版本说明（v4.2.1 变更，框架小修复累计更新）
+- **框架版本升级至 v4.2.1**（`global_var.FRAMEWORK_VERSION`）：AirDrop 插件化改造期间的框架小修复正式合入主项目；官方示例 `require_framework_version` 不变（4.2.0 < 4.2.1 仍满足）。
+- **插件公开页面豁免正式纳入回归**（`tests/test_framework_fixes.py`）：`public_page=True` 插件页面免登录 200 / 普通插件页面仍守卫 302（auth 已装场景），防 interceptor 豁免逻辑回归。
+- **plugin_common.js 双重 CSRF 注入修复固化**：源码静态断言 X-CSRF-Token 注入全文件恰 1 处（全局 XHR send 拦截单次注入），request() 不再手动注入（防同名头逗号拼接 403）。
+- **回归测试套件扩充至 17 脚本 319 项**：新增 `test_framework_fixes.py`（public_page 豁免 + CSRF 单值注入 9 项），已纳入 CI。
 
 ### 版本说明（v4.2 变更）
 - **插件包卸载升级为 installed_files 清单机制**（5.6.6）：安装时把插件引入文件的相对路径清单写入 `plugins/<name>.json`，卸载按清单逐个删除（支持多 `.py` 插件包彻底卸载，无残留），无清单回退旧逻辑（兼容存量插件）。
@@ -86,7 +98,7 @@ FlaskToolkit/
 │   ├── package.py             #   插件包打包/签名/校验 CLI（genkey/pack/verify/show）
 │   ├── backup.py              #   手动备份/恢复工具（Factory Reset 前备份关键数据）
 │   └── reset.py               #   深度重置工具（服务停止时使用，绕过运行时文件锁定）
-├── tests/                     # 回归测试套件（16 脚本 310 项 + 端到端链路验证）
+├── tests/                     # 回归测试套件（17 脚本 319 项 + 端到端链路验证）
 ├── templates/                 # 页面模板（首页/登录/错误码页 400-500/admin 管理后台/插件页）
 │   ├── admin/                 #   管理后台（dashboard / plugins / logs / stats / system）
 │   ├── frontend_tools/        #   前端工具模板
@@ -178,6 +190,10 @@ from .base_plugin import permission as permission_required
 ### 4.5 可选鉴权（auth 未安装）
 
 `auth` 插件未安装时，系统处于**无鉴权模式**：所有请求放行、所有工具可见。安装 `auth` 插件后立即启用三层权限校验。
+
+### 4.5.1 插件公开页面（public_page，v4.2.1 新增）
+
+`/plugin/<name>` 页面受全局登录守卫保护（auth 已安装时未登录访问跳转登录页）。若插件希望页面公开（局域网工具、信息落地页、免登录场景），在插件实例上声明 `public_page = True` 即可豁免（由 `routes/interceptor.py` 的 `/plugin/` 守卫识别）；默认 False，不影响其他插件。典型用法：`self.public_page = not self.auth_required`（与插件免登录模式联动，AirDrop 插件即此模式）。
 
 ### 4.6 前端工具访问控制（v4.2 新增）
 
@@ -505,6 +521,7 @@ my_tool.zip
 - `request()` 自动注入 `X-CSRF-Token` 头（从 `csrf_token` Cookie 读取）。
 - HTTP 401 自动跳转登录页、403 跳转 403 页。
 - 业务结果以 **`res.code`** 判断（而非 HTTP 状态码）。
+- **已知问题（v4.2.1 已修复）**：`request()` 曾与全局 XHR `send` 拦截**双重注入 `X-CSRF-Token`**，同名头被浏览器逗号拼接为 `token, token`，鉴权模式下写请求后端 CSRF 双提交校验返回 403。现已移除 `request()` 内手动注入（全局拦截统一注入一次）。使用原生 `fetch` / `XMLHttpRequest` 的页面不受影响（全局拦截单次注入）。
 
 ### 6.3 静态资源访问
 
@@ -624,6 +641,8 @@ def validate_params(self, params):
 | 登录 | `/login` | 记住用户名（localStorage）、显示/隐藏密码、回车提交、防重复提交、登录成功页 + redirect 安全回跳（拒绝站外与 `/login` 自身） |
 | 登出 | `/logout` | 调用登出接口清理 Cookie + 成功页（自动/手动跳转登录） |
 | 裸插件调试 | `/plugin/<name>`（无自定义模板时） | 列出插件全部 API 与参数（string/boolean/file/array/object **+ 路径参数 `<name>`/`<int:name>` 输入框**），可视化调用并展示 JSON 结果（**HTTP 状态码/耗时/业务 code/实际请求 URL**）；**非安全方法自动携带 CSRF**；**PUT/DELETE 与 POST 一致发 JSON body**；一键复制/折叠结果、请求历史；属插件测试工具，功能改动需谨慎 |
+
+> **/plugin/ 页面登录守卫**：auth 插件已安装时，`/plugin/` 下所有页面默认需登录（全局 `before_request` 守卫，未登录跳转登录页携带 redirect）。插件声明 `public_page=True` 可豁免（见 4.5.1）；`/static/` 静态资源始终公开。
 
 ### 8.2 管理后台页面
 
@@ -780,6 +799,7 @@ FLASKTOOLKIT_HOST=0.0.0.0 FLASKTOOLKIT_PORT=8000 python app.py
 | `test_frontend_permission.py` | 前端工具访问控制（三层权限 + 改权限 API 鉴权/边界 + 静态资源一致 + update 保留 permission） | 25 项 |
 | `test_tools_ops.py` | 开发运维工具回归（backup 创建/恢复、reset 范围、config 设置/非法值/unset） | 19 项 |
 | `test_page_router.py` | 大插件多模板（页面路由 page=True：主入口自动检测、dict/Response 分发、路径参数注入、正斜杠模板名、旧式 page() 兼容）+ 纯 API 无 name 插件调试页回归 | 21 项 |
+| `test_framework_fixes.py` | 框架小修复（v4.2.1）：public_page 豁免（公开页面免登录 200 / 普通插件页面守卫 302）+ plugin_common.js CSRF 单值注入静态断言 | 9 项 |
 
 ```bash
 cd FlaskToolkit   # 在项目根目录执行
@@ -799,7 +819,8 @@ python tests/test_plugin_cleanup.py    # 23 项（插件卸载 installed_files �
 python tests/test_frontend_permission.py # 25 项（前端工具访问控制，隔离目录）
 python tests/test_tools_ops.py         # 19 项（backup/reset/config 运维工具，隔离目录）
 python tests/test_page_router.py       # 21 项（大插件多模板页面路由 + 纯 API 无 name 插件调试页回归，隔离目录）
-# 合计 16 个脚本 310 项
+python tests/test_framework_fixes.py    # 9 项（public_page 豁免 + CSRF 单值注入，隔离目录）
+# 合计 17 个脚本 319 项
 ```
 
 说明：`test_meta_e2e.py` 与 `test_frontend_chain.py` / `test_admin_api.py` / `test_factory_reset.py` / `test_error_pages.py` / `test_package_sign.py` 均通过 mock 基础目录 + `sys.path` 指向临时插件目录运行，不污染真实项目，可重复执行；`test_reload_race.py` 使用 Flask test client，在测试开头手动调用 `load_plugins()` 初始化（`load_plugins` 仅在 `app.py` 的 `main` 段自动调用）。

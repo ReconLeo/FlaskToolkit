@@ -76,11 +76,9 @@
                 xhr.withCredentials = true;
 
                 // 统一注入 CSRF 头（非安全方法）
-                const method = (options.method || 'GET').toUpperCase();
-                if (!['GET', 'HEAD', 'OPTIONS'].includes(method)) {
-                    const csrf = PluginCommon.getCsrfToken();
-                    if (csrf) xhr.setRequestHeader('X-CSRF-Token', csrf);
-                }
+                // 注：不再手动注入——本文件下方全局 XHR send 拦截已统一注入一次；
+                // 若此处再注入，setRequestHeader 同名头会逗号拼接成 "token, token"，
+                // 后端 CSRF 双提交校验失败返回 403（复核 2026-08-26 确认）。
                 if (options.headers) {
                     Object.keys(options.headers).forEach(k => xhr.setRequestHeader(k, options.headers[k]));
                 }

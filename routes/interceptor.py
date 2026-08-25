@@ -50,6 +50,16 @@ def register(app):
         if not (need_admin or need_login):
             return None  # 插件 API/页面交由插件装饰器与页面逻辑处理
 
+        # 3.1 插件公开页面豁免：插件实例声明 public_page=True 时，其 /plugin/ 页面无需登录。
+        #     对局域网公开工具 / 信息落地页友好（如 AirDrop 免登录模式）。
+        #     默认 False，不影响其他插件的页面登录守卫。
+        if need_login and path.startswith('/plugin/'):
+            _parts = path.split('/')
+            if len(_parts) >= 3:
+                _plugin = global_var.plugins.get(_parts[2])
+                if _plugin is not None and getattr(_plugin, 'public_page', False):
+                    return None
+
         # 4. 校验登录态（修复：auth 存在时无论是否携带 token 都必须校验，未登录一律拦截）
         token = request.headers.get('X-Token') or request.cookies.get('token') or request.args.get('token')
         user_info = global_var.plugins['auth'].verify_token(token) if token else None
