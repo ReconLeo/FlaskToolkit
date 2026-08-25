@@ -579,14 +579,14 @@ class BasePlugin(ABC):
         # 无自定义主入口 → 默认调试页
         api_info = []
         for route in self.routes:
-            route_path = route['path']
+            route_path = route.get('path', '')
             # 提取路径参数占位符 <name> 或 <int:name>，转为可输入的路径参数
             path_params = [
                 {'name': m, 'type': 'string', 'required': True}
                 for m in re.findall(r'<(?:[^:>]+:)?(\w+)>', route_path)
             ]
             api_info.append({
-                'name': route['name'],
+                'name': route.get('name', route_path),
                 'path': f'/api/{self.name}{route_path}',
                 'methods': route.get('methods', ['GET']),
                 'params': route.get('params', []),

@@ -92,6 +92,30 @@ class Demo(BasePlugin):
     def page_user(self, username):
         return {"username": username}
 
+class NoNamePlugin(BasePlugin):
+    """纯 API 路由插件（routes 无 name 键、无主模板、无 page()）——
+    回归漏洞：/plugin/<name> 调试页 route['name'] KeyError 500"""
+    name = "noname"
+    title = "无名称路由插件"
+    description = "纯 API 路由，name 字段缺失"
+    version = "1.0.0"
+    author = "T"
+    category = "测试"
+    permission = "user"
+
+    @property
+    def routes(self):
+        return [
+            {"path": "/pure", "methods": ["GET"], "view_func": self.pure_api},
+            {"path": "/data/<int:pid>", "methods": ["POST"], "view_func": self.data_api},
+        ]
+
+    def pure_api(self):
+        return self.success_response(data={"ok": True})
+
+    def data_api(self, pid):
+        return self.success_response(data={"pid": pid})
+
 # 模拟 loader：page 路由 → _wrapped_pages（path -> view_func/template）
 _plugin = Demo()
 _plugin._wrapped_pages = {}
@@ -104,6 +128,11 @@ for _r in _plugin.routes:
 # 主入口（loader 同样会设置 _wrapped_page）
 _plugin._wrapped_page = wrap_page_func(_plugin.render_plugin_page, _plugin.name)
 global_var.plugins[_plugin.name] = _plugin
+
+# 纯 API 插件（无 name 键）只设主入口，验证调试页容错
+_noname = NoNamePlugin()
+_noname._wrapped_page = wrap_page_func(_noname.render_plugin_page, _noname.name)
+global_var.plugins[_noname.name] = _noname
 
 # ---------- 模板文件写入隔离目录 ----------
 _Tpl = os.path.join(_isolated, 'templates', 'plugins', 'demo')
@@ -196,11 +225,23 @@ def main():
         r = client.get('/plugin/demo/user/alice')  # 默认 user，auth 未装放行
         check('8 user 页面 auth 未装放行', r.status_code == 200, f'status={r.status_code}')
 
+        # ============ 9. 纯 API 路由插件（routes 无 name 键）→ 调试页 200 ============
+        # 回归：route['name'] 强访问 KeyError → /plugin/<name> 500
+        r = client.get('/plugin/noname')
+        t = r.get_data(as_text=True)
+        check('9 纯 API 无 name 插件调试页 200（不再 500）',
+              r.status_code == 200, f'status={r.status_code}')
+        check('9 调试页渲染 API 列表（name 回退为 path）',
+              '/api/noname/pure' in t and '/api/noname/data' in t, t[:120])
+        # 路径参数占位符识别（<int:pid>）不报错
+        check('9 路径参数占位符解析不报错', 'pid' in t or r.status_code == 200, '')
+
         print(f'\n==== 大插件多模板（页面路由）回归：共 {len(results)} 项，'
               f'通过 {sum(1 for _, c, _ in results if c)}，'
               f'失败 {sum(1 for _, c, _ in results if not c)} ====')
     finally:
         global_var.plugins.pop(_plugin.name, None)
+        global_var.plugins.pop(_noname.name, None)
         for _attr, _val in _SAVED.items():
             setattr(global_var, _attr, _val)
         try:
