@@ -28,11 +28,14 @@ CACHE_VERSION = 1  # 缓存格式版本，变更时自动失效
 LOG_DIR = os.path.join(BASE_DIR, 'logs')
 
 # ------------------------------ 全局常量 ------------------------------
-FRAMEWORK_VERSION = "4.2.1"  # 框架版本（后端插件 require_framework_version 比较基准）
+FRAMEWORK_VERSION = "4.2.2"  # 框架版本（后端插件 require_framework_version 比较基准）
 # 内置（系统自带）插件清单：Factory Reset 时受保护不删除
 BUILTIN_PLUGINS = ('auth', 'user_manage')
 # 管理后台上传包大小上限（后端插件包 .zip / 前端工具包 .zip 统一限制，单位字节）
 PACKAGE_MAX_UPLOAD_SIZE = 10 * 1024 * 1024  # 10MB
+# 全局文件上传大小上限（单位字节）：MAX_CONTENT_LENGTH 兜底，插件可用 max_upload_size 覆盖更严/更宽限制
+MAX_UPLOAD_SIZE = 100 * 1024 * 1024  # 100MB
+MAX_UPLOAD_SIZE_MB = 100  # 全局默认上传上限（MB，用户可配置）
 # 插件包完整性校验模式：strict（缺 manifest/失败均拒绝）/ warn（缺 manifest 告警放行，有则严格校验）/ off（跳过）
 PACKAGE_INTEGRITY_MODE = 'warn'
 # 可选：插件包签名公钥 PEM 文件路径。配置后安装带 signature 的包时强制验证签名；不配置则跳过签名验证
@@ -59,6 +62,10 @@ CONFIG_ITEMS = {
                    'desc': '统计数据文件'},
     'PACKAGE_MAX_UPLOAD_SIZE_MB': {'default': 10, 'kind': 'int',
                                    'desc': '插件包/工具包上传大小上限（MB，映射 PACKAGE_MAX_UPLOAD_SIZE）'},
+    'MAX_UPLOAD_SIZE_MB': {'default': 100, 'kind': 'int',
+                           'desc': '全局文件上传大小上限（MB，映射 MAX_UPLOAD_SIZE，MAX_CONTENT_LENGTH 兜底）'},
+    'PLUGIN_STRICT_MODE': {'default': False, 'kind': 'bool',
+                           'desc': '严格模式：on_load 依赖检查降级由 on_ready 钩子延后（所有插件加载完成后执行）'},
     'PACKAGE_INTEGRITY_MODE': {'default': 'warn', 'kind': 'enum',
                                'choices': ['strict', 'warn', 'off'],
                                'desc': '插件包完整性校验模式'},
@@ -122,6 +129,9 @@ def load_user_config():
             continue
         if key == 'PACKAGE_MAX_UPLOAD_SIZE_MB':
             globals()['PACKAGE_MAX_UPLOAD_SIZE'] = int(converted) * 1024 * 1024
+        elif key == 'MAX_UPLOAD_SIZE_MB':
+            globals()['MAX_UPLOAD_SIZE'] = int(converted) * 1024 * 1024
+            globals()['MAX_UPLOAD_SIZE_MB'] = int(converted)
         elif key not in ('HOST', 'PORT', 'DEBUG'):
             globals()[key] = converted
     # 依赖联动：PLUGIN_CACHE_DIR 变更时同步 PLUGIN_CACHE_FILE

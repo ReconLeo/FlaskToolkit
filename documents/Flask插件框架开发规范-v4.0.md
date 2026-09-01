@@ -1,12 +1,21 @@
 # Flask插件框架开发规范
 
-## 版本：v4.2.1（插件公开页面豁免 + CSRF 单值注入回归） | 更新日期：2026年08月26日
+## 版本：v4.2.2（文件传输强化） | 更新日期：2026年08月26日
 
 ### 版本补充说明（2026-08-26，AirDrop 插件化改造同步）
 - **插件公开页面能力（8.1 / 4.5.1）**：`/plugin/<name>` 页面默认要求登录（全局守卫）。新增插件级豁免：插件实例声明 `public_page=True` 时其 `/plugin/` 页面免登录（对局域网公开工具 / 信息落地页友好，默认 False 不影响其他插件）。
 - **plugin_common.js 复核修复（6.2）**：`PluginCommon.request()` 曾与全局 XHR 拦截**双重注入 X-CSRF-Token**（同名头被浏览器逗号拼接为 `token, token`），鉴权模式下写请求后端 CSRF 双提交校验失败返回 403。已移除 `request()` 内手动注入（依赖全局拦截单次注入），浏览器端到端复核确认。
 - **AirDrop 插件落地（`plugins/airdrop`）**：局域网文件共享插件（上传/下载/删除/批量删除/批量下载 zip/过期清理/局域网地址/服务端打开上传文件夹），**可配置双模式鉴权**（`configs/airdrop.json` 的 `auth_required`：false 全 public 免登录、true 按权限矩阵），数据目录经配置指向原 AirDrop `uploads`，零迁移。
 - 注：以上为 AirDrop 插件化改造期间的文档补充（2026-08-26）。
+
+### 版本说明（v4.2.2 变更，文件传输强化）
+- **框架版本升级至 v4.2.2**（`global_var.FRAMEWORK_VERSION`）：统一文件上传与下载能力。
+- **全局上传上限兜底（5.6.x / 6.5）**：`app.config['MAX_CONTENT_LENGTH'] = global_var.MAX_UPLOAD_SIZE`（默认 **100MB**，经 config CLI 的 `MAX_UPLOAD_SIZE_MB` 调整）；超限统一返回 413（API 场景 JSON、页面场景模板 `413.html`）。
+- **插件级上传限制统一（5.6.x）**：`BasePlugin.max_upload_size` 单位统一为 **MB**（None 回退全局默认）；`save_uploaded_file`/`check_upload_limit` 保存前基于流 seek/tell 预检（不落盘）；**route 级 `max_upload`（MB）覆盖**——权限包装器注入 g 并同步提升本请求 `request.max_content_length`，可突破全局默认（如 AirDrop 的 GB 级大文件路由）。
+- **下载能力统一（5.6.x）**：`send_file_response` 增强——中文文件名自动按 **RFC 5987（filename*）** 编码避免乱码、**下载统计**默认计入插件热度（`call_stats[plugin:endpoint]`）、支持 Range 断点续传（206）、`content_disposition_type`/`count_download`/`stats_endpoint` 参数。
+- **依赖检查时机（生命周期）**：`on_load` 阶段跨插件依赖检查默认降级为 **warning**（不阻断）；新增 **`on_ready` 就绪钩子**——所有插件加载完成后统一调用（此时 `global_var.plugins` 完整，依赖判断准确）；启用严格模式（`PLUGIN_STRICT_MODE=True`）时依赖确认延后到 `on_ready` 执行。
+- **存量迁移**：airdrop `max_gb`（GB）映射为插件级 `max_upload_size`（MB）+ upload 路由声明 route 级 `max_upload`；async_file_demo 声明 `max_upload_size=20`（MB）；下载改走 `send_file_response`（中文名/统计）。
+- **回归测试扩充至 18 脚本 331 项**：新增 `test_file_transfer.py`（12 项：全局 413 / 插件级与 route 级上限 / 中文名下载 / 下载统计 / Range / on_ready 顺序），已纳入 CI。
 
 ### 版本说明（v4.2.1 变更，框架小修复累计更新）
 - **框架版本升级至 v4.2.1**（`global_var.FRAMEWORK_VERSION`）：AirDrop 插件化改造期间的框架小修复正式合入主项目；官方示例 `require_framework_version` 不变（4.2.0 < 4.2.1 仍满足）。
@@ -98,7 +107,7 @@ FlaskToolkit/
 │   ├── package.py             #   插件包打包/签名/校验 CLI（genkey/pack/verify/show）
 │   ├── backup.py              #   手动备份/恢复工具（Factory Reset 前备份关键数据）
 │   └── reset.py               #   深度重置工具（服务停止时使用，绕过运行时文件锁定）
-├── tests/                     # 回归测试套件（17 脚本 319 项 + 端到端链路验证）
+├── tests/                     # 回归测试套件（18 脚本 331 项 + 端到端链路验证）
 ├── templates/                 # 页面模板（首页/登录/错误码页 400-500/admin 管理后台/插件页）
 │   ├── admin/                 #   管理后台（dashboard / plugins / logs / stats / system）
 │   ├── frontend_tools/        #   前端工具模板
@@ -800,6 +809,7 @@ FLASKTOOLKIT_HOST=0.0.0.0 FLASKTOOLKIT_PORT=8000 python app.py
 | `test_tools_ops.py` | 开发运维工具回归（backup 创建/恢复、reset 范围、config 设置/非法值/unset） | 19 项 |
 | `test_page_router.py` | 大插件多模板（页面路由 page=True：主入口自动检测、dict/Response 分发、路径参数注入、正斜杠模板名、旧式 page() 兼容）+ 纯 API 无 name 插件调试页回归 | 21 项 |
 | `test_framework_fixes.py` | 框架小修复（v4.2.1）：public_page 豁免（公开页面免登录 200 / 普通插件页面守卫 302）+ plugin_common.js CSRF 单值注入静态断言 | 9 项 |
+| `test_file_transfer.py` | 文件传输强化（v4.2.2）：全局 413 / 插件级 max_upload_size 预检 / route 级 max_upload 覆盖 / 中文名下载 / 下载统计 / Range / on_ready 顺序 | 12 项 |
 
 ```bash
 cd FlaskToolkit   # 在项目根目录执行
@@ -820,7 +830,8 @@ python tests/test_frontend_permission.py # 25 项（前端工具访问控制，�
 python tests/test_tools_ops.py         # 19 项（backup/reset/config 运维工具，隔离目录）
 python tests/test_page_router.py       # 21 项（大插件多模板页面路由 + 纯 API 无 name 插件调试页回归，隔离目录）
 python tests/test_framework_fixes.py    # 9 项（public_page 豁免 + CSRF 单值注入，隔离目录）
-# 合计 17 个脚本 319 项
+python tests/test_file_transfer.py       # 12 项（文件传输强化，隔离目录）
+# 合计 18 个脚本 331 项
 ```
 
 说明：`test_meta_e2e.py` 与 `test_frontend_chain.py` / `test_admin_api.py` / `test_factory_reset.py` / `test_error_pages.py` / `test_package_sign.py` 均通过 mock 基础目录 + `sys.path` 指向临时插件目录运行，不污染真实项目，可重复执行；`test_reload_race.py` 使用 Flask test client，在测试开头手动调用 `load_plugins()` 初始化（`load_plugins` 仅在 `app.py` 的 `main` 段自动调用）。

@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from functools import wraps
-from flask import request, jsonify, render_template, send_file, redirect, Response, make_response
+from flask import request, jsonify, render_template, send_file, redirect, Response, make_response, g as flask_g
 import urllib.parse
 import os
 from io import BytesIO
@@ -102,8 +102,13 @@ class BasePlugin(ABC):
     # 允许的上传文件类型和大小限制
     @property
     def allowed_upload_types(self) -> List[str]: return []
+
     @property
-    def max_upload_size(self) -> int: 10 * 1024 * 1024  # 10MB
+    def max_upload_size(self):
+        """插件级上传大小上限（**MB**，v4.2.2 起）。
+        None = 回退全局默认 `global_var.MAX_UPLOAD_SIZE_MB`（默认 100MB）。
+        route 级 `max_upload`（MB）优先于本属性。"""
+        return None
 
     def __init__(self):
         self.config = {}
@@ -311,14 +316,41 @@ class BasePlugin(ABC):
         return self._plugin_temp_dir
 
     # 文件处理工具方法
-    def save_uploaded_file(self, file_key: str = 'file') -> tuple[str, str]:
-        """保存上传的文件，返回(临时文件路径, 原始文件名)"""
+    def _resolve_upload_limit_mb(self, explicit_mb: int = None) -> int:
+        """解析当前请求的上传大小上限（MB）：
+        route 级 `max_upload`（由权限包装器注入 g）> 显式参数 > 插件 `max_upload_size` > 全局默认。"""
+        route_mb = getattr(flask_g, 'plugin_route_max_upload', None)
+        if route_mb is not None:
+            return int(route_mb)
+        if explicit_mb is not None:
+            return int(explicit_mb)
+        plugin_mb = self.max_upload_size
+        if plugin_mb is not None:
+            return int(plugin_mb)
+        return global_var.MAX_UPLOAD_SIZE_MB
+
+    def check_upload_limit(self, file, explicit_mb: int = None) -> int:
+        """上传大小预检（保存前，基于流 seek/tell 不落盘）。
+        超限返回实际大小（字节）；未超限返回 0。上限来自 `_resolve_upload_limit_mb`。"""
+        from core.utils import check_upload_size
+        limit_mb = self._resolve_upload_limit_mb(explicit_mb)
+        return check_upload_size(file, int(limit_mb) * 1024 * 1024)
+
+    def save_uploaded_file(self, file_key: str = 'file', max_upload_mb: int = None) -> tuple[str, str]:
+        """保存上传的文件，返回(临时文件路径, 原始文件名)。
+        保存前统一做大小预检（超限抛 ValueError，提示上限 MB），
+        大小上限来自 route 级 max_upload / max_upload_mb / 插件 max_upload_size / 全局默认。"""
         if file_key not in request.files:
             raise ValueError("缺少上传文件")
         file = request.files[file_key]
         if file.filename == '':
             raise ValueError("未选择文件")
-        
+
+        oversize = self.check_upload_limit(file, max_upload_mb)
+        if oversize:
+            limit_mb = self._resolve_upload_limit_mb(max_upload_mb)
+            raise ValueError(f"文件大小超过限制（{limit_mb}MB，实际约{oversize // (1024 * 1024)}MB）")
+
         ext = os.path.splitext(file.filename)[1].lower()
         if self.allowed_upload_types and ext not in self.allowed_upload_types:
             raise ValueError(f"不支持的文件类型，允许: {', '.join(self.allowed_upload_types)}")
@@ -339,8 +371,15 @@ class BasePlugin(ABC):
     
     def send_file_response(self, file_path: str, download_name: str = None,
                         mimetype: str = None, etag: str = None,
-                        as_attachment: bool = True, headers: dict = None):
-        """扩展的 send_file_response，支持更多参数"""
+                        as_attachment: bool = True, headers: dict = None,
+                        content_disposition_type: str = None,
+                        count_download: bool = True, stats_endpoint: str = None):
+        """增强的 send_file_response，支持更多参数
+
+        - content_disposition_type: 'attachment' / 'inline'（覆盖默认 disposition 类型）
+        - count_download: 是否计入下载统计（默认 True，计入插件热度）
+        - stats_endpoint: 统计端点标识（默认 request.path）
+        中文文件名自动按 RFC 5987 (filename*) 编码，避免下载乱码。"""
         from flask import send_file
     
         resp = send_file(
@@ -350,12 +389,28 @@ class BasePlugin(ABC):
             mimetype=mimetype,
             etag=etag,
             max_age=0,                    # 禁止浏览器缓存
-            conditional=True,             # 支持 If-Modified-Since / If-None-Match
+            conditional=True,             # 支持 If-Modified-Since / If-None-Match / Range 断点续传
         )
+    
+        # 中文文件名 RFC 5987 编码（filename*=UTF-8''...），避免 Content-Disposition 乱码
+        if download_name and any(ord(c) > 127 for c in download_name):
+            disp_type = content_disposition_type or ('inline' if not as_attachment else 'attachment')
+            resp.headers['Content-Disposition'] = (
+                f"{disp_type}; filename*=UTF-8''{urllib.parse.quote(download_name)}"
+            )
     
         if headers:
             for k, v in headers.items():
                 resp.headers[k] = v
+    
+        # 下载统计（计入插件热度：call_stats[plugin:endpoint]）
+        if count_download:
+            try:
+                from core.stats import increment_call_stats
+                endpoint = stats_endpoint or (request.path or f"/download/{os.path.basename(file_path)}")
+                increment_call_stats(self.name, endpoint)
+            except Exception:
+                pass
     
         return resp
 
@@ -610,9 +665,22 @@ class BasePlugin(ABC):
         
     # 初始化完成钩子（在插件加载完成后执行初始化逻辑）
     def on_load(self):
-        """插件加载完成后的回调，此时logger已注入，可以安全使用"""
+        """插件加载完成后的回调，此时logger已注入，可以安全使用
+
+        注意：本阶段其他插件可能尚未加载，跨插件依赖检查（如检测 auth 是否安装）
+        默认只应记录 warning（不阻断加载）。启用严格模式（PLUGIN_STRICT_MODE=True）时，
+        请把此类检查移到 on_ready 钩子（所有插件加载完成后执行，此时依赖判断才准确）。"""
         pass
-        
+
+    # 就绪钩子（v4.2.2 新增）：所有插件加载完成后统一调用，此时可做跨插件依赖最终确认
+    def on_ready(self):
+        """所有插件加载完成后的回调（v4.2.2）。
+
+        与 on_load 的区别：on_ready 在所有插件注册完成后才被框架调用，
+        此时 global_var.plugins 已包含全部可用插件，跨插件依赖检查结果准确。
+        严格模式（PLUGIN_STRICT_MODE=True）下的依赖延后检查应在此实现。"""
+        pass
+
     # 插件停止前回调钩子
     def on_shutdown(self):
         """

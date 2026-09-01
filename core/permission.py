@@ -11,7 +11,8 @@ import traceback
 import urllib.parse
 from functools import wraps
 
-from flask import jsonify, redirect, render_template, request
+from flask import jsonify, redirect, render_template, request, g as flask_g
+from werkzeug.exceptions import RequestEntityTooLarge
 
 import global_var
 from core.stats import increment_call_stats
@@ -117,6 +118,16 @@ def wrap_view_func(view_func, plugin_name, route):
             if auth_result is not None:
                 return auth_result
 
+            # route 级上传上限（MB）注入请求上下文：
+            # 1) g.plugin_route_max_upload 供 save_uploaded_file/check_upload_limit 读取；
+            # 2) 同步提升 request.max_content_length（默认来自全局 MAX_CONTENT_LENGTH），
+            #    使 route 级 max_upload 可突破全局默认（如 airdrop 的 GB 级大文件路由），
+            #    且在本请求内作为更严格/更宽的上限兜底。
+            if 'max_upload' in route:
+                _route_mb = int(route.get('max_upload'))
+                flask_g.plugin_route_max_upload = _route_mb
+                request.max_content_length = _route_mb * 1024 * 1024
+
             logger.info(f"调用API: {route['path']}", extra={'plugin': plugin_name})
             increment_call_stats(plugin_name, route['path'])
 
@@ -144,6 +155,9 @@ def wrap_view_func(view_func, plugin_name, route):
                 logger.error(err_msg, extra={'plugin': plugin_name})
                 return jsonify({"code": 500, "message": err_msg}), 500
             raise e
+        except RequestEntityTooLarge:
+            # 请求体超限（413）：交给 Flask 统一 413 处理器（API JSON / 页面模板）
+            raise
         except Exception as e:
             logger.error(f"API调用错误: {str(e)}\n{traceback.format_exc()}", extra={'plugin': plugin_name})
             return jsonify({"code": 500, "message": f"接口调用失败: {str(e)}"}), 500

@@ -267,6 +267,18 @@ def load_plugins():
             logger.error(f"加载插件 {plugin_name} 失败: {str(e)}\n{traceback.format_exc()}", extra={'plugin': 'system'})
             global_var.plugins.pop(plugin_name, None)
 
+    # ==================== on_ready 就绪钩子（v4.2.2）：所有插件加载完成后统一调用 ====================
+    # 此时 global_var.plugins 已包含全部可用插件，跨插件依赖检查结果准确；
+    # 严格模式（PLUGIN_STRICT_MODE）下插件可在此延后执行依赖确认（on_load 仅记录 warning）。
+    for _pname in list(global_var.plugins.keys()):
+        _pinst = global_var.plugins[_pname]
+        if hasattr(_pinst, 'on_ready'):
+            try:
+                _pinst.on_ready()
+                logger.debug(f"插件 {_pname} on_ready 就绪回调完成", extra={'plugin': 'system'})
+            except Exception as _e:
+                logger.error(f"插件 {_pname} on_ready 回调失败: {_e}\n{traceback.format_exc()}", extra={'plugin': 'system'})
+
     # 注册系统定时任务
     if not global_var.scheduler.get_job('system_stats_save'):
         global_var.scheduler.add_job(

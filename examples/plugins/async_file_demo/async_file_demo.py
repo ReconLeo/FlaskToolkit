@@ -4,7 +4,7 @@
 ================================================
 展示框架的文件处理与异步任务能力：
 
-1. 文件上传：allowed_upload_types / max_upload_size 限制 + save_uploaded_file 保存。
+1. 文件上传：allowed_upload_types / max_upload_size（MB，本示例 20MB）限制 + save_uploaded_file 保存（保存前统一预检）。
 2. 异步任务：run_async_task 在后台线程处理大文件（不阻塞请求），
    get_async_task_status 轮询进度/结果。
 3. 结果下载：send_file_response 返回处理结果文件。
@@ -38,12 +38,18 @@ class AsyncFileDemoPlugin(BasePlugin):
     author = "FlaskToolkit Examples"
     category = "示例"
     permission = "user"
-    require_framework_version = "4.2.0"
+    require_framework_version = "4.2.2"  # max_upload_size 统一为 MB 语义
 
     # 允许上传的文件类型（空列表 = 不限；框架在 save_uploaded_file 中自动校验）
     @property
     def allowed_upload_types(self) -> List[str]:
         return ['.txt', '.log', '.csv', '.json', '.md']
+
+    # 插件级上传上限（MB，v4.2.2 统一机制）：save_uploaded_file 保存前自动预检；
+    # 不声明则回退全局默认 MAX_UPLOAD_SIZE_MB（100MB）
+    @property
+    def max_upload_size(self):
+        return 20  # 20MB
 
     # ---------------- 路由 ----------------
     @property

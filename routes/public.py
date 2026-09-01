@@ -136,6 +136,16 @@ def register(app):
         logger.error(f"500错误: {request.path} - {str(e)}", extra={'plugin': 'system'})
         return render_template('500.html', message="服务器内部错误"), 500
 
+    # 413 请求体过大处理器（全局 MAX_CONTENT_LENGTH 兜底；API 场景返回 JSON，页面场景渲染模板）
+    @app.errorhandler(413)
+    def request_entity_too_large(e):
+        limit_mb = global_var.MAX_UPLOAD_SIZE_MB
+        logger.warning(f"413请求体过大: {request.path} - 限制 {limit_mb}MB", extra={'plugin': 'system'})
+        msg = f"请求体超过大小限制（{limit_mb}MB）"
+        if request.path.startswith('/api/'):
+            return jsonify({"code": 413, "message": msg}), 413
+        return render_template('413.html', message=msg), 413
+
     # favicon.ico路由处理
     @app.route('/favicon.ico')
     def favicon():

@@ -27,6 +27,8 @@ from routes import register_routes
 app = Flask(__name__)
 # 模板自动重载：前端工具/插件 html 更新后即时生效（配合 watcher 热重载，无需重启服务）
 app.config['TEMPLATES_AUTO_RELOAD'] = True
+# 全局文件上传大小兜底（MAX_UPLOAD_SIZE 默认 100MB，可经 config CLI 调整；插件可用 max_upload_size/route max_upload 覆盖更严或更宽限制）
+app.config['MAX_CONTENT_LENGTH'] = global_var.MAX_UPLOAD_SIZE
 global_var.app = app  # 同步回全局状态，供 core 模块引用
 CORS(app, supports_credentials=True)
 
