@@ -35,7 +35,7 @@
 - 登录锁定可后台手动解封：用户管理后台展示锁定状态（登录失败锁定），并支持一键**解封**（`POST /api/user_manage/unlock`）——清除该用户全部维度（IP+用户名 / 仅用户名）的锁定记录，无需等待锁定期满即可立即登录；
 - 补上了插件包的完整性校验与签名、Factory Reset、备份/恢复、启动自检，以及一套 497 项的回归测试和 GitHub Actions CI。
 
-坦白说，这框架远谈不上"完善"。它更多是"自娱自乐"的产物：站在 Flask、APScheduler、Werkzeug 这些巨人的肩膀上，把我需要的那部分想法落了地。也因此，它的安全模型是朴素直接的——**安装插件即信任其作者**。所以它更适合自己的电脑或可信局域网，而不是对外开放的生产环境。
+坦白说，这框架的目标不是"再造一个 Django"：它站在 Flask、APScheduler、Werkzeug 这些巨人的肩膀上，把我需要的那部分想法落了地。它的信任模型是朴素的——**安装插件即信任其作者**：插件与框架同进程、无沙箱隔离（详见开发规范 10.1）。但框架并没有停留在"裸奔"：在"安装即信任"之上，叠加了**静态扫描（4.3.1）→ 能力声明交叉校验（4.3.2）→ 运行时审计钩子（4.4.0）** 的纵深防御，配合可选 HTTPS（4.5.0）与登录锁定/解封（4.3.0/4.5.1），足以支撑**可信局域网 / 企业内网**的日常工具运行；若要对公网对抗性环境开放，仍需自行评估风险（插件仍无沙箱）。
 
 我坚持的原则只有一个：**需求导向，怎么方便怎么来**。所以最终呈现给你的，是一个开箱即用、低门槛、能随手往里加工具、且数据始终在自己手里的工具箱。
 
@@ -65,7 +65,7 @@ python app.py
 
 ```bash
 pip install -r requirements.txt -r requirements-dev.txt   # install_all.py 依赖 requests
-python examples/install_all.py                            # 一键安装 6 个官方示例
+python examples/install_all.py                            # 一键安装 7 个官方示例
 ```
 
 ### 运行环境变量
@@ -87,6 +87,7 @@ python examples/install_all.py                            # 一键安装 6 个�
 | `async_file_demo` | 后端插件 | 文件上传限制、异步任务、状态轮询、结果下载 |
 | `dependent_demo` | 后端插件 | 插件依赖声明、跨插件调用 |
 | `multitool_demo` | 后端插件 | 大插件多模板：多模板页面路由、辅助 .py、静态资源 |
+| `corp_tools` | 后端插件 | 企业内网工具箱：定时健康探测 + 网络白名单 capabilities、权限过滤导航、公告板 |
 | `dashboard_demo` | 前端工具包 | 管理员权限、调用后端 API、ECharts 图表、静态资源 |
 
 详见 [examples/README.md](examples/README.md)。
@@ -105,7 +106,7 @@ python examples/install_all.py                            # 一键安装 6 个�
 `tests/` 22 个脚本共 497 项回归测试（隔离目录模式，不污染项目文件）；GitHub Actions 在 Python 3.10 / 3.11 / 3.12 上自动执行，覆盖权限、插件包 / 前端工具链路、完整性签名、卸载清单、Factory Reset、大插件多模板页面路由、文件传输（上传限制 / 中文名下载 / Range）、插件静态安全扫描、能力声明交叉校验、运行时审计钩子、运维工具等。
 
 <details>
-<summary>展开：19 个测试脚本</summary>
+<summary>展开：22 个测试脚本</summary>
 
 ```bash
 cd FlaskToolkit
@@ -127,6 +128,10 @@ python tests/test_tools_ops.py             # 运维工具 backup/reset/config 19
 python tests/test_page_router.py           # 大插件多模板页面路由 + 纯 API 无 name 插件调试页回归 21 项
 python tests/test_framework_fixes.py       # 框架小修复：public_page 豁免 + CSRF 单值注入 9 项
 python tests/test_file_transfer.py         # 文件传输：全局 413 / 插件级与 route 级上传上限 / 中文名下载 / 下载统计 / Range / on_ready 顺序 12 项
+python tests/test_security.py              # 系统安全：安全响应头 / Cookie 加固 / 空闲超时 / 登录锁定与手动解封 45 项
+python tests/test_plugin_scan.py           # 插件静态扫描（v4.3.1）：危险导入/调用/混淆/网络文件触点 35 项
+python tests/test_capabilities.py          # 插件能力声明（v4.3.2）：解析/匹配/交叉校验/运行时授权 51 项
+python tests/test_audit_hook.py            # 运行时审计钩子（v4.4.0）：事件映射/栈定位/observe/enforce 36 项
 # 合计 22 个脚本 497 项
 ```
 
@@ -134,9 +139,10 @@ python tests/test_file_transfer.py         # 文件传输：全局 413 / 插件�
 
 ## 已知局限
 
-- **安全模型为"安装插件即信任其作者"**：插件可执行任意代码，请只安装可信来源的插件。
-- 框架更偏向"自娱自乐"的实用工具，未针对公网对抗性环境加固，**不建议部署到对外生产环境**。
-- 如需局域网使用，可设 `FLASKTOOLKIT_HOST=0.0.0.0`，但请配合 `auth` 鉴权并自行评估风险。
+- **安全模型为"安装插件即信任其作者"**：插件与框架同进程运行、无沙箱隔离，可访问框架全部文件系统与网络权限；请只安装可信来源的插件。框架提供的静态扫描 / 能力声明 / 运行时审计是**降低风险的手段**，而非绝对隔离（详见开发规范 10.1）。
+- 纵深防御下的建议使用范围：**本机或可信局域网 / 企业内网**（配合 `auth` 鉴权、按需启用 `PLUGIN_SCAN_MODE=enforce` 与 `AUDIT_HOOK_MODE=enforce`、HTTPS 可参考 `tools/gen_cert.py`）。
+- 未针对公网对抗性环境加固，**不建议直接暴露到公网**；如需公网访问请自行叠加网关/代理层并评估风险。
+- 局域网使用可设 `FLASKTOOLKIT_HOST=0.0.0.0`，请配合 `auth` 鉴权并自行评估风险。
 
 ## 许可与贡献
 

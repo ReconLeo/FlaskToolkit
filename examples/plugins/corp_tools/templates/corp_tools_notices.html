@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>公告板 - {{ name }}</title>
+    <link rel="stylesheet" href="/plugin-static/{{ name }}/css/corp.css">
+</head>
+<body>
+<div class="corp-wrap">
+    <header class="corp-header">
+        <h1>📢 公告板</h1>
+        <p class="corp-muted">管理员发布（异步落盘 run_async_task）/ 删除公告；登录用户查看。数据存 <code>plugins/data/{{ name }}/notices.json</code>（自属路径隐式豁免）。</p>
+        <p class="corp-muted">API：<code>GET /api/{{ name }}/notices</code>（user）· <code>POST /api/{{ name }}/notices</code>（admin）· <code>DELETE /api/{{ name }}/notices/&lt;id&gt;</code>（admin）</p>
+    </header>
+    <form id="corp-notice-form" class="corp-form">
+        <input type="text" name="title" placeholder="公告标题" required>
+        <textarea name="content" placeholder="公告正文" rows="3" required></textarea>
+        <select name="level">
+            <option value="info">信息</option>
+            <option value="warning">警告</option>
+            <option value="danger">重要</option>
+        </select>
+        <button type="submit">发布公告</button>
+    </form>
+    <div id="corp-notices" class="corp-muted">加载中…</div>
+</div>
+<script src="/plugin-static/{{ name }}/js/corp.js"></script>
+</body>
+</html>

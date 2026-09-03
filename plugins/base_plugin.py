@@ -161,11 +161,11 @@ class BasePlugin(ABC):
         """
         # 如果插件未自定义static_dir，使用默认路径
         if self.static_dir is None:
-            global_static_root = os.path.join(
-                os.path.dirname(os.path.abspath(sys.argv[0])),  # 主脚本所在目录
-                'templates', 'plugins', 'static'
+            # 基准为框架项目根（global_var.BASE_DIR），勿用 sys.argv[0]——
+            # 从非项目根目录启动（如 python workspace/xxx.py）时路径会指向启动目录
+            self.static_dir = os.path.join(
+                global_var.BASE_DIR, 'templates', 'plugins', 'static', self.name
             )
-            self.static_dir = os.path.join(global_static_root, self.name)
 
         if not os.path.exists(self.static_dir) or not os.path.isdir(self.static_dir):
             self.logger.debug(f"未检测到静态资源目录 {self.static_dir}")

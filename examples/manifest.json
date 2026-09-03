@@ -5,35 +5,70 @@
       "title": "示例：Hello 脚手架",
       "path": "plugins/hello_plugin",
       "type": "backend",
-      "focus": ["生命周期钩子 on_load/on_shutdown/on_unload/on_uninstall", "三层权限路由 public/user/admin", "配置读写 load_config/save_config", "自定义页面"]
+      "focus": [
+        "生命周期钩子 on_load/on_shutdown/on_unload/on_uninstall",
+        "三层权限路由 public/user/admin",
+        "配置读写 load_config/save_config",
+        "自定义页面"
+      ]
     },
     {
       "name": "scheduler_demo",
       "title": "示例：APScheduler 定时任务",
       "path": "plugins/scheduler_demo",
       "type": "backend",
-      "focus": ["scheduled_tasks 属性声明定时任务", "interval 触发器（每 30 秒心跳）", "cron 触发器（每分钟统计）", "定时数据持久化 + 页面实时展示"]
+      "focus": [
+        "scheduled_tasks 属性声明定时任务",
+        "interval 触发器（每 30 秒心跳）",
+        "cron 触发器（每分钟统计）",
+        "定时数据持久化 + 页面实时展示"
+      ]
     },
     {
       "name": "async_file_demo",
       "title": "示例：异步任务与文件上传",
       "path": "plugins/async_file_demo",
       "type": "backend",
-      "focus": ["allowed_upload_types / max_upload_size 上传限制", "save_uploaded_file 保存上传", "run_async_task 异步处理", "get_async_task_status 轮询状态", "send_file_response 下载结果"]
+      "focus": [
+        "allowed_upload_types / max_upload_size 上传限制",
+        "save_uploaded_file 保存上传",
+        "run_async_task 异步处理",
+        "get_async_task_status 轮询状态",
+        "send_file_response 下载结果"
+      ]
     },
     {
       "name": "dependent_demo",
       "title": "示例：插件依赖与跨插件调用",
       "path": "plugins/dependent_demo",
       "type": "backend",
-      "focus": ["dependencies 依赖声明（缺失依赖拒绝加载）", "call_plugin_method 跨插件调用 auth"]
+      "focus": [
+        "dependencies 依赖声明（缺失依赖拒绝加载）",
+        "call_plugin_method 跨插件调用 auth"
+      ]
     },
     {
       "name": "multitool_demo",
       "title": "示例：大插件多模板",
       "path": "plugins/multitool_demo",
       "type": "backend",
-      "focus": ["多模板：主入口 index.html + 页面路由 page=True 子页", "辅助 .py：multitool_utils 纯函数模块复用", "静态资源：css/js 经 /plugin-static/ 访问", "render_index 主入口数据钩子"]
+      "focus": [
+        "多模板：主入口 index.html + 页面路由 page=True 子页",
+        "辅助 .py：multitool_utils 纯函数模块复用",
+        "静态资源：css/js 经 /plugin-static/ 访问",
+        "render_index 主入口数据钩子"
+      ]
+    },
+    {
+      "name": "corp_tools",
+      "title": "示例：企业内网工具箱",
+      "path": "plugins/corp_tools",
+      "type": "backend",
+      "focus": [
+        "服务健康检查（scheduled_tasks 定时探测 + network:http capabilities 白名单）",
+        "内部工具导航（按 public/user/admin 权限过滤）",
+        "公告板（异步落盘 + 多模板页面）"
+      ]
     }
   ],
   "frontend_tools": [
@@ -42,7 +77,12 @@
       "title": "示例：Dashboard 管理面板",
       "path": "frontend_tools/dashboard_demo",
       "type": "frontend",
-      "focus": ["admin 权限前端工具", "调用后端 admin API（system/info、stats）", "ECharts 图表", "zip 静态资源 static/ 上传与访问"]
+      "focus": [
+        "admin 权限前端工具",
+        "调用后端 admin API（system/info、stats）",
+        "ECharts 图表",
+        "zip 静态资源 static/ 上传与访问"
+      ]
     }
   ]
 }

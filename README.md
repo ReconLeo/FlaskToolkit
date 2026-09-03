@@ -35,7 +35,7 @@ Over time it grew into what it is today:
 - Manual unlock for locked accounts: the admin panel's user management now shows lock status (login-failure lockout) and provides a one-click **unlock** action (`POST /api/user_manage/unlock`) — clears all lock records (IP+username or username dimension) so the user can log in immediately without waiting for the lockout to expire;
 - Added plugin-package integrity verification & signing, Factory Reset, backup/restore, startup self-check, plus a **497-assertion regression suite and GitHub Actions CI**.
 
-To be honest, this framework is far from "production-grade". It is more of a "play for fun" project: standing on the shoulders of giants like Flask, APScheduler, and Werkzeug, and landing the parts I needed. That is also why its security model is bluntly simple — **installing a plugin means trusting its author**. It suits your own machine or a trusted LAN, not a public production environment.
+To be honest, this framework's goal is not to "reinvent Django": it stands on the shoulders of giants like Flask, APScheduler, and Werkzeug, and lands the parts I needed. Its trust model is blunt — **installing a plugin means trusting its author**: plugins run in-process with the framework, without sandboxing (see dev guide 10.1). But it does not stop at "bare trust": layered defense — **static scanning (4.3.1) → capability cross-validation (4.3.2) → runtime audit hooks (4.4.0)** — sits on top, together with optional HTTPS (4.5.0) and login lockout/manual unlock (4.3.0/4.5.1). That is enough for trusted LANs / enterprise intranets running daily tools; exposing to an adversarial public network still needs your own risk assessment (plugins are still unsandboxed).
 
 My only principle: **need-driven, whatever is convenient**. So what you get is an out-of-the-box, low-barrier toolbox that lets you drop in tools whenever you want, with your data always in your own hands.
 
@@ -65,7 +65,7 @@ Want to feel the fun of "installing plugins" right away? Install the official ex
 
 ```bash
 pip install -r requirements.txt -r requirements-dev.txt   # install_all.py needs requests
-python examples/install_all.py                            # install all 6 official examples
+python examples/install_all.py                            # install all 7 official examples
 ```
 
 ### Environment Variables
@@ -87,6 +87,7 @@ The [`examples/`](examples/README.md) directory ships with a set of one-click in
 | `async_file_demo` | Backend plugin | Upload limits, async tasks, status polling, result download |
 | `dependent_demo` | Backend plugin | Dependency declaration, cross-plugin calls |
 | `multitool_demo` | Backend plugin | Large plugin multi-template: page routes, helper .py, static assets |
+| `corp_tools` | Backend plugin | Enterprise-intranet kit: scheduled health probing + network-whitelist capabilities, permission-filtered navigation, notice board |
 | `dashboard_demo` | Frontend tool | Admin permission, calls backend APIs, ECharts, static assets |
 
 See [examples/README.md](examples/README.md).
@@ -105,7 +106,7 @@ Detailed specs live in the [Flask Plugin Framework Development Guide](documents/
 `tests/` contains **22 scripts / 497 assertions** of regression tests (isolated-directory mode, no pollution of project files); GitHub Actions runs them automatically on Python 3.10 / 3.11 / 3.12, covering permissions, plugin-package / frontend-tool chains, integrity signatures, uninstall manifests, Factory Reset, large-plugin multi-template page routing, file transfer (upload limits / Chinese-name downloads / Range), static security scanning, capability cross-validation, runtime audit hooks, ops tools, etc.
 
 <details>
-<summary>Expand: 18 test scripts</summary>
+<summary>Expand: 22 test scripts</summary>
 
 ```bash
 cd FlaskToolkit
@@ -127,6 +128,10 @@ python tests/test_tools_ops.py             # ops tools backup/reset/config 19
 python tests/test_page_router.py           # large-plugin multi-template page routing + pure-API no-name plugin debug page regression 21
 python tests/test_framework_fixes.py       # framework small fixes: public_page exemption + CSRF single-injection 9
 python tests/test_file_transfer.py         # file transfer: global 413 / plugin & route upload limits / Chinese-name downloads / download stats / Range / on_ready order 12
+python tests/test_security.py              # system security: headers / cookie hardening / idle timeout / login lockout & manual unlock 45
+python tests/test_plugin_scan.py           # plugin static scanning (v4.3.1): risky imports/calls/obfuscation/network+file touchpoints 35
+python tests/test_capabilities.py          # plugin capability declarations (v4.3.2): parse/match/cross-check/runtime authorization 51
+python tests/test_audit_hook.py            # runtime audit hooks (v4.4.0): event mapping/stack attribution/observe/enforce 36
 # total: 22 scripts / 497 assertions
 ```
 
@@ -134,9 +139,10 @@ python tests/test_file_transfer.py         # file transfer: global 413 / plugin 
 
 ## Known Limitations
 
-- **Security model is "install a plugin = trust its author"**: plugins can execute arbitrary code; only install plugins from trusted sources.
-- The framework leans toward "play for fun" utilities and is not hardened for adversarial public networks — **not recommended for public-facing production deployment**.
-- For LAN use, set `FLASKTOOLKIT_HOST=0.0.0.0`, but pair it with the `auth` plugin and assess the risk yourself.
+- **Security model is "install a plugin = trust its author"**: plugins run in-process with the framework, without sandboxing, and can reach the framework's full filesystem/network surface; only install plugins from trusted sources. Static scanning / capability declarations / runtime audit hooks are **risk-mitigation tools, not absolute isolation** (see dev guide 10.1).
+- With that defense in depth, the recommended use is: **local machine or a trusted LAN / enterprise intranet** (pair with the `auth` plugin; optionally enable `PLUGIN_SCAN_MODE=enforce` and `AUDIT_HOOK_MODE=enforce`; for HTTPS see `tools/gen_cert.py`).
+- Not hardened for adversarial public networks — **not recommended for direct public exposure**; if you must, put a gateway/reverse-proxy in front and assess the risk yourself.
+- For LAN use, set `FLASKTOOLKIT_HOST=0.0.0.0`, pair it with the `auth` plugin, and assess the risk yourself.
 
 ## License & Contributing
 

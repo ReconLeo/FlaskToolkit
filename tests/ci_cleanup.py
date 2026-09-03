@@ -6,7 +6,7 @@
 
 清理范围（与回归测试可能写盘的范围对齐）：
 - plugins/configs/auth.json：仅保留 admin 用户
-- plugins/data/sessions.json：清空
+- plugins/data/auth/sessions.json：清空（v4.5.0 起 auth 会话迁移至插件自属目录）
 - plugins/status.json：清空
 - data/stats.json：保留（统计不影响权限测试）
 - temp/、.plugin_cache/：清理临时文件/缓存

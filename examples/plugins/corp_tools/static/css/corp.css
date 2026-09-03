@@ -1,0 +1,59 @@
+/* corp_tools 企业内网工具箱样式（经 /plugin-static/corp_tools/css/corp.css 提供） */
+body {
+    font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: #f4f6f8;
+    margin: 0;
+    padding: 20px;
+    color: #1f2937;
+}
+.corp-wrap { max-width: 960px; margin: 0 auto; }
+.corp-header h1 { margin: 0 0 6px; }
+.corp-muted { color: #6b7280; font-size: 13px; }
+.corp-overview {
+    background: #fff; border: 1px solid #e5e7eb; border-radius: 10px;
+    padding: 14px 18px; margin: 16px 0; display: flex; align-items: center; gap: 18px;
+}
+.corp-stat { text-align: center; }
+.corp-stat-num { display: block; font-size: 26px; font-weight: 700; }
+.corp-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin: 18px 0; }
+.corp-card {
+    background: #fff; border: 1px solid #e5e7eb; border-radius: 10px;
+    padding: 16px 18px; text-decoration: none; color: inherit;
+    transition: box-shadow .15s, transform .15s;
+}
+.corp-card:hover { box-shadow: 0 4px 14px rgba(0,0,0,.08); transform: translateY(-2px); }
+.corp-card h3 { margin: 0 0 8px; }
+.corp-card p { margin: 0; font-size: 13px; color: #6b7280; }
+.corp-list li { margin: 6px 0; }
+
+/* 健康卡片 */
+.corp-health { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin: 16px 0; }
+.health-card { background: #fff; border-radius: 10px; padding: 14px 16px; border-left: 5px solid #9ca3af; box-shadow: 0 1px 4px rgba(0,0,0,.05); }
+.health-card.up { border-left-color: #10b981; }
+.health-card.down { border-left-color: #ef4444; }
+.health-card h4 { margin: 0 0 6px; font-size: 15px; }
+.health-card .tag { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 12px; color: #fff; }
+.health-card .tag.up { background: #10b981; }
+.health-card .tag.down { background: #ef4444; }
+.health-card .meta { margin-top: 8px; font-size: 12px; color: #6b7280; }
+
+/* 导航链接 */
+.corp-links-group { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 12px 18px; margin: 12px 0; }
+.corp-links-group h4 { margin: 0 0 8px; }
+.corp-links-group a { display: inline-block; margin: 4px 8px 4px 0; padding: 4px 12px; background: #eff6ff; border-radius: 6px; color: #1d4ed8; text-decoration: none; font-size: 14px; }
+.corp-links-group a:hover { background: #dbeafe; }
+
+/* 公告 */
+.corp-notice { background: #fff; border: 1px solid #e5e7eb; border-left: 5px solid #9ca3af; border-radius: 10px; padding: 12px 16px; margin: 10px 0; }
+.corp-notice.level-warning { border-left-color: #f59e0b; }
+.corp-notice.level-danger { border-left-color: #ef4444; }
+.corp-notice .notice-title { font-weight: 600; margin-right: 10px; }
+.corp-notice .notice-meta { font-size: 12px; color: #6b7280; }
+.corp-notice .notice-content { margin: 8px 0 0; font-size: 14px; white-space: pre-wrap; }
+.corp-notice .notice-del { float: right; border: none; background: #fee2e2; color: #b91c1c; border-radius: 6px; padding: 3px 10px; cursor: pointer; font-size: 12px; }
+
+/* 表单 */
+.corp-form { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 14px 16px; margin: 16px 0; display: flex; flex-direction: column; gap: 8px; }
+.corp-form input, .corp-form textarea, .corp-form select { padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; }
+.corp-form button { align-self: flex-start; padding: 8px 18px; background: #2563eb; color: #fff; border: none; border-radius: 6px; cursor: pointer; }
+.corp-form button:hover { background: #1d4ed8; }

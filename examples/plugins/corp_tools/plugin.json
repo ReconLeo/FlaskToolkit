@@ -1,0 +1,17 @@
+{
+  "name": "corp_tools",
+  "title": "示例：企业内网工具箱",
+  "version": "1.0.0",
+  "author": "FlaskToolkit Examples",
+  "category": "示例",
+  "description": "企业内网综合示例：服务健康检查（定时探测 + 网络白名单 capabilities）+ 内部工具导航（权限过滤）+ 公告板（异步落盘），系统性展示框架多模板/权限/定时任务/配置读写/数据目录/静态资源能力。",
+  "permission": "user",
+  "require_framework_version": "4.3.2",
+  "capabilities": [
+    "scheduler",
+    "network:http:http://127.0.0.1:5000/*",
+    "network:http:http://127.0.0.1:8080/*",
+    "network:http:http://127.0.0.1:9000/*",
+    "network:http:http://*.intra.corp/*"
+  ]
+}

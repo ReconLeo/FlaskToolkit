@@ -158,7 +158,7 @@ FlaskToolkit/
 │   ├── base_plugin.py         #   插件基类 + @permission 装饰器 + 生命周期钩子
 │   ├── auth.py                #   可选鉴权插件（PBKDF2 / HttpOnly Cookie + CSRF）
 │   └── user_manage.py         #   内置用户管理插件（BUILTIN，受 Factory Reset 保护）
-├── examples/                  # 官方示例插件/工具包（6 个）+ install_all.py 一键安装
+├── examples/                  # 官方示例插件/工具包（7 个）+ install_all.py 一键安装
 ├── tools/                     # 开发运维命令行工具（python tools/xxx.py）
 │   ├── config.py              #   配置管理 CLI（show/set/unset/reset/check/env/profile 预设）
 │   ├── scan.py                #   插件静态扫描 CLI（.py / .zip / 目录，--json）
@@ -953,7 +953,7 @@ python tools/config.py set PLUGIN_SCAN_MODE enforce   # 单项覆盖
 
 **向后兼容**：旧插件无 `capabilities` 字段——report 模式放行附告警；enforce 模式下若有未声明检出行为则拒绝（良性插件扫描范围通常为空，不受影响）。plugin.json 在 manifest.json 完整性清单内，装后私改 capabilities 会被完整性校验拦截。
 
-> **官方示例维护约定**：`examples/` 下的示例插件须与最新开发规范保持同步——`require_framework_version` 需高于所用框架 API 的引入版本（如使用 `get_data_path` 的示例要求 ≥ 4.3.2）；示例内容变更时同步升级 `version`（plugin.json 与插件类属性两处一致，见 5.6.3），保证 `update` 可重复安装。
+> **官方示例维护约定**：`examples/` 下的示例插件须与最新开发规范保持同步——`require_framework_version` 需高于所用框架 API 的引入版本（如使用 `get_data_path` 的示例要求 ≥ 4.3.2）；示例内容变更时同步升级 `version`（plugin.json 与插件类属性两处一致，见 5.6.3），保证 `update` 可重复安装。综合示例 `corp_tools`（企业内网工具箱）演示 capabilities 网络白名单与权限过滤导航，设计见 `documents/插件设计-corp_tools.md`。
 
 ---
 

@@ -11,6 +11,7 @@
 | `async_file_demo`（异步任务与文件上传） | 后端插件 | `/plugin/async_file_demo` | 上传类型/大小限制、`save_uploaded_file`、`run_async_task` 异步处理、状态轮询、`send_file_response` 下载结果 |
 | `dependent_demo`（插件依赖与跨插件调用） | 后端插件 | `/plugin/dependent_demo` | `dependencies` 依赖声明（缺失依赖拒绝加载）、`call_plugin_method` 跨插件调用 auth |
 | `multitool_demo`（大插件多模板） | 后端插件 | `/plugin/multitool_demo` | 大插件三要素：多模板（主入口 index + 页面路由 page=True 子页）、辅助 .py（multitool_utils 纯函数模块）、静态资源（css/js 经 `/plugin-static/` 访问）、`render_index` 数据钩子 |
+| `corp_tools`（企业内网工具箱） | 后端插件 | `/plugin/corp_tools` | 企业内网综合场景：服务健康检查（定时探测 + `network:http` capabilities 白名单）、内部工具导航（按权限过滤）、公告板（异步落盘）、多模板 + 静态资源 + 配置读写系统性组合 |
 | `dashboard_demo`（Dashboard 管理面板） | 前端工具包 | `/frontend/dashboard_demo` | admin 权限前端工具、调用后端 admin API、ECharts 图表、zip 静态资源上传与访问 |
 
 ## 快速开始
@@ -132,7 +133,29 @@ class MultiToolDemo(BasePlugin):
 - 子页 `/plugin/multitool_demo/text` 页面内静态 JS 调 `POST /api/multitool_demo/analyze`（user 权限，`plugin_common.js` 自动注入 CSRF）；
 - 子页 `/plugin/multitool_demo/hello/小明` 演示路径参数注入。
 
-### 6. dashboard_demo —— 前端工具包完整形态
+### 6. corp_tools —— 企业内网工具箱（综合示例）
+
+面向企业内网生产环境的综合示例，系统性组合框架能力（详见 `documents/插件设计-corp_tools.md`）：
+
+- **服务健康检查**：`scheduled_tasks` 每 60s 定时探测内网服务（HTTP HEAD→GET，超时 3s），结果缓存至 `plugins/data/corp_tools/health.json`（`get_data_path` 自属路径，capabilities 隐式豁免）；网络出站经 `network:http` capabilities 白名单授权（审计钩子"防火墙"语义）；
+- **内部工具导航**：配置驱动链接列表（`load_config/save_config`），按当前用户角色（public/user/admin）过滤展示；
+- **公告板**：管理员发布（`run_async_task` 异步落盘 `notices.json`）/ 删除公告，登录用户查看；
+- **多模板 + 静态资源**：主入口 index + 3 个 page=True 子页（health/links/notices），css/js 经 `/plugin-static/corp_tools/` 访问；
+- **跨插件调用**：`GET /api/corp_tools/me` 调 auth 获取当前用户/用户数（auth 未安装时优雅回退）。
+
+```python
+@property
+def scheduled_tasks(self):
+    return [{"func": self._probe_all, "trigger": "interval", "seconds": 60}]
+
+def get_links(self):
+    role = self._current_role()
+    return corp_utils.filter_links(self.config.get("links", []), role)
+```
+
+`plugin.json` 声明 `capabilities: ["scheduler", "network:http:http://127.0.0.1:5000/*", ...]`——安装时与静态扫描范围交叉校验，运行时审计钩子按此授权。
+
+### 7. dashboard_demo —— 前端工具包完整形态
 
 区别于纯前端工具（如内置的密码生成器），本示例展示：
 
@@ -153,7 +176,8 @@ examples/
 │   ├── scheduler_demo/
 │   ├── async_file_demo/
 │   ├── dependent_demo/
-│   └── multitool_demo/        #   大插件：多模板 + 辅助 .py + static/ 静态资源
+│   ├── multitool_demo/        #   大插件：多模板 + 辅助 .py + static/ 静态资源
+│   └── corp_tools/            #   企业内网综合示例：定时探测 + 权限过滤 + 公告板
 └── frontend_tools/            # 前端工具包示例
     └── dashboard_demo/        #   config.json + <name>.html + static/
 ```
