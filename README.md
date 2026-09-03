@@ -97,6 +97,7 @@ Detailed specs live in the [Flask Plugin Framework Development Guide](documents/
 
 - [Official examples guide](examples/README.md)
 - [Flask Plugin Framework Roadmap](documents/Flask插件框架-Roadmap-v4.1.md)
+- [Version wrap-up checklist](documents/版本收尾-checklist.md)
 - [GitHub Actions setup & open-source publishing guide](documents/GitHub-Actions-上手与开源发布指南.md)
 
 ## Tests & CI

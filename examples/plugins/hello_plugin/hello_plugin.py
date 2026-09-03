@@ -32,11 +32,11 @@ class HelloPlugin(BasePlugin):
     name = "hello_plugin"
     title = "示例：Hello 脚手架"
     description = "基础插件模板：生命周期钩子（on_load/on_shutdown/on_unload/on_uninstall）+ 三层权限路由（public/user/admin）+ 配置读写 + 自定义页面，展示一个插件能做什么。"
-    version = "1.0.0"
+    version = "1.1.0"
     author = "FlaskToolkit Examples"
     category = "示例"
     permission = "user"
-    require_framework_version = "4.2.0"
+    require_framework_version = "4.3.2"  # get_data_path 为 v4.3.2 能力
 
     # 默认配置（可被 plugins/configs/hello_plugin.json 覆盖）
     DEFAULT_CONFIG = {

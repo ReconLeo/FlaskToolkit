@@ -34,11 +34,11 @@ class SchedulerDemoPlugin(BasePlugin):
     name = "scheduler_demo"
     title = "示例：APScheduler 定时任务"
     description = "定时任务示例：通过 scheduled_tasks 属性声明 interval（间隔）与 cron（表达式）两类触发器，定时写入心跳记录，页面实时展示调度历史。"
-    version = "1.0.0"
+    version = "1.1.0"
     author = "FlaskToolkit Examples"
     category = "示例"
     permission = "user"
-    require_framework_version = "4.2.0"
+    require_framework_version = "4.3.2"  # get_data_path 为 v4.3.2 能力
 
     def __init__(self):
         super().__init__()

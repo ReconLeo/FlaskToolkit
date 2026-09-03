@@ -97,6 +97,7 @@ python examples/install_all.py                            # 一键安装 6 个�
 
 - [官方示例说明](examples/README.md)
 - [Flask 插件框架 Roadmap](documents/Flask插件框架-Roadmap-v4.1.md)
+- [版本收尾 checklist](documents/版本收尾-checklist.md)
 - [GitHub Actions 上手与开源发布指南](documents/GitHub-Actions-上手与开源发布指南.md)
 
 ## 测试与 CI

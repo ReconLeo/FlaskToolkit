@@ -175,7 +175,7 @@ FlaskToolkit/
 ├── .github/workflows/ci.yml   # GitHub Actions CI 工作流
 ├── data/                      # 运行时数据（统计/审计/用户配置，已 gitignore）
 ├── logs/                      # 运行日志（已 gitignore）
-├── documents/                 # 开发规范 / Roadmap / CI 上手指南
+├── documents/                 # 开发规范 / Roadmap / CI 上手指南 / 版本收尾 checklist
 ├── LICENSE                    # MIT 许可
 ├── CONTRIBUTING.md            # 贡献指南
 └── .gitignore                 # 运行时数据与归档文档忽略规则
@@ -952,6 +952,8 @@ python tools/config.py set PLUGIN_SCAN_MODE enforce   # 单项覆盖
 **运行时授权基准**：插件加载时 loader 从描述文件读取 capabilities 注册进 `core/capabilities.py` 内存注册表；`check_filesystem(plugin, path, mode)` / `check_network(plugin, endpoint)` / `check_process(plugin, bin)` 为 4.4.0 运行时审计钩子的授权判定契约——`check_network` 的 host 匹配即网络白名单"防火墙"规则。未注册/未声明一律拒绝（fail-closed）。
 
 **向后兼容**：旧插件无 `capabilities` 字段——report 模式放行附告警；enforce 模式下若有未声明检出行为则拒绝（良性插件扫描范围通常为空，不受影响）。plugin.json 在 manifest.json 完整性清单内，装后私改 capabilities 会被完整性校验拦截。
+
+> **官方示例维护约定**：`examples/` 下的示例插件须与最新开发规范保持同步——`require_framework_version` 需高于所用框架 API 的引入版本（如使用 `get_data_path` 的示例要求 ≥ 4.3.2）；示例内容变更时同步升级 `version`（plugin.json 与插件类属性两处一致，见 5.6.3），保证 `update` 可重复安装。
 
 ---
 

@@ -32,11 +32,11 @@ class AsyncFileDemoPlugin(BasePlugin):
     name = "async_file_demo"
     title = "示例：异步任务与文件上传"
     description = "文件处理示例：上传文本文件（类型/大小限制）→ 异步任务处理（统计行数/词数/字符数）→ 轮询任务状态 → 下载处理结果，展示 save_uploaded_file / run_async_task / send_file_response。"
-    version = "1.0.0"
+    version = "1.1.0"
     author = "FlaskToolkit Examples"
     category = "示例"
     permission = "user"
-    require_framework_version = "4.2.2"  # max_upload_size 统一为 MB 语义
+    require_framework_version = "4.3.2"  # get_data_path 为 v4.3.2 能力
 
     # 允许上传的文件类型（空列表 = 不限；框架在 save_uploaded_file 中自动校验）
     @property
