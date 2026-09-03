@@ -45,16 +45,17 @@ def main():
         # ---------- 构造隔离项目数据 ----------
         os.makedirs(os.path.join(isolated, 'plugins', 'configs'))
         os.makedirs(os.path.join(isolated, 'plugins', 'data'))
+        os.makedirs(os.path.join(isolated, 'plugins', 'data', 'auth'))
         os.makedirs(os.path.join(isolated, 'data'))
         os.makedirs(os.path.join(isolated, 'logs'))
         os.makedirs(os.path.join(isolated, 'temp'))
         open(os.path.join(isolated, 'plugins', 'configs', 'auth.json'), 'w', encoding='utf-8').write(
             json.dumps({"users": [{"username": "admin"}]}))
         open(os.path.join(isolated, 'plugins', 'status.json'), 'w', encoding='utf-8').write('{"demo": {}}')
-        open(os.path.join(isolated, 'plugins', 'data', 'sessions.json'), 'w', encoding='utf-8').write('{}')
+        open(os.path.join(isolated, 'plugins', 'data', 'auth', 'sessions.json'), 'w', encoding='utf-8').write('{}')
         open(os.path.join(isolated, 'data', 'stats.json'), 'w', encoding='utf-8').write('{}')
         open(os.path.join(isolated, 'data', 'audit.log'), 'w', encoding='utf-8').write('audit')
-        open(os.path.join(isolated, 'frontend_tools.json'), 'w', encoding='utf-8').write('[]')
+        open(os.path.join(isolated, 'data', 'frontend_tools.json'), 'w', encoding='utf-8').write('[]')
         open(os.path.join(isolated, 'logs', 'app.log'), 'w', encoding='utf-8').write('log')
         open(os.path.join(isolated, 'temp', 'x.zip'), 'w', encoding='utf-8').write('z')
 
@@ -65,7 +66,7 @@ def main():
         check('backup create 生成备份目录', os.path.isdir(dest), dest)
         check('backup create 备份 6 类内容',
               set(saved) == {'plugins/configs', 'plugins/status.json', 'plugins/data', 'data',
-                             'frontend_tools.json', 'logs'}, f"{saved}")
+                             'data/frontend_tools.json', 'logs'}, f"{saved}")
         check('backup create 内容落盘',
               os.path.exists(os.path.join(dest, 'plugins', 'configs', 'auth.json')) and
               os.path.exists(os.path.join(dest, 'data', 'audit.log')) and

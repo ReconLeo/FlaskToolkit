@@ -1,6 +1,16 @@
 # Flask插件框架开发规范
 
-## 版本：v4.4.0（运行时审计钩子） | 更新日期：2026年09月03日
+## 版本：v4.5.0（HTTPS 支持与路径迁移收尾） | 更新日期：2026年09月03日
+
+### 版本说明（v4.5.0 变更，收尾：HTTPS 支持 + 路径迁移 + 检修）
+- **框架版本升级至 v4.5.0**：在 4.4.0 安全强化收官后的收尾版本——补齐部署形态（HTTPS）、归位运行时数据路径（frontend_tools.json / auth 会话），并对既有检修文件（selfcheck / factory_reset / tools / 示例插件）做一致性体检。
+- **可选 HTTPS（默认 HTTP）**：新增 `SSL_CERT_FILE` / `SSL_KEY_FILE` 配置项（`kind=path`），两者均配置且文件存在时 `app.run(ssl_context=(cert, key))` 以 HTTPS 启动并打印 `https://` 地址；只配一项或文件缺失回退 HTTP 并告警。配套 `tools/gen_cert.py` 用系统 openssl 一键生成自签名证书/私钥（RSA 2048、SAN 含 localhost/127.0.0.1 可 `--san` 追加局域网 IP/DNS，输出 `data/certs/`，`.gitignore` 已忽略私钥）。
+- **frontend_tools.json 默认路径迁移至 `data/`**：`FRONTEND_CONFIG_FILE` 默认值改为 `data/frontend_tools.json`（`core/frontend_tools.py` 同步改用常量并新增 `LEGACY_CONFIG_FILE` + `migrate_legacy_config()`——根目录旧文件在 `data/` 无文件时 os.replace 原子迁移，两处并存时告警保留新路径）；`tools/backup.py` BACKUP_ITEMS、`core/selfcheck.py` 相应更新。
+- **auth 会话文件迁移至插件自属目录**：`_get_session_file_path` 由 `plugins/data/sessions.json` 改为 `self.get_data_path("sessions.json")`（`plugins/data/auth/`，纳入 capabilities 隐式豁免，enforce 模式下不再崩溃）；旧文件在加载时自动 os.replace 迁移；`core/factory_reset.reset_sessions`、`tools/backup`、`tests/ci_cleanup` 等同步新路径并兼容清理旧文件。
+- **示例插件数据路径归位**：`async_file_demo` 结果目录由 `data/async_file_demo` 改为 `self.get_data_path('results')`（插件自属目录，enforce 安全）；`hello_plugin` / `scheduler_demo` / `multitool_demo` / `dependent_demo` 已确认使用自属路径或无文件操作；`user_manage` 无自有文件读写（全部经 auth 插件 API）。
+- **审计钩子框架路径过滤**：`core/audit_hook.py` 新增 `_is_framework_path()`——logs/data/backups/temp 属框架管理目录（插件经框架 logger/stats 写入非插件业务），不归因拦截（此前 enforce 模式下插件写日志会触发崩溃）；解释器路径过滤保持原有逻辑。
+- **selfcheck CORE_FILES 补全**：纳入 v4.3.x-v4.4.0 新增模块（plugin_scanner / capabilities / audit_hook / plugin_cache / plugin_status / routes/security.py）；`frontend_tools.json` 属运行时配置（不入库、缺失不致命），从致命清单移除由迁移逻辑初始化。
+- **回归测试 22 脚本 482 项全量通过**（新增/调整用例覆盖会话路径迁移、frontend_tools 迁移与备份条目、框架路径过滤等），已纳入 CI。
 
 ### 版本说明（v4.4.0 变更，安全强化 P1 阶段三：运行时审计钩子）
 - **框架版本升级至 v4.4.0**：安全强化 P1 收官。基于 CPython 原生 `sys.addaudithook` 建立运行时防线，与 4.3.1 静态扫描（安装时事实）、4.3.2 capabilities 声明（安装时授权比对）构成纵深防御第三层——"安装时静态审查 → 安装时授权比对 → **运行时兜底**"。
@@ -149,6 +159,7 @@ FlaskToolkit/
 │   ├── scan.py                #   插件静态扫描 CLI（.py / .zip / 目录，--json）
 │   ├── package.py             #   插件包打包/签名/校验 CLI（genkey/pack/verify/show）
 │   ├── backup.py              #   手动备份/恢复工具（Factory Reset 前备份关键数据）
+│   ├── gen_cert.py             #   HTTPS 自签名证书生成工具（v4.5.0，openssl）
 │   └── reset.py               #   深度重置工具（服务停止时使用，绕过运行时文件锁定）
 ├── tests/                     # 回归测试套件（22 脚本 482 项 + 端到端链路验证）
 ├── templates/                 # 页面模板（首页/登录/错误码页 400-500/admin 管理后台/插件页）
@@ -764,6 +775,8 @@ def validate_params(self, params):
 | `SESSION_IDLE_TIMEOUT` | `1800` | 会话空闲超时（秒，默认 30 分钟；超过未活动即失效） |
 | `PLUGIN_SCAN_MODE` | `report` | 插件安装校验门禁（v4.3.1 静态扫描 + v4.3.2 capabilities 交叉校验）：`off` 跳过 / `report` 放行附摘要（默认） / `enforce` 高风险或未声明行为拒绝安装，详见 10.6 / 10.7 |
 | `AUDIT_HOOK_MODE` | `observe` | 运行时审计钩子（v4.4.0）：`off` 不安装 / `observe` 记录不阻断（默认） / `enforce` 未授权行为阻断（网络白名单即防火墙），详见 10.8 |
+| `SSL_CERT_FILE` | `` | HTTPS 证书 PEM 文件路径（v4.5.0，`kind=path`）；与 `SSL_KEY_FILE` 均配置且存在时启用 HTTPS，默认空=HTTP，生成自签名证书见 `tools/gen_cert.py`（10.9） |
+| `SSL_KEY_FILE` | `` | HTTPS 私钥 PEM 文件路径；与 `SSL_CERT_FILE` 配对，仅配一项时回退 HTTP 并告警 |
 
 **登录失败锁定行为**：锁定期间登录接口统一返回 HTTP 429 与通用错误信息（不泄露锁定剩余时间等细节）；登录成功后自动清除对应维度的失败计数；锁定计数仅存内存（重启即清零）。
 
@@ -973,6 +986,24 @@ python tools/config.py set AUDIT_HOOK_MODE enforce   # 运维加固：未授权�
 ```
 
 **已知局限**：ctypes 直接发起原始系统调用可绕过（属安装期 high 风险已拦截）；`os.getenv`/`os.environ` 无 audit 事件（env 域仅安装期声明记录）。
+
+---
+
+
+### 10.9 HTTPS 支持（v4.5.0）
+
+框架默认以 HTTP 启动（127.0.0.1 或配置的 HOST/PORT）。配置证书与私钥后自动切换 HTTPS：
+
+- **配置方式**（`tools/config.py`，见 8.1）：
+  ```
+  python tools/gen_cert.py                          # 生成自签名证书到 data/certs/
+  python tools/config.py set SSL_CERT_FILE data/certs/cert.pem
+  python tools/config.py set SSL_KEY_FILE data/certs/key.pem
+  ```
+- **生效条件**：`SSL_CERT_FILE` 与 `SSL_KEY_FILE` 均非空且文件存在 → `app.run(ssl_context=(cert, key))`，启动日志打印 `https://host:port`；任一缺失/文件不存在回退 HTTP 并告警。
+- **自签名证书**：仅限本机/可信局域网使用，浏览器会提示不受信任，需手动信任或导入证书；`--san IP:192.168.x.x` 可追加局域网访问地址（SAN 缺失时现代浏览器直接拒绝连接，工具默认已含 localhost/127.0.0.1）。
+- **与安全配置联动**：启用 HTTPS 后可将 `SESSION_COOKIE_SECURE` 置 `True`（会话 Cookie 加 Secure 属性）；`strict` 配置预设建议配合 HTTPS 使用（见 8.1 profile）。
+- **私钥安全**：`data/certs/` 已加入 `.gitignore`，私钥不提交版本库。
 
 ---
 

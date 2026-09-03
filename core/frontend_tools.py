@@ -8,11 +8,26 @@ import global_var
 
 logger = logging.getLogger('flask.app')
 
+# v4.5.0: 配置文件默认路径迁移至 data/ 目录，保留旧路径用于自动迁移
+LEGACY_CONFIG_FILE = os.path.join(global_var.BASE_DIR, 'frontend_tools.json')
+
+
+def migrate_legacy_config():
+    """将根目录旧版 frontend_tools.json 原子迁移至 data/ 目录（v4.5.0）"""
+    new_path = global_var.FRONTEND_CONFIG_FILE
+    if os.path.exists(LEGACY_CONFIG_FILE) and not os.path.exists(new_path):
+        os.makedirs(os.path.dirname(new_path), exist_ok=True)
+        os.replace(LEGACY_CONFIG_FILE, new_path)
+        logger.info("已迁移旧版前端工具配置 %s -> %s", LEGACY_CONFIG_FILE, new_path, extra={'plugin': 'system'})
+    elif os.path.exists(LEGACY_CONFIG_FILE) and os.path.exists(new_path):
+        logger.warning("检测到新旧两处前端工具配置文件，保留 %s，请手动清理 %s", new_path, LEGACY_CONFIG_FILE, extra={'plugin': 'system'})
+
 
 def load_frontend_tools():
     """加载前端工具配置，增加容错处理"""
+    migrate_legacy_config()
     global_var.frontend_tools.clear()
-    config_file = os.path.join(global_var.BASE_DIR, 'frontend_tools.json')
+    config_file = global_var.FRONTEND_CONFIG_FILE
 
     if not os.path.exists(config_file):
         logger.warning("前端工具配置文件不存在，已初始化空列表", extra={'plugin': 'system'})

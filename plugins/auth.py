@@ -88,14 +88,20 @@ class AuthPlugin(BasePlugin):
     # 会话持久化核心方法
     # ------------------------------
     def _get_session_file_path(self) -> str:
-        """获取会话持久化文件路径"""
-        plugin_data_dir = os.path.join(os.path.dirname(__file__), "data")
-        os.makedirs(plugin_data_dir, exist_ok=True)
-        return os.path.join(plugin_data_dir, "sessions.json")
+        """获取会话持久化文件路径（v4.5.0 起位于插件自属数据目录，纳入 capabilities 隐式豁免）"""
+        return self.get_data_path("sessions.json")
 
     def _load_sessions(self):
         """加载持久化的会话数据，自动清理过期会话"""
+        # v4.5.0 兼容：旧版会话文件 plugins/data/sessions.json 迁移至自属目录
         session_file = self._get_session_file_path()
+        legacy_file = os.path.join(os.path.dirname(__file__), 'data', 'sessions.json')
+        if not os.path.exists(session_file) and os.path.exists(legacy_file):
+            try:
+                os.replace(legacy_file, session_file)
+                self.logger.info("已迁移旧版会话文件至插件自属数据目录")
+            except Exception as e:
+                self.logger.warning(f"旧版会话文件迁移失败: {e}")
         if not os.path.exists(session_file):
             self.sessions = {}
             return

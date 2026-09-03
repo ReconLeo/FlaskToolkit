@@ -16,7 +16,8 @@ STATS_FILE = os.path.join(BASE_DIR, 'data', 'stats.json')  # 统计数据文件�
 # 前端工具上传临时目录
 UPLOAD_TEMP_DIR = os.path.join(BASE_DIR, 'temp')
 FRONTEND_TEMPLATE_DIR = os.path.join(BASE_DIR, 'templates', 'frontend_tools')
-FRONTEND_CONFIG_FILE = os.path.join(BASE_DIR, 'frontend_tools.json')
+# v4.5.0 起前端工具清单迁移至 data/（根目录旧文件首次启动自动迁移，见 core/frontend_tools.migrate_legacy_config）
+FRONTEND_CONFIG_FILE = os.path.join(BASE_DIR, 'data', 'frontend_tools.json')
 # 后端插件目录
 PLUGIN_CONFIGS_DIR = os.path.join(BASE_DIR, 'plugins', 'configs')  # 配置目录
 PLUGIN_TEMP_DIR = os.path.join(BASE_DIR, 'plugins', 'temp')  # 临时文件夹
@@ -28,7 +29,7 @@ CACHE_VERSION = 1  # 缓存格式版本，变更时自动失效
 LOG_DIR = os.path.join(BASE_DIR, 'logs')
 
 # ------------------------------ 全局常量 ------------------------------
-FRAMEWORK_VERSION = "4.4.0"  # 框架版本（后端插件 require_framework_version 比较基准）
+FRAMEWORK_VERSION = "4.5.0"  # 框架版本（后端插件 require_framework_version 比较基准）
 # 内置（系统自带）插件清单：Factory Reset 时受保护不删除
 BUILTIN_PLUGINS = ('auth', 'user_manage')
 # 管理后台上传包大小上限（后端插件包 .zip / 前端工具包 .zip 统一限制，单位字节）
@@ -58,6 +59,9 @@ SESSION_IDLE_TIMEOUT = 1800
 PLUGIN_SCAN_MODE = 'report'
 # 运行时审计钩子模式（v4.4.0）：off=不安装 / observe=默认，记录未授权不阻断 / enforce=未授权行为阻断
 AUDIT_HOOK_MODE = 'observe'
+# HTTPS 支持（默认 HTTP）：配置证书与私钥 PEM 路径后启用 HTTPS（见 tools/gen_cert.py 生成自签名证书）
+SSL_CERT_FILE = ''
+SSL_KEY_FILE = ''
 
 # ------------------------------ 用户可配置项（由 CLI 工具 tools/config.py 管理） ------------------------------
 # key -> {default, kind, desc}
@@ -67,8 +71,8 @@ CONFIG_ITEMS = {
                         'desc': '前端工具上传临时目录'},
     'FRONTEND_TEMPLATE_DIR': {'default': os.path.join(BASE_DIR, 'templates', 'frontend_tools'), 'kind': 'path',
                               'desc': '前端工具模板/静态资源目录'},
-    'FRONTEND_CONFIG_FILE': {'default': os.path.join(BASE_DIR, 'frontend_tools.json'), 'kind': 'path',
-                             'desc': '前端工具注册配置文件'},
+    'FRONTEND_CONFIG_FILE': {'default': os.path.join(BASE_DIR, 'data', 'frontend_tools.json'), 'kind': 'path',
+                             'desc': '前端工具注册配置文件（v4.5.0 起位于 data/）'},
     'PLUGIN_CONFIGS_DIR': {'default': os.path.join(BASE_DIR, 'plugins', 'configs'), 'kind': 'path',
                            'desc': '插件配置目录'},
     'PLUGIN_TEMP_DIR': {'default': os.path.join(BASE_DIR, 'plugins', 'temp'), 'kind': 'path',
@@ -112,6 +116,10 @@ CONFIG_ITEMS = {
     'PORT': {'default': '', 'kind': 'int', 'desc': '服务端口（留空自动探测，环境变量 FLASKTOOLKIT_PORT 优先）'},
     'DEBUG': {'default': False, 'kind': 'bool',
               'desc': '调试模式（环境变量 FLASKTOOLKIT_DEBUG 优先）'},
+    'SSL_CERT_FILE': {'default': '', 'kind': 'path',
+                      'desc': 'HTTPS 证书 PEM 文件路径（配置后启用 HTTPS；生成自签名证书见 tools/gen_cert.py）'},
+    'SSL_KEY_FILE': {'default': '', 'kind': 'path',
+                     'desc': 'HTTPS 私钥 PEM 文件路径（与 SSL_CERT_FILE 配对，均配置才启用 HTTPS）'},
 }
 
 USER_CONFIG_FILE = os.path.join(BASE_DIR, 'data', 'user_config.json')

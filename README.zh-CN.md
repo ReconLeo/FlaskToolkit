@@ -4,7 +4,7 @@
   <img src="https://github.com/ReconLeo/FlaskToolkit/actions/workflows/ci.yml/badge.svg" alt="CI">
   <img src="https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB?logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/License-MIT-yellow" alt="License">
-  <img src="https://img.shields.io/badge/version-4.4.0-blue" alt="Version">
+  <img src="https://img.shields.io/badge/version-4.5.0-blue" alt="Version">
 </p>
 
 > 一个基于 Flask 的插件化**框架**：把散落的 Python 插件与纯前端工具装进统一的运行时，
@@ -31,6 +31,7 @@
 - 安装即安检：基于 AST 的**插件静态扫描器**在上传插件包 / 前端工具包时自动审查——危险导入与调用（subprocess、pickle、动态执行）、混淆、网络与文件触点都会被标记，门禁支持 off / report / enforce 三档，另附日常 / 运维加固 / 局域网开放三套一键配置预设；
 - 能力声明即授权：插件在 plugin.json 里声明白名单——可读写的路径、可访问的网络端点、子进程、定时任务、数据库、设备、环境变量——安装时与扫描结果交叉校验，enforce 下未声明即拒绝（附自动生成的建议声明），插件自属的配置/数据/临时目录隐式豁免免声明，解析后的授权集成为运行时防线基准；
 - 运行时审计防线：基于 sys.addaudithook 的**运行时守卫**拦截插件代码的敏感操作——文件读写删除建目录、子进程、socket 连接/监听、sqlite——经调用栈定位归属插件、按其声明授权判定（网络白名单即"防火墙"）；off / observe / enforce 三档可调，未授权行为按插件聚合展示于管理后台并附可复制的建议声明；
+- 可选 HTTPS：配置 `SSL_CERT_FILE` / `SSL_KEY_FILE` 指向证书与私钥（`python tools/gen_cert.py` 一键生成自签名证书）即以 HTTPS 启动服务，默认仍是 HTTP；前端工具注册清单 `frontend_tools.json` 默认路径迁至 `data/`（旧根目录文件启动时自动迁移）；
 - 补上了插件包的完整性校验与签名、Factory Reset、备份/恢复、启动自检，以及一套 482 项的回归测试和 GitHub Actions CI。
 
 坦白说，这框架远谈不上"完善"。它更多是"自娱自乐"的产物：站在 Flask、APScheduler、Werkzeug 这些巨人的肩膀上，把我需要的那部分想法落了地。也因此，它的安全模型是朴素直接的——**安装插件即信任其作者**。所以它更适合自己的电脑或可信局域网，而不是对外开放的生产环境。

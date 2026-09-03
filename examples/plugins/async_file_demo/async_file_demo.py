@@ -23,11 +23,9 @@ import os
 import time
 from typing import List, Dict
 
-from global_var import BASE_DIR
 from plugins.base_plugin import BasePlugin, permission as permission_required
 
-# 异步处理结果目录（运行时数据，不入库）
-RESULT_DIR = os.path.join(BASE_DIR, 'data', 'async_file_demo')
+# 异步处理结果目录（v4.5.0：位于插件自属数据目录 plugins/data/async_file_demo/results/，隐式豁免）
 
 
 class AsyncFileDemoPlugin(BasePlugin):
@@ -156,8 +154,9 @@ class AsyncFileDemoPlugin(BasePlugin):
             raise RuntimeError(f"读取文件失败: {e}")
 
         # 生成结果文件
-        os.makedirs(RESULT_DIR, exist_ok=True)
-        result_file = os.path.join(RESULT_DIR, f"result_{int(time.time())}.json")
+        result_dir = self.get_data_path('results')
+        os.makedirs(result_dir, exist_ok=True)
+        result_file = os.path.join(result_dir, f"result_{int(time.time())}.json")
         result = {
             "filename": original_name,
             "lines": lines,

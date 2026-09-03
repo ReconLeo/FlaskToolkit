@@ -6,7 +6,7 @@ Factory Reset（重置）工具：将部分/全部框架数据还原至安装初
 - plugins        清除全部非内置插件（插件 .py / 描述文件 / 模板 / 静态资源 / 临时目录）
 - frontend_tools 清除前端工具（清单 + 模板目录）
 - stats_logs     清除调用统计（data/stats.json）与日志（logs/）
-- sessions       清除登录会话（plugins/data/sessions.json）
+- sessions       清除登录会话（plugins/data/auth/sessions.json，v4.5.0 起随 auth 迁移至自属目录）
 - temp           清除运行产生的临时文件（.plugin_cache、__pycache__、temp/、plugins/temp/）
 - builtin        重置内置插件配置（auth 恢复默认 admin/admin123）——仅 all 时执行
 
@@ -119,9 +119,13 @@ def reset_stats_logs(results: dict):
 
 
 def reset_sessions(results: dict):
-    """清除登录会话"""
-    sessions_file = os.path.join(global_var.BASE_DIR, 'plugins', 'data', 'sessions.json')
+    """清除登录会话（v4.5.0：auth 会话迁移至插件自属目录 plugins/data/auth/）"""
+    sessions_file = os.path.join(global_var.BASE_DIR, 'plugins', 'data', 'auth', 'sessions.json')
     _write_text(sessions_file, '{}', results, '登录会话')
+    # 兼容清理旧版会话文件（auth 加载时会自动迁移，重置时一并清理避免残留）
+    legacy_file = os.path.join(global_var.BASE_DIR, 'plugins', 'data', 'sessions.json')
+    if os.path.exists(legacy_file):
+        _safe_remove(legacy_file, results, '旧版会话文件')
 
 
 def reset_temp(results: dict):

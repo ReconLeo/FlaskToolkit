@@ -13,6 +13,8 @@ data/audit.log
 data/user_config.json
 data/.initialized
 data/*.json
+# HTTPS 自签名证书/私钥（tools/gen_cert.py 生成，私钥敏感不提交）
+data/certs/
 # 日志与临时目录
 logs/
 temp/

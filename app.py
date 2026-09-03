@@ -152,14 +152,29 @@ if __name__ == '__main__':
     _dbg_env = os.environ.get('FLASKTOOLKIT_DEBUG', '').strip().lower()
     debug_mode = (_dbg_env in ('1', 'true', 'yes', 'on')) if _dbg_env else bool(_ucfg.get('DEBUG'))
     app.debug = debug_mode  # 同步 app.debug，影响模板自动重载等
-    app.logger.info(f"服务启动地址: http://{host}:{port} (debug={debug_mode})", extra={'plugin': 'system'})
+    # HTTPS 支持（v4.5.0）：SSL_CERT_FILE/SSL_KEY_FILE 均配置且文件存在时启用 HTTPS（默认 HTTP）
+    ssl_context = None
+    ssl_cert = global_var.SSL_CERT_FILE
+    ssl_key = global_var.SSL_KEY_FILE
+    if ssl_cert and ssl_key:
+        if os.path.exists(ssl_cert) and os.path.exists(ssl_key):
+            ssl_context = (ssl_cert, ssl_key)
+            app.logger.info(f"服务启动地址: https://{host}:{port} (HTTPS, debug={debug_mode})", extra={'plugin': 'system'})
+        else:
+            app.logger.warning(f"已配置 SSL_CERT_FILE/SSL_KEY_FILE 但文件不存在（{ssl_cert} / {ssl_key}），回退 HTTP 启动；可使用 tools/gen_cert.py 生成自签名证书", extra={'plugin': 'system'})
+            app.logger.info(f"服务启动地址: http://{host}:{port} (debug={debug_mode})", extra={'plugin': 'system'})
+    elif ssl_cert or ssl_key:
+        app.logger.warning("SSL_CERT_FILE 与 SSL_KEY_FILE 需同时配置才启用 HTTPS，当前仅配置一项，回退 HTTP 启动", extra={'plugin': 'system'})
+        app.logger.info(f"服务启动地址: http://{host}:{port} (debug={debug_mode})", extra={'plugin': 'system'})
+    else:
+        app.logger.info(f"服务启动地址: http://{host}:{port} (debug={debug_mode})", extra={'plugin': 'system'})
 
     # 把初始化后的app回写到global模块（确保其他地方导入的是同一个实例）
     import global_var
     global_var.app = app
 
     try:
-        app.run(host=host, port=port, debug=debug_mode, use_reloader=False)
+        app.run(host=host, port=port, debug=debug_mode, use_reloader=False, ssl_context=ssl_context)
     except KeyboardInterrupt:
         # 捕获Ctrl+C，主动调用停止逻辑
         on_server_shutdown()

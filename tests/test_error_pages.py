@@ -51,9 +51,10 @@ def build_env(with_auth=False):
                     os.path.join(root, 'plugins', 'auth.py'))
         os.makedirs(os.path.join(root, 'plugins', 'configs'))
         os.makedirs(os.path.join(root, 'plugins', 'data'))
+        os.makedirs(os.path.join(root, 'plugins', 'data', 'auth'))
         with open(os.path.join(root, 'plugins', 'configs', 'auth.json'), 'w', encoding='utf-8') as f:
             json.dump({"SESSION_EXPIRE": 86400, "users": []}, f, ensure_ascii=False)
-        with open(os.path.join(root, 'plugins', 'data', 'sessions.json'), 'w', encoding='utf-8') as f:
+        with open(os.path.join(root, 'plugins', 'data', 'auth', 'sessions.json'), 'w', encoding='utf-8') as f:
             json.dump({}, f)
 
     sys.path.insert(0, root)  # 让 import 'plugins.*' 从本隔离目录解析

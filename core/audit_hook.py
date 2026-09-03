@@ -22,6 +22,8 @@ import os
 import sys
 import threading
 
+import global_var
+
 from core import capabilities as caps_mod
 
 _local = threading.local()
@@ -136,6 +138,31 @@ def _norm_slash(p):
 _SYS_PREFIX = _norm_slash(os.path.abspath(sys.base_prefix)) + '/'
 
 
+# v4.5.0: 框架管理目录（插件经框架 logger/stats/备份机制写入，非插件业务，不归因拦截）
+# 懒初始化：LOG_DIR 等可能在 load_user_config 后被覆盖，首次判定时取当前值
+_FRAMEWORK_DIRS = None
+
+
+def _framework_dirs():
+    """返回框架运行时管理目录前缀列表（logs/data/backups/temp）"""
+    global _FRAMEWORK_DIRS
+    if _FRAMEWORK_DIRS is None:
+        base = global_var.BASE_DIR
+        _FRAMEWORK_DIRS = [
+            _norm_slash(os.path.abspath(global_var.LOG_DIR)),
+            _norm_slash(os.path.abspath(os.path.join(base, 'data'))),
+            _norm_slash(os.path.abspath(os.path.join(base, 'backups'))),
+            _norm_slash(os.path.abspath(os.path.join(base, 'temp'))),
+        ]
+    return _FRAMEWORK_DIRS
+
+
+def _is_framework_path(path):
+    """框架管理目录（logs/data/backups/temp）——插件经框架 logger/stats 等机制写入，非插件业务"""
+    norm = _norm_slash(os.path.abspath(str(path)))
+    return any(norm.startswith(d + '/') or norm == d for d in _framework_dirs())
+
+
 def _is_interpreter_path(path):
     """Python 解释器内部路径（stdlib/site-packages/编码器缓存）——插件业务无关，跳过"""
     norm = _norm_slash(os.path.abspath(str(path)))
@@ -221,6 +248,8 @@ def _handler(event, args):
             return
         if domain == 'filesystem:read' and _is_interpreter_path(target):
             return  # Python 解释器内部文件（编码器/缓存）非插件业务
+        if _is_framework_path(target):
+            return  # 框架管理目录（日志/统计数据/备份），插件经框架机制写入不归因
         plugin = _locate_plugin()
         if not plugin:
             return  # 框架自身/标准库/未知来源 → 放行

@@ -5,7 +5,7 @@
 - 在 Factory Reset（重置）前手动备份关键数据，支持重置后还原。
 - 备份内容默认覆盖：插件配置（plugins/configs）、插件启用状态（plugins/status.json）、
   插件会话（plugins/data）、运行数据（data：统计/审计日志/用户配置）、前端工具清单
-  （frontend_tools.json）、日志（logs）。
+  （data/frontend_tools.json，v4.5.0 起随前端工具清单迁移至 data/）、日志（logs）。
 - 建议在服务停止时执行（避免文件被占用）。
 
 用法：
@@ -33,7 +33,7 @@ BACKUP_ITEMS = [
     ('plugins/status.json', 'plugins/status.json'),
     ('plugins/data', 'plugins/data'),
     ('data', 'data'),
-    ('frontend_tools.json', 'frontend_tools.json'),
+    ('data/frontend_tools.json', 'data/frontend_tools.json'),
     ('logs', 'logs'),
 ]
 

@@ -48,7 +48,7 @@ auth.on_load()
 
 # 备份将被测试写入的配置文件，测试结束后恢复
 _cfg_path = os.path.join(_PROJECT_ROOT, 'plugins', 'auth', 'configs', 'auth.json')
-_session_path = os.path.join(_PROJECT_ROOT, 'plugins', 'auth', 'data', 'sessions.json')
+_session_path = os.path.join(_PROJECT_ROOT, 'plugins', 'data', 'auth', 'sessions.json')
 _bak_dir = os.path.join(tempfile.gettempdir(), 'flasktoolkit_test_security_bak')
 os.makedirs(_bak_dir, exist_ok=True)
 for src, name in ((_cfg_path, 'auth.json'), (_session_path, 'sessions.json')):

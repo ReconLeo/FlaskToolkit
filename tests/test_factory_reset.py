@@ -53,7 +53,7 @@ def make_tree(root):
     w(auth_cfg, json.dumps({"SESSION_EXPIRE": 86400, "users": [
         {"id": 1, "username": "admin", "password": "x", "role": "admin"}
     ]}))
-    w(os.path.join(root, 'plugins', 'data', 'sessions.json'), '{"s1": {}}')
+    w(os.path.join(root, 'plugins', 'data', 'auth', 'sessions.json'), '{"s1": {}}')
     # plugins/temp：内置受保护子目录 + 自定义子目录
     w(os.path.join(root, 'plugins', 'temp', 'auth', 't'), 'x')
     w(os.path.join(root, 'plugins', 'temp', 'demo_custom', 't'), 'x')
@@ -183,7 +183,7 @@ def test_stats_logs_scope():
               not os.path.exists(os.path.join(root, 'logs', 'app.log')), '')
         # sessions 不受影响
         check('stats_logs scope 不动 sessions',
-              os.path.exists(os.path.join(root, 'plugins', 'data', 'sessions.json')), '')
+              os.path.exists(os.path.join(root, 'plugins', 'data', 'auth', 'sessions.json')), '')
     finally:
         _restore_env(saved)
         _cleanup(root)
@@ -195,7 +195,7 @@ def test_sessions_scope():
     try:
         make_tree(root)
         factory_reset('sessions')
-        s = json.load(open(os.path.join(root, 'plugins', 'data', 'sessions.json'), encoding='utf-8'))
+        s = json.load(open(os.path.join(root, 'plugins', 'data', 'auth', 'sessions.json'), encoding='utf-8'))
         check('sessions scope 会话清空', s == {}, f's={s}')
         check('sessions scope 不动插件',
               os.path.exists(os.path.join(root, 'plugins', 'demo_custom.py')), '')

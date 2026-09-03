@@ -4,7 +4,7 @@
   <img src="https://github.com/ReconLeo/FlaskToolkit/actions/workflows/ci.yml/badge.svg" alt="CI">
   <img src="https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB?logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/License-MIT-yellow" alt="License">
-  <img src="https://img.shields.io/badge/version-4.4.0-blue" alt="Version">
+  <img src="https://img.shields.io/badge/version-4.5.0-blue" alt="Version">
 </p>
 
 > A Flask-based plugin **framework**: bring scattered Python plugins and pure-frontend tools into one unified runtime —
@@ -31,6 +31,7 @@ Over time it grew into what it is today:
 - Install-time security scanning: an **AST-based static scanner** inspects plugin packages and frontend tools on upload — flagging risky imports/calls (subprocess, pickle, dynamic exec), obfuscation, network & filesystem touchpoints — with `off / report / enforce` gate modes and one-command config profiles (daily / strict / lan-open);
 - Capability-based authorization: plugins declare whitelisted grants in `plugin.json` — filesystem paths, network endpoints, subprocess, scheduler, database, device, env — cross-checked against scan findings at install time; undeclared behaviors get rejected under `enforce` (with auto-generated suggested declarations), while each plugin's own config/data/temp directories are implicitly granted; the parsed grant set becomes the runtime authorization baseline;
 - Runtime audit hooks: an **`sys.addaudithook`-based runtime guard** intercepts sensitive ops from plugin code at runtime — open/delete/mkdir, subprocess, socket connect/bind, sqlite — attributed to the calling plugin via stack inspection, checked against its declared grants (network whitelist acts as a firewall); `off / observe / enforce` modes, with per-plugin violation stats surfaced in the admin dashboard;
+- Optional HTTPS: point `SSL_CERT_FILE` / `SSL_KEY_FILE` at a certificate/key pair (generate a self-signed one via `python tools/gen_cert.py`) and the server serves HTTPS; plain HTTP remains the default. Frontend-tool registry `frontend_tools.json` moved under `data/` (legacy root file auto-migrated on startup);
 - Added plugin-package integrity verification & signing, Factory Reset, backup/restore, startup self-check, plus a **482-assertion regression suite and GitHub Actions CI**.
 
 To be honest, this framework is far from "production-grade". It is more of a "play for fun" project: standing on the shoulders of giants like Flask, APScheduler, and Werkzeug, and landing the parts I needed. That is also why its security model is bluntly simple — **installing a plugin means trusting its author**. It suits your own machine or a trusted LAN, not a public production environment.

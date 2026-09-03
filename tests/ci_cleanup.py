@@ -43,8 +43,8 @@ def cleanup():
             cleaned.append('auth.json')
         except Exception:
             pass
-    # 2. sessions / status 重置
-    for rel in (os.path.join('plugins', 'data', 'sessions.json'),
+    # 2. sessions / status 重置（v4.5.0：auth 会话位于 plugins/data/auth/）
+    for rel in (os.path.join('plugins', 'data', 'auth', 'sessions.json'),
                 os.path.join('plugins', 'status.json')):
         p = os.path.join(global_var.BASE_DIR, rel)
         if os.path.exists(p):

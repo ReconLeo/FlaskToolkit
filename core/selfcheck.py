@@ -25,13 +25,19 @@ import global_var
 
 # 框架核心文件（相对 BASE_DIR）；缺失视为致命，阻止启动
 CORE_FILES = [
-    'app.py', 'global_var.py', 'frontend_tools.json',
+    'app.py', 'global_var.py',
+    # v4.5.0: 前端工具注册清单默认路径迁移至 data/frontend_tools.json（运行时配置不入库，
+    # 缺失不致命：load_frontend_tools 容错为空列表，旧版根目录文件由 migrate_legacy_config 自动迁移）
     'routes/__init__.py', 'routes/admin.py', 'routes/frontend.py',
     'routes/public.py', 'routes/interceptor.py', 'routes/plugin.py',
+    'routes/security.py',
     'core/utils.py', 'core/plugin_loader.py', 'core/plugin_pack.py',
     'core/factory_reset.py', 'core/audit.py', 'core/package_sign.py',
     'core/permission.py', 'core/stats.py', 'core/logging_setup.py',
     'core/frontend_tools.py', 'core/watcher.py', 'core/selfcheck.py',
+    # v4.3.x-v4.4.0 安全强化新增模块
+    'core/plugin_scanner.py', 'core/capabilities.py', 'core/audit_hook.py',
+    'core/plugin_cache.py', 'core/plugin_status.py',
     'plugins/__init__.py', 'plugins/base_plugin.py',
     'plugins/auth.py', 'plugins/user_manage.py',
 ]
