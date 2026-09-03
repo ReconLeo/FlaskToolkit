@@ -29,6 +29,24 @@
         } catch (e) { /* ignore */ }
     }
 
+    // 登录失败锁定（v4.3.0）：后端返回 429 通用信息，不泄露锁定剩余时间；
+    // 前端固定冷却 30s 禁用登录按钮，避免锁定期间继续重试（冷却时长与后端实际锁定时长无关）
+    function cooldownLogin(loginBtn, seconds) {
+        let remain = seconds;
+        loginBtn.disabled = true;
+        loginBtn.textContent = `请稍候 ${remain}s`;
+        const timer = setInterval(function () {
+            remain -= 1;
+            if (remain <= 0) {
+                clearInterval(timer);
+                loginBtn.disabled = false;
+                loginBtn.textContent = '登录';
+            } else {
+                loginBtn.textContent = `请稍候 ${remain}s`;
+            }
+        }, 1000);
+    }
+
     function showSuccess() {
         document.getElementById('loginForm').style.display = 'none';
         document.getElementById('successArea').style.display = 'block';
@@ -78,6 +96,11 @@
                     // 会话 token 已由后端写入 HttpOnly Cookie，前端仅清理残留
                     try { localStorage.removeItem('token'); } catch (e) { /* ignore */ }
                     showSuccess();
+                } else if (xhr.status === 429) {
+                    // 登录失败锁定：展示后端通用信息 + 按钮冷却防重试
+                    errorTip.textContent = res.message || res.msg || '尝试次数过多，请稍后再试';
+                    errorTip.style.display = 'block';
+                    cooldownLogin(loginBtn, 30);
                 } else {
                     errorTip.textContent = res.message || res.msg || '用户名或密码错误';
                     errorTip.style.display = 'block';
