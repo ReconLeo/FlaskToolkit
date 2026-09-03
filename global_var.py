@@ -28,7 +28,7 @@ CACHE_VERSION = 1  # 缓存格式版本，变更时自动失效
 LOG_DIR = os.path.join(BASE_DIR, 'logs')
 
 # ------------------------------ 全局常量 ------------------------------
-FRAMEWORK_VERSION = "4.3.0"  # 框架版本（后端插件 require_framework_version 比较基准）
+FRAMEWORK_VERSION = "4.3.1"  # 框架版本（后端插件 require_framework_version 比较基准）
 # 内置（系统自带）插件清单：Factory Reset 时受保护不删除
 BUILTIN_PLUGINS = ('auth', 'user_manage')
 # 管理后台上传包大小上限（后端插件包 .zip / 前端工具包 .zip 统一限制，单位字节）
@@ -54,6 +54,8 @@ LOGIN_LOCK_SECONDS = 900
 LOGIN_LOCK_MODE = 'ip_username'
 # 会话空闲超时（秒，默认 30 分钟；超过未活动即失效）
 SESSION_IDLE_TIMEOUT = 1800
+# 插件静态扫描模式：off=跳过 / report=默认，仅报告 / enforce=高风险拒绝安装
+PLUGIN_SCAN_MODE = 'report'
 
 # ------------------------------ 用户可配置项（由 CLI 工具 tools/config.py 管理） ------------------------------
 # key -> {default, kind, desc}
@@ -93,6 +95,9 @@ CONFIG_ITEMS = {
                         'desc': '登录锁定维度：username=仅用户名 / ip_username=IP+用户名（默认）/ off=禁用锁定（不安全，信任局域网时使用）'},
     'SESSION_IDLE_TIMEOUT': {'default': 1800, 'kind': 'int',
                              'desc': '会话空闲超时（秒，默认 30 分钟；超过未活动即失效）'},
+    'PLUGIN_SCAN_MODE': {'default': 'report', 'kind': 'enum',
+                         'choices': ['off', 'report', 'enforce'],
+                         'desc': '插件静态扫描模式：off=跳过 / report=仅报告（默认）/ enforce=高风险拒绝安装（v4.3.1）'},
     'PACKAGE_INTEGRITY_MODE': {'default': 'warn', 'kind': 'enum',
                                'choices': ['strict', 'warn', 'off'],
                                'desc': '插件包完整性校验模式'},

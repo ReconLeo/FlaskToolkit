@@ -11,6 +11,8 @@
   python tools/config.py reset                   # 清空全部用户配置
   python tools/config.py check                   # 校验当前用户配置的合法性
   python tools/config.py env                     # 生成 .env.example 环境变量示例
+  python tools/config.py profile                 # 查看配置预设（日常/加固/局域网开放）
+  python tools/config.py profile <name>          # 应用一套预设（可再 set 单项覆盖）
 
 示例：
   python tools/config.py set PACKAGE_MAX_UPLOAD_SIZE_MB 20
@@ -177,6 +179,100 @@ def cmd_env(args):
     print(f"\n（提示：也可以直接设置：python tools/config.py set HOST 0.0.0.0 等）")
 
 
+# ------------------------------ 配置预设（v4.3.1） ------------------------------
+# 统一管理分散的"严格模式"开关：一键应用一套场景化基线，之后仍可用 set 单项覆盖。
+# 注意：应用预设会覆盖这些键上的既有用户配置。
+PROFILES = {
+    'daily': {
+        'desc': '日常使用（框架默认基线：安全增强开启、安装拦截宽松）',
+        'values': {
+            'SECURITY_HEADERS': True,
+            'SESSION_COOKIE_SECURE': False,
+            'LOGIN_LOCK_MODE': 'ip_username',
+            'LOGIN_MAX_ATTEMPTS': 5,
+            'LOGIN_LOCK_SECONDS': 900,
+            'SESSION_IDLE_TIMEOUT': 1800,
+            'PACKAGE_INTEGRITY_MODE': 'warn',
+            'PLUGIN_STRICT_MODE': False,
+            'PLUGIN_SCAN_MODE': 'report',
+            'MAX_UPLOAD_SIZE_MB': 100,
+        },
+    },
+    'strict': {
+        'desc': '运维加固（完整性强制、扫描高风险拒绝安装、依赖严格、会话收紧；需 HTTPS 部署）',
+        'values': {
+            'SECURITY_HEADERS': True,
+            'SESSION_COOKIE_SECURE': True,
+            'LOGIN_LOCK_MODE': 'ip_username',
+            'LOGIN_MAX_ATTEMPTS': 3,
+            'LOGIN_LOCK_SECONDS': 1800,
+            'SESSION_IDLE_TIMEOUT': 900,
+            'PACKAGE_INTEGRITY_MODE': 'strict',
+            'PLUGIN_STRICT_MODE': True,
+            'PLUGIN_SCAN_MODE': 'enforce',
+            'MAX_UPLOAD_SIZE_MB': 100,
+        },
+    },
+    'lan-open': {
+        'desc': '可信局域网开放（免登录锁定、免安装扫描；仅在内网用户与插件来源完全可信时使用）',
+        'values': {
+            'SECURITY_HEADERS': True,
+            'SESSION_COOKIE_SECURE': False,
+            'LOGIN_LOCK_MODE': 'off',
+            'PACKAGE_INTEGRITY_MODE': 'warn',
+            'PLUGIN_STRICT_MODE': False,
+            'PLUGIN_SCAN_MODE': 'off',
+            'MAX_UPLOAD_SIZE_MB': 100,
+        },
+    },
+}
+
+
+def apply_profile(name: str, config_file: str = None) -> dict:
+    """应用一套配置预设，返回 {key: (旧值, 新值)} 变更清单；未知预设抛 ValueError"""
+    if name not in PROFILES:
+        raise ValueError(f'未知预设: {name}（可选: {", ".join(PROFILES)}）')
+    target = config_file or USER_CONFIG_FILE
+    data = {}
+    if os.path.exists(target):
+        try:
+            with open(target, encoding='utf-8') as f:
+                data = json.load(f)
+            data = data if isinstance(data, dict) else {}
+        except Exception:
+            data = {}
+    changes = {}
+    for key, value in PROFILES[name]['values'].items():
+        coerced = coerce_config_value(value, CONFIG_ITEMS[key])
+        changes[key] = (data.get(key, CONFIG_ITEMS[key]['default']), coerced)
+        data[key] = coerced
+    os.makedirs(os.path.dirname(target) or '.', exist_ok=True)
+    with open(target, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+    if target == USER_CONFIG_FILE:
+        load_user_config()
+    return changes
+
+
+def cmd_profile(args):
+    if not getattr(args, 'name', None):
+        print('可用配置预设：')
+        for name, prof in PROFILES.items():
+            print(f'  {name:<10} {prof["desc"]}')
+        print('\n应用: python tools/config.py profile <name>（会覆盖下列键的既有用户配置，之后可 set 单项微调）')
+        return
+    try:
+        changes = apply_profile(args.name)
+    except ValueError as e:
+        print(f'错误: {e}', file=sys.stderr)
+        sys.exit(2)
+    print(f'已应用预设 [{args.name}]：{PROFILES[args.name]["desc"]}')
+    for key, (old, new) in changes.items():
+        mark = '' if old == new else f'（原 {old}）'
+        print(f'  {key:<24} = {new} {mark}')
+    print('（重启服务后生效；单项微调: python tools/config.py set <key> <value>）')
+
+
 def main():
     ap = argparse.ArgumentParser(description='FlaskToolkit 配置管理 CLI')
     sub = ap.add_subparsers(dest='cmd', required=True)
@@ -195,6 +291,10 @@ def main():
     sub.add_parser('reset', help='清空全部用户配置').set_defaults(func=cmd_reset)
     sub.add_parser('check', help='校验配置合法性').set_defaults(func=cmd_check)
     sub.add_parser('env', help='生成环境变量示例').set_defaults(func=cmd_env)
+
+    p = sub.add_parser('profile', help='查看/应用配置预设')
+    p.add_argument('name', nargs='?', help='预设名：daily / strict / lan-open（缺省为列出）')
+    p.set_defaults(func=cmd_profile)
 
     args = ap.parse_args()
     args.func(args)

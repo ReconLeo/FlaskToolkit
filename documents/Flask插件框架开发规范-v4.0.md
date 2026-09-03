@@ -1,6 +1,15 @@
 # Flask插件框架开发规范
 
-## 版本：v4.3.0（系统安全强化） | 更新日期：2026年09月03日
+## 版本：v4.3.1（插件静态扫描 + 配置预设） | 更新日期：2026年09月03日
+
+### 版本说明（v4.3.1 变更，安全强化 P1 阶段一：插件静态扫描 + 配置预设）
+- **框架版本升级至 v4.3.1**：内部安全加固第二阶段（P1 阶段一），新增插件安装链路静态扫描门禁与安全配置预设，并整合审计建议（配置预设 / 读写范围声明 / 网络防火墙）的第一步落地。
+- **插件静态扫描器（`core/plugin_scanner.py`，新增 10.6）**：基于 AST 的后端插件/插件包扫描 + 正则级前端 HTML 扫描——危险导入（subprocess/pickle/ctypes 等 high；socket/requests 等 medium）、危险调用（os.system/eval/exec/rmtree/pickle.loads 等）、动态导入与混淆（base64+exec、`__import__` 拼接）、socket 服务端（bind/listen 视为 high）、`import as` 与实例别名归因（`s = socket.socket(); s.connect(...)`）；**范围提取** `paths_read` / `paths_written` / `network_endpoints`，作为 P1 阶段二 capabilities 声明交叉校验的基准。
+- **安装链路门禁（`PLUGIN_SCAN_MODE` 三档）**：`off` 跳过 / `report`（默认）放行并在响应附 `scan` 摘要与 `scan_scope`、审计日志记录 / `enforce` 检出高风险即拒绝安装（400 附完整 `scan_report`、审计日志记录 blocked）；后端插件上传/更新（admin）与前端工具上传/更新（frontend）四端点全部接入。
+- **扫描 CLI（`tools/scan.py`）**：支持单文件 .py、插件包/前端工具包 .zip（config.json 自动识别）、目录批量递归，`--json` 机器可读输出；退出码 0 无高风险 / 1 有高风险 / 2 错误，供发布者分发前自检。
+- **安全配置预设（`tools/config.py profile`）**：内置 `daily`（日常基线）/ `strict`（运维加固，需 HTTPS）/ `lan-open`（可信局域网开放）三套预设，一键套用后仍可 `set` 单项微调。
+- **回归测试扩充至 20 脚本 396 项**：新增 `test_plugin_scan.py`（35 项：扫描器单元 15 / 插件包 2 / 前端扫描 5 / enforce 门禁集成 7 / 配置预设 6），已纳入 CI。
+- **后续计划（P1 阶段二/三）**：插件 capabilities 声明模型（读写路径 / 网络端点，与扫描范围交叉校验）、运行时审计钩子（网络白名单"防火墙"式阻断）；权限模型细化（超级管理员 / 普通管理员）列为远期规划。
 
 ### 版本说明（v4.3.0 变更，系统安全强化）
 - **框架版本升级至 v4.3.0**（`global_var.FRAMEWORK_VERSION`）：外部（局域网环境）与内部（插件恶意代码）双重安全加固的第一阶段（P0），全部项可经 config CLI 调整。
@@ -9,7 +18,7 @@
 - **会话空闲超时（auth）**：新增 `SESSION_IDLE_TIMEOUT`（默认 30 分钟）：会话在最后活动时间后超过阈值即失效（`verify_token` 校验并在有效请求时刷新 `last_active_at`，仅内存不落盘）。
 - **登录失败锁定（auth）**：新增 `LOGIN_LOCK_MODE` 三档开关——`ip_username`（默认，IP+用户名双维度，防分布式爆破）/ `username`（仅用户名维度）/ `off`（禁用锁定，不安全，仅信任局域网时使用）；阈值 `LOGIN_MAX_ATTEMPTS`（默认 5 次）与锁定时长 `LOGIN_LOCK_SECONDS`（默认 15 分钟）可配置；锁定期间统一返回 **429 通用错误信息**（不泄露锁定剩余时间等细节）；登录成功后自动清除失败计数。
 - **回归测试扩充至 19 脚本 361 项**：新增 `test_security.py`（30 项：安全响应头 8 项 / Cookie 加固 6 项 / 空闲超时 5 项 / 登录锁定 ip_username 6 项 / username 2 项 / off 2 项 / 成功重置 1 项），已纳入 CI。
-- **未来计划（P1，暂不实施）**：运行时审计钩子、插件 capabilities 声明模型、静态扫描工具；权限模型细化（超级管理员 / 普通管理员仅管理特定功能）列为远期规划。
+- **后续计划（P1）**：静态扫描工具已随 v4.3.1 落地（见上文）；运行时审计钩子、插件 capabilities 声明模型列为后续版本；权限模型细化（超级管理员 / 普通管理员仅管理特定功能）列为远期规划。
 
 ### 版本补充说明（2026-08-26，AirDrop 插件化改造同步）
 - **插件公开页面能力（8.1 / 4.5.1）**：`/plugin/<name>` 页面默认要求登录（全局守卫）。新增插件级豁免：插件实例声明 `public_page=True` 时其 `/plugin/` 页面免登录（对局域网公开工具 / 信息落地页友好，默认 False 不影响其他插件）。
@@ -97,6 +106,7 @@ FlaskToolkit/
 │   ├── audit.py               #   审计日志（JSONL 追加 data/audit.log）
 │   ├── package_sign.py        #   插件包完整性校验（manifest 哈希清单 + RSA 签名）
 │   ├── factory_reset.py       #   工厂重置（部分/全部 scope）
+│   ├── plugin_scanner.py      #   插件静态扫描器（AST 后端扫描 + 前端 HTML 扫描，10.6）
 │   ├── selfcheck.py           #   启动完整性自检
 │   ├── logging_setup.py       #   日志配置 + 插件日志适配器
 │   └── utils.py               #   通用工具（端口、路径参数、上传大小校验、跨插件调用等）
@@ -112,11 +122,12 @@ FlaskToolkit/
 │   └── user_manage.py         #   内置用户管理插件（BUILTIN，受 Factory Reset 保护）
 ├── examples/                  # 官方示例插件/工具包（6 个）+ install_all.py 一键安装
 ├── tools/                     # 开发运维命令行工具（python tools/xxx.py）
-│   ├── config.py              #   配置管理 CLI（show/set/unset/reset/check/env）
+│   ├── config.py              #   配置管理 CLI（show/set/unset/reset/check/env/profile 预设）
+│   ├── scan.py                #   插件静态扫描 CLI（.py / .zip / 目录，--json）
 │   ├── package.py             #   插件包打包/签名/校验 CLI（genkey/pack/verify/show）
 │   ├── backup.py              #   手动备份/恢复工具（Factory Reset 前备份关键数据）
 │   └── reset.py               #   深度重置工具（服务停止时使用，绕过运行时文件锁定）
-├── tests/                     # 回归测试套件（19 脚本 361 项 + 端到端链路验证）
+├── tests/                     # 回归测试套件（20 脚本 396 项 + 端到端链路验证）
 ├── templates/                 # 页面模板（首页/登录/错误码页 400-500/admin 管理后台/插件页）
 │   ├── admin/                 #   管理后台（dashboard / plugins / logs / stats / system）
 │   ├── frontend_tools/        #   前端工具模板
@@ -727,6 +738,7 @@ def validate_params(self, params):
 | `LOGIN_LOCK_SECONDS` | `900` | 登录失败锁定时长（秒，默认 15 分钟） |
 | `LOGIN_LOCK_MODE` | `ip_username` | 登录锁定维度：`username`=仅用户名 / `ip_username`=IP+用户名（默认，防分布式爆破）/ `off`=禁用锁定（不安全，仅信任局域网时使用） |
 | `SESSION_IDLE_TIMEOUT` | `1800` | 会话空闲超时（秒，默认 30 分钟；超过未活动即失效） |
+| `PLUGIN_SCAN_MODE` | `report` | 插件安装静态扫描门禁（v4.3.1）：`off` 跳过 / `report` 放行附摘要（默认） / `enforce` 高风险拒绝安装，详见 10.6 |
 
 **登录失败锁定行为**：锁定期间登录接口统一返回 HTTP 429 与通用错误信息（不泄露锁定剩余时间等细节）；登录成功后自动清除对应维度的失败计数；锁定计数仅存内存（重启即清零）。
 
@@ -784,6 +796,54 @@ python tools/package.py show my_plugin.zip
 
 发布者将公钥分发给框架部署方并配置到 `PLUGIN_PUBLIC_KEY_PEM`；私钥务必妥善保管（泄漏等同可伪造签名）。
 
+### 10.6 插件静态扫描（v4.3.1，P1 阶段一）
+
+管理后台安装/更新插件包与前端工具包时，框架先经 **AST 静态扫描器**（`core/plugin_scanner.py`）检查代码行为，再决定放行或拒绝——在"安装插件即信任其作者"的前提下，为安装者提供一道自动化内容审查。
+
+**后端扫描能力（AST 级）**：
+- 危险导入：high——`subprocess` / `ctypes` / `pickle` / `marshal` / `dill` 等；medium——`socket` / `ssl` / `requests` / `httpx` / `urllib.request` / `importlib` 等
+- 危险调用：high——`os.system` / `subprocess.Popen` / `eval` / `exec` / `compile` / `__import__` / `shutil.rmtree` / `pickle.loads` 等；medium——`os.remove` / `os.chmod` / `requests.*` / `socket.socket` 等
+- socket 服务端（`bind` / `listen`）视为 high；`import as` 别名与实例别名（`s = socket.socket()` 后 `s.connect(...)`）均可归因
+- 混淆检测：`eval`/`exec` 参数含 `base64.b64decode` / `zlib.decompress` 等 → obfuscation high；`__import__` 参数非常量 → 混淆告警
+- 语法错误（可能是人为规避解析）→ high
+- **范围提取**：`paths_read` / `paths_written`（`open` 路径字面量按读写模式分类）/ `network_endpoints`（requests URL、`socket.connect` 主机、字符串常量中的 URL 兜底）——P1 阶段二 capabilities 声明交叉校验的基准
+- 插件包（.zip）扫描跳过 `__pycache__` / `templates/` / `static/` 中的模板静态内容
+
+**前端扫描（HTML，正则级）**：`eval` / `new Function`（high）、外部 `<script src>` 与 fetch/XHR 外链（medium）、`document.cookie` / `localStorage`（low），并提取外链端点。
+
+**门禁模式 `PLUGIN_SCAN_MODE`**：
+
+| 模式 | 行为 |
+|------|------|
+| `off` | 跳过扫描 |
+| `report`（默认） | 放行安装，响应附 `scan` 摘要与 `scan_scope` 范围，审计日志记录 |
+| `enforce` | 检出高风险（high > 0）即拒绝安装，返回 400 附完整 `scan_report`，审计日志记录 blocked |
+
+接入端点：后端插件上传/更新（`routes/admin.py`）与前端工具上传/更新（`routes/frontend.py`）共四处。
+
+**扫描 CLI（`tools/scan.py`）**——发布者分发前自检：
+
+```bash
+python tools/scan.py my_plugin.py         # 单文件
+python tools/scan.py my_plugin.zip        # 插件包 / 前端工具包（config.json 自动识别）
+python tools/scan.py plugins/             # 目录批量（递归 .py）
+python tools/scan.py my_plugin.zip --json # 机器可读输出
+# 退出码：0 无高风险 / 1 检出高风险 / 2 错误
+```
+
+**安全配置预设（`tools/config.py profile`）**：将分散的安全开关收拢为三套官方预设，一键套用后仍可 `set` 单项微调：
+
+| 预设 | 定位 | 关键差异 |
+|------|------|---------|
+| `daily` | 日常使用（默认基线） | 扫描 report、完整性 warn、锁定 ip_username 5 次/15 分钟、Cookie Secure 关 |
+| `strict` | 运维加固（需 HTTPS） | 扫描 enforce、完整性 strict、依赖严格、锁定 3 次/30 分钟、空闲 15 分钟、Cookie Secure 开 |
+| `lan-open` | 可信局域网开放 | 扫描 off、登录锁定 off（仅在内网用户与插件来源完全可信时使用） |
+
+```bash
+python tools/config.py profile daily    # 套用预设（返回变更清单）
+python tools/config.py set PLUGIN_SCAN_MODE enforce   # 单项覆盖
+```
+
 ---
 
 ## 十一、部署说明
@@ -835,6 +895,7 @@ FLASKTOOLKIT_HOST=0.0.0.0 FLASKTOOLKIT_PORT=8000 python app.py
 | `test_framework_fixes.py` | 框架小修复（v4.2.1）：public_page 豁免（公开页面免登录 200 / 普通插件页面守卫 302）+ plugin_common.js CSRF 单值注入静态断言 | 9 项 |
 | `test_file_transfer.py` | 文件传输强化（v4.2.2）：全局 413 / 插件级 max_upload_size 预检 / route 级 max_upload 覆盖 / 中文名下载 / 下载统计 / Range / on_ready 顺序 | 12 项 |
 | `test_security.py` | 系统安全回归（v4.3.0）：安全响应头注入与开关 / 指纹头移除 / Cookie HttpOnly+SameSite+Secure 联动 / 会话空闲超时 / 登录失败锁定三档（ip_username/username/off）+ 通用 429 + 成功重置 | 30 项 |
+| `test_plugin_scan.py` | 插件静态扫描回归（v4.3.1）：扫描器单元（危险导入/调用/混淆/范围提取/别名归因）/ 插件包扫描 / 前端 HTML 扫描 / enforce 门禁集成（拒绝 400 + 附报告 + 未落盘 + 真实项目未污染）/ 配置预设三套 | 35 项 |
 
 ```bash
 cd FlaskToolkit   # 在项目根目录执行
@@ -857,7 +918,8 @@ python tests/test_page_router.py       # 21 项（大插件多模板页面路由
 python tests/test_framework_fixes.py    # 9 项（public_page 豁免 + CSRF 单值注入，隔离目录）
 python tests/test_file_transfer.py       # 12 项（文件传输强化，隔离目录）
 python tests/test_security.py            # 30 项（系统安全回归 v4.3.0，隔离目录）
-# 合计 19 个脚本 361 项
+python tests/test_plugin_scan.py           # 35 项（插件静态扫描回归 v4.3.1，隔离目录）
+# 合计 20 个脚本 396 项
 ```
 
 说明：`test_meta_e2e.py` 与 `test_frontend_chain.py` / `test_admin_api.py` / `test_factory_reset.py` / `test_error_pages.py` / `test_package_sign.py` 均通过 mock 基础目录 + `sys.path` 指向临时插件目录运行，不污染真实项目，可重复执行；`test_reload_race.py` 使用 Flask test client，在测试开头手动调用 `load_plugins()` 初始化（`load_plugins` 仅在 `app.py` 的 `main` 段自动调用）。
@@ -878,6 +940,7 @@ python tools/config.py unset <key>          # 移除配置项（恢复默认）
 python tools/config.py reset                # 清空全部用户配置
 python tools/config.py check                # 校验配置合法性
 python tools/config.py env                  # 生成环境变量示例
+python tools/config.py profile <daily|strict|lan-open>   # 套用安全配置预设（v4.3.1）
 ```
 
 主要可配置项：
@@ -897,6 +960,7 @@ python tools/config.py env                  # 生成环境变量示例
 | `STATS_FILE` | BASE_DIR/data/stats.json | 统计数据文件 |
 | `PACKAGE_MAX_UPLOAD_SIZE_MB` | 10 | 插件包/工具包上传大小上限（MB） |
 | `PACKAGE_INTEGRITY_MODE` | warn | 完整性校验模式（strict/warn/off） |
+| `PLUGIN_SCAN_MODE` | report | 插件安装静态扫描门禁（off/report/enforce，见 10.6，v4.3.1） |
 | `PLUGIN_PUBLIC_KEY_PEM` | （空） | 插件签名公钥路径 |
 
 示例：
@@ -907,6 +971,7 @@ python tools/config.py set PACKAGE_INTEGRITY_MODE strict
 python tools/config.py set HOST 0.0.0.0
 python tools/config.py set PORT 8080
 python tools/config.py set DEBUG true
+python tools/config.py profile strict    # 一键套用运维加固预设
 ```
 
 ## 十四、开发运维工具与启动自检

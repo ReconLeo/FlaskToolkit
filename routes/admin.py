@@ -19,6 +19,7 @@ from core.plugin_pack import (cleanup_plugin_resources, compare_versions,
 from core.plugin_status import load_plugin_status, save_plugin_status
 from core.audit import log_audit
 from core.utils import check_upload_size, secure_filename_cn
+from core.plugin_scanner import scan_plugin_zip, should_block
 from core.watcher import save_cache_internal
 
 logger = logging.getLogger('flask.app')
@@ -182,6 +183,10 @@ def register(app):
                     "code": 400,
                     "message": f"更新包插件名与当前插件不一致（包内: {desc['name']}，目标: {plugin_name}）"
                 }), 400
+            # 静态扫描门禁（v4.3.1）：更新同样过扫描
+            scan_report, scan_err = _scan_gate(temp_path, '插件更新', desc['name'])
+            if scan_err:
+                return scan_err
 
             # 版本校验：新版本必须高于当前版本
             current_version = next(
@@ -213,7 +218,12 @@ def register(app):
             }
             save_plugin_status()
             log_audit('插件更新', plugin_name, 'ok', f"v{current_version}→v{new_version} 来源 {temp_filename}")
-            return jsonify({"code": 200, "message": f"插件 {plugin_name} 已更新"})
+            resp = {"code": 200, "message": f"插件 {plugin_name} 已更新"}
+            if scan_report is not None:
+                resp['scan'] = scan_report['summary']
+                if scan_report['scope']['paths_written'] or scan_report['scope']['network_endpoints']:
+                    resp['scan_scope'] = scan_report['scope']
+            return jsonify(resp)
         except ValueError as e:
             return jsonify({"code": 400, "message": str(e)}), 400
         except Exception as e:
@@ -226,6 +236,28 @@ def register(app):
             except Exception:
                 # 临时文件清理失败不影响业务（如运行环境禁止永久删除）
                 pass
+
+    def _scan_gate(temp_path, action, plugin_name):
+        """静态扫描门禁（v4.3.1）：返回 (scan_report|None, 错误响应|None)
+        - PLUGIN_SCAN_MODE=off：跳过；report：仅报告（高风险告警日志 + 响应附扫描摘要）；
+        - enforce：存在高风险即拒绝安装/更新，响应附完整报告。"""
+        if global_var.PLUGIN_SCAN_MODE == 'off':
+            return None, None
+        report = scan_plugin_zip(temp_path)
+        if global_var.PLUGIN_SCAN_MODE == 'enforce' and should_block(report):
+            n_high = report['summary']['high']
+            log_audit(action, plugin_name, 'blocked',
+                      f"静态扫描高风险 {n_high} 项，PLUGIN_SCAN_MODE=enforce 拒绝")
+            return report, (jsonify({
+                "code": 400,
+                "message": f"静态扫描发现 {n_high} 项高风险行为（PLUGIN_SCAN_MODE=enforce 已拒绝{action}）",
+                "scan_report": report,
+            }), 400)
+        if report['summary']['high'] > 0:
+            logger.warning(
+                f"插件包静态扫描发现 {report['summary']['high']} 项高风险（report 模式放行）: {plugin_name}",
+                extra={'plugin': 'system'})
+        return report, None
 
     @app.route('/api/admin/plugins/upload', methods=['POST'])
     @admin_api
@@ -259,6 +291,10 @@ def register(app):
                 return jsonify({"code": 400, "message": vres['message']}), 400
             if vres.get('warn_only'):
                 logger.warning(vres['message'], extra={'plugin': 'system'})
+            # 静态扫描门禁（v4.3.1）：enforce 高风险拒绝 / report 附摘要
+            scan_report, scan_err = _scan_gate(temp_path, '插件安装', desc['name'])
+            if scan_err:
+                return scan_err
             plugin_name = desc['name']
             plugin_file = os.path.join(global_var.BASE_DIR, 'plugins', f'{plugin_name}.py')
 
@@ -281,7 +317,12 @@ def register(app):
             }
             save_plugin_status()
             log_audit('插件安装', plugin_name, 'ok', f"v{desc.get('version', '?')} 来源 {temp_filename}")
-            return jsonify({"code": 200, "message": f"插件 {plugin_name} 上传成功，已自动加载"})
+            resp = {"code": 200, "message": f"插件 {plugin_name} 上传成功，已自动加载"}
+            if scan_report is not None:
+                resp['scan'] = scan_report['summary']
+                if scan_report['scope']['paths_written'] or scan_report['scope']['network_endpoints']:
+                    resp['scan_scope'] = scan_report['scope']
+            return jsonify(resp)
         except ValueError as e:
             # 校验类错误：清理可能残留的解压文件
             try:

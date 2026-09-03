@@ -17,6 +17,7 @@ from core.plugin_pack import compare_versions
 from core.stats import increment_frontend_access, save_stats
 from core.audit import log_audit
 from core.utils import check_upload_size, secure_filename_cn
+from core.plugin_scanner import scan_frontend_zip, should_block
 
 logger = logging.getLogger('flask.app')
 
@@ -98,6 +99,27 @@ def cleanup_frontend_resources(tool_name):
         shutil.rmtree(static_dir)
         removed.append(static_dir)
     return removed
+
+
+def _fe_scan_gate(temp_path, action, tool_name):
+    """前端工具静态扫描门禁（v4.3.1）：enforce 高风险拒绝，report 放行附摘要"""
+    if global_var.PLUGIN_SCAN_MODE == 'off':
+        return None, None
+    report = scan_frontend_zip(temp_path)
+    if global_var.PLUGIN_SCAN_MODE == 'enforce' and should_block(report):
+        n_high = report['summary']['high']
+        log_audit(action, tool_name, 'blocked',
+                  f"静态扫描高风险 {n_high} 项，PLUGIN_SCAN_MODE=enforce 拒绝")
+        return report, (jsonify({
+            "code": 400,
+            "message": f"静态扫描发现 {n_high} 项高风险行为（PLUGIN_SCAN_MODE=enforce 已拒绝{action}）",
+            "scan_report": report,
+        }), 400)
+    if report['summary']['high'] > 0:
+        logger.warning(
+            f"前端工具包静态扫描发现 {report['summary']['high']} 项高风险（report 模式放行）: {tool_name}",
+            extra={'plugin': 'system'})
+    return report, None
 
 
 def register(app):
@@ -216,6 +238,11 @@ def register(app):
                             "message": f"工具要求框架最低版本为 {config['require_framework_version']}，当前版本为 {global_var.FRAMEWORK_VERSION}"
                         }), 400
 
+                # 静态扫描门禁（v4.3.1）：enforce 高风险拒绝 / report 附摘要
+                scan_report, scan_err = _fe_scan_gate(temp_path, '前端工具安装', tool_name)
+                if scan_err:
+                    return scan_err
+
                 # 安全解压 html + 静态资源（防 zip slip）
                 safe_extract_frontend(zf, tool_name, global_var.FRONTEND_TEMPLATE_DIR)
 
@@ -242,7 +269,10 @@ def register(app):
 
                 logger.info(f"已上传前端工具: {tool_name} v{config['version']}", extra={'plugin': 'system'})
                 log_audit('前端工具安装', tool_name, 'ok', f"v{config['version']} 来源 {temp_filename}")
-                return jsonify({"code": 200, "message": "工具上传成功", "data": config})
+                resp = {"code": 200, "message": "工具上传成功", "data": config}
+                if scan_report is not None:
+                    resp['scan'] = scan_report['summary']
+                return jsonify(resp)
 
         except zipfile.BadZipFile:
             return jsonify({"code": 400, "message": "无效的zip文件"}), 400
@@ -326,6 +356,11 @@ def register(app):
                 if html_file not in zf.namelist():
                     return jsonify({"code": 400, "message": f"更新包缺少入口文件: {html_file}"}), 400
 
+                # 静态扫描门禁（v4.3.1）：更新同样过扫描
+                scan_report, scan_err = _fe_scan_gate(temp_path, '前端工具更新', tool_name)
+                if scan_err:
+                    return scan_err
+
                 # 覆盖 html + 静态资源（先清理旧 static 目录，避免残留旧版本文件）
                 safe_extract_frontend(zf, tool_name, global_var.FRONTEND_TEMPLATE_DIR, clean_static=True)
 
@@ -352,7 +387,10 @@ def register(app):
 
                 logger.info(f"已更新前端工具: {tool_name} 从v{current_tool['version']}到v{config['version']}", extra={'plugin': 'system'})
                 log_audit('前端工具更新', tool_name, 'ok', f"v{current_tool['version']}→v{config['version']} 来源 {temp_filename}")
-                return jsonify({"code": 200, "message": "工具更新成功"})
+                resp = {"code": 200, "message": "工具更新成功"}
+                if scan_report is not None:
+                    resp['scan'] = scan_report['summary']
+                return jsonify(resp)
 
         finally:
             # 删除临时文件（清理失败不阻塞接口返回）
