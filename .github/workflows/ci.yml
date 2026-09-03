@@ -56,7 +56,7 @@ jobs:
                  test_meta_e2e test_frontend_zip_slip test_frontend_chain test_admin_api \
                  test_factory_reset test_error_pages test_package_sign \
                  test_plugin_cleanup test_frontend_permission test_tools_ops test_page_router \
-                 test_framework_fixes test_file_transfer test_security test_plugin_scan test_capabilities)
+                 test_framework_fixes test_file_transfer test_security test_plugin_scan test_capabilities test_audit_hook)
           for t in "${TESTS[@]}"; do
             echo "===== $t ====="
             python "tests/$t.py"

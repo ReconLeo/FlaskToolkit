@@ -1,6 +1,16 @@
 # Flask插件框架开发规范
 
-## 版本：v4.3.2（插件能力声明 capabilities） | 更新日期：2026年09月03日
+## 版本：v4.4.0（运行时审计钩子） | 更新日期：2026年09月03日
+
+### 版本说明（v4.4.0 变更，安全强化 P1 阶段三：运行时审计钩子）
+- **框架版本升级至 v4.4.0**：安全强化 P1 收官。基于 CPython 原生 `sys.addaudithook` 建立运行时防线，与 4.3.1 静态扫描（安装时事实）、4.3.2 capabilities 声明（安装时授权比对）构成纵深防御第三层——"安装时静态审查 → 安装时授权比对 → **运行时兜底**"。
+- **运行时审计钩子（`core/audit_hook.py`，新增 10.8）**：监听敏感操作事件（open 读写/删除族/mkdir、os.system/subprocess.Popen、socket.connect/bind、sqlite3.connect），**调用栈遍历定位 plugins/<name>.py 帧**归属插件（base_plugin 等框架内置帧排除、解释器内部路径过滤），按 4.3.2 注册的 capabilities 授权判定（网络白名单即"防火墙"）。
+- **AUDIT_HOOK_MODE 三档**：`off` 不安装（零开销）/ `observe`（默认）聚合计数+审计落盘不阻断 / `enforce` 未授权行为抛 RuntimeError 阻断（插件可捕获）；config CLI 可调，profile 三预设联动（daily→observe / strict→enforce / lan-open→off）。
+- **未授权行为按插件聚合**（审计意见落地）：`core/audit_hook._VIOLATIONS` 内存聚合（plugin→capability→count+事件样本），`/api/admin/stats` 新增 `audit_violations` 按插件分组返回，**合计由前端完成**；管理后台统计页新增红色统计卡与明细表，**建议声明可点击复制**（`suggest_for_action` 与安装期交叉校验共用生成器，作者可明确看到"哪个插件、缺哪条声明、干了什么"）。
+- **实现约束**：hook 内零 IO（递归防护 threading.local）；审计写入走内存待落盘队列 + 后台线程（`flush_now()` 同步落盘）；插件重载/卸载时聚合清零。
+- **顺带修复框架既有 bug**：`core/audit.py current_actor()` 在无请求上下文（后台线程）时 werkzeug LocalProxy 抛 RuntimeError 崩溃——getattr 访问移入 try（此前 scheduler 后台任务写审计日志也会触发）。
+- **回归测试扩充至 22 脚本 482 项**：新增 `test_audit_hook.py`（36 项：事件映射 9 / 栈定位 3 / observe 聚合 7 / enforce 阻断 5 / 隔离集成 12），已纳入 CI。
+- **P1 安全强化至此全部完成**（P0 4.3.0 + P1 阶段一 4.3.1 + 阶段二 4.3.2 + 阶段三 4.4.0）；权限模型细化（超级管理员/普通管理员）与进程级沙箱列为远期规划。
 
 ### 版本说明（v4.3.2 变更，安全强化 P1 阶段二：插件能力声明模型）
 - **框架版本升级至 v4.3.2**：继 4.3.1 静态扫描（事实提取）之后，本阶段引入插件**能力白名单声明**（授权声明），安装时交叉校验，构建"安装时静态审查 → 安装时授权比对 → 运行时兜底"纵深防御的中间层。
@@ -119,6 +129,7 @@ FlaskToolkit/
 │   ├── factory_reset.py       #   工厂重置（部分/全部 scope）
 │   ├── plugin_scanner.py      #   插件静态扫描器（AST 后端扫描 + 前端 HTML 扫描，10.6）
 │   ├── capabilities.py        #   插件能力声明模型（解析/匹配/交叉校验/运行时授权，10.7）
+│   ├── audit_hook.py           #   运行时审计钩子（sys.addaudithook，10.8）
 │   ├── selfcheck.py           #   启动完整性自检
 │   ├── logging_setup.py       #   日志配置 + 插件日志适配器
 │   └── utils.py               #   通用工具（端口、路径参数、上传大小校验、跨插件调用等）
@@ -139,7 +150,7 @@ FlaskToolkit/
 │   ├── package.py             #   插件包打包/签名/校验 CLI（genkey/pack/verify/show）
 │   ├── backup.py              #   手动备份/恢复工具（Factory Reset 前备份关键数据）
 │   └── reset.py               #   深度重置工具（服务停止时使用，绕过运行时文件锁定）
-├── tests/                     # 回归测试套件（21 脚本 447 项 + 端到端链路验证）
+├── tests/                     # 回归测试套件（22 脚本 482 项 + 端到端链路验证）
 ├── templates/                 # 页面模板（首页/登录/错误码页 400-500/admin 管理后台/插件页）
 │   ├── admin/                 #   管理后台（dashboard / plugins / logs / stats / system）
 │   ├── frontend_tools/        #   前端工具模板
@@ -752,6 +763,7 @@ def validate_params(self, params):
 | `LOGIN_LOCK_MODE` | `ip_username` | 登录锁定维度：`username`=仅用户名 / `ip_username`=IP+用户名（默认，防分布式爆破）/ `off`=禁用锁定（不安全，仅信任局域网时使用） |
 | `SESSION_IDLE_TIMEOUT` | `1800` | 会话空闲超时（秒，默认 30 分钟；超过未活动即失效） |
 | `PLUGIN_SCAN_MODE` | `report` | 插件安装校验门禁（v4.3.1 静态扫描 + v4.3.2 capabilities 交叉校验）：`off` 跳过 / `report` 放行附摘要（默认） / `enforce` 高风险或未声明行为拒绝安装，详见 10.6 / 10.7 |
+| `AUDIT_HOOK_MODE` | `observe` | 运行时审计钩子（v4.4.0）：`off` 不安装 / `observe` 记录不阻断（默认） / `enforce` 未授权行为阻断（网络白名单即防火墙），详见 10.8 |
 
 **登录失败锁定行为**：锁定期间登录接口统一返回 HTTP 429 与通用错误信息（不泄露锁定剩余时间等细节）；登录成功后自动清除对应维度的失败计数；锁定计数仅存内存（重启即清零）。
 
@@ -923,6 +935,47 @@ python tools/config.py set PLUGIN_SCAN_MODE enforce   # 单项覆盖
 
 ---
 
+### 10.8 运行时审计钩子（v4.4.0，P1 阶段三）
+
+基于 CPython 原生 `sys.addaudithook` 的运行时防线（`core/audit_hook.py`）：插件**执行期间**的敏感操作被实时拦截并判定，与安装期两条防线（10.6 静态扫描、10.7 能力声明）构成纵深防御第三层。
+
+**监听事件与能力映射**（Windows/CPython 实测验证）：
+
+| 事件 | 能力映射 |
+|------|---------|
+| `open` / `io.open`（读模式） | `filesystem:read` |
+| `open`（写模式） / `os.remove` / `os.unlink` / `os.rmdir` / `shutil.rmtree` / `os.mkdir` / `os.makedirs` | `filesystem:write` |
+| `os.system` / `subprocess.Popen` / `os.exec*` / `os.spawn*` | `process:exec` |
+| `socket.connect` | `network`（http 声明隐含允许 TCP 连接该 host；否则按 `tcp://host:port` 比对） |
+| `socket.bind` | `network:server` |
+| `sqlite3.connect` | `database:sqlite` |
+
+**归属判定**：审计事件触发时遍历调用栈，定位 `plugins/<name>.py` 帧（去 `.py` 后缀）；`base_plugin` 等框架内置帧不计为插件来源；解释器内部路径（stdlib/site-packages/`__pycache__`）读取直接跳过（非插件业务）。栈中无插件帧 → 视为框架自身行为放行。
+
+**授权判定**：复用 4.3.2 注册的能力集与 `check_filesystem`（含自属路径隐式豁免）/`check_network`/`check_process`/`check_database`，未注册/未声明一律拒绝（fail-closed）。
+
+**模式 `AUDIT_HOOK_MODE`**：
+
+| 模式 | 行为 |
+|------|------|
+| `off` | 不安装钩子（零开销） |
+| `observe`（默认） | 未授权行为聚合计数 + 后台线程写审计 JSONL，不阻断 |
+| `enforce` | 未授权行为抛 `RuntimeError`（消息含插件名与建议声明）阻断，插件可捕获 |
+
+**未授权行为可视化（管理后台统计页）**：`/api/admin/stats` 返回 `audit_violations`（按插件分组：`{plugin, total, details:[{capability, count, example}]}`）；统计页新增红色统计卡（**合计由前端完成**）与明细表（插件 / 建议声明 / 次数 / 事件样本），**建议声明点击即可复制**回 plugin.json——引导作者明确补齐声明。建议声明由 `suggest_for_action` 生成，与 10.7 安装期交叉校验共用同一生成器。
+
+**实现约束**：hook 内零 IO（`threading.local` 递归防护防死循环）；审计写入走内存队列 + 后台线程，`flush_now()` 可同步落盘；插件重载/卸载时聚合清零（`clear_violations`）。
+
+**配置预设联动**：`daily→observe` / `strict→enforce` / `lan-open→off`（`tools/config.py profile`）。
+
+```bash
+python tools/config.py set AUDIT_HOOK_MODE enforce   # 运维加固：未授权即阻断
+```
+
+**已知局限**：ctypes 直接发起原始系统调用可绕过（属安装期 high 风险已拦截）；`os.getenv`/`os.environ` 无 audit 事件（env 域仅安装期声明记录）。
+
+---
+
 ## 十一、部署说明
 
 ### 11.1 环境要求
@@ -974,6 +1027,7 @@ FLASKTOOLKIT_HOST=0.0.0.0 FLASKTOOLKIT_PORT=8000 python app.py
 | `test_security.py` | 系统安全回归（v4.3.0）：安全响应头注入与开关 / 指纹头移除 / Cookie HttpOnly+SameSite+Secure 联动 / 会话空闲超时 / 登录失败锁定三档（ip_username/username/off）+ 通用 429 + 成功重置 | 30 项 |
 | `test_plugin_scan.py` | 插件静态扫描回归（v4.3.1）：扫描器单元（危险导入/调用/混淆/范围提取/别名归因）/ 插件包扫描 / 前端 HTML 扫描 / enforce 门禁集成（拒绝 400 + 附报告 + 未落盘 + 真实项目未污染）/ 配置预设三套 | 35 项 |
 | `test_capabilities.py` | 插件能力声明回归（v4.3.2）：解析器（合法/非法/未知域/裸 * 拒绝）/ 匹配语义（路径前缀递归/URL host·path·端口/子域通配/tcp/env）/ 交叉校验（隐式豁免/跨插件越界/建议声明/unused）/ 运行时授权 API（fail-closed/process 细粒度）/ 安装链路集成（enforce 拒绝与放行/响应附摘要/loader 注册）/ base_plugin data API + hello_plugin 示例端到端 | 51 项 |
+| `test_audit_hook.py` | 运行时审计钩子回归（v4.4.0）：事件映射（open 读写/删除族/sqlite/socket）/ 栈定位（plugins 帧/框架放行/嵌套归因）/ observe 聚合（按插件/建议声明/事件样本）/ enforce 阻断（异常传播/授权放行/自属豁免/fail-closed）/ 隔离集成（真实钩子+栈归因端到端/stats 按插件分组/重载清零/审计落盘/未污染） | 36 项 |
 
 ```bash
 cd FlaskToolkit   # 在项目根目录执行
@@ -998,7 +1052,8 @@ python tests/test_file_transfer.py       # 12 项（文件传输强化，隔离�
 python tests/test_security.py            # 30 项（系统安全回归 v4.3.0，隔离目录）
 python tests/test_plugin_scan.py           # 35 项（插件静态扫描回归 v4.3.1，隔离目录）
 python tests/test_capabilities.py          # 51 项（插件能力声明回归 v4.3.2，隔离目录）
-# 合计 21 个脚本 447 项
+python tests/test_audit_hook.py            # 36 项（运行时审计钩子回归 v4.4.0，隔离目录）
+# 合计 22 个脚本 482 项
 ```
 
 说明：`test_meta_e2e.py` 与 `test_frontend_chain.py` / `test_admin_api.py` / `test_factory_reset.py` / `test_error_pages.py` / `test_package_sign.py` 均通过 mock 基础目录 + `sys.path` 指向临时插件目录运行，不污染真实项目，可重复执行；`test_reload_race.py` 使用 Flask test client，在测试开头手动调用 `load_plugins()` 初始化（`load_plugins` 仅在 `app.py` 的 `main` 段自动调用）。

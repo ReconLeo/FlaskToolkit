@@ -121,6 +121,10 @@ if __name__ == '__main__':
     os.makedirs(os.path.dirname(STATS_FILE), exist_ok=True)
     os.makedirs(UPLOAD_TEMP_DIR, exist_ok=True)
     
+    # 运行时审计钩子（v4.4.0）：在插件加载前安装，插件模块级顶层代码执行亦纳入审计
+    from core.audit_hook import install_audit_hook
+    install_audit_hook(global_var.AUDIT_HOOK_MODE)
+
     scheduler.start()
     load_plugins()
     load_frontend_tools()

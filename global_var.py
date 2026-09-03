@@ -28,7 +28,7 @@ CACHE_VERSION = 1  # 缓存格式版本，变更时自动失效
 LOG_DIR = os.path.join(BASE_DIR, 'logs')
 
 # ------------------------------ 全局常量 ------------------------------
-FRAMEWORK_VERSION = "4.3.2"  # 框架版本（后端插件 require_framework_version 比较基准）
+FRAMEWORK_VERSION = "4.4.0"  # 框架版本（后端插件 require_framework_version 比较基准）
 # 内置（系统自带）插件清单：Factory Reset 时受保护不删除
 BUILTIN_PLUGINS = ('auth', 'user_manage')
 # 管理后台上传包大小上限（后端插件包 .zip / 前端工具包 .zip 统一限制，单位字节）
@@ -56,6 +56,8 @@ LOGIN_LOCK_MODE = 'ip_username'
 SESSION_IDLE_TIMEOUT = 1800
 # 插件静态扫描模式：off=跳过 / report=默认，仅报告 / enforce=高风险拒绝安装
 PLUGIN_SCAN_MODE = 'report'
+# 运行时审计钩子模式（v4.4.0）：off=不安装 / observe=默认，记录未授权不阻断 / enforce=未授权行为阻断
+AUDIT_HOOK_MODE = 'observe'
 
 # ------------------------------ 用户可配置项（由 CLI 工具 tools/config.py 管理） ------------------------------
 # key -> {default, kind, desc}
@@ -98,6 +100,9 @@ CONFIG_ITEMS = {
     'PLUGIN_SCAN_MODE': {'default': 'report', 'kind': 'enum',
                          'choices': ['off', 'report', 'enforce'],
                          'desc': '插件静态扫描模式：off=跳过 / report=仅报告（默认）/ enforce=高风险拒绝安装（v4.3.1）'},
+    'AUDIT_HOOK_MODE': {'default': 'observe', 'kind': 'enum',
+                        'choices': ['off', 'observe', 'enforce'],
+                        'desc': '运行时审计钩子模式（v4.4.0）：off=不安装 / observe=记录不阻断（默认）/ enforce=未授权行为阻断（网络白名单即防火墙）'},
     'PACKAGE_INTEGRITY_MODE': {'default': 'warn', 'kind': 'enum',
                                'choices': ['strict', 'warn', 'off'],
                                'desc': '插件包完整性校验模式'},

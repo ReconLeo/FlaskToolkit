@@ -15,15 +15,18 @@ import global_var
 
 
 def current_actor() -> str:
-    """从当前请求解析操作者；无请求上下文返回「系统」，未登录返回「匿名」"""
+    """从当前请求解析操作者；无请求上下文返回「系统」，未登录返回「匿名」。
+    v4.4.0 修复：getattr 访问须在 try 内——无请求上下文时 werkzeug LocalProxy
+    抛 RuntimeError（非 AttributeError），后台线程（审计 flush/scheduler）调用
+    此前会崩溃。"""
     try:
         from flask import request
+        user = getattr(request, 'user', None)
+        if user:
+            return user.get('username', str(user.get('id', '未知用户')))
+        return '匿名'
     except Exception:
         return '系统'
-    user = getattr(request, 'user', None)
-    if user:
-        return user.get('username', str(user.get('id', '未知用户')))
-    return '匿名'
 
 
 def current_ip() -> str:

@@ -53,7 +53,7 @@
 | 版本 | 状态 |
 |------|------|
 | v4.3.2（当前） | 插件 capabilities 声明模型（P1 阶段二）：8 域能力白名单 + 安装交叉校验 + 建议声明生成 + 自属路径隐式豁免 + base_plugin data_dir API + 运行时授权基准；回归 21 脚本 447 项 |
-| v4.4.0（计划） | 运行时审计钩子（P1 阶段三）：sys.addaudithook + AUDIT_HOOK_MODE 三档 + capabilities/网络白名单阻断 |
+| v4.4.0（已完成） | 运行时审计钩子（P1 阶段三）：sys.addaudithook 事件监听 + 栈归因 + AUDIT_HOOK_MODE 三档（off/observe/enforce）+ 网络白名单阻断 + 未授权行为按插件聚合展示（前端合计）+ suggest_for_action 建议声明复用；回归 22 脚本 482 项 |
 | v4.3.1（已完成） | 插件静态扫描 + 配置预设（P1 阶段一）：AST 扫描器、PLUGIN_SCAN_MODE 门禁、tools/scan.py、config profile 三预设；回归 20 脚本 396 项 |
 | v4.3.0（已完成） | 系统安全强化（P0）：安全响应头/Cookie 加固/空闲超时/登录锁定；回归 19 脚本 361 项 |
 | v4.2.2（已完成） | 文件传输强化：全局上传上限/route 级覆盖/中文名下载/Range；on_ready 钩子 |
@@ -74,7 +74,7 @@
 | P0 系统安全强化 | **v4.3.0** | ✅ 已完成（`f71b000`） | 统一安全响应头（CSP/X-Frame-Options/nosniff/no-referrer/Permissions-Policy + 移除指纹头）；会话 Cookie 加固（HttpOnly+SameSite+可选 Secure）；会话空闲超时（30 分钟）；登录失败锁定三档（ip_username/username/off，阈值可配置，锁定期间通用 429）。全部配置项经 config CLI 调整。 |
 | P1-阶段一 静态扫描 | **v4.3.1** | ✅ 已完成（`20763b4`） | `core/plugin_scanner.py` AST 级扫描器（危险导入/调用、动态执行、混淆检测、socket 服务端、实例别名归因、范围提取 paths_read/paths_written/network_endpoints）+ 前端 HTML 正则扫描；安装链路门禁 `PLUGIN_SCAN_MODE`（off/report/enforce）四端点接入；`tools/scan.py` 分发前自检 CLI；`tools/config.py profile` 三套配置预设（daily/strict/lan-open）。回归 20 脚本 396 项。 |
 | P1-阶段二 capabilities 声明模型 | **v4.3.2** | ✅ 已完成 | 插件能力白名单声明（Deny by Default）：plugin.json 可选 `capabilities` 字段，8 大域能力目录（filesystem/network/webhook/process/scheduler/database/device/env），安装时与静态扫描范围**交叉校验**产生 mismatch 清单；**自属路径隐式豁免**（plugins/configs/<name>.json、plugins/data/<name>/**、plugins/temp/<name>/**，base_plugin 框架化 data_dir API）；建议声明自动生成（suggested_capabilities）；声明结果落盘成为阶段三运行时授权基准。 |
-| P1-阶段三 运行时审计钩子 | **v4.4.0** | 📋 计划 | `sys.addaudithook` 监听 open/os.remove/subprocess.Popen/socket.connect/socket.bind；调用栈 plugins/ 来源判定插件归属；`AUDIT_HOOK_MODE` 三档（off/observe 默认记录未授权访问/enforce 按 capabilities + 网络白名单阻断——"防火墙"落地）；与 core/audit.py JSONL 审计日志整合。 |
+| P1-阶段三 运行时审计钩子 | **v4.4.0** | ✅ 已完成 | `sys.addaudithook` 监听 open/os.remove/subprocess.Popen/socket.connect/socket.bind；调用栈 plugins/ 来源判定插件归属；`AUDIT_HOOK_MODE` 三档（off/observe 默认记录未授权访问/enforce 按 capabilities + 网络白名单阻断——"防火墙"落地）；与 core/audit.py JSONL 审计日志整合。 |
 | 远期规划 | — | 📋 暂不实施 | 权限模型细化（超级管理员/普通管理员仅管理特定功能）；进程级沙箱（内存/CPU 配额）；CSP 收紧为严格策略。 |
 
-**阶段依赖链**：静态扫描（范围输出=事实基准）→ capabilities 声明（授权声明）→ 运行时审计钩子（以声明为授权依据的运行时防线）。三阶段构成"安装时静态审查 → 安装时授权比对 → 运行时兜底"的纵深防御。
+**阶段依赖链**：静态扫描（范围输出=事实基准）→ capabilities 声明（授权声明）→ 运行时审计钩子（以声明为授权依据的运行时防线）。三阶段构成"安装时静态审查 → 安装时授权比对 → 运行时兜底"的纵深防御。**P1 安全强化已全部完成。**

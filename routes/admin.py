@@ -21,6 +21,7 @@ from core.audit import log_audit
 from core.utils import check_upload_size, secure_filename_cn
 from core.plugin_scanner import scan_plugin_zip, should_block
 from core.capabilities import cross_validate, read_pack_capabilities
+from core.audit_hook import get_violations as get_audit_violations
 from core.watcher import save_cache_internal
 
 logger = logging.getLogger('flask.app')
@@ -424,7 +425,8 @@ def register(app):
                 "total_frontend_access": total_frontend_access,
                 "total_calls": total_api_calls + total_frontend_access,
                 "api_call_details": global_var.call_stats,
-                "frontend_access_details": global_var.frontend_access_stats
+                "frontend_access_details": global_var.frontend_access_stats,
+                "audit_violations": get_audit_violations()
             }
         })
 

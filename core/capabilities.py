@@ -31,6 +31,8 @@ import os
 import re
 import zipfile
 
+import global_var  # 模块级导入（v4.4.0）：避免判定过程中延迟导入触发 audit 递归
+
 # ------------------------------ 能力目录 ------------------------------
 
 KNOWN_DOMAINS = {'filesystem', 'network', 'webhook', 'process', 'scheduler',
@@ -86,7 +88,6 @@ def is_implicit_grant(plugin_name, path, base_dir=None):
     - plugins/data/<name>/**（插件专属数据目录）
     - plugins/temp/<name>/**（插件临时目录）
     相对/绝对路径均可判定；跨插件目录不豁免。"""
-    import global_var
     base = base_dir or global_var.BASE_DIR
     p = _rel_to_base(path, base)
     name = str(plugin_name).lower()
@@ -95,6 +96,9 @@ def is_implicit_grant(plugin_name, path, base_dir=None):
     for seg in ('data', 'temp'):
         if p == f'plugins/{seg}/{name}' or p.startswith(f'plugins/{seg}/{name}/'):
             return True
+    # 共享父目录本身（plugins/data、plugins/temp、plugins/configs）——框架建目录行为
+    if p in ('plugins/data', 'plugins/temp', 'plugins/configs'):
+        return True
     return False
 
 
@@ -248,6 +252,32 @@ def _suggest_endpoint(endpoint):
     return f'network:{e["scheme"]}:{e["host"]}'
 
 
+def suggest_for_action(domain, target):
+    """按 域+目标 生成建议声明（v4.4.0 公共 API）：cross_validate 与 audit_hook 共用，
+    保证安装期建议与运行期建议语义一致。
+    - filesystem:write / filesystem:read + 路径 → 父目录级声明
+    - network:http + URL → 主机根声明（去默认端口）
+    - network:tcp/udp + host[:port] → 原样
+    - process:exec → process:exec；network:server → 占位；database/device → 带占位提示
+    返回 None 表示无法生成建议。"""
+    if domain.startswith('filesystem:') and target:
+        return _suggest_fs(domain.split(':', 1)[1], target)
+    if domain == 'network:http' and target:
+        return _suggest_endpoint(target)
+    if domain in ('network:tcp', 'network:udp') and target:
+        # target 可能带 scheme 前缀（如 tcp://host:port）→ 剥去避免重复
+        if '://' in target:
+            target = target.split('://', 1)[1]
+        return f'{domain}:{target}'
+    if domain == 'process:exec':
+        return 'process:exec'
+    if domain == 'network:server':
+        return 'network:server:0.0.0.0:<port>'
+    if domain.startswith(('database:', 'device:')):
+        return f'{domain}:<目标>'
+    return None
+
+
 def _has_fs_grant(valid, kind, path):
     return any(c['domain'] == 'filesystem' and c['sub'] == kind and match_path_decl(c['param'], path)
                for c in valid)
@@ -264,7 +294,6 @@ def cross_validate(plugin_name, scan_report, capabilities, base_dir=None):
       'suggested': [...],        # 建议声明（可整段复制回 plugin.json）
       'ok': bool                 # enforce 门禁判定：missing 为空
     }"""
-    import global_var
     base = base_dir or global_var.BASE_DIR
     parsed = parse_capabilities(capabilities or [])
     valid = parsed['valid']
@@ -341,23 +370,11 @@ def cross_validate(plugin_name, scan_report, capabilities, base_dir=None):
         if c['domain'] in ('filesystem', 'network', 'webhook') and c['raw'] not in used_raw:
             res['unused'].append(c['raw'])
 
-    # 5. 建议声明（missing → 目录/主机归一，去重保序）
+    # 5. 建议声明（公共 API suggest_for_action，与运行期审计共用同一生成器）
     for m in res['missing']:
-        if m.startswith('filesystem:'):
-            parts = m.split(':', 2)
-            sug = _suggest_fs(parts[1], parts[2])
-        elif m.startswith('network:http:'):
-            sug = _suggest_endpoint(m.split(':', 2)[2])
-        elif m.startswith(('network:tcp:', 'network:udp:')):
-            sug = m  # host 已归一，即建议
-        elif m == 'process:exec':
-            sug = 'process:exec'
-        elif m.startswith('network:server'):
-            sug = 'network:server:0.0.0.0:<port>'
-        elif m.startswith(('database:', 'device:')):
-            sug = m  # 带占位提示，由作者补具体目标
-        else:
-            sug = None
+        parts = m.split(':', 2)
+        domain, target = f'{parts[0]}:{parts[1]}', (parts[2] if len(parts) > 2 else '')
+        sug = suggest_for_action(domain, target)
         if sug and sug not in res['suggested']:
             res['suggested'].append(sug)
 
@@ -444,6 +461,41 @@ def check_network(plugin_name, endpoint):
         elif c['domain'] == 'network' and c['sub'] in ('tcp', 'udp') and e['scheme'] == c['sub']:
             if match_tcp_decl(c['param'], endpoint, c['sub']):
                 return True, f'declared:{c["raw"]}'
+        elif c['domain'] == 'network' and c['sub'] == 'http' and e['scheme'] == 'tcp':
+            # 运行时 connect 无 scheme：http 声明隐含允许 TCP 连接该 host（v4.4.0）
+            if _http_decl_matches_conn(c['param'], e['host'], e['port']):
+                return True, f'declared:{c["raw"]}'
+    return False, 'not-declared'
+
+
+def _http_decl_matches_conn(decl_param, host, port):
+    """network:http / webhook 声明是否覆盖一次 socket.connect(host, port)
+    （http 声明隐含允许 TCP 连接该 host；运行时 connect 无 scheme，无法区分协议）"""
+    d = parse_endpoint(decl_param)
+    if not d or d['scheme'] not in ('http', 'https', 'ws', 'wss'):
+        return False
+    if not _host_match(d['host'], host):
+        return False
+    if d['port']:
+        ep_port = str(port) if port is not None else _default_port(d['scheme'])
+        if str(ep_port) != d['port']:
+            return False
+    return True
+
+
+def check_database(plugin_name, db_target, db_kind='sqlite', base_dir=None):
+    """运行时数据库授权判定：sqlite 按路径前缀匹配，mysql/postgres 按 host:port/db 字面匹配"""
+    caps = _REGISTRY.get(str(plugin_name))
+    if not caps:
+        return False, 'no-capability-set'
+    for c in caps['valid']:
+        if c['domain'] != 'database' or c['sub'] != db_kind:
+            continue
+        if db_kind == 'sqlite':
+            if match_path_decl(c['param'], db_target):
+                return True, f'declared:{c["raw"]}'
+        elif str(c['param']).lower() == str(db_target).lower():
+            return True, f'declared:{c["raw"]}'
     return False, 'not-declared'
 
 

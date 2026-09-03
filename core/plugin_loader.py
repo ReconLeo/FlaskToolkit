@@ -20,6 +20,7 @@ from core.permission import wrap_page_func, wrap_view_func
 from core.plugin_cache import (is_cache_valid, load_plugin_cache, save_plugin_cache, scan_plugin_metadata)
 from core.capabilities import (clear_capabilities, load_capabilities_from_desc,
                               register_capabilities)
+from core.audit_hook import clear_violations
 from core.plugin_pack import check_framework_version
 from core.plugin_status import load_plugin_status
 from core.stats import save_stats
@@ -155,6 +156,8 @@ def load_plugins():
     # 能力注册表清空（v4.3.2）：重载时按现存插件重建，
     # 作为阶段三（4.4.0）运行时审计钩子的授权基准
     clear_capabilities()
+    # 运行时未授权聚合清空（v4.4.0）：重载后旧统计不残留
+    clear_violations()
 
     # ==================== 按顺序加载插件 ====================
     loaded_plugins = []
