@@ -142,6 +142,30 @@
             background: #e8f5e9;
             color: #388e3c;
         }
+        .lock-tag {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 1px 6px;
+            font-size: 12px;
+            color: #fff;
+            background: #e74c3c;
+            border-radius: 3px;
+            vertical-align: middle;
+        }
+        .status-locked {
+            color: #e74c3c;
+            font-weight: bold;
+        }
+        .status-normal {
+            color: #27ae60;
+        }
+        .btn-unlock {
+            background: #f39c12;
+            color: #fff;
+        }
+        .btn-unlock:hover {
+            background: #e67e22;
+        }
         .action-buttons {
             display: flex;
             gap: 5px;
@@ -295,6 +319,7 @@
                         <th>用户名</th>
                         <th>昵称</th>
                         <th>角色</th>
+                        <th>状态</th>
                         <th>操作</th>
                     </tr>
                 </thead>
@@ -505,22 +530,24 @@
             const totalPages = Math.ceil(total / page_size);
 
             if (list.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" class="empty-state">暂无用户数据</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6" class="empty-state">暂无用户数据</td></tr>';
             } else {
                 tbody.innerHTML = list.map(user => `
                     <tr>
                         <td>${user.id}</td>
-                        <td>${user.username}</td>
+                        <td>${user.username}${user.locked ? ' <span class="lock-tag">锁定中</span>' : ''}</td>
                         <td>${user.nickname || user.username}</td>
                         <td>
                             <span class="role-tag ${user.role === 'admin' ? 'role-admin' : 'role-user'}">
                                 ${user.role === 'admin' ? '管理员' : '普通用户'}
                             </span>
                         </td>
+                        <td>${user.locked ? '<span class="status-locked">已锁定</span>' : '<span class="status-normal">正常</span>'}</td>
                         <td>
                             <div class="action-buttons">
                                 <button class="btn action-btn btn-primary" onclick="openEditModal(${JSON.stringify(user).replace(/"/g, '&quot;')})">编辑</button>
                                 <button class="btn action-btn btn-warning" onclick="openResetPasswordModal(${user.id}, '${user.username}')">重置密码</button>
+                                ${user.locked ? `<button class="btn action-btn btn-unlock" onclick="unlockUser('${user.username}')">解封</button>` : ''}
                                 <button class="btn action-btn btn-danger" onclick="openDeleteModal(${user.id}, '${user.username}')" ${user.username === 'admin' ? 'disabled title="超级管理员不可删除"' : ''}>删除</button>
                             </div>
                         </td>
@@ -535,6 +562,25 @@
         }
 
         // 分页切换
+        function unlockUser(username) {
+            if (!confirm('确定解封用户「' + username + '」？将清除其全部登录锁定记录。')) return;
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', '/api/user_manage/unlock');
+            xhr.setRequestHeader('Content-Type', 'application/json');
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState === 4) {
+                    const resp = JSON.parse(xhr.responseText);
+                    if (resp.code === 200) {
+                        showToast('用户 ' + username + ' 已解封', 'success');
+                        loadUserList();
+                    } else {
+                        showToast(resp.message || '解封失败', 'error');
+                    }
+                }
+            };
+            xhr.send(JSON.stringify({ username: username }));
+        }
+
         function changePage(page) {
             if (page < 1) return;
             currentPage = page;

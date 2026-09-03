@@ -336,6 +336,48 @@ class AuthPlugin(BasePlugin):
         if key is not None:
             self._login_attempts.pop(key, None)
 
+    # ------------------------------
+    # 手动解封（user_manage 后台管理，v4.5.0）
+    # ------------------------------
+    def _login_lock_records(self, username: str) -> List[str]:
+        """返回该用户名在 _login_attempts 中所有维度的锁定 key（username / ip_username 双维度兼容）"""
+        mode = getattr(global_var, 'LOGIN_LOCK_MODE', 'ip_username')
+        if mode == 'off':
+            return []
+        matches = []
+        if mode == 'username':
+            k = f"u:{username}"
+            if k in self._login_attempts:
+                matches.append(k)
+        else:  # ip_username：清除该用户名对应的全部 IP 维度记录
+            suffix = f":u:{username}"
+            for k in self._login_attempts:
+                if k.endswith(suffix):
+                    matches.append(k)
+        return matches
+
+    def is_user_locked(self, username: str) -> bool:
+        """查询该用户名当前是否处于锁定期（供后台展示锁定状态）"""
+        if not self._login_attempts:
+            return False
+        now = time.time()
+        for k in self._login_lock_records(username):
+            rec = self._login_attempts.get(k)
+            if rec and rec.get("locked_until", 0) > now:
+                return True
+        return False
+
+    def unlock_user(self, username: str) -> bool:
+        """手动解除该用户名所有维度的登录锁定（后台解封）；返回是否清除过记录"""
+        keys = self._login_lock_records(username)
+        removed = False
+        for k in keys:
+            self._login_attempts.pop(k, None)
+            removed = True
+        if removed:
+            self.logger.info(f"后台解封用户: {username}（清除 {len(keys)} 条锁定记录）")
+        return removed
+
     def _hash_password(self, password: str) -> str:
         """PBKDF2-SHA256 密码哈希，返回格式: pbkdf2_sha256$iterations$salt_hex$hash_hex"""
         salt = os.urandom(16)

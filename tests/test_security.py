@@ -233,11 +233,102 @@ def main():
         check("G1 成功登录后计数重置（再次失败 401 而非 429）", r.status_code == 401,
               f"status={r.status_code} attempts={auth._login_attempts}")
 
+        # ============ H：后台手动解封（v4.5.0，user_manage 解封能力） ============
+        global_var.LOGIN_LOCK_MODE = 'ip_username'
+        global_var.LOGIN_MAX_ATTEMPTS = 3
+        auth._login_attempts.clear()
+        c7 = app.test_client()
+        for _ in range(3):
+            do_login(c7, password="wrong")
+        # 触发锁定后，auth 方法层查询/解封
+        check("H1 is_user_locked 识别锁定（ip_username 维度）",
+              auth.is_user_locked('admin') is True,
+              f"attempts={auth._login_attempts}")
+        removed = auth.unlock_user('admin')
+        check("H2 unlock_user 清除全部维度锁定记录", removed is True and not auth.is_user_locked('admin'),
+              f"removed={removed} attempts={auth._login_attempts}")
+        # 解封后换客户端可正常登录
+        c8 = app.test_client()
+        r = do_login(c8, password="admin123")
+        check("H3 解封后立即恢复登录", r.status_code == 200, f"status={r.status_code}")
+
+        # username 维度解封
+        global_var.LOGIN_LOCK_MODE = 'username'
+        auth._login_attempts.clear()
+        c9 = app.test_client()
+        for _ in range(3):
+            do_login(c9, password="wrong", ip="10.0.0.9")
+        check("H4 is_user_locked 识别锁定（username 维度）", auth.is_user_locked('admin') is True, "")
+        auth.unlock_user('admin')
+        check("H5 username 维度解封后解锁", not auth.is_user_locked('admin'), "")
+
+        # 未锁定用户解封：返回 False 不报错
+        check("H6 未锁定用户解封返回 False", auth.unlock_user('ghost_user') is False, "")
+
+        # ============ I：user_manage 解封端点（v4.5.0） ============
+        from plugins.user_manage import UserManagePlugin
+        um = UserManagePlugin()
+        um.auth_plugin = auth
+        plugins["user_manage"] = um
+        for route in um.routes:
+            wrapped = wrap_view_func(route["view_func"], um.name, route)
+            path = route["path"]
+            methods = tuple(route.get("methods", ["GET"]))
+            if not hasattr(um, "_wrapped_routes"):
+                um._wrapped_routes = {}
+            um._wrapped_routes.setdefault(path, {})[methods] = wrapped
+
+        # 制造 ip_username 锁定
+        global_var.LOGIN_LOCK_MODE = 'ip_username'
+        global_var.LOGIN_MAX_ATTEMPTS = 3
+        auth._login_attempts.clear()
+        c10 = app.test_client()
+        for _ in range(3):
+            do_login(c10, password="wrong")
+        check("I1 端点前置条件：admin 已锁定", auth.is_user_locked('admin') is True, "")
+
+        # 未登录解封 → 403（权限保护）
+        r = c10.post("/api/user_manage/unlock", json={"username": "admin"})
+        check("I2 未登录调用解封被拒", r.status_code in (401, 403), f"status={r.status_code}")
+
+        # 先清锁（管理员自身也被锁，无法登录解封自己——先经 auth 层放行进入后台）
+        auth.unlock_user('admin')
+        c11 = app.test_client()
+        r = do_login(c11, password="admin123")
+        check("I3 管理员登录成功（清锁后）", r.status_code == 200, f"status={r.status_code}")
+
+        # 重新制造锁定，再由已登录管理员经端点解封（需带 CSRF token）
+        auth._login_attempts.clear()
+        c13 = app.test_client()
+        for _ in range(3):
+            do_login(c13, password="wrong")
+        check("I4 二次锁定 admin（端点前置）", auth.is_user_locked('admin') is True, "")
+        csrf = c11.get_cookie("csrf_token")
+        _csrf_headers = {"X-CSRF-Token": csrf.value} if csrf else {}
+        r = c11.post("/api/user_manage/unlock", json={"username": "admin"}, headers=_csrf_headers)
+        check("I5 管理员解封端点成功", r.status_code == 200 and (r.get_json() or {}).get('code') == 200,
+              f"status={r.status_code} body={(r.get_json() or {})}")
+        check("I6 解封后 is_user_locked 为 False", auth.is_user_locked('admin') is False, "")
+        # 解封后新 client 可正常登录
+        c12 = app.test_client()
+        r = do_login(c12, password="admin123")
+        check("I7 解封端点生效：锁定解除可登录", r.status_code == 200, f"status={r.status_code}")
+
+        # 不存在的用户 → 404
+        r = c11.post("/api/user_manage/unlock", json={"username": "no_such_user"}, headers=_csrf_headers)
+        check("I8 解封不存在用户返回 404", r.status_code == 404, f"status={r.status_code}")
+        # 未锁定用户 → 200 且提示无记录
+        r = c11.post("/api/user_manage/unlock", json={"username": "admin"}, headers=_csrf_headers)
+        body = r.get_json() or {}
+        check("I9 解封未锁定用户不报错（提示无记录）", r.status_code == 200 and '无锁定' in (body.get('message') or ''),
+              f"body={body}")
+
         print(f'\n==== 系统安全回归（v4.3.0）：共 {len(results)} 项，'
               f'通过 {sum(1 for _, c, _ in results if c)}，'
               f'失败 {sum(1 for _, c, _ in results if not c)} ====')
     finally:
         plugins.pop('auth', None)
+        plugins.pop('user_manage', None)
         restore_fixtures()
         restore_global_var()
 

@@ -6,7 +6,7 @@ from typing import List, Dict
 class UserManagePlugin(BasePlugin):
     name = "user_manage"
     title = "用户账号管理"
-    description = "用户账号管理插件，支持用户增删改查、密码重置、权限配置"
+    description = "用户账号管理插件，支持用户增删改查、密码重置、权限配置、登录锁定手动解封"
     version = "1.0.1"
     author = "System"
     category = "系统管理"
@@ -69,6 +69,15 @@ class UserManagePlugin(BasePlugin):
                     {'name': 'user_id', 'type': 'number', 'required': True, 'description': '用户ID'}
                 ],
                 'view_func': self.delete_user
+            },
+            {
+                'path': '/unlock',
+                'name': '手动解封用户（登录锁定）',
+                'methods': ['POST'],
+                'params': [
+                    {'name': 'username', 'type': 'string', 'required': True, 'description': '被锁定用户名（清除其全部维度锁定记录）'}
+                ],
+                'view_func': self.unlock_user
             }
         ]
 
@@ -112,6 +121,10 @@ class UserManagePlugin(BasePlugin):
         start = (page - 1) * page_size
         end = start + page_size
         paginated_users = all_users[start:end]
+
+        # v4.5.0：附加登录锁定状态（供后台展示/解封入口）
+        for user in paginated_users:
+            user["locked"] = self.auth_plugin.is_user_locked(user["username"])
 
         return self.success_response({
             "list": paginated_users,
@@ -191,3 +204,19 @@ class UserManagePlugin(BasePlugin):
         
         self.auth_plugin.delete_user(user_id)
         return self.success_response(None, "用户删除成功")
+
+    @BasePlugin.require_role(["admin"])
+    def unlock_user(self):
+        """手动解封被锁定的用户（清除其全部维度锁定记录）"""
+        data = request.validated_data
+        username = data["username"]
+
+        # 校验用户存在（锁定记录绑定用户名，须先确认是有效账户）
+        user = self.auth_plugin.get_user_by_username(username)
+        if not user:
+            return self.error_response("用户不存在", 404)
+
+        removed = self.auth_plugin.unlock_user(username)
+        if not removed:
+            return self.success_response(None, "该用户当前无锁定记录（未锁定或已过期）")
+        return self.success_response(None, f"用户 {username} 已解封")

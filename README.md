@@ -4,7 +4,7 @@
   <img src="https://github.com/ReconLeo/FlaskToolkit/actions/workflows/ci.yml/badge.svg" alt="CI">
   <img src="https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB?logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/License-MIT-yellow" alt="License">
-  <img src="https://img.shields.io/badge/version-4.5.0-blue" alt="Version">
+  <img src="https://img.shields.io/badge/version-4.5.1-blue" alt="Version">
 </p>
 
 > A Flask-based plugin **framework**: bring scattered Python plugins and pure-frontend tools into one unified runtime —
@@ -32,7 +32,8 @@ Over time it grew into what it is today:
 - Capability-based authorization: plugins declare whitelisted grants in `plugin.json` — filesystem paths, network endpoints, subprocess, scheduler, database, device, env — cross-checked against scan findings at install time; undeclared behaviors get rejected under `enforce` (with auto-generated suggested declarations), while each plugin's own config/data/temp directories are implicitly granted; the parsed grant set becomes the runtime authorization baseline;
 - Runtime audit hooks: an **`sys.addaudithook`-based runtime guard** intercepts sensitive ops from plugin code at runtime — open/delete/mkdir, subprocess, socket connect/bind, sqlite — attributed to the calling plugin via stack inspection, checked against its declared grants (network whitelist acts as a firewall); `off / observe / enforce` modes, with per-plugin violation stats surfaced in the admin dashboard;
 - Optional HTTPS: point `SSL_CERT_FILE` / `SSL_KEY_FILE` at a certificate/key pair (generate a self-signed one via `python tools/gen_cert.py`) and the server serves HTTPS; plain HTTP remains the default. Frontend-tool registry `frontend_tools.json` moved under `data/` (legacy root file auto-migrated on startup);
-- Added plugin-package integrity verification & signing, Factory Reset, backup/restore, startup self-check, plus a **482-assertion regression suite and GitHub Actions CI**.
+- Manual unlock for locked accounts: the admin panel's user management now shows lock status (login-failure lockout) and provides a one-click **unlock** action (`POST /api/user_manage/unlock`) — clears all lock records (IP+username or username dimension) so the user can log in immediately without waiting for the lockout to expire;
+- Added plugin-package integrity verification & signing, Factory Reset, backup/restore, startup self-check, plus a **497-assertion regression suite and GitHub Actions CI**.
 
 To be honest, this framework is far from "production-grade". It is more of a "play for fun" project: standing on the shoulders of giants like Flask, APScheduler, and Werkzeug, and landing the parts I needed. That is also why its security model is bluntly simple — **installing a plugin means trusting its author**. It suits your own machine or a trusted LAN, not a public production environment.
 
@@ -100,7 +101,7 @@ Detailed specs live in the [Flask Plugin Framework Development Guide](documents/
 
 ## Tests & CI
 
-`tests/` contains **22 scripts / 482 assertions** of regression tests (isolated-directory mode, no pollution of project files); GitHub Actions runs them automatically on Python 3.10 / 3.11 / 3.12, covering permissions, plugin-package / frontend-tool chains, integrity signatures, uninstall manifests, Factory Reset, large-plugin multi-template page routing, file transfer (upload limits / Chinese-name downloads / Range), static security scanning, capability cross-validation, runtime audit hooks, ops tools, etc.
+`tests/` contains **22 scripts / 497 assertions** of regression tests (isolated-directory mode, no pollution of project files); GitHub Actions runs them automatically on Python 3.10 / 3.11 / 3.12, covering permissions, plugin-package / frontend-tool chains, integrity signatures, uninstall manifests, Factory Reset, large-plugin multi-template page routing, file transfer (upload limits / Chinese-name downloads / Range), static security scanning, capability cross-validation, runtime audit hooks, ops tools, etc.
 
 <details>
 <summary>Expand: 18 test scripts</summary>
@@ -125,7 +126,7 @@ python tests/test_tools_ops.py             # ops tools backup/reset/config 19
 python tests/test_page_router.py           # large-plugin multi-template page routing + pure-API no-name plugin debug page regression 21
 python tests/test_framework_fixes.py       # framework small fixes: public_page exemption + CSRF single-injection 9
 python tests/test_file_transfer.py         # file transfer: global 413 / plugin & route upload limits / Chinese-name downloads / download stats / Range / on_ready order 12
-# total: 22 scripts / 482 assertions
+# total: 22 scripts / 497 assertions
 ```
 
 </details>
@@ -142,7 +143,7 @@ MIT License · contribution guidelines in [CONTRIBUTING.md](CONTRIBUTING.md) · 
 
 ### AI-Assisted Development Statement
 
-This project used AI-assisted programming tools during development, including but not limited to: code generation and refactoring, code review, test case authoring, and documentation writing. All AI-assisted content has been manually reviewed by the developer and is only merged after passing the project's own regression suite (`tests/`, 482 assertions) and startup integrity self-check.
+This project used AI-assisted programming tools during development, including but not limited to: code generation and refactoring, code review, test case authoring, and documentation writing. All AI-assisted content has been manually reviewed by the developer and is only merged after passing the project's own regression suite (`tests/`, 497 assertions) and startup integrity self-check.
 
 Transparency conventions for contributors:
 

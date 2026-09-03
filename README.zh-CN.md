@@ -4,7 +4,7 @@
   <img src="https://github.com/ReconLeo/FlaskToolkit/actions/workflows/ci.yml/badge.svg" alt="CI">
   <img src="https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB?logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/License-MIT-yellow" alt="License">
-  <img src="https://img.shields.io/badge/version-4.5.0-blue" alt="Version">
+  <img src="https://img.shields.io/badge/version-4.5.1-blue" alt="Version">
 </p>
 
 > 一个基于 Flask 的插件化**框架**：把散落的 Python 插件与纯前端工具装进统一的运行时，
@@ -32,7 +32,8 @@
 - 能力声明即授权：插件在 plugin.json 里声明白名单——可读写的路径、可访问的网络端点、子进程、定时任务、数据库、设备、环境变量——安装时与扫描结果交叉校验，enforce 下未声明即拒绝（附自动生成的建议声明），插件自属的配置/数据/临时目录隐式豁免免声明，解析后的授权集成为运行时防线基准；
 - 运行时审计防线：基于 sys.addaudithook 的**运行时守卫**拦截插件代码的敏感操作——文件读写删除建目录、子进程、socket 连接/监听、sqlite——经调用栈定位归属插件、按其声明授权判定（网络白名单即"防火墙"）；off / observe / enforce 三档可调，未授权行为按插件聚合展示于管理后台并附可复制的建议声明；
 - 可选 HTTPS：配置 `SSL_CERT_FILE` / `SSL_KEY_FILE` 指向证书与私钥（`python tools/gen_cert.py` 一键生成自签名证书）即以 HTTPS 启动服务，默认仍是 HTTP；前端工具注册清单 `frontend_tools.json` 默认路径迁至 `data/`（旧根目录文件启动时自动迁移）；
-- 补上了插件包的完整性校验与签名、Factory Reset、备份/恢复、启动自检，以及一套 482 项的回归测试和 GitHub Actions CI。
+- 登录锁定可后台手动解封：用户管理后台展示锁定状态（登录失败锁定），并支持一键**解封**（`POST /api/user_manage/unlock`）——清除该用户全部维度（IP+用户名 / 仅用户名）的锁定记录，无需等待锁定期满即可立即登录；
+- 补上了插件包的完整性校验与签名、Factory Reset、备份/恢复、启动自检，以及一套 497 项的回归测试和 GitHub Actions CI。
 
 坦白说，这框架远谈不上"完善"。它更多是"自娱自乐"的产物：站在 Flask、APScheduler、Werkzeug 这些巨人的肩膀上，把我需要的那部分想法落了地。也因此，它的安全模型是朴素直接的——**安装插件即信任其作者**。所以它更适合自己的电脑或可信局域网，而不是对外开放的生产环境。
 
@@ -100,7 +101,7 @@ python examples/install_all.py                            # 一键安装 6 个�
 
 ## 测试与 CI
 
-`tests/` 22 个脚本共 482 项回归测试（隔离目录模式，不污染项目文件）；GitHub Actions 在 Python 3.10 / 3.11 / 3.12 上自动执行，覆盖权限、插件包 / 前端工具链路、完整性签名、卸载清单、Factory Reset、大插件多模板页面路由、文件传输（上传限制 / 中文名下载 / Range）、插件静态安全扫描、能力声明交叉校验、运行时审计钩子、运维工具等。
+`tests/` 22 个脚本共 497 项回归测试（隔离目录模式，不污染项目文件）；GitHub Actions 在 Python 3.10 / 3.11 / 3.12 上自动执行，覆盖权限、插件包 / 前端工具链路、完整性签名、卸载清单、Factory Reset、大插件多模板页面路由、文件传输（上传限制 / 中文名下载 / Range）、插件静态安全扫描、能力声明交叉校验、运行时审计钩子、运维工具等。
 
 <details>
 <summary>展开：19 个测试脚本</summary>
@@ -125,7 +126,7 @@ python tests/test_tools_ops.py             # 运维工具 backup/reset/config 19
 python tests/test_page_router.py           # 大插件多模板页面路由 + 纯 API 无 name 插件调试页回归 21 项
 python tests/test_framework_fixes.py       # 框架小修复：public_page 豁免 + CSRF 单值注入 9 项
 python tests/test_file_transfer.py         # 文件传输：全局 413 / 插件级与 route 级上传上限 / 中文名下载 / 下载统计 / Range / on_ready 顺序 12 项
-# 合计 22 个脚本 482 项
+# 合计 22 个脚本 497 项
 ```
 
 </details>
@@ -142,7 +143,7 @@ MIT License · 贡献指南见 [CONTRIBUTING.md](CONTRIBUTING.md) · 开发过�
 
 ### 人工智能辅助开发声明
 
-本项目在开发过程中使用了 AI 辅助编程工具，包括但不限于：代码生成与重构、代码审查、测试用例编写、文档撰写。所有 AI 辅助生成或修改的内容，均已由开发者人工审查，并通过项目自身的回归测试套件（`tests/`，482 项）与启动完整性自检验证后才会合入。
+本项目在开发过程中使用了 AI 辅助编程工具，包括但不限于：代码生成与重构、代码审查、测试用例编写、文档撰写。所有 AI 辅助生成或修改的内容，均已由开发者人工审查，并通过项目自身的回归测试套件（`tests/`，497 项）与启动完整性自检验证后才会合入。
 
 对贡献者的透明性约定：
 
