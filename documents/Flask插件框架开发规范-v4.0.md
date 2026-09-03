@@ -1,6 +1,17 @@
 # Flask插件框架开发规范
 
-## 版本：v4.3.1（插件静态扫描 + 配置预设） | 更新日期：2026年09月03日
+## 版本：v4.3.2（插件能力声明 capabilities） | 更新日期：2026年09月03日
+
+### 版本说明（v4.3.2 变更，安全强化 P1 阶段二：插件能力声明模型）
+- **框架版本升级至 v4.3.2**：继 4.3.1 静态扫描（事实提取）之后，本阶段引入插件**能力白名单声明**（授权声明），安装时交叉校验，构建"安装时静态审查 → 安装时授权比对 → 运行时兜底"纵深防御的中间层。
+- **能力声明模型（`core/capabilities.py`，新增 10.7）**：plugin.json 可选 `capabilities` 字段，扁平字符串列表语法（`域:子域:参数`），8 大域能力目录——filesystem（read/write 路径前缀）、network（http/tcp/udp/server，host 精确或 `*.dom` 子域通配，禁裸 `*`）、webhook（wecom/dingtalk/feishu + URL 白名单）、process（exec[.bin]）、scheduler、database（sqlite/mysql/postgres）、device（serial/print）、env（read 变量名模式）；未知域安装告警不拒绝（开放集合，向后兼容）。
+- **安装链路交叉校验**：`_scan_gate` 扩展——扫描器范围输出（paths_read/paths_written/network_endpoints/findings）× 声明白名单 → `missing`（未声明）/`implicit_granted`（隐式豁免）/`unused`（声明未用，info）/`suggested`（**建议声明自动生成**，可整段复制回 plugin.json）；`PLUGIN_SCAN_MODE=enforce` 下高风险 **或** missing 非空即拒绝（400 附完整清单），report 放行附摘要；上传/更新响应新增 `capabilities` 字段。
+- **自属路径隐式豁免（implicit grants）**：插件自己的 `plugins/configs/<name>.json`、`plugins/data/<name>/**`、`plugins/temp/<name>/**` 无需声明即可读写（基类配置 API 与拼接写法的扫描盲区由运行时层兜底）；跨插件目录与 `data/`（框架自身数据）不豁免。
+- **插件数据目录框架化（base_plugin）**：新增 `data_dir` 属性（`plugins/data/<name>/`，自动创建）与 `get_data_path(*sub)` 助手。
+- **运行时授权 API（阶段三契约）**：`register_capabilities`/`check_filesystem`/`check_network`/`check_process`——loader 加载插件时从描述文件注册能力集，作为 4.4.0 运行时审计钩子的授权判定依据（网络白名单即"防火墙"规则）。
+- **官方示例**：全部补 capabilities 声明（scheduler_demo 演示 `scheduler` + 心跳迁移 `get_data_path`；hello_plugin 新增 `/data-demo` 接口演示数据目录隐式豁免）。
+- **回归测试扩充至 21 脚本 447 项**：新增 `test_capabilities.py`（51 项：解析 6 / 匹配语义 10 / 交叉校验 12 / 运行时 API 7 / 安装链路集成 10 / base_plugin data API 6），已纳入 CI。
+- **后续计划（P1 阶段三，4.4.0）**：`sys.addaudithook` 运行时审计钩子 + `AUDIT_HOOK_MODE` 三档（off/observe/enforce 按 capabilities 与网络白名单阻断）。
 
 ### 版本说明（v4.3.1 变更，安全强化 P1 阶段一：插件静态扫描 + 配置预设）
 - **框架版本升级至 v4.3.1**：内部安全加固第二阶段（P1 阶段一），新增插件安装链路静态扫描门禁与安全配置预设，并整合审计建议（配置预设 / 读写范围声明 / 网络防火墙）的第一步落地。
@@ -107,6 +118,7 @@ FlaskToolkit/
 │   ├── package_sign.py        #   插件包完整性校验（manifest 哈希清单 + RSA 签名）
 │   ├── factory_reset.py       #   工厂重置（部分/全部 scope）
 │   ├── plugin_scanner.py      #   插件静态扫描器（AST 后端扫描 + 前端 HTML 扫描，10.6）
+│   ├── capabilities.py        #   插件能力声明模型（解析/匹配/交叉校验/运行时授权，10.7）
 │   ├── selfcheck.py           #   启动完整性自检
 │   ├── logging_setup.py       #   日志配置 + 插件日志适配器
 │   └── utils.py               #   通用工具（端口、路径参数、上传大小校验、跨插件调用等）
@@ -127,7 +139,7 @@ FlaskToolkit/
 │   ├── package.py             #   插件包打包/签名/校验 CLI（genkey/pack/verify/show）
 │   ├── backup.py              #   手动备份/恢复工具（Factory Reset 前备份关键数据）
 │   └── reset.py               #   深度重置工具（服务停止时使用，绕过运行时文件锁定）
-├── tests/                     # 回归测试套件（20 脚本 396 项 + 端到端链路验证）
+├── tests/                     # 回归测试套件（21 脚本 447 项 + 端到端链路验证）
 ├── templates/                 # 页面模板（首页/登录/错误码页 400-500/admin 管理后台/插件页）
 │   ├── admin/                 #   管理后台（dashboard / plugins / logs / stats / system）
 │   ├── frontend_tools/        #   前端工具模板
@@ -385,6 +397,7 @@ def get_item(self, item_id):
 | `permission` | 否 | 权限级别（覆盖插件类 `permission`） |
 | `dependencies` | 否 | 依赖插件名列表（如 `["auth"]`） |
 | `require_framework_version` | 否 | 最低框架版本要求（点分版本，如 `"4.0.0"`）；非强制，一经声明须满足，见 5.7 |
+| `capabilities` | 否 | 能力白名单声明（v4.3.2，字符串列表）；未声明的检出行为在 enforce 模式下拒绝安装，见 10.7 |
 
 版本以 `plugin.json` 声明为准：上传/更新后描述文件落盘为 `plugins/<name>.json`，插件扫描与目录指纹均优先读取该文件，保证 catalog 显示版本与包内声明一致。
 
@@ -738,7 +751,7 @@ def validate_params(self, params):
 | `LOGIN_LOCK_SECONDS` | `900` | 登录失败锁定时长（秒，默认 15 分钟） |
 | `LOGIN_LOCK_MODE` | `ip_username` | 登录锁定维度：`username`=仅用户名 / `ip_username`=IP+用户名（默认，防分布式爆破）/ `off`=禁用锁定（不安全，仅信任局域网时使用） |
 | `SESSION_IDLE_TIMEOUT` | `1800` | 会话空闲超时（秒，默认 30 分钟；超过未活动即失效） |
-| `PLUGIN_SCAN_MODE` | `report` | 插件安装静态扫描门禁（v4.3.1）：`off` 跳过 / `report` 放行附摘要（默认） / `enforce` 高风险拒绝安装，详见 10.6 |
+| `PLUGIN_SCAN_MODE` | `report` | 插件安装校验门禁（v4.3.1 静态扫描 + v4.3.2 capabilities 交叉校验）：`off` 跳过 / `report` 放行附摘要（默认） / `enforce` 高风险或未声明行为拒绝安装，详见 10.6 / 10.7 |
 
 **登录失败锁定行为**：锁定期间登录接口统一返回 HTTP 429 与通用错误信息（不泄露锁定剩余时间等细节）；登录成功后自动清除对应维度的失败计数；锁定计数仅存内存（重启即清零）。
 
@@ -846,6 +859,70 @@ python tools/config.py set PLUGIN_SCAN_MODE enforce   # 单项覆盖
 
 ---
 
+### 10.7 插件能力声明（capabilities，v4.3.2，P1 阶段二）
+
+插件在 plugin.json 中以可选字段 `capabilities` 声明**白名单授权**（扁平字符串列表，语法 `域:子域:参数`），安装时与静态扫描的行为范围（10.6）交叉校验。核心哲学：**Deny by Default，声明即授权**——扫描器输出的是"事实"，capabilities 是"授权"，两者比对产生 mismatch 清单。
+
+**能力目录（8 大域，开放集合）**：
+
+| 域 | 能力项 | 语法 | 授权语义 |
+|----|--------|------|---------|
+| filesystem | 读 / 写 | `filesystem:read:<path>` / `filesystem:write:<path>` | 路径前缀授权（目录级含子内容；`data`、`data/`、`data/*` 三写法等价；支持绝对路径与 UNC） |
+| network | HTTP 出站 | `network:http:<scheme://host[:port][/path*]>` | host 精确或 `*.dom` 子域通配（**禁裸 `*`**）；声明带端口须精确，不带=任意；path 前缀 |
+| | TCP/UDP | `network:tcp:<host[:port]>` / `network:udp:...` | host 精确；无端口=任意端口 |
+| | 监听服务 | `network:server:<host:port>` | 插件 bind/listen 监听端口 |
+| webhook | 群机器人 | `webhook:<platform>:<url-pattern>` | 平台枚举 wecom/dingtalk/feishu；URL 语义同 network:http（兼作 HTTP 出站授权） |
+| process | 子进程 | `process:exec` / `process:exec:<bin>` | 无参=任意子进程（高危）；带 bin=仅该可执行名（运行时比对） |
+| scheduler | 定时任务 | `scheduler` | 允许注册 APScheduler 任务 |
+| database | 数据库 | `database:sqlite:<path>` / `database:mysql:<host:port/db>` / `database:postgres:...` | 连接目标 |
+| device | 串口/打印 | `device:serial:<port>` / `device:print` | 串口枚举（如 COM3） |
+| env | 环境变量 | `env:read:<pattern>` | 变量名前缀或 `*` 通配 |
+
+声明示例：
+
+```json
+{
+  "name": "hr_report",
+  "version": "1.0.2",
+  "capabilities": [
+    "filesystem:read:D:/shared/reports",
+    "filesystem:write:plugins/data/hr_report",
+    "network:http:https://erp.corp.local/*",
+    "webhook:wecom:https://qyapi.weixin.qq.com/cgi-bin/*",
+    "database:mysql:10.0.0.5:3306/hr",
+    "scheduler",
+    "process:exec:ffmpeg",
+    "env:read:LDAP_*"
+  ]
+}
+```
+
+**自属路径隐式豁免（implicit grants）**：插件自己的以下路径**无需声明**即可读写——
+
+| 路径 | 说明 |
+|------|------|
+| `plugins/configs/<name>.json` | 基类 `load_config()` / `save_config()` |
+| `plugins/data/<name>/**` | 插件专属数据目录（`self.data_dir` / `self.get_data_path()`） |
+| `plugins/temp/<name>/**` | 插件专属临时目录 |
+
+跨插件目录（如插件 A 写 `plugins/data/B/`）与 `data/`（框架自身数据）**不在豁免范围**，仍须显式声明。基类 `get_data_path()` 拼接写法扫描器提取不到路径字面量，该盲区由运行时审计钩子（4.4.0）以 `check_filesystem()` 兜底。
+
+**交叉校验与门禁**（并入 `PLUGIN_SCAN_MODE`，与静态扫描共用三档）：
+
+| 模式 | 行为 |
+|------|------|
+| `off` | 跳过扫描与能力校验 |
+| `report`（默认） | 放行，响应附 `capabilities`（`declared` 已声明 / `missing` 未声明 / `suggested` 建议声明） |
+| `enforce` | 高风险（high > 0）**或** `missing` 非空 → 400 拒绝，附完整缺失清单与建议声明 |
+
+**建议声明自动生成**：`suggested` 字段按检出行为归一化生成（文件路径→父目录、URL→主机根、端口/子进程→对应能力项），可整段复制回 plugin.json，降低声明编写门槛；声明了但未检出使用的能力仅 `unused` 提示（info 级，不阻断），鼓励最小授权。
+
+**运行时授权基准**：插件加载时 loader 从描述文件读取 capabilities 注册进 `core/capabilities.py` 内存注册表；`check_filesystem(plugin, path, mode)` / `check_network(plugin, endpoint)` / `check_process(plugin, bin)` 为 4.4.0 运行时审计钩子的授权判定契约——`check_network` 的 host 匹配即网络白名单"防火墙"规则。未注册/未声明一律拒绝（fail-closed）。
+
+**向后兼容**：旧插件无 `capabilities` 字段——report 模式放行附告警；enforce 模式下若有未声明检出行为则拒绝（良性插件扫描范围通常为空，不受影响）。plugin.json 在 manifest.json 完整性清单内，装后私改 capabilities 会被完整性校验拦截。
+
+---
+
 ## 十一、部署说明
 
 ### 11.1 环境要求
@@ -896,6 +973,7 @@ FLASKTOOLKIT_HOST=0.0.0.0 FLASKTOOLKIT_PORT=8000 python app.py
 | `test_file_transfer.py` | 文件传输强化（v4.2.2）：全局 413 / 插件级 max_upload_size 预检 / route 级 max_upload 覆盖 / 中文名下载 / 下载统计 / Range / on_ready 顺序 | 12 项 |
 | `test_security.py` | 系统安全回归（v4.3.0）：安全响应头注入与开关 / 指纹头移除 / Cookie HttpOnly+SameSite+Secure 联动 / 会话空闲超时 / 登录失败锁定三档（ip_username/username/off）+ 通用 429 + 成功重置 | 30 项 |
 | `test_plugin_scan.py` | 插件静态扫描回归（v4.3.1）：扫描器单元（危险导入/调用/混淆/范围提取/别名归因）/ 插件包扫描 / 前端 HTML 扫描 / enforce 门禁集成（拒绝 400 + 附报告 + 未落盘 + 真实项目未污染）/ 配置预设三套 | 35 项 |
+| `test_capabilities.py` | 插件能力声明回归（v4.3.2）：解析器（合法/非法/未知域/裸 * 拒绝）/ 匹配语义（路径前缀递归/URL host·path·端口/子域通配/tcp/env）/ 交叉校验（隐式豁免/跨插件越界/建议声明/unused）/ 运行时授权 API（fail-closed/process 细粒度）/ 安装链路集成（enforce 拒绝与放行/响应附摘要/loader 注册）/ base_plugin data API + hello_plugin 示例端到端 | 51 项 |
 
 ```bash
 cd FlaskToolkit   # 在项目根目录执行
@@ -919,7 +997,8 @@ python tests/test_framework_fixes.py    # 9 项（public_page 豁免 + CSRF 单�
 python tests/test_file_transfer.py       # 12 项（文件传输强化，隔离目录）
 python tests/test_security.py            # 30 项（系统安全回归 v4.3.0，隔离目录）
 python tests/test_plugin_scan.py           # 35 项（插件静态扫描回归 v4.3.1，隔离目录）
-# 合计 20 个脚本 396 项
+python tests/test_capabilities.py          # 51 项（插件能力声明回归 v4.3.2，隔离目录）
+# 合计 21 个脚本 447 项
 ```
 
 说明：`test_meta_e2e.py` 与 `test_frontend_chain.py` / `test_admin_api.py` / `test_factory_reset.py` / `test_error_pages.py` / `test_package_sign.py` 均通过 mock 基础目录 + `sys.path` 指向临时插件目录运行，不污染真实项目，可重复执行；`test_reload_race.py` 使用 Flask test client，在测试开头手动调用 `load_plugins()` 初始化（`load_plugins` 仅在 `app.py` 的 `main` 段自动调用）。

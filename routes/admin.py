@@ -20,6 +20,7 @@ from core.plugin_status import load_plugin_status, save_plugin_status
 from core.audit import log_audit
 from core.utils import check_upload_size, secure_filename_cn
 from core.plugin_scanner import scan_plugin_zip, should_block
+from core.capabilities import cross_validate, read_pack_capabilities
 from core.watcher import save_cache_internal
 
 logger = logging.getLogger('flask.app')
@@ -223,6 +224,10 @@ def register(app):
                 resp['scan'] = scan_report['summary']
                 if scan_report['scope']['paths_written'] or scan_report['scope']['network_endpoints']:
                     resp['scan_scope'] = scan_report['scope']
+                _cr = scan_report.get('capabilities')
+                if _cr:
+                    resp['capabilities'] = {k: _cr[k] for k in
+                                            ('declared', 'missing', 'suggested') if _cr.get(k) is not None}
             return jsonify(resp)
         except ValueError as e:
             return jsonify({"code": 400, "message": str(e)}), 400
@@ -238,24 +243,37 @@ def register(app):
                 pass
 
     def _scan_gate(temp_path, action, plugin_name):
-        """静态扫描门禁（v4.3.1）：返回 (scan_report|None, 错误响应|None)
-        - PLUGIN_SCAN_MODE=off：跳过；report：仅报告（高风险告警日志 + 响应附扫描摘要）；
-        - enforce：存在高风险即拒绝安装/更新，响应附完整报告。"""
+        """静态扫描 + capabilities 交叉校验门禁（v4.3.1/v4.3.2）：返回 (scan_report|None, 错误响应|None)
+        - PLUGIN_SCAN_MODE=off：跳过；report：仅报告（告警日志 + 响应附扫描/能力摘要）；
+        - enforce：存在高风险 **或 capabilities 未声明行为** 即拒绝安装/更新，响应附完整报告。"""
         if global_var.PLUGIN_SCAN_MODE == 'off':
             return None, None
         report = scan_plugin_zip(temp_path)
-        if global_var.PLUGIN_SCAN_MODE == 'enforce' and should_block(report):
-            n_high = report['summary']['high']
+        # capabilities 交叉校验（v4.3.2）：声明白名单 × 扫描行为范围
+        caps = read_pack_capabilities(temp_path)
+        cap_res = cross_validate(plugin_name, report, caps)
+        report['capabilities'] = cap_res
+        blocked = should_block(report) or not cap_res['ok']
+        if global_var.PLUGIN_SCAN_MODE == 'enforce' and blocked:
+            reasons = []
+            if report['summary']['high']:
+                reasons.append(f"静态扫描 {report['summary']['high']} 项高风险行为")
+            if not cap_res['ok']:
+                reasons.append(f"capabilities 未声明行为 {len(cap_res['missing'])} 项（{'; '.join(cap_res['missing'][:5])}）")
             log_audit(action, plugin_name, 'blocked',
-                      f"静态扫描高风险 {n_high} 项，PLUGIN_SCAN_MODE=enforce 拒绝")
+                      "；".join(reasons) + "，PLUGIN_SCAN_MODE=enforce 拒绝")
             return report, (jsonify({
                 "code": 400,
-                "message": f"静态扫描发现 {n_high} 项高风险行为（PLUGIN_SCAN_MODE=enforce 已拒绝{action}）",
+                "message": "；".join(reasons) + f"（PLUGIN_SCAN_MODE=enforce 已拒绝{action}）",
                 "scan_report": report,
             }), 400)
         if report['summary']['high'] > 0:
             logger.warning(
                 f"插件包静态扫描发现 {report['summary']['high']} 项高风险（report 模式放行）: {plugin_name}",
+                extra={'plugin': 'system'})
+        if not cap_res['ok']:
+            logger.warning(
+                f"插件包 capabilities 未声明行为 {len(cap_res['missing'])} 项（report 模式放行）: {plugin_name}",
                 extra={'plugin': 'system'})
         return report, None
 
@@ -322,6 +340,10 @@ def register(app):
                 resp['scan'] = scan_report['summary']
                 if scan_report['scope']['paths_written'] or scan_report['scope']['network_endpoints']:
                     resp['scan_scope'] = scan_report['scope']
+                _cr = scan_report.get('capabilities')
+                if _cr:
+                    resp['capabilities'] = {k: _cr[k] for k in
+                                            ('declared', 'missing', 'suggested') if _cr.get(k) is not None}
             return jsonify(resp)
         except ValueError as e:
             # 校验类错误：清理可能残留的解压文件

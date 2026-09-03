@@ -9,5 +9,6 @@
   "dependencies": [
     "auth"
   ],
-  "require_framework_version": "4.2.0"
+  "require_framework_version": "4.2.0",
+  "capabilities": []
 }

@@ -6,5 +6,6 @@
   "category": "示例",
   "description": "大插件三要素演示：多模板（主入口 + 3 子页）+ 辅助 .py（multitool_utils）+ 静态资源（css/js）。文本分析小工具。",
   "permission": "user",
-  "require_framework_version": "4.2.0"
+  "require_framework_version": "4.2.0",
+  "capabilities": []
 }

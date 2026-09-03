@@ -19,6 +19,8 @@
 - API    /api/hello_plugin/user     （登录后可访问）
 - API    /api/hello_plugin/admin    （仅管理员）
 """
+import json
+import os
 from typing import List, Dict
 
 from flask import request
@@ -93,6 +95,13 @@ class HelloPlugin(BasePlugin):
                 "view_func": self.api_admin,
             },
             {
+                "path": "/data-demo",
+                "name": "数据目录演示（public，v4.3.2）",
+                "methods": ["GET"],
+                "params": [],
+                "view_func": self.api_data_demo,
+            },
+            {
                 "path": "/config",
                 "name": "读取配置（user 权限）",
                 "methods": ["GET"],
@@ -152,6 +161,26 @@ class HelloPlugin(BasePlugin):
             data={"message": "admin 接口仅管理员可访问。",
                   "username": self._current_username()},
             message="admin 接口调用成功",
+        )
+
+    @permission_required("public")
+    def api_data_demo(self):
+        """游客可访问：演示插件专属数据目录（v4.3.2 get_data_path）
+        写入 plugins/data/hello_plugin/visits.json —— 自属路径隐式豁免，无需声明 capabilities"""
+        path = self.get_data_path('visits.json')
+        visits = 0
+        if os.path.exists(path):
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    visits = json.load(f).get("visits", 0)
+            except Exception:
+                visits = 0
+        visits += 1
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump({"visits": visits}, f, ensure_ascii=False)
+        return self.success_response(
+            data={"visits": visits, "data_file": path.replace("\\", "/")},
+            message="插件数据目录读写成功（隐式豁免，无需声明）",
         )
 
     @permission_required("user")

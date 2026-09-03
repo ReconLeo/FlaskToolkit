@@ -24,11 +24,7 @@ import os
 import time
 from typing import List, Dict
 
-from global_var import BASE_DIR
 from plugins.base_plugin import BasePlugin, permission as permission_required
-
-# 心跳记录文件（运行时数据，不入库）
-HEARTBEAT_FILE = os.path.join(BASE_DIR, 'data', 'scheduler_demo.json')
 
 # 心跳最大保留条数
 MAX_HEARTBEATS = 200
@@ -93,18 +89,24 @@ class SchedulerDemoPlugin(BasePlugin):
         self._save(data)
 
     def _load(self) -> List[Dict]:
-        if not os.path.exists(HEARTBEAT_FILE):
+        path = self.heartbeat_file
+        if not os.path.exists(path):
             return []
         try:
-            with open(HEARTBEAT_FILE, "r", encoding="utf-8") as f:
+            with open(path, "r", encoding="utf-8") as f:
                 return json.load(f)
         except Exception:
             return []
 
     def _save(self, data: List[Dict]):
-        os.makedirs(os.path.dirname(HEARTBEAT_FILE), exist_ok=True)
-        with open(HEARTBEAT_FILE, "w", encoding="utf-8") as f:
+        with open(self.heartbeat_file, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
+
+    @property
+    def heartbeat_file(self):
+        """心跳持久化文件（v4.3.2）：get_data_path → plugins/data/scheduler_demo/，
+        自属路径隐式豁免，无需 capabilities 声明"""
+        return self.get_data_path('heartbeats.json')
 
     # ---------------- 路由 ----------------
     @property

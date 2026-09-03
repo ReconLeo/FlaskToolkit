@@ -18,6 +18,8 @@ import global_var
 from core.logging_setup import PluginLogAdapter
 from core.permission import wrap_page_func, wrap_view_func
 from core.plugin_cache import (is_cache_valid, load_plugin_cache, save_plugin_cache, scan_plugin_metadata)
+from core.capabilities import (clear_capabilities, load_capabilities_from_desc,
+                              register_capabilities)
 from core.plugin_pack import check_framework_version
 from core.plugin_status import load_plugin_status
 from core.stats import save_stats
@@ -150,6 +152,10 @@ def load_plugins():
 
     logger.info(f"插件加载顺序: {', '.join(sorted_plugin_names)}", extra={'plugin': 'system'})
 
+    # 能力注册表清空（v4.3.2）：重载时按现存插件重建，
+    # 作为阶段三（4.4.0）运行时审计钩子的授权基准
+    clear_capabilities()
+
     # ==================== 按顺序加载插件 ====================
     loaded_plugins = []
     for plugin_name in sorted_plugin_names:
@@ -167,6 +173,11 @@ def load_plugins():
                         extra={'plugin': 'system'},
                     )
                     continue
+
+            # 注册能力声明（v4.3.2）：从插件描述文件读取 capabilities 并注册
+            caps = load_capabilities_from_desc(
+                os.path.join(global_var.BASE_DIR, 'plugins', f'{plugin_name}.json'))
+            register_capabilities(plugin_instance.name, caps)
 
             # 注入logger
             plugin_instance.logger = PluginLogAdapter(logger, {'plugin': plugin_instance.name})

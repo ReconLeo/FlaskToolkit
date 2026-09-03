@@ -110,6 +110,25 @@ class BasePlugin(ABC):
         route 级 `max_upload`（MB）优先于本属性。"""
         return None
 
+    @property
+    def data_dir(self):
+        """插件专属数据目录 `plugins/data/<name>/`（v4.3.2）。
+        首次访问自动创建；该目录与 `plugins/configs/<name>.json`、`plugins/temp/<name>/`
+        同属插件自属路径，在 capabilities 声明模型中**隐式豁免**（无需声明即可读写）。
+        跨插件读写他人数据目录仍需显式声明 `filesystem:read/write`。"""
+        d = os.path.join(os.path.dirname(__file__), 'data', self.name)
+        os.makedirs(d, exist_ok=True)
+        return d
+
+    def get_data_path(self, *sub):
+        """拼接插件数据目录下的文件/子目录路径（自动创建父目录）。
+        用法：`self.get_data_path('sessions.json')` → plugins/data/<name>/sessions.json"""
+        p = os.path.join(self.data_dir, *sub)
+        parent = os.path.dirname(p)
+        if parent and not os.path.isdir(parent):
+            os.makedirs(parent, exist_ok=True)
+        return p
+
     def __init__(self):
         self.config = {}
         self.load_config()

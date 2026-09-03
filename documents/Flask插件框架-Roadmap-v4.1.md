@@ -1,9 +1,9 @@
 # FlaskToolkit 插件框架 Roadmap
 
-| 版本 | v4.1（稳定版前） | 更新日期 | 2026年08月23日 |
-|------|----------------|---------|---------------|
+| 版本 | v4.3（安全大更新） | 更新日期 | 2026年09月03日 |
+|------|-------------------|---------|---------------|
 
-> 本文档梳理框架在 **v4 系列转入稳定版前** 的提升方向，按优先级（P0 安全/数据完整性 → P1 测试/工程化 → P2 体验/可维护性）分级，并标注每项的落地状态。具体开发规范见《Flask插件框架开发规范-v4.0.md》。
+> 本文档梳理框架的提升方向：v4.1 稳定版前（P0 安全/数据完整性 → P1 测试/工程化 → P2 体验/可维护性）与 **v4.3 安全大更新**（见第六章）。每项标注落地状态，具体开发规范见《Flask插件框架开发规范-v4.0.md》。
 
 ---
 
@@ -52,6 +52,29 @@
 
 | 版本 | 状态 |
 |------|------|
-| v4.2.0（当前） | 框架版本升级 4.1.0→4.2.0；大插件多模板页面路由（page=True + 模板命名空间 + render 助手）；示例 multitool_demo；回归测试 16 脚本 306 项（CI 已接入） |
+| v4.3.2（当前） | 插件 capabilities 声明模型（P1 阶段二）：8 域能力白名单 + 安装交叉校验 + 建议声明生成 + 自属路径隐式豁免 + base_plugin data_dir API + 运行时授权基准；回归 21 脚本 447 项 |
+| v4.4.0（计划） | 运行时审计钩子（P1 阶段三）：sys.addaudithook + AUDIT_HOOK_MODE 三档 + capabilities/网络白名单阻断 |
+| v4.3.1（已完成） | 插件静态扫描 + 配置预设（P1 阶段一）：AST 扫描器、PLUGIN_SCAN_MODE 门禁、tools/scan.py、config profile 三预设；回归 20 脚本 396 项 |
+| v4.3.0（已完成） | 系统安全强化（P0）：安全响应头/Cookie 加固/空闲超时/登录锁定；回归 19 脚本 361 项 |
+| v4.2.2（已完成） | 文件传输强化：全局上传上限/route 级覆盖/中文名下载/Range；on_ready 钩子 |
+| v4.2.1（已完成） | public_page 豁免 + CSRF 单值注入修复 |
+| v4.2.0（已完成） | 框架版本升级 4.1.0→4.2.0；大插件多模板页面路由（page=True + 模板命名空间 + render 助手）；示例 multitool_demo；回归测试 16 脚本 306 项（CI 已接入） |
 | v4.1.0（已完成） | P0/P1/P2 全落地；回归测试入项目 tests/（222 项）；配置 CLI（tools/config.py）；tools/backup.py + reset.py 备份/深度重置；启动完整性自检；CI 接入 |
 | v4.1.0（规划） | CI 接入；P2 项按需选取 |
+
+
+---
+
+## 六、v4.3 安全大更新（Security Hardening，2026-09 起）
+
+> 背景：框架已在可信局域网自托管场景稳定运行，启动针对**外部（局域网环境暴露面）**与**内部（插件恶意代码）**的双重安全加固。整体分三阶段渐进合入，每阶段独立成版本、独立回归。审计建议整合：①分散的"严格模式"开关收拢为配置预设；②插件读写范围显式声明；③联网声明细化为网络白名单（类防火墙）。
+
+| 阶段 | 版本 | 状态 | 内容 |
+|------|------|------|------|
+| P0 系统安全强化 | **v4.3.0** | ✅ 已完成（`f71b000`） | 统一安全响应头（CSP/X-Frame-Options/nosniff/no-referrer/Permissions-Policy + 移除指纹头）；会话 Cookie 加固（HttpOnly+SameSite+可选 Secure）；会话空闲超时（30 分钟）；登录失败锁定三档（ip_username/username/off，阈值可配置，锁定期间通用 429）。全部配置项经 config CLI 调整。 |
+| P1-阶段一 静态扫描 | **v4.3.1** | ✅ 已完成（`20763b4`） | `core/plugin_scanner.py` AST 级扫描器（危险导入/调用、动态执行、混淆检测、socket 服务端、实例别名归因、范围提取 paths_read/paths_written/network_endpoints）+ 前端 HTML 正则扫描；安装链路门禁 `PLUGIN_SCAN_MODE`（off/report/enforce）四端点接入；`tools/scan.py` 分发前自检 CLI；`tools/config.py profile` 三套配置预设（daily/strict/lan-open）。回归 20 脚本 396 项。 |
+| P1-阶段二 capabilities 声明模型 | **v4.3.2** | ✅ 已完成 | 插件能力白名单声明（Deny by Default）：plugin.json 可选 `capabilities` 字段，8 大域能力目录（filesystem/network/webhook/process/scheduler/database/device/env），安装时与静态扫描范围**交叉校验**产生 mismatch 清单；**自属路径隐式豁免**（plugins/configs/<name>.json、plugins/data/<name>/**、plugins/temp/<name>/**，base_plugin 框架化 data_dir API）；建议声明自动生成（suggested_capabilities）；声明结果落盘成为阶段三运行时授权基准。 |
+| P1-阶段三 运行时审计钩子 | **v4.4.0** | 📋 计划 | `sys.addaudithook` 监听 open/os.remove/subprocess.Popen/socket.connect/socket.bind；调用栈 plugins/ 来源判定插件归属；`AUDIT_HOOK_MODE` 三档（off/observe 默认记录未授权访问/enforce 按 capabilities + 网络白名单阻断——"防火墙"落地）；与 core/audit.py JSONL 审计日志整合。 |
+| 远期规划 | — | 📋 暂不实施 | 权限模型细化（超级管理员/普通管理员仅管理特定功能）；进程级沙箱（内存/CPU 配额）；CSP 收紧为严格策略。 |
+
+**阶段依赖链**：静态扫描（范围输出=事实基准）→ capabilities 声明（授权声明）→ 运行时审计钩子（以声明为授权依据的运行时防线）。三阶段构成"安装时静态审查 → 安装时授权比对 → 运行时兜底"的纵深防御。
