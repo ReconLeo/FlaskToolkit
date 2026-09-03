@@ -40,14 +40,25 @@ examples/dist/
 # 历史版本文档统一归档在 documents/archive/（不入库），当前文档保留在 documents/ 根目录
 documents/archive/
 
-# ---------- Kaleido 插件子项目本地产物（不入主仓库） ----------
+# ---------- Kaleido / AirDrop 插件子项目本地产物（不入主仓库） ----------
 plugins/kaleido_*.py
 plugins/kaleido_*.json
 templates/plugins/kaleido_*/
 templates/frontend_tools/kaleido_*.html
 templates/frontend_tools/static/
+# AirDrop（局域网文件共享）独立子项目插件落地文件（不入主仓库）
+plugins/airdrop.py
+plugins/airdrop.json
+templates/plugins/airdrop/
+templates/plugins/static/airdrop/
 frontend_tools.json  # 前端工具注册清单（运行时配置，install_all/上传时重建）
 .version
+
+# ---------- 灵犀会话工作区残留 / 插件默认目录缓存 ----------
+/20*/
+__NEW_PLUGIN_DEFAULT__/
+# 测试运行时产物（test_file_transfer 下载样例 / test_security 备份等，运行自动重建）
+tests/fixtures/
 
 # ---------- 操作系统 / 编辑器 ----------
 .DS_Store

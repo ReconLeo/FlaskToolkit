@@ -1,6 +1,15 @@
 # Flask插件框架开发规范
 
-## 版本：v4.2.2（文件传输强化） | 更新日期：2026年08月26日
+## 版本：v4.3.0（系统安全强化） | 更新日期：2026年09月03日
+
+### 版本说明（v4.3.0 变更，系统安全强化）
+- **框架版本升级至 v4.3.0**（`global_var.FRAMEWORK_VERSION`）：外部（局域网环境）与内部（插件恶意代码）双重安全加固的第一阶段（P0），全部项可经 config CLI 调整。
+- **统一安全响应头（10.2）**：所有响应注入 5 项安全头——`X-Content-Type-Options: nosniff` / `X-Frame-Options: DENY` / `Content-Security-Policy`（默认"宽"策略允许 inline script/style 兼容存量插件，P1 静态扫描就绪后收紧）/ `Referrer-Policy: no-referrer` / `Permissions-Policy`（禁用摄像头/麦克风/定位）；同时移除 `Server` / `X-Powered-By` 隐藏框架指纹。由 `SECURITY_HEADERS` 开关控制（默认开启）。
+- **会话 Cookie 加固（6.2 / auth）**：登录会话 token 与 CSRF token Cookie 均携带 `HttpOnly`（token）+ `SameSite=Lax`；新增 `SESSION_COOKIE_SECURE`（默认 False，兼容 HTTP 局域网部署；HTTPS 部署置 True 后 Cookie 带 `Secure` 属性，防中间人窃取）。
+- **会话空闲超时（auth）**：新增 `SESSION_IDLE_TIMEOUT`（默认 30 分钟）：会话在最后活动时间后超过阈值即失效（`verify_token` 校验并在有效请求时刷新 `last_active_at`，仅内存不落盘）。
+- **登录失败锁定（auth）**：新增 `LOGIN_LOCK_MODE` 三档开关——`ip_username`（默认，IP+用户名双维度，防分布式爆破）/ `username`（仅用户名维度）/ `off`（禁用锁定，不安全，仅信任局域网时使用）；阈值 `LOGIN_MAX_ATTEMPTS`（默认 5 次）与锁定时长 `LOGIN_LOCK_SECONDS`（默认 15 分钟）可配置；锁定期间统一返回 **429 通用错误信息**（不泄露锁定剩余时间等细节）；登录成功后自动清除失败计数。
+- **回归测试扩充至 19 脚本 361 项**：新增 `test_security.py`（30 项：安全响应头 8 项 / Cookie 加固 6 项 / 空闲超时 5 项 / 登录锁定 ip_username 6 项 / username 2 项 / off 2 项 / 成功重置 1 项），已纳入 CI。
+- **未来计划（P1，暂不实施）**：运行时审计钩子、插件 capabilities 声明模型、静态扫描工具；权限模型细化（超级管理员 / 普通管理员仅管理特定功能）列为远期规划。
 
 ### 版本补充说明（2026-08-26，AirDrop 插件化改造同步）
 - **插件公开页面能力（8.1 / 4.5.1）**：`/plugin/<name>` 页面默认要求登录（全局守卫）。新增插件级豁免：插件实例声明 `public_page=True` 时其 `/plugin/` 页面免登录（对局域网公开工具 / 信息落地页友好，默认 False 不影响其他插件）。
@@ -107,7 +116,7 @@ FlaskToolkit/
 │   ├── package.py             #   插件包打包/签名/校验 CLI（genkey/pack/verify/show）
 │   ├── backup.py              #   手动备份/恢复工具（Factory Reset 前备份关键数据）
 │   └── reset.py               #   深度重置工具（服务停止时使用，绕过运行时文件锁定）
-├── tests/                     # 回归测试套件（18 脚本 331 项 + 端到端链路验证）
+├── tests/                     # 回归测试套件（19 脚本 361 项 + 端到端链路验证）
 ├── templates/                 # 页面模板（首页/登录/错误码页 400-500/admin 管理后台/插件页）
 │   ├── admin/                 #   管理后台（dashboard / plugins / logs / stats / system）
 │   ├── frontend_tools/        #   前端工具模板
@@ -706,19 +715,34 @@ def validate_params(self, params):
 - 管理后台「插件管理」页安装/更新/启用插件前，请确认插件包来源与内容。
 - 框架不对插件行为做运行时隔离；插件导致的任何数据/安全影响由安装者自行承担。
 
-### 10.2 上传大小限制
+### 10.2 系统安全配置（v4.3.0）
+
+框架提供系统级安全开关（`global_var` 配置项，经 `tools/config.py` 调整，见 8.1）：
+
+| 配置项 | 默认值 | 说明 |
+|--------|--------|------|
+| `SECURITY_HEADERS` | `True` | 统一注入安全响应头（X-Content-Type-Options / X-Frame-Options / CSP / Referrer-Policy / Permissions-Policy）并移除 Server / X-Powered-By 指纹头 |
+| `SESSION_COOKIE_SECURE` | `False` | 会话 Cookie 加 Secure 属性（仅 HTTPS 生效；HTTP 局域网部署保持 False，否则浏览器丢弃 Cookie） |
+| `LOGIN_MAX_ATTEMPTS` | `5` | 登录连续失败锁定阈值（次） |
+| `LOGIN_LOCK_SECONDS` | `900` | 登录失败锁定时长（秒，默认 15 分钟） |
+| `LOGIN_LOCK_MODE` | `ip_username` | 登录锁定维度：`username`=仅用户名 / `ip_username`=IP+用户名（默认，防分布式爆破）/ `off`=禁用锁定（不安全，仅信任局域网时使用） |
+| `SESSION_IDLE_TIMEOUT` | `1800` | 会话空闲超时（秒，默认 30 分钟；超过未活动即失效） |
+
+**登录失败锁定行为**：锁定期间登录接口统一返回 HTTP 429 与通用错误信息（不泄露锁定剩余时间等细节）；登录成功后自动清除对应维度的失败计数；锁定计数仅存内存（重启即清零）。
+
+### 10.3 上传大小限制
 
 - 管理后台上传的**后端插件包**与**前端工具包**统一受 `global_var.PACKAGE_MAX_UPLOAD_SIZE`（默认 10MB）限制，超限返回 `413 Payload Too Large`。
 - 插件自身提供的「数据上传」接口大小由插件通过 `BasePlugin.max_upload_size` 自行约束（默认 10MB）。
 
-### 10.3 Factory Reset（恢复出厂设置）
+### 10.4 Factory Reset（恢复出厂设置）
 
 - 设计意图：将部分/全部框架数据还原至安装初始状态，**不提供自动备份**（数据丢失由用户自行承担）。
 - **此操作不可逆**：执行前请务必手动备份关键数据（`plugins/configs/`、`data/`、`frontend_tools.json` 等）。
 - 管理后台重置弹窗已内置「不可撤销、请先备份」的风险提示，确认后才会执行。
 - 内置插件（`auth`、`user_manage`）在重置中受保护不被删除；`all` 范围会重置其配置（auth 恢复默认 `admin/admin123`）。
 
-### 10.4 插件包完整性校验与签名（方案C）
+### 10.5 插件包完整性校验与签名（方案C）
 
 `manifest.json`（可选但强烈推荐，位于包根目录）记录包内全部成员的 sha256，随包分发：
 
@@ -810,6 +834,7 @@ FLASKTOOLKIT_HOST=0.0.0.0 FLASKTOOLKIT_PORT=8000 python app.py
 | `test_page_router.py` | 大插件多模板（页面路由 page=True：主入口自动检测、dict/Response 分发、路径参数注入、正斜杠模板名、旧式 page() 兼容）+ 纯 API 无 name 插件调试页回归 | 21 项 |
 | `test_framework_fixes.py` | 框架小修复（v4.2.1）：public_page 豁免（公开页面免登录 200 / 普通插件页面守卫 302）+ plugin_common.js CSRF 单值注入静态断言 | 9 项 |
 | `test_file_transfer.py` | 文件传输强化（v4.2.2）：全局 413 / 插件级 max_upload_size 预检 / route 级 max_upload 覆盖 / 中文名下载 / 下载统计 / Range / on_ready 顺序 | 12 项 |
+| `test_security.py` | 系统安全回归（v4.3.0）：安全响应头注入与开关 / 指纹头移除 / Cookie HttpOnly+SameSite+Secure 联动 / 会话空闲超时 / 登录失败锁定三档（ip_username/username/off）+ 通用 429 + 成功重置 | 30 项 |
 
 ```bash
 cd FlaskToolkit   # 在项目根目录执行
@@ -831,7 +856,8 @@ python tests/test_tools_ops.py         # 19 项（backup/reset/config 运维工�
 python tests/test_page_router.py       # 21 项（大插件多模板页面路由 + 纯 API 无 name 插件调试页回归，隔离目录）
 python tests/test_framework_fixes.py    # 9 项（public_page 豁免 + CSRF 单值注入，隔离目录）
 python tests/test_file_transfer.py       # 12 项（文件传输强化，隔离目录）
-# 合计 18 个脚本 331 项
+python tests/test_security.py            # 30 项（系统安全回归 v4.3.0，隔离目录）
+# 合计 19 个脚本 361 项
 ```
 
 说明：`test_meta_e2e.py` 与 `test_frontend_chain.py` / `test_admin_api.py` / `test_factory_reset.py` / `test_error_pages.py` / `test_package_sign.py` 均通过 mock 基础目录 + `sys.path` 指向临时插件目录运行，不污染真实项目，可重复执行；`test_reload_race.py` 使用 Flask test client，在测试开头手动调用 `load_plugins()` 初始化（`load_plugins` 仅在 `app.py` 的 `main` 段自动调用）。

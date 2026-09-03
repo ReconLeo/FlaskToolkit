@@ -9,11 +9,12 @@
 
 
 def register_routes(app):
-    """聚合注册全部路由（拦截器、公开、插件、前端工具、管理端）"""
-    from routes import interceptor, public, plugin, frontend, admin
+    """聚合注册全部路由（拦截器、公开、插件、前端工具、管理端、安全）"""
+    from routes import interceptor, public, plugin, frontend, admin, security
 
     interceptor.register(app)
     public.register(app)
     plugin.register(app)
     frontend.register(app)
     admin.register(app)
+    security.register(app)

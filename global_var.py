@@ -28,7 +28,7 @@ CACHE_VERSION = 1  # 缓存格式版本，变更时自动失效
 LOG_DIR = os.path.join(BASE_DIR, 'logs')
 
 # ------------------------------ 全局常量 ------------------------------
-FRAMEWORK_VERSION = "4.2.2"  # 框架版本（后端插件 require_framework_version 比较基准）
+FRAMEWORK_VERSION = "4.3.0"  # 框架版本（后端插件 require_framework_version 比较基准）
 # 内置（系统自带）插件清单：Factory Reset 时受保护不删除
 BUILTIN_PLUGINS = ('auth', 'user_manage')
 # 管理后台上传包大小上限（后端插件包 .zip / 前端工具包 .zip 统一限制，单位字节）
@@ -40,6 +40,20 @@ MAX_UPLOAD_SIZE_MB = 100  # 全局默认上传上限（MB，用户可配置）
 PACKAGE_INTEGRITY_MODE = 'warn'
 # 可选：插件包签名公钥 PEM 文件路径。配置后安装带 signature 的包时强制验证签名；不配置则跳过签名验证
 PLUGIN_PUBLIC_KEY_PEM = ''
+
+# ------------------------------ 系统安全配置（v4.3.0，可经 config CLI 调整） ------------------------------
+# 统一注入安全响应头（X-Content-Type-Options/X-Frame-Options/CSP/Referrer-Policy/Permissions-Policy）
+SECURITY_HEADERS = True
+# 会话 Cookie 加 Secure 属性（仅 HTTPS 生效；HTTP 局域网部署保持 False，否则浏览器丢弃 Cookie）
+SESSION_COOKIE_SECURE = False
+# 登录连续失败锁定阈值（次）
+LOGIN_MAX_ATTEMPTS = 5
+# 登录失败锁定时长（秒，默认 15 分钟）
+LOGIN_LOCK_SECONDS = 900
+# 登录锁定维度：username=仅用户名 / ip_username=IP+用户名（默认，防分布式爆破）/ off=禁用锁定（不安全）
+LOGIN_LOCK_MODE = 'ip_username'
+# 会话空闲超时（秒，默认 30 分钟；超过未活动即失效）
+SESSION_IDLE_TIMEOUT = 1800
 
 # ------------------------------ 用户可配置项（由 CLI 工具 tools/config.py 管理） ------------------------------
 # key -> {default, kind, desc}
@@ -66,6 +80,19 @@ CONFIG_ITEMS = {
                            'desc': '全局文件上传大小上限（MB，映射 MAX_UPLOAD_SIZE，MAX_CONTENT_LENGTH 兜底）'},
     'PLUGIN_STRICT_MODE': {'default': False, 'kind': 'bool',
                            'desc': '严格模式：on_load 依赖检查降级由 on_ready 钩子延后（所有插件加载完成后执行）'},
+    'SECURITY_HEADERS': {'default': True, 'kind': 'bool',
+                         'desc': '统一注入安全响应头（X-Content-Type-Options/X-Frame-Options/CSP/Referrer-Policy/Permissions-Policy）'},
+    'SESSION_COOKIE_SECURE': {'default': False, 'kind': 'bool',
+                              'desc': '会话 Cookie 加 Secure 属性（仅 HTTPS 生效；HTTP 局域网部署保持 False，否则浏览器丢弃 Cookie）'},
+    'LOGIN_MAX_ATTEMPTS': {'default': 5, 'kind': 'int',
+                           'desc': '登录连续失败锁定阈值（次）'},
+    'LOGIN_LOCK_SECONDS': {'default': 900, 'kind': 'int',
+                           'desc': '登录失败锁定时长（秒，默认 15 分钟）'},
+    'LOGIN_LOCK_MODE': {'default': 'ip_username', 'kind': 'enum',
+                        'choices': ['username', 'ip_username', 'off'],
+                        'desc': '登录锁定维度：username=仅用户名 / ip_username=IP+用户名（默认）/ off=禁用锁定（不安全，信任局域网时使用）'},
+    'SESSION_IDLE_TIMEOUT': {'default': 1800, 'kind': 'int',
+                             'desc': '会话空闲超时（秒，默认 30 分钟；超过未活动即失效）'},
     'PACKAGE_INTEGRITY_MODE': {'default': 'warn', 'kind': 'enum',
                                'choices': ['strict', 'warn', 'off'],
                                'desc': '插件包完整性校验模式'},

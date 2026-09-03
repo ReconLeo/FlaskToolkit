@@ -8,6 +8,7 @@ import hmac
 import secrets
 from flask import request
 from typing import List, Dict, Optional
+import global_var
 
 class AuthPlugin(BasePlugin):
     name = "auth"
@@ -30,6 +31,9 @@ class AuthPlugin(BasePlugin):
         # 仅做基础初始化，不读取config，避免扫描阶段报错
         self.sessions = {}  # 运行时会话缓存 {token: {user_info}}
         self.SESSION_EXPIRE = None
+        # 登录失败计数（防暴力破解）：{key: {'count': int, 'first_ts': float, 'locked_until': float}}
+        # key 维度由 global_var.LOGIN_LOCK_MODE 决定：username / ip_username
+        self._login_attempts = {}
 
     def on_load(self):
         """插件加载完成后的回调，此时config已完成初始化"""
@@ -131,14 +135,22 @@ class AuthPlugin(BasePlugin):
     # 公开方法：对user_manage插件暴露的能力
     # ------------------------------
     def verify_token(self, token: str) -> dict | None:
-        """校验token有效性，返回用户信息/None"""
+        """校验token有效性，返回用户信息/None
+        规则：绝对过期（expire_at）与空闲超时（last_active_at + SESSION_IDLE_TIMEOUT）
+        任一命中即失效；有效请求会刷新 last_active_at（v4.3.0）。"""
         if not token:
             return None
         session = self.sessions.get(token)
-        if not session or session["expire_at"] < time.time():
+        if not session:
+            return None
+        now = time.time()
+        idle_timeout = getattr(global_var, 'SESSION_IDLE_TIMEOUT', 1800)
+        if session["expire_at"] < now or now - session.get("last_active_at", now) > idle_timeout:
             self.sessions.pop(token, None)
             self._save_sessions()
             return None
+        # 刷新活动时间（仅内存，不落盘，避免高频写盘）
+        session["last_active_at"] = now
         return session
 
     def login(self, username: str, password: str) -> tuple[bool, str, dict]:
@@ -151,13 +163,15 @@ class AuthPlugin(BasePlugin):
                         user["password"] = self._hash_password(password)
                         self.save_config()
                     token = uuid.uuid4().hex
+                    now = time.time()
                     user_info = {
                         "id": user.get("id", 0),
                         "username": username,
                         "nickname": user.get("nickname", username),
                         "role": user.get("role", "user"),
                         "create_time": user.get("create_time", int(time.time())),
-                        "expire_at": time.time() + self.SESSION_EXPIRE
+                        "expire_at": now + self.SESSION_EXPIRE,
+                        "last_active_at": now  # 会话空闲超时基准（v4.3.0）
                     }
                     self.sessions[token] = user_info
                     self._save_sessions()
@@ -261,6 +275,61 @@ class AuthPlugin(BasePlugin):
     # ------------------------------
     # 私有方法：内部工具
     # ------------------------------
+    # ------------------------------
+    # 登录失败锁定（v4.3.0 安全强化）
+    # ------------------------------
+    def _login_lock_key(self, username: str) -> Optional[str]:
+        """计算锁定维度 key；LOGIN_LOCK_MODE=off 时返回 None（禁用锁定）"""
+        mode = getattr(global_var, 'LOGIN_LOCK_MODE', 'ip_username')
+        if mode == 'off':
+            return None
+        if mode == 'username':
+            return f"u:{username}"
+        # ip_username（默认）：IP+用户名双维度，防分布式爆破
+        client_ip = request.remote_addr or 'unknown'
+        return f"ip:{client_ip}:u:{username}"
+
+    def _check_login_locked(self, username: str) -> tuple:
+        """检查是否处于锁定期，返回 (是否锁定, 剩余秒数)"""
+        key = self._login_lock_key(username)
+        if key is None:
+            return False, 0
+        record = self._login_attempts.get(key)
+        if not record:
+            return False, 0
+        now = time.time()
+        locked_until = record.get("locked_until", 0)
+        if locked_until and locked_until > now:
+            return True, int(locked_until - now)
+        # 锁定已过期：清理记录，下次失败重新计数；locked_until=0 表示从未锁定，保留记录继续累计
+        if locked_until:
+            self._login_attempts.pop(key, None)
+        return False, 0
+
+    def _record_login_failure(self, username: str) -> None:
+        """记录一次登录失败；连续失败达阈值触发锁定"""
+        key = self._login_lock_key(username)
+        if key is None:
+            return
+        now = time.time()
+        max_attempts = getattr(global_var, 'LOGIN_MAX_ATTEMPTS', 5)
+        lock_seconds = getattr(global_var, 'LOGIN_LOCK_SECONDS', 900)
+        record = self._login_attempts.get(key)
+        if not record:
+            record = {"count": 0, "first_ts": now, "locked_until": 0}
+            self._login_attempts[key] = record
+        record["count"] += 1
+        if record["count"] >= max_attempts:
+            record["locked_until"] = now + lock_seconds
+            record["count"] = 0  # 触发锁定后重置计数，锁定到期后重新累计
+            self.logger.warning(f"登录失败次数过多，已锁定（{lock_seconds}s）: {key}")
+
+    def _clear_login_attempts(self, username: str) -> None:
+        """登录成功后清除该维度的失败计数"""
+        key = self._login_lock_key(username)
+        if key is not None:
+            self._login_attempts.pop(key, None)
+
     def _hash_password(self, password: str) -> str:
         """PBKDF2-SHA256 密码哈希，返回格式: pbkdf2_sha256$iterations$salt_hex$hash_hex"""
         salt = os.urandom(16)
@@ -357,8 +426,14 @@ class AuthPlugin(BasePlugin):
         password = data.get("password")
         if not username or not password:
             return self.error_response("用户名和密码不能为空", 400)
+        # 登录失败锁定检查（v4.3.0）：锁定期间返回通用错误信息，不泄露锁定细节
+        locked, _ = self._check_login_locked(username)
+        if locked:
+            return self.error_response("尝试次数过多，请稍后再试", 429)
         success, token, user = self.login(username, password)
         if success:
+            # 登录成功，清除该维度的失败计数
+            self._clear_login_attempts(username)
             response = self.success_response(data={
                 "token": token,
                 "id": user["id"],
@@ -373,7 +448,8 @@ class AuthPlugin(BasePlugin):
                 max_age=self.SESSION_EXPIRE,
                 path='/',
                 httponly=True,
-                samesite='Lax'
+                samesite='Lax',
+                secure=global_var.SESSION_COOKIE_SECURE
             )
             # CSRF token：非 HttpOnly Cookie，前端读取后放入 X-CSRF-Token 头（双提交校验）
             csrf_token = secrets.token_hex(16)
@@ -383,9 +459,12 @@ class AuthPlugin(BasePlugin):
                 max_age=self.SESSION_EXPIRE,
                 path='/',
                 httponly=False,
-                samesite='Lax'
+                samesite='Lax',
+                secure=global_var.SESSION_COOKIE_SECURE
             )
             return response
+        # 登录失败：记录失败计数，连续达阈值触发锁定
+        self._record_login_failure(username)
         return self.error_response("用户名或密码错误", 401)
     
     @permission_required("public")
