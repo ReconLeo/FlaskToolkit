@@ -78,6 +78,59 @@ check("B1 plugins 帧识别", _mod.who() == 'attr_demo', f"got={_mod.who()}")
 check("B2 框架来源放行（tests/ 帧）", AH._locate_plugin() is None)
 check("B3 嵌套调用（插件→工具函数）归因", _mod.nested() == 'attr_demo', f"got={_mod.nested()}")
 
+# v4.6.0 修复：框架加载器帧放行——core/plugin_cache.py（或 plugin_loader.py）
+# 经 importlib 导入插件时栈中含加载器帧，open(base_plugin.py) 不得归因插件
+# （enforce 下若误归因，任何插件安装/加载都会被未声明 filesystem:read 拒绝）
+_loader_dir = tempfile.mkdtemp(prefix='ftk_loader_')
+os.makedirs(os.path.join(_loader_dir, 'core'), exist_ok=True)
+_loader_cache = os.path.join(_loader_dir, 'core', 'plugin_cache.py')
+with open(_loader_cache, 'w', encoding='utf-8') as f:
+    f.write('''# -*- coding: utf-8 -*-
+from core import audit_hook as _ah
+
+def scan():
+    # 模拟 scan_plugin_metadata：栈中保留 core/plugin_cache.py 帧
+    return _ah._locate_plugin()
+''')
+_spec2 = importlib.util.spec_from_file_location('fake_plugin_cache', _loader_cache)
+_mod2 = importlib.util.module_from_spec(_spec2)
+_spec2.loader.exec_module(_mod2)
+check("B4 框架加载器帧放行（core/plugin_cache.py）", _mod2.scan() is None,
+      f"got={_mod2.scan()}")
+
+# v4.6.0 修复：插件包辅助模块（非 BasePlugin 子类）不得被归因为独立插件名——
+# 主插件自属路径隐式豁免需按主插件名判定（enforce 下辅助模块文件读写不误拦）
+# 单模块内同时含辅助函数与插件类——模拟插件包辅助模块归因场景。
+# 注意：不得 import 真实 plugins.base_plugin（会把真实基类/包缓存进 sys.modules，
+# 污染 E 组隔离环境重载）——改用模块内自定义 BasePlugin 桩类即可让
+# _module_defines_plugin_class 通过 __mro__ 名称判定。
+_helper_dir = tempfile.mkdtemp(prefix='ftk_helper_')
+os.makedirs(os.path.join(_helper_dir, 'plugins'), exist_ok=True)
+_helper_main = os.path.join(_helper_dir, 'plugins', 'demo_main.py')
+with open(_helper_main, 'w', encoding='utf-8') as f:
+    f.write('''# -*- coding: utf-8 -*-
+from core import audit_hook as _ah
+
+class BasePlugin:  # 桩基类（模拟，勿 import 真实基类避免污染 sys.modules）
+    pass
+
+def util_who():
+    # 模拟 corp_utils 等辅助函数：直接调 _locate_plugin
+    return _ah._locate_plugin()
+
+class DemoMainPlugin(BasePlugin):
+    name = "demo_main"
+
+    def via_helper(self):
+        return util_who()
+''')
+_spec3 = importlib.util.spec_from_file_location('demo_main_mod', _helper_main)
+_mod3 = importlib.util.module_from_spec(_spec3)
+_spec3.loader.exec_module(_mod3)
+check("B5 辅助模块归因主插件（跳过非插件类帧）",
+      _mod3.DemoMainPlugin().via_helper() == 'demo_main',
+      f"got={_mod3.DemoMainPlugin().via_helper()}")
+
 # ============ C：observe 模式（mock 归因，直接分派；不装真钩子） ============
 _orig_locate = AH._locate_plugin
 AH._MODE = 'observe'

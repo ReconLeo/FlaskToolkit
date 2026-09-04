@@ -169,15 +169,57 @@ def _is_interpreter_path(path):
     return norm.startswith(_SYS_PREFIX) or '/__pycache__/' in norm
 
 
+# 框架导入插件的唯二入口（scan_plugin_metadata / load_plugins 内的 import_module）：
+# 调用栈中出现这些帧，说明 open/import 等事件属框架加载链路，不归因插件。
+_FRAMEWORK_LOADER_MARKERS = (
+    _norm_slash(os.path.join('core', 'plugin_cache.py')),
+    _norm_slash(os.path.join('core', 'plugin_loader.py')),
+)
+
+
+def _module_defines_plugin_class(frame) -> bool:
+    """该栈帧所在模块是否定义了 BasePlugin 子类（即插件主模块）。
+    插件包辅助模块（corp_utils.py 等）不定义插件类——需向上归因到主插件，
+    否则辅助模块被当作独立插件名，主插件自属路径隐式豁免将不生效。"""
+    try:
+        for v in frame.f_globals.values():
+            if isinstance(v, type) and v.__name__ != 'BasePlugin':
+                try:
+                    mro = v.__mro__
+                except Exception:
+                    continue
+                if any(b.__name__ == 'BasePlugin' for b in mro):
+                    return True
+    except Exception:
+        pass
+    return False
+
+
 def _locate_plugin():
     """遍历调用栈，定位 plugins/<name>.py 最近帧的插件名。
-    base_plugin（框架内置）不视为插件来源；无插件帧返回 None（放行）。"""
-    found = None
+    base_plugin（框架内置）不视为插件来源；无插件帧返回 None（放行）。
+
+    v4.6.0 修复（enforce 下插件无法加载/辅助模块误归因）：
+    1) 框架自身扫描/加载插件时（core/plugin_cache.scan_plugin_metadata /
+       core/plugin_loader.load_plugins 经 importlib.import_module 导入插件），
+       模块顶层 `from plugins.base_plugin import ...` 触发 open(base_plugin.py)，
+       调用栈同时含 core/plugin_cache.py（或 plugin_loader.py）与 plugins/<name>.py
+       帧——若只按 /plugins/ 匹配会把框架加载读取误归因为插件，enforce 下任何
+       插件安装/加载都会被未声明 filesystem:read 拒绝 → 栈中含加载器帧即放行。
+    2) 插件包辅助模块（corp_utils.py 等，无 BasePlugin 子类）被误归因为独立插件名，
+       使主插件自属路径（plugins/data/<name>/、plugins/configs/<name>.json）隐式豁免
+       失效 → 优先归因"定义了 BasePlugin 子类"的最近帧；全部无插件类时回退最近帧。
+    """
+    found = []
     frame = sys._getframe(1)
     while frame is not None:
         fname = frame.f_globals.get('__file__')
         if fname:
             norm = _norm_slash(fname)
+            # 1) 框架加载链路：栈中存在加载器帧 → 框架行为，不归因
+            for m in _FRAMEWORK_LOADER_MARKERS:
+                if norm.endswith(m):
+                    return None
             marker = '/plugins/'
             idx = norm.find(marker)
             if idx >= 0:
@@ -186,10 +228,16 @@ def _locate_plugin():
                 if name.endswith('.py'):
                     name = name[:-3]
                 if name and name != 'base_plugin':
-                    found = name
-                    break  # 最近调用者优先
+                    found.append((name, frame))
         frame = frame.f_back
-    return found
+    if not found:
+        return None
+    # 2) 优先归因定义了插件类的最近帧（主插件），辅助模块帧跳过
+    for name, fr in found:
+        if _module_defines_plugin_class(fr):
+            return name
+    # 3) 全栈无插件类（纯函数模块被直接调用等）→ 回退最近帧
+    return found[0][0]
 
 
 # ------------------------------ 授权判定 ------------------------------
