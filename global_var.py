@@ -29,7 +29,12 @@ CACHE_VERSION = 1  # 缓存格式版本，变更时自动失效
 LOG_DIR = os.path.join(BASE_DIR, 'logs')
 
 # ------------------------------ 全局常量 ------------------------------
-FRAMEWORK_VERSION = "4.6.0"  # 框架版本（后端插件 require_framework_version 比较基准）
+FRAMEWORK_VERSION = "4.7.0"  # 框架版本（后端插件 require_framework_version 比较基准）
+# 项目宣传信息（v4.7.0，只读常量，供 app.py 启动横幅与后台关于页展示）
+PROJECT_NAME = "FlaskToolkit"  # 项目名称
+PROJECT_AUTHOR = "ReconLeo"  # 作者/维护者
+PROJECT_GITHUB = "https://github.com/ReconLeo/FlaskToolkit"  # GitHub 仓库地址
+PROJECT_SLOGAN = "轻量插件化全栈工具集"  # 项目标语
 # 内置（系统自带）插件清单：Factory Reset 时受保护不删除
 BUILTIN_PLUGINS = ('auth', 'user_manage')
 # 管理后台上传包大小上限（后端插件包 .zip / 前端工具包 .zip 统一限制，单位字节）
@@ -116,6 +121,10 @@ CONFIG_ITEMS = {
     'PORT': {'default': '', 'kind': 'int', 'desc': '服务端口（留空自动探测，环境变量 FLASKTOOLKIT_PORT 优先）'},
     'DEBUG': {'default': False, 'kind': 'bool',
               'desc': '调试模式（环境变量 FLASKTOOLKIT_DEBUG 优先）'},
+    'SYSTEM_NAME': {'default': 'FlaskToolkit', 'kind': 'str',
+                    'desc': '系统显示名称（v4.7.0，前端主页面/后台页眉展示，仅装饰不影响内部标识）'},
+    'SYSTEM_VERSION_LABEL': {'default': 'v4.7.0', 'kind': 'str',
+                             'desc': '系统版本显示标签（v4.7.0，前端展示用，仅装饰不改 FRAMEWORK_VERSION 逻辑；升级框架时建议同步更新）'},
     'SSL_CERT_FILE': {'default': '', 'kind': 'path',
                       'desc': 'HTTPS 证书 PEM 文件路径（配置后启用 HTTPS；生成自签名证书见 tools/gen_cert.py）'},
     'SSL_KEY_FILE': {'default': '', 'kind': 'path',

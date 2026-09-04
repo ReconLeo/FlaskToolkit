@@ -4,7 +4,7 @@
   <img src="https://github.com/ReconLeo/FlaskToolkit/actions/workflows/ci.yml/badge.svg" alt="CI">
   <img src="https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB?logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/License-MIT-yellow" alt="License">
-  <img src="https://img.shields.io/badge/version-4.6.0-blue" alt="Version">
+  <img src="https://img.shields.io/badge/version-4.7.0-blue" alt="Version">
 </p>
 
 > 一个基于 Flask 的插件化**框架**：把散落的 Python 插件与纯前端工具装进统一的运行时，
@@ -33,9 +33,10 @@
 - 运行时审计防线：基于 sys.addaudithook 的**运行时守卫**拦截插件代码的敏感操作——文件读写删除建目录、子进程、socket 连接/监听、sqlite——经调用栈定位归属插件、按其声明授权判定（网络白名单即"防火墙"）；off / observe / enforce 三档可调，未授权行为按插件聚合展示于管理后台并附可复制的建议声明；
 - 可选 HTTPS：配置 `SSL_CERT_FILE` / `SSL_KEY_FILE` 指向证书与私钥（`python tools/gen_cert.py` 一键生成自签名证书）即以 HTTPS 启动服务，默认仍是 HTTP；前端工具注册清单 `frontend_tools.json` 默认路径迁至 `data/`（旧根目录文件启动时自动迁移）；
 - 登录锁定可后台手动解封：用户管理后台展示锁定状态（登录失败锁定），并支持一键**解封**（`POST /api/user_manage/unlock`）——清除该用户全部维度（IP+用户名 / 仅用户名）的锁定记录，无需等待锁定期满即可立即登录；
-- 补上了插件包的完整性校验与签名、Factory Reset、备份/恢复、启动自检，以及一套 499 项的回归测试和 GitHub Actions CI。
+- 项目宣传与个性化（v4.7.0）：启动横幅（名称/标语/版本/作者/GitHub）、管理后台页眉 GitHub 链接、系统管理页"关于项目"卡片，以及用户可自定义的系统名称与版本标签（`tools/config.py` 的 `SYSTEM_NAME` / `SYSTEM_VERSION_LABEL`），注入所有页面展示（仅装饰，不影响内部标识）；
+- 补上了插件包的完整性校验与签名、Factory Reset、备份/恢复、启动自检，以及一套 500 项的回归测试和 GitHub Actions CI。
 
-坦白说，这框架的目标不是"再造一个 Django"：它站在 Flask、APScheduler、Werkzeug 这些巨人的肩膀上，把我需要的那部分想法落了地。它的信任模型是朴素的——**安装插件即信任其作者**：插件与框架同进程、无沙箱隔离（详见开发规范 10.1）。但框架并没有停留在"裸奔"：在"安装即信任"之上，叠加了**静态扫描（4.3.1）→ 能力声明交叉校验（4.3.2）→ 运行时审计钩子（4.4.0）** 的纵深防御，配合可选 HTTPS（4.5.0）与登录锁定/解封（4.3.0/4.5.1），足以支撑**可信局域网 / 企业内网**的日常工具运行；若要对公网对抗性环境开放，仍需自行评估风险（插件仍无沙箱）。
+坦白说，这框架的目标不是"再造一个 Django"：它站在 Flask、APScheduler、Werkzeug 这些巨人的肩膀上，把我需要的那部分想法落了地。它的信任模型是朴素的——**安装插件即信任其作者**：插件与框架同进程、无沙箱隔离（详见开发规范 10.1）。但框架并没有停留在"裸奔"：在"安装即信任"之上，叠加了**静态扫描（4.3.1）→ 能力声明交叉校验（4.3.2）→ 运行时审计钩子（4.4.0）** 的纵深防御，配合可选 HTTPS（4.5.0）与登录锁定/解封（4.3.0/4.5.1）及项目宣传与系统名自定义（4.7.0），足以支撑**可信局域网 / 企业内网**的日常工具运行；若要对公网对抗性环境开放，仍需自行评估风险（插件仍无沙箱）。
 
 我坚持的原则只有一个：**需求导向，怎么方便怎么来**。所以最终呈现给你的，是一个开箱即用、低门槛、能随手往里加工具、且数据始终在自己手里的工具箱。
 
@@ -103,7 +104,7 @@ python examples/install_all.py                            # 一键安装 7 个�
 
 ## 测试与 CI
 
-`tests/` 22 个脚本共 499 项回归测试（隔离目录模式，不污染项目文件）；GitHub Actions 在 Python 3.10 / 3.11 / 3.12 上自动执行，覆盖权限、插件包 / 前端工具链路、完整性签名、卸载清单、Factory Reset、大插件多模板页面路由、文件传输（上传限制 / 中文名下载 / Range）、插件静态安全扫描、能力声明交叉校验、运行时审计钩子、运维工具等。
+`tests/` 22 个脚本共 500 项回归测试（隔离目录模式，不污染项目文件）；GitHub Actions 在 Python 3.10 / 3.11 / 3.12 上自动执行，覆盖权限、插件包 / 前端工具链路、完整性签名、卸载清单、Factory Reset、大插件多模板页面路由、文件传输（上传限制 / 中文名下载 / Range）、插件静态安全扫描、能力声明交叉校验、运行时审计钩子、运维工具等。
 
 <details>
 <summary>展开：22 个测试脚本</summary>
@@ -132,7 +133,7 @@ python tests/test_security.py              # 系统安全：安全响应头 / Co
 python tests/test_plugin_scan.py           # 插件静态扫描（v4.3.1）：危险导入/调用/混淆/网络文件触点 35 项
 python tests/test_capabilities.py          # 插件能力声明（v4.3.2）：解析/匹配/交叉校验/运行时授权 51 项
 python tests/test_audit_hook.py            # 运行时审计钩子（v4.4.0）：事件映射/栈定位/observe/enforce 36 项
-# 合计 22 个脚本 499 项
+# 合计 22 个脚本 500 项
 ```
 
 </details>
@@ -150,7 +151,7 @@ MIT License · 贡献指南见 [CONTRIBUTING.md](CONTRIBUTING.md) · 开发过�
 
 ### 人工智能辅助开发声明
 
-本项目在开发过程中使用了 AI 辅助编程工具，包括但不限于：代码生成与重构、代码审查、测试用例编写、文档撰写。所有 AI 辅助生成或修改的内容，均已由开发者人工审查，并通过项目自身的回归测试套件（`tests/`，499 项）与启动完整性自检验证后才会合入。
+本项目在开发过程中使用了 AI 辅助编程工具，包括但不限于：代码生成与重构、代码审查、测试用例编写、文档撰写。所有 AI 辅助生成或修改的内容，均已由开发者人工审查，并通过项目自身的回归测试套件（`tests/`，500 项）与启动完整性自检验证后才会合入。
 
 对贡献者的透明性约定：
 

@@ -487,6 +487,12 @@ def register(app):
         total_frontend_access = sum(global_var.frontend_access_stats.values())
         info = {
             "framework_version": global_var.FRAMEWORK_VERSION,
+            "system_name": global_var.get_user_config().get("SYSTEM_NAME") or global_var.PROJECT_NAME,
+            "system_version": global_var.get_user_config().get("SYSTEM_VERSION_LABEL") or ("v" + global_var.FRAMEWORK_VERSION),
+            "project_name": global_var.PROJECT_NAME,
+            "project_author": global_var.PROJECT_AUTHOR,
+            "project_github": global_var.PROJECT_GITHUB,
+            "project_slogan": global_var.PROJECT_SLOGAN,
             "builtin_plugins": list(global_var.BUILTIN_PLUGINS),
             "python_version": sys.version.split()[0],
             "platform": platform.platform(),

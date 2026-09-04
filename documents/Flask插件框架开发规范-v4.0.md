@@ -1,5 +1,14 @@
 # Flask插件框架开发规范
 
+## 版本：v4.7.0（装饰性更新：项目宣传与系统名个性化） | 更新日期：2026年09月04日
+
+### 版本说明（v4.7.0 变更：装饰性更新 F2/F3）
+- **框架版本升级至 v4.7.0**，本次为装饰性更新（不影响插件 API 与内部逻辑）：
+  1. **项目宣传（F2）**：`global_var.py` 新增只读常量 `PROJECT_NAME` / `PROJECT_AUTHOR` / `PROJECT_GITHUB` / `PROJECT_SLOGAN`（不进 `CONFIG_ITEMS`）；`app.py` 启动时打印项目横幅（系统名称 + 版本标签 + 标语 + 框架版本 + 作者 + GitHub 链接）；管理后台页眉新增 GitHub 链接；`/api/admin/system/info` 返回 `system_name` / `system_version` / `project_*` 字段；系统管理页新增"关于项目"卡片。
+  2. **系统名个性化（F3）**：新增 `CONFIG_ITEMS` 配置项 `SYSTEM_NAME`（默认 FlaskToolkit）与 `SYSTEM_VERSION_LABEL`（默认 v4.7.0，仅装饰展示，不改 `FRAMEWORK_VERSION` 逻辑，升级框架时建议同步更新）；`app.py` 注册模块级 Jinja context processor，向所有页面注入 `system_name` / `system_version` / `project_github` / `project_name` / `project_author` / `project_slogan`（内部动态读取用户配置，测试环境直接导入 app 亦生效）；登录页 / 首页 / 管理后台 / 插件默认页 / 7 个错误码页面将硬编码系统名替换为 `{{ system_name }}`；footer 仅完成注入准备、不新增布局。
+- **版本边界**：`SYSTEM_VERSION_LABEL` 只影响前端展示，`FRAMEWORK_VERSION` 仍为插件 `require_framework_version` 比较基准；自定义 `SYSTEM_NAME` 不改内部插件名/路由标识。
+- **回归测试 22 脚本 500 项全部通过**（F2/F3 为纯展示层变更，未新增断言）。
+
 ## 版本：v4.6.0（审计钩子归因修复） | 更新日期：2026年09月04日
 
 ### 版本说明（v4.6.0 变更：审计钩子归因修复 + 严格模式验证）

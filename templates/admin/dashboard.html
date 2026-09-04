@@ -1,10 +1,10 @@
 {% extends 'admin/base.html' %}
-{% block title %}仪表盘 · FlaskToolkit 管理后台{% endblock %}
+{% block title %}仪表盘 · {{ system_name }} 管理后台{% endblock %}
 {% block content %}
 <div class="page-header">
     <div>
         <h1 class="page-title">📊 系统仪表盘</h1>
-        <p class="page-subtitle">FlaskToolkit 运行状态总览</p>
+        <p class="page-subtitle">{{ system_name }} 运行状态总览</p>
     </div>
     <button class="btn btn-info" onclick="refreshAll()">🔄 刷新</button>
 </div>

@@ -1,5 +1,5 @@
 {% extends 'admin/base.html' %}
-{% block title %}系统管理 · FlaskToolkit 管理后台{% endblock %}
+{% block title %}系统管理 · {{ system_name }} 管理后台{% endblock %}
 {% block content %}
 <div class="page-header">
     <div>
@@ -10,6 +10,18 @@
 </div>
 
 <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:20px;">
+    <!-- 关于项目（v4.7.0） -->
+    <div class="card">
+        <h3 class="card-title">🚀 关于项目</h3>
+        <div style="font-size:14px; line-height:1.9; color:#2c3e50;">
+            <p style="margin-bottom:8px;"><strong style="font-size:15px;">{{ system_name }} {{ system_version }}</strong></p>
+            <p style="color:#7f8c8d; margin-bottom:8px;">{{ project_slogan }} —— 基于 Flask 的插件化全栈工具集，支持插件热重载、生命周期管理、前后端工具混合展示、可选鉴权与安全预设。</p>
+            <p style="margin-bottom:8px;">👤 作者：<a href="{{ project_github }}" target="_blank" rel="noopener">{{ project_author }}</a></p>
+            <p style="margin-bottom:8px;">⭐ 项目主页：<a href="{{ project_github }}" target="_blank" rel="noopener" style="text-decoration:none; font-weight:600; color:#2980b9;">GitHub 仓库</a></p>
+            <p style="font-size:12px; color:#95a5a6; margin-bottom:0;">系统名称/版本标签可经 <code>tools/config.py</code> 的 <code>SYSTEM_NAME</code> / <code>SYSTEM_VERSION_LABEL</code> 自定义，仅影响展示不影响内部逻辑。</p>
+        </div>
+    </div>
+
     <!-- 系统信息 -->
     <div class="card">
         <h3 class="card-title">🖥️ 系统信息</h3>
@@ -107,6 +119,8 @@
                 if (res.code !== 200) return;
                 const d = res.data;
                 const rows = [
+                    ['系统名称', d.system_name],
+                    ['系统版本', '<span class="badge badge-blue">' + d.system_version + '</span>'],
                     ['框架版本', '<span class="badge badge-blue">v' + d.framework_version + '</span>'],
                     ['Python 版本', d.python_version],
                     ['运行平台', d.platform],

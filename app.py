@@ -43,6 +43,20 @@ load_stats()  # 新增：启动时加载历史统计数据
 # ------------------------------ 路由注册（routes 包） ------------------------------
 register_routes(app)
 
+# v4.7.0：Jinja 模板全局注入（system_name/system_version/project_github 等，供所有页面/后台使用）
+# 注册在模块顶层：测试环境直接导入 app 即可生效；内部动态读取用户配置，启动后配置变更亦生效
+@app.context_processor
+def inject_system_info():
+    _ucfg = global_var.get_user_config()
+    return {
+        'system_name': _ucfg.get('SYSTEM_NAME') or global_var.PROJECT_NAME,
+        'system_version': _ucfg.get('SYSTEM_VERSION_LABEL') or 'v' + global_var.FRAMEWORK_VERSION,
+        'project_github': global_var.PROJECT_GITHUB,
+        'project_name': global_var.PROJECT_NAME,
+        'project_author': global_var.PROJECT_AUTHOR,
+        'project_slogan': global_var.PROJECT_SLOGAN,
+    }
+
 # 注册应用关闭钩子，确保服务停止前保存最新统计数据
 @app.teardown_appcontext
 def save_stats_on_shutdown(exception=None):
@@ -97,6 +111,18 @@ if __name__ == '__main__':
     # ===== 用户配置加载（tools/config.py 管理）+ 框架完整性自校验 =====
     from global_var import load_user_config
     load_user_config()
+
+    # ===== v4.7.0：启动横幅（宣传项目信息与 GitHub 链接）=====
+    _ucfg = global_var.get_user_config()
+    _sys_name = _ucfg.get('SYSTEM_NAME') or global_var.PROJECT_NAME
+    _sys_ver = _ucfg.get('SYSTEM_VERSION_LABEL') or ('v' + global_var.FRAMEWORK_VERSION)
+    print('-' * 60, flush=True)
+    print(f"  {_sys_name}  {_sys_ver}", flush=True)
+    print(f"  {global_var.PROJECT_SLOGAN}", flush=True)
+    print(f"  框架版本: v{global_var.FRAMEWORK_VERSION}   作者: {global_var.PROJECT_AUTHOR}", flush=True)
+    print(f"  GitHub: {global_var.PROJECT_GITHUB}", flush=True)
+    print('-' * 60, flush=True)
+
     # 重新读取配置后的路径常量（顶部 from global_var import 为模块加载时绑定，需刷新）
     PLUGIN_CONFIGS_DIR, PLUGIN_TEMP_DIR, LOG_DIR, STATS_FILE, UPLOAD_TEMP_DIR = (
         global_var.PLUGIN_CONFIGS_DIR, global_var.PLUGIN_TEMP_DIR, global_var.LOG_DIR,

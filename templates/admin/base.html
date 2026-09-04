@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}FlaskToolkit 管理后台{% endblock %}</title>
+    <title>{% block title %}{{ system_name }} 管理后台{% endblock %}</title>
     <style>
         * {
             box-sizing: border-box;
@@ -340,7 +340,7 @@
 <body>
     <nav class="navbar">
         <div class="navbar-left">
-            <a class="navbar-brand" href="/admin/dashboard">FlaskToolkit<span>管理后台</span></a>
+            <a class="navbar-brand" href="/admin/dashboard">{{ system_name }}<span>管理后台</span></a>
             <ul class="nav-menu">
                 <li><a href="/admin/dashboard" class="{{ 'active' if active_page == 'dashboard' else '' }}">📊 仪表盘</a></li>
                 <li><a href="/admin/plugins" class="{{ 'active' if active_page == 'plugins' else '' }}">🔌 插件管理</a></li>
@@ -354,6 +354,7 @@
                 <div class="user-avatar" id="userAvatar">A</div>
                 <span class="user-name" id="userName">加载中...</span>
             </div>
+            <a href="{{ project_github }}" target="_blank" rel="noopener" class="nav-link" title="项目主页（GitHub）">⭐ GitHub</a>
             <a href="/" class="nav-link">首页</a>
             <a href="javascript:;" class="nav-link logout-btn" onclick="handleLogout()">退出</a>
         </div>
