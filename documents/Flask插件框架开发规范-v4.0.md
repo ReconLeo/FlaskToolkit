@@ -1,6 +1,13 @@
 # Flask插件框架开发规范
 
-## 版本：v4.5.1（登录锁定手动解封） | 更新日期：2026年09月03日
+## 版本：v4.6.0（审计钩子归因修复） | 更新日期：2026年09月04日
+
+### 版本说明（v4.6.0 变更：审计钩子归因修复 + 严格模式验证）
+- **框架版本升级至 v4.6.0**：严格模式（`PLUGIN_SCAN_MODE=enforce` + `AUDIT_HOOK_MODE=enforce` + `PACKAGE_INTEGRITY_MODE=strict` 预设）系统验证中修复 `core/audit_hook.py` 插件归因两处缺陷：
+  1. **enforce 下任何插件无法加载（阻断级）**：框架自身扫描/加载插件时（`scan_plugin_metadata` / `load_plugins` 经 `importlib.import_module` 导入），模块顶层 `from plugins.base_plugin import ...` 触发 `open(plugins/base_plugin.py)`，`_locate_plugin()` 沿调用栈把发起者误归因为被导入插件 → 未声明 `filesystem:read` 拒绝安装/加载。修复：调用栈中出现框架加载器帧（`core/plugin_cache.py` / `core/plugin_loader.py`）即视为框架行为放行。
+  2. **插件包辅助模块误归因**：`corp_utils.py` 等非 `BasePlugin` 子类的辅助模块被归因为独立插件名，导致主插件自属路径（`plugins/data/<name>/`、`plugins/configs/<name>.json`）隐式豁免失效，enforce 下异步落盘/数据目录读写被误拦。修复：优先归因“定义了 `BasePlugin` 子类”的最近帧，辅助模块帧跳过；全栈无插件类时回退最近帧。
+- **回归测试扩充至 22 脚本 499 项**：`test_audit_hook.py` B 组新增 B4（框架加载器帧放行）/ B5（辅助模块归因主插件，含 sys.modules 污染防护——B5 用桩基类避免污染 E 组隔离环境）。
+- **严格模式验证（D1-D8）**：预设可应用性与持久化、冷启动自检、上传链路（恶意拒绝/良性放行/未声明网络拒绝/zip slip）、运行时（corp_tools 定时探测/异步落盘/越权拦截）、登录会话（3 次锁定/解封/secure cookie/空闲超时）、管理后台、全量回归（strict 下 22 脚本全过）、资源稳定性（30 轮探测/审计统计/路径过滤）全部通过；验证结论：strict 预设可直接用于可信局域网/企业内网，配套 HTTPS 使用。
 
 ### 版本说明（v4.5.1 变更：登录锁定手动解封）
 - **框架版本升级至 v4.5.1**：审计意见落地——登录失败锁定后，后台应可手动解封。auth 插件新增 `unlock_user(username)`（清除该用户名全部维度锁定记录，兼容 `LOGIN_LOCK_MODE` 的 username / ip_username 双维度）与 `is_user_locked(username)`（锁定状态查询）；user_manage 插件新增 `POST /api/user_manage/unlock` 接口（admin 权限）并在用户列表返回 `locked` 状态字段，前端表格新增"状态"列（正常/已锁定）与**解封**按钮（仅锁定用户显示）。

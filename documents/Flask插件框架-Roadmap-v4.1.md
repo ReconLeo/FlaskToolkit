@@ -52,7 +52,8 @@
 
 | 版本 | 状态 |
 |------|------|
-| v4.5.1（当前） | 登录锁定手动解封：auth 新增 unlock_user/is_user_locked；user_manage 新增 POST /api/user_manage/unlock + 用户列表 locked 状态 + 前端解封按钮；回归 22 脚本 497 项 |
+| v4.6.0（当前） | 审计钩子归因修复：enforce 下插件加载链路（框架加载器帧）与辅助模块（非 BasePlugin 类）归因两缺陷修复；test_audit_hook 新增 B4/B5；回归 22 脚本 499 项；严格模式预设（strict）D1-D8 系统验证通过 |
+| v4.5.1（已完成） | 登录锁定手动解封：auth 新增 unlock_user/is_user_locked；user_manage 新增 POST /api/user_manage/unlock + 用户列表 locked 状态 + 前端解封按钮；回归 22 脚本 497 项 |
 | v4.5.0（已完成） | 收尾：可选 HTTPS（SSL_CERT_FILE/SSL_KEY_FILE + tools/gen_cert.py 自签名证书）；frontend_tools.json 默认路径迁移 data/（旧文件自动迁移）；auth 会话迁移插件自属目录；审计钩子框架路径过滤；selfcheck CORE_FILES 补全；回归 22 脚本 482 项 |
 | v4.4.0（已完成） | 运行时审计钩子（P1 阶段三）：sys.addaudithook 事件监听 + 栈归因 + AUDIT_HOOK_MODE 三档（off/observe/enforce）+ 网络白名单阻断 + 未授权行为按插件聚合展示（前端合计）+ suggest_for_action 建议声明复用；回归 22 脚本 482 项 |
 | v4.3.2（已完成） | 插件 capabilities 声明模型（P1 阶段二）：8 域能力白名单 + 安装交叉校验 + 建议声明生成 + 自属路径隐式豁免 + base_plugin data_dir API + 运行时授权基准；回归 21 脚本 447 项 |

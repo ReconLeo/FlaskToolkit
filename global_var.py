@@ -29,7 +29,7 @@ CACHE_VERSION = 1  # 缓存格式版本，变更时自动失效
 LOG_DIR = os.path.join(BASE_DIR, 'logs')
 
 # ------------------------------ 全局常量 ------------------------------
-FRAMEWORK_VERSION = "4.5.1"  # 框架版本（后端插件 require_framework_version 比较基准）
+FRAMEWORK_VERSION = "4.6.0"  # 框架版本（后端插件 require_framework_version 比较基准）
 # 内置（系统自带）插件清单：Factory Reset 时受保护不删除
 BUILTIN_PLUGINS = ('auth', 'user_manage')
 # 管理后台上传包大小上限（后端插件包 .zip / 前端工具包 .zip 统一限制，单位字节）
