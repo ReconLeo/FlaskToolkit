@@ -52,7 +52,8 @@
 
 | 版本 | 状态 |
 |------|------|
-| v4.8.0（当前） | 企业环境优化更新 F1/F4：版本检查推送（core/update_checker.py + 数据源 changelog.json 只存最新版本 + UPDATE_FEED_URL/UPDATE_CHECK_ENABLED/UPDATE_CHECK_INTERVAL/UPDATE_PUBLIC_KEY_PEM 配置 + 启动后台检查线程 + 管理后台 check 接口 + dashboard/system 展示引导）+ 双后端更新机制（tools/update.py git/archive 双后端 + USER_DATA_PATHS 用户数据保留 + sha256 必选/签名可选 + 自动备份/回滚；tools/release.py 发布工具链：版本同步/精简·全量·定制包/changelog 签名）；回归 23 脚本 540 项 |
+| v4.9.0（当前） | i18n 可扩展语言框架（core/i18n.py + locales/ JSON 语言包，中文原文即 key，插件语言包合并，LANGUAGE 配置 + 用户级 Cookie 切换，t() 模板/后端/前端统一，核心模板与错误消息迁移）+ 插件数据配额防恶意写盘（PLUGIN_DATA_LIMIT_MB 默认 50MB/0 禁用，审计钩子写事件强制，data/temp 目录总量 TTL 缓存，enforce 拒绝/observe 记录）；回归 25 脚本 583 项 |
+| v4.8.0（已完成） | 企业环境优化更新 F1/F4：版本检查推送（core/update_checker.py + 数据源 changelog.json 只存最新版本 + UPDATE_FEED_URL/UPDATE_CHECK_ENABLED/UPDATE_CHECK_INTERVAL/UPDATE_PUBLIC_KEY_PEM 配置 + 启动后台检查线程 + 管理后台 check 接口 + dashboard/system 展示引导）+ 双后端更新机制（tools/update.py git/archive 双后端 + USER_DATA_PATHS 用户数据保留 + sha256 必选/签名可选 + 自动备份/回滚；tools/release.py 发布工具链：版本同步/精简·全量·定制包/changelog 签名）；回归 23 脚本 540 项；首个分割 Release（v4.8.0 tag + GitHub Release） |
 | v4.7.0（已完成） | 装饰性更新 F2/F3：项目宣传（启动横幅/后台页眉 GitHub 链接/系统管理页关于卡片/system/info 项目字段）+ 系统名个性化（SYSTEM_NAME/SYSTEM_VERSION_LABEL 配置项 + Jinja 全局注入 + 登录页/首页/后台/错误页硬编码系统名变量化，仅装饰不影响内部逻辑）；回归 22 脚本 500 项 |
 | v4.6.0（已完成） | 审计钩子归因修复：enforce 下插件加载链路（框架加载器帧）与辅助模块（非 BasePlugin 类）归因两缺陷修复；test_audit_hook 新增 B4/B5；回归 22 脚本 499 项；严格模式预设（strict）D1-D8 系统验证通过 |
 | v4.5.1（已完成） | 登录锁定手动解封：auth 新增 unlock_user/is_user_locked；user_manage 新增 POST /api/user_manage/unlock + 用户列表 locked 状态 + 前端解封按钮；回归 22 脚本 497 项 |

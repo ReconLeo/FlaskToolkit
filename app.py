@@ -57,6 +57,34 @@ def inject_system_info():
         'project_slogan': global_var.PROJECT_SLOGAN,
     }
 
+# v4.9.0：i18n 全局注入（t 翻译函数 + lang 当前语言 + available_langs 可用语言列表）
+# 语言解析：Cookie lang > 用户配置 LANGUAGE > 默认 zh-CN；插件可带 locales/<lang>.json 合并
+@app.context_processor
+def inject_i18n():
+    from core import i18n
+    from flask import request
+    lang = i18n.get_lang()
+    tr = i18n.make_translator(lang)
+    i18n.set_current_translator(tr)
+    return {
+        't': tr,
+        'lang': lang,
+        'available_langs': i18n.available_languages(),
+        't_json': tr.table,          # 当前语言完整翻译表（前端 window.T 使用）
+    }
+
+@app.context_processor
+def inject_system_info():
+    _ucfg = global_var.get_user_config()
+    return {
+        'system_name': _ucfg.get('SYSTEM_NAME') or global_var.PROJECT_NAME,
+        'system_version': _ucfg.get('SYSTEM_VERSION_LABEL') or 'v' + global_var.FRAMEWORK_VERSION,
+        'project_github': global_var.PROJECT_GITHUB,
+        'project_name': global_var.PROJECT_NAME,
+        'project_author': global_var.PROJECT_AUTHOR,
+        'project_slogan': global_var.PROJECT_SLOGAN,
+    }
+
 # 注册应用关闭钩子，确保服务停止前保存最新统计数据
 @app.teardown_appcontext
 def save_stats_on_shutdown(exception=None):

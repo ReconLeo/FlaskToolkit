@@ -1,5 +1,14 @@
 # Flask插件框架开发规范
 
+## 版本：v4.9.0（i18n 可扩展语言框架 + 插件数据配额） | 更新日期：2026年09月04日
+
+### 版本说明（v4.9.0 变更）
+- **框架版本升级至 v4.9.0**（Community 架构规模受控原则下的功能增强，不影响插件 API）：
+  1. **i18n 可扩展语言框架**：新增 `core/i18n.py` 轻量语言模块（零第三方依赖）——语言包 `locales/<lang>.json` 键值对（**中文原文即 key**，扩展语言=新增语言包文件即可自动发现）；查找链：插件语言包（`plugins/<name>/locales/<lang>.json`，可覆盖框架词条）→ 框架语言包 → key 原文缺省回退；`t(key, **params)` 翻译函数支持 `{placeholder}` 插值；语言解析优先级 **Cookie `lang` > 用户配置 `LANGUAGE` > 默认 zh-CN**（语言代码白名单校验防路径注入）；新增配置项 `LANGUAGE`（默认 zh-CN）；Jinja 全局注入 `t`/`lang`/`available_langs`/`t_json`（模板与前端 `window.T` 共用翻译表）；`GET /lang/<code>?next=<path>` 切换路由（登录页/后台页眉入口）；框架核心模板（登录页、7 个错误页、后台导航/仪表盘/系统页）与后端错误消息已迁移，插件模板由插件自行决定是否跟进（框架提供能力）。
+  2. **插件数据配额（防恶意写盘）**：新增配置项 `PLUGIN_DATA_LIMIT_MB`（默认 50，0=禁用），由**运行时审计钩子**强制——写事件打开时判定目标是否落在插件自属数据目录（`plugins/data/<name>/` 与 `plugins/temp/<name>/`，归一化前缀匹配），目录总量 TTL 缓存（5s）避免每次 os.walk；超限时 `observe` 模式记录审计 / `enforce` 模式抛 RuntimeError 拒绝写入（与 `AUDIT_HOOK_MODE` 联动，纵深防御第四层配额管控）。
+- **配置项新增**：`LANGUAGE`（默认 zh-CN）、`PLUGIN_DATA_LIMIT_MB`（默认 50，0=禁用）。
+- **回归测试扩充至 25 脚本 583 项**：新增 `tests/test_i18n.py` 28 项（语言包加载/查找链/语言解析/切换路由/模板渲染/插件合并）+ `tests/test_data_limit.py` 15 项（路径判定/用量统计/超限拒绝/observe 记录/TTL 缓存/禁用）。
+
 ## 版本：v4.8.0（企业环境优化更新：版本检查推送 + 双后端更新机制） | 更新日期：2026年09月04日
 
 ### 版本说明（v4.8.0 变更：企业环境优化更新 F1/F4）
@@ -16,6 +25,7 @@
 
 | 版本 | 日期 | 主题 | 提交 |
 |------|------|------|------|
+| **v4.9.0** | 2026-09-05 | i18n 可扩展语言框架 + 插件数据配额（防恶意写盘） | （待发布） |
 | **v4.8.0** | 2026-09-05 | 企业环境优化更新：版本检查推送（F1）+ 双后端更新机制（F4） | a582945 |
 | v4.7.0 | 2026-09-04 | 装饰性更新：项目宣传 + 系统名个性化 | 8f2af0c |
 | v4.6.0 | 2026-09-04 | 审计钩子归因修复 + 严格模式系统验证（D1-D8） | c244585 |
@@ -940,6 +950,19 @@ python tools/config.py set AUDIT_HOOK_MODE enforce   # 运维加固：未授权�
 
 ---
 
+### 10.10 插件数据配额（v4.9.0，防恶意写盘）
+
+插件自属数据目录（`plugins/data/<name>/` 与 `plugins/temp/<name>/`）的写入总量受
+`PLUGIN_DATA_LIMIT_MB` 配额限制（默认 50MB，0=禁用）：
+
+- **判定**：写事件（open/io.open w/a/x 等）发生时，先做 capabilities 授权判定；授权通过后
+  检查目标路径是否落在该插件自属数据/临时目录（归一化前缀匹配，与 10.7 同规则）。
+- **用量统计**：目录总量 TTL 缓存（5 秒），避免每次写事件全量 os.walk；超限即拒绝后续写入。
+- **行为**：`observe` 模式记录 `audit-warn` 审计（不阻断）；`enforce` 模式抛
+  `RuntimeError` 拒绝写入（fail-closed），与 `AUDIT_HOOK_MODE` 联动。
+- **边界**：仅限插件自属数据/临时目录；框架 `data/` 区域写入与显式声明写入的跨插件
+  目录按 10.7 现有机制处理，本期不叠加配额；配额为运行时兜底，不替代安装期静态审查。
+
 ## 十一、部署说明
 
 ### 11.1 环境要求
@@ -993,6 +1016,8 @@ FLASKTOOLKIT_HOST=0.0.0.0 FLASKTOOLKIT_PORT=8000 python app.py
 | `test_capabilities.py` | 插件能力声明回归（v4.3.2）：解析器（合法/非法/未知域/裸 * 拒绝）/ 匹配语义（路径前缀递归/URL host·path·端口/子域通配/tcp/env）/ 交叉校验（隐式豁免/跨插件越界/建议声明/unused）/ 运行时授权 API（fail-closed/process 细粒度）/ 安装链路集成（enforce 拒绝与放行/响应附摘要/loader 注册）/ base_plugin data API + hello_plugin 示例端到端 | 51 项 |
 | `test_audit_hook.py` | 运行时审计钩子回归（v4.4.0）：事件映射（open 读写/删除族/sqlite/socket）/ 栈定位（plugins 帧/框架放行/嵌套归因）/ observe 聚合（按插件/建议声明/事件样本）/ enforce 阻断（异常传播/授权放行/自属豁免/fail-closed）/ 隔离集成（真实钩子+栈归因端到端/stats 按插件分组/重载清零/审计落盘/未污染） | 36 项 |
 | `test_update_checker.py` | 版本检查推送（v4.8.0）：版本比较（parse_version/is_newer）/ 用户数据路径判定 / zip slip 防护 / archive 校验链（sha256 必选 + 签名可选）/ 数据源缓存 TTL / 数据源结构校验 | 40 项 |
+| `test_i18n.py` | i18n（v4.9.0）：语言包加载 / 查找链（插件合并与覆盖）/ 语言解析优先级 / 切换路由 / 模板渲染（中英） / 缺省回退 / 参数插值 | 28 项 |
+| `test_data_limit.py` | 插件数据配额（v4.9.0）：路径判定（data/temp/边界）/ 用量统计 / enforce 超限拒绝 / observe 记录 / TTL 缓存刷新 / 0 禁用 | 15 项 |
 
 
 ```bash
@@ -1020,7 +1045,9 @@ python tests/test_plugin_scan.py           # 35 项（插件静态扫描回归 v
 python tests/test_capabilities.py          # 51 项（插件能力声明回归 v4.3.2，隔离目录）
 python tests/test_audit_hook.py            # 36 项（运行时审计钩子回归 v4.4.0，隔离目录）
 python tests/test_update_checker.py     # 40 项（版本检查推送回归 v4.8.0，隔离目录）
-# 合计 23 个脚本 540 项
+python tests/test_i18n.py                  # 28 项（i18n 回归 v4.9.0，隔离目录）
+python tests/test_data_limit.py            # 15 项（插件数据配额回归 v4.9.0，隔离目录）
+# 合计 25 个脚本 583 项
 ```
 
 说明：`test_meta_e2e.py` 与 `test_frontend_chain.py` / `test_admin_api.py` / `test_factory_reset.py` / `test_error_pages.py` / `test_package_sign.py` 均通过 mock 基础目录 + `sys.path` 指向临时插件目录运行，不污染真实项目，可重复执行；`test_reload_race.py` 使用 Flask test client，在测试开头手动调用 `load_plugins()` 初始化（`load_plugins` 仅在 `app.py` 的 `main` 段自动调用）。
@@ -1063,6 +1090,12 @@ python tools/config.py profile <daily|strict|lan-open>   # 套用安全配置预
 | `PACKAGE_INTEGRITY_MODE` | warn | 完整性校验模式（strict/warn/off） |
 | `PLUGIN_SCAN_MODE` | report | 插件安装静态扫描门禁（off/report/enforce，见 10.6，v4.3.1） |
 | `PLUGIN_PUBLIC_KEY_PEM` | （空） | 插件签名公钥路径 |
+| `UPDATE_FEED_URL` | （GitHub raw） | 版本检查数据源地址（v4.8.0） |
+| `UPDATE_CHECK_ENABLED` | true | 启动时版本检查开关（v4.8.0） |
+| `UPDATE_CHECK_INTERVAL` | 24 | 版本检查间隔（小时，v4.8.0） |
+| `UPDATE_PUBLIC_KEY_PEM` | （空） | 版本数据源签名公钥路径（配置后强制验签，v4.8.0） |
+| `LANGUAGE` | zh-CN | 系统显示语言（v4.9.0，可选值由 locales/ 语言包决定，Cookie `lang` 可覆盖） |
+| `PLUGIN_DATA_LIMIT_MB` | 50 | 单插件数据目录配额（MB，0=禁用，v4.9.0 见 10.10） |
 
 示例：
 
@@ -1114,3 +1147,41 @@ python tools/reset.py reset all --auto-backup         # 先自动备份再全部
 ```
 
 范围与 Factory Reset 一致：`plugins` / `frontend_tools` / `stats_logs` / `sessions` / `temp` / `builtin` / `all`。
+
+## 十五、国际化（i18n，v4.9.0）
+
+### 15.1 语言包格式
+
+`locales/<lang>.json` 键值对，**中文原文即 key**（缺省回退天然中文，英文等语言提供翻译映射）：
+
+```json
+{ "__name__": "English", "登录": "Sign In", "插件管理": "Plugins" }
+```
+
+- `__name__`：语言自称（界面语言切换入口显示，缺省回退语言代码）。
+- 扩展语言 = 在 `locales/` 新增 `<lang>.json` 即可，`available_languages()` 自动发现。
+- 语言代码白名单校验（仅允许真实存在的语言包），防路径注入。
+
+### 15.2 查找链与 t()
+
+查找链：插件语言包（`plugins/<name>/locales/<lang>.json`，可覆盖框架词条）
+→ 框架语言包（`locales/<lang>.json`）→ key 原文（缺省回退）。
+
+- 模板：`{{ t('登录') }}`（Jinja 全局注入，无需传参）
+- 后端：`from core import i18n; tr = i18n.make_translator(i18n.get_lang()); tr('登录')`
+- 前端：`window.T('登录')`（翻译表由服务端以 `t_json` 注入 `window.__I18N`）
+- 参数插值：`t('请求体超过大小限制', size=50)` → `{size}` 占位符替换
+
+### 15.3 语言选择
+
+优先级：**Cookie `lang` > 用户配置 `LANGUAGE` > 默认 zh-CN**。
+
+- 切换接口：`GET /lang/<code>?next=<path>`（设置 `lang` Cookie，站内相对路径重定向防开放跳转）
+- 入口：登录页右上角 + 后台页眉（自动列出 `available_langs` 中非当前语言）
+- 配置：`python tools/config.py set LANGUAGE en`（启动显示语言全局默认）
+
+### 15.4 插件国际化
+
+插件可在插件包内携带 `locales/<lang>.json`，安装后自动合并进查找链（插件词条覆盖框架词条）；
+插件模板直接使用 `{{ t('...') }}` 即随框架语言联动。框架不翻译插件内容，由插件作者自行提供语言包。
+

@@ -12,7 +12,7 @@
 <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:20px;">
     <!-- 关于项目（v4.7.0） -->
     <div class="card">
-        <h3 class="card-title">🚀 关于项目</h3>
+        <h3 class="card-title">🚀 {{ t('关于项目') }}</h3>
         <div style="font-size:14px; line-height:1.9; color:#2c3e50;">
             <p style="margin-bottom:8px;"><strong style="font-size:15px;">{{ system_name }} {{ system_version }}</strong></p>
             <p style="color:#7f8c8d; margin-bottom:8px;">{{ project_slogan }} —— 基于 Flask 的插件化全栈工具集，支持插件热重载、生命周期管理、前后端工具混合展示、可选鉴权与安全预设。</p>
@@ -24,7 +24,7 @@
 
     <!-- 系统信息 -->
     <div class="card">
-        <h3 class="card-title">🖥️ 系统信息</h3>
+        <h3 class="card-title">🖥️ {{ t('系统信息') }}</h3>
         <div class="table-wrap">
             <table class="data-table">
                 <tbody id="sysInfoBody">
@@ -120,7 +120,7 @@
                 const d = res.data;
                 const rows = [
                     ['系统名称', d.system_name],
-                    ['版本检查', '<span id="sysVerLine" style="color:#7f8c8d;">待检查</span>'],
+                    ['版本检查', '<span id="sysVerLine" style="color:#7f8c8d;">' + window.T('待检查') + '</span>'],
                     ['系统版本', '<span class="badge badge-blue">' + d.system_version + '</span>'],
                     ['框架版本', '<span class="badge badge-blue">v' + d.framework_version + '</span>'],
                     ['Python 版本', d.python_version],
@@ -150,12 +150,12 @@
             .then(res => {
                 const el = document.getElementById('sysVerLine');
                 if (!el) return;
-                if (res.code !== 200 || !res.data || !res.data.checked) { el.textContent = '检查失败/未配置'; return; }
+                if (res.code !== 200 || !res.data || !res.data.checked) { el.textContent = window.T('检查失败'); return; }
                 const d = res.data;
                 if (d.has_update) { el.innerHTML = `<span class="badge badge-orange">v${d.latest_version}（有新版本）</span>`; }
                 else { el.innerHTML = `<span class="badge badge-green">v${d.latest_version}（已是最新）</span>`; }
             })
-            .catch(() => { const el = document.getElementById('sysVerLine'); if (el) el.textContent = '检查失败'; });
+            .catch(() => { const el = document.getElementById('sysVerLine'); if (el) el.textContent = window.T('检查失败'); });
     }
 
     function loadAuditLog() {

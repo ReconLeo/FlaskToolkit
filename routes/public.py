@@ -7,6 +7,11 @@ import urllib.parse
 from flask import jsonify, make_response, redirect, render_template, request, send_from_directory
 
 import global_var
+from core import i18n
+
+def _tr():
+    """当前请求语言的翻译器（错误消息用）。"""
+    return i18n.make_translator(i18n.get_lang())
 
 logger = logging.getLogger('flask.app')
 
@@ -21,6 +26,22 @@ def register(app):
             redirect_url = request.args.get('redirect', '/')
             return redirect(urllib.parse.unquote_plus(redirect_url))
         return render_template('login.html')
+
+    @app.route('/lang/<code>')
+    def switch_lang(code):
+        """切换显示语言（v4.9.0）：GET /lang/<code>?next=<redirect>，设置 lang Cookie 后跳转。
+
+        语言代码须通过白名单校验（locales/ 下真实存在的语言包），防止路径注入。
+        """
+        from core import i18n
+        target = i18n.resolve_lang(code)
+        next_url = request.args.get('next', '/')
+        # 仅允许站内相对路径重定向，防开放重定向
+        if next_url.startswith('//') or '://' in next_url:
+            next_url = '/'
+        response = make_response(redirect(next_url))
+        response.set_cookie(i18n.LANG_COOKIE, target, max_age=31536000, samesite='Lax')
+        return response
 
     @app.route('/logout')
     def logout_page():
@@ -93,31 +114,31 @@ def register(app):
     # /403 页面路由（前端权限不足跳转目标）
     @app.route('/403')
     def forbidden_page():
-        return render_template('403.html', message=request.args.get('message', '您没有权限访问该资源')), 403
+        return render_template('403.html', message=request.args.get('message', _tr()('您没有权限访问该资源'))), 403
 
     # 400错误处理器
     @app.errorhandler(400)
     def bad_request_error(e):
         logger.warning(f"400请求错误: {request.path} - {str(e)}", extra={'plugin': 'system'})
-        return render_template('400.html', message="请求参数有误或格式不正确"), 400
+        return render_template('400.html', message=_tr()("请求参数有误或格式不正确")), 400
 
     # 401错误处理器（页面场景兜底；API 场景由权限模块返回 JSON）
     @app.errorhandler(401)
     def unauthorized_error(e):
         logger.warning(f"401未登录: {request.path} - IP: {request.remote_addr}", extra={'plugin': 'system'})
-        return render_template('401.html', message="未登录或登录已过期，请重新登录"), 401
+        return render_template('401.html', message=_tr()("未登录或登录已过期，请重新登录")), 401
 
     # 403错误处理器
     @app.errorhandler(403)
     def forbidden_error(e):
         logger.warning(f"403访问拒绝: {request.path} - IP: {request.remote_addr}", extra={'plugin': 'system'})
-        return render_template('403.html', message="您没有权限访问该资源"), 403
+        return render_template('403.html', message=_tr()("您没有权限访问该资源")), 403
 
     # 405错误处理器
     @app.errorhandler(405)
     def method_not_allowed_error(e):
         logger.warning(f"405请求方法不允许: {request.path} - {request.method}", extra={'plugin': 'system'})
-        return render_template('405.html', message=f"不支持的请求方法 {request.method}"), 405
+        return render_template('405.html', message=f"{_tr()("不支持的请求方法")} {request.method}"), 405
 
     # 404错误处理器（优化Chrome开发者工具请求过滤）
     @app.errorhandler(404)
@@ -129,19 +150,19 @@ def register(app):
         ]
         if request.path not in ignored_paths:
             logger.warning(f"404访问: {request.path} - IP: {request.remote_addr}", extra={'plugin': 'system'})
-        return render_template('404.html', message="页面不存在"), 404
+        return render_template('404.html', message=_tr()("页面不存在")), 404
 
     @app.errorhandler(500)
     def internal_server_error(e):
         logger.error(f"500错误: {request.path} - {str(e)}", extra={'plugin': 'system'})
-        return render_template('500.html', message="服务器内部错误"), 500
+        return render_template('500.html', message=_tr()("服务器内部错误")), 500
 
     # 413 请求体过大处理器（全局 MAX_CONTENT_LENGTH 兜底；API 场景返回 JSON，页面场景渲染模板）
     @app.errorhandler(413)
     def request_entity_too_large(e):
         limit_mb = global_var.MAX_UPLOAD_SIZE_MB
         logger.warning(f"413请求体过大: {request.path} - 限制 {limit_mb}MB", extra={'plugin': 'system'})
-        msg = f"请求体超过大小限制（{limit_mb}MB）"
+        msg = f"{_tr()("请求体超过大小限制")}（{limit_mb}MB）"
         if request.path.startswith('/api/'):
             return jsonify({"code": 413, "message": msg}), 413
         return render_template('413.html', message=msg), 413

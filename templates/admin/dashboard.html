@@ -36,7 +36,7 @@
 <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:20px;">
     <!-- 版本更新（v4.8.0） -->
     <div class="card">
-        <h3 class="card-title">🔄 版本更新</h3>
+        <h3 class="card-title">🔄 {{ t('版本更新') }}</h3>
         <div id="updateBox" style="font-size:14px; line-height:1.9; color:#2c3e50;">
             <span class="loading">检查中...</span>
         </div>
@@ -80,7 +80,7 @@
     function checkUpdate(force) {
         const box = document.getElementById("updateBox");
         if (!box) return;
-        box.innerHTML = '<span class="loading">检查中...</span>';
+        box.innerHTML = '<span class="loading">' + window.T('检查中...') + '</span>';
         fetch("/api/admin/update/check", {
             method: "POST",
             headers: { "Content-Type": "application/json", "X-CSRF-Token": _getCsrfCookie() },
@@ -89,12 +89,12 @@
         })
             .then(r => r.json())
             .then(res => {
-                if (res.code !== 200) { box.innerHTML = `<span style="color:#c0392b;">检查失败：${res.message || "未知错误"}</span>`; return; }
+                if (res.code !== 200) { box.innerHTML = `<span style="color:#c0392b;">window.T('检查失败') + '：' + (res.message || window.T('未知错误'))</span>`; return; }
                 const d = res.data || {};
                 if (!d.checked) { box.innerHTML = `<span style="color:#7f8c8d;">${d.message || "暂无结果"}</span>`; return; }
                 let html = `<p><strong>当前版本</strong>：<span class="badge badge-blue">v${d.current_version}</span></p>`;
                 if (d.has_update) {
-                    html += `<p><strong>最新版本</strong>：<span class="badge badge-orange">v${d.latest_version}</span> <span style="color:#e74c3c; font-weight:600;">（有新版本）</span></p>`;
+                    html += `<p><strong>${window.T('最新版本')}</strong>：<span class="badge badge-orange">v${d.latest_version}</span> <span style="color:#e74c3c; font-weight:600;">（' + window.T('有新版本') + '）</span></p>`;
                     html += `<p style="font-size:12px; color:#7f8c8d;">发布于 ${d.published_at || "-"}</p>`;
                     if (d.changes && d.changes.length) {
                         html += `<ul style="margin:6px 0 0 18px; font-size:12px; color:#34495e;">` +
@@ -103,11 +103,11 @@
                     if (d.download_url) { html += `<p style="margin-top:8px;"><a href="${d.download_url}" target="_blank" rel="noopener" style="color:#2980b9;">下载更新包</a> · <a href="https://github.com/ReconLeo/FlaskToolkit/blob/main/documents/%E6%9B%B4%E6%96%B0%E6%9C%BA%E5%88%B6%E8%AE%BE%E8%AE%A1-v4.8.0.md" target="_blank" rel="noopener" style="color:#2980b9;">更新说明</a></p>`; }
                     html += `<p style="margin-top:6px; font-size:12px; color:#95a5a6;">升级操作请运行 <code>python tools/update.py --check</code>（详见设计文档 / tools/update.py --help）</p>`;
                 } else {
-                    html += `<p><strong>最新版本</strong>：<span class="badge badge-green">v${d.latest_version}</span> <span style="color:#27ae60;">已是最新</span></p>`;
+                    html += `<p><strong>${window.T('最新版本')}</strong>：<span class="badge badge-green">v${d.latest_version}</span> <span style="color:#27ae60;">window.T('已是最新')</span></p>`;
                 }
                 box.innerHTML = html;
             })
-            .catch(e => { box.innerHTML = `<span style="color:#c0392b;">检查异常：${e.message}</span>`; });
+            .catch(e => { box.innerHTML = `<span style="color:#c0392b;">window.T('检查异常') + '：' + e.message</span>`; });
     }
 
     function loadStats() {
@@ -137,7 +137,7 @@
                     ['绑定地址', d.host + (d.debug ? '（调试模式）' : '')],
                     ['项目目录', '<code style="font-size:12px; word-break:break-all;">' + d.base_dir + '</code>'],
                     ['插件目录（含禁用）', fmt(d.total_plugins_catalog) + ' 项'],
-                    ['前端工具', fmt(d.total_frontend_tools) + ' 项'],
+                    ['前端工具', fmt(d.total_frontend_tools) + ' ' + window.T('项')],
                 ];
                 document.getElementById('sysInfoBody').innerHTML = rows.map(r =>
                     `<tr><td style="width:130px; color:#7f8c8d; font-weight:600;">${r[0]}</td><td>${r[1]}</td></tr>`

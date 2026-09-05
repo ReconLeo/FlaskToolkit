@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="{{ lang }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}{{ system_name }} 管理后台{% endblock %}</title>
+    <title>{% block title %}{{ system_name }} · {{ t('管理后台') }}{% endblock %}</title>
     <style>
         * {
             box-sizing: border-box;
@@ -340,13 +340,13 @@
 <body>
     <nav class="navbar">
         <div class="navbar-left">
-            <a class="navbar-brand" href="/admin/dashboard">{{ system_name }}<span>管理后台</span></a>
+            <a class="navbar-brand" href="/admin/dashboard">{{ system_name }}<span>{{ t('管理后台') }}</span></a>
             <ul class="nav-menu">
-                <li><a href="/admin/dashboard" class="{{ 'active' if active_page == 'dashboard' else '' }}">📊 仪表盘</a></li>
-                <li><a href="/admin/plugins" class="{{ 'active' if active_page == 'plugins' else '' }}">🔌 插件管理</a></li>
-                <li><a href="/admin/logs" class="{{ 'active' if active_page == 'logs' else '' }}">📄 日志</a></li>
-                <li><a href="/admin/stats" class="{{ 'active' if active_page == 'stats' else '' }}">📈 统计</a></li>
-                <li><a href="/admin/system" class="{{ 'active' if active_page == 'system' else '' }}">⚙️ 系统管理</a></li>
+                <li><a href="/admin/dashboard" class="{{ 'active' if active_page == 'dashboard' else '' }}">📊 {{ t('仪表盘') }}</a></li>
+                <li><a href="/admin/plugins" class="{{ 'active' if active_page == 'plugins' else '' }}">🔌 {{ t('插件管理') }}</a></li>
+                <li><a href="/admin/logs" class="{{ 'active' if active_page == 'logs' else '' }}">📄 {{ t('日志') }}</a></li>
+                <li><a href="/admin/stats" class="{{ 'active' if active_page == 'stats' else '' }}">📈 {{ t('统计') }}</a></li>
+                <li><a href="/admin/system" class="{{ 'active' if active_page == 'system' else '' }}">⚙️ {{ t('系统管理') }}</a></li>
             </ul>
         </div>
         <div class="navbar-right">
@@ -366,6 +366,15 @@
 
     <div id="toast" class="toast"></div>
 
+    <script>
+        /* v4.9.0 i18n：window.T 翻译函数（翻译表由服务端注入，缺省回退原文） */
+        window.__I18N = {{ t_json | tojson }};
+        window.T = function (k, p) {
+            var s = (window.__I18N && window.__I18N[k]) || k;
+            if (p) { for (var x in p) { s = s.replace('{' + x + '}', p[x]); } }
+            return s;
+        };
+    </script>
     <script src="/static/js/plugin_common.js"></script>
     <script>
         // ---------- 通用工具 ----------
@@ -396,7 +405,7 @@
                         document.getElementById('userAvatar').textContent =
                             (u.nickname || u.username || 'A').charAt(0).toUpperCase();
                         document.getElementById('userName').textContent =
-                            (u.nickname || u.username) + ' · ' + (u.role === 'admin' ? '管理员' : '用户');
+                            (u.nickname || u.username) + ' · ' + (u.role === 'admin' ? window.T('管理员') : window.T('用户'));
                     }
                 })
                 .catch(() => {});

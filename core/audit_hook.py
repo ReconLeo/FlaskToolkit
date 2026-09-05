@@ -21,6 +21,7 @@ plugins/ 来源，按该插件 4.3.2 注册的 capabilities 授权判定，实�
 import os
 import sys
 import threading
+import time
 
 import global_var
 
@@ -262,6 +263,76 @@ def _allowed(plugin, domain, target):
     return True, 'unmonitored-domain'
 
 
+# ------------------------------ 数据配额（v4.9.0 防恶意写盘） ------------------------------
+
+_DATA_CACHE_TTL = 5.0          # 目录总量缓存秒数（避免每次写事件 os.walk）
+_data_dir_cache = {}           # plugin -> (checked_ts, size_bytes)
+
+
+def _data_limit_mb():
+    """配置项 PLUGIN_DATA_LIMIT_MB（单插件数据目录配额，0/缺省禁用）。"""
+    try:
+        v = global_var.get_user_config().get('PLUGIN_DATA_LIMIT_MB', 50)
+        return float(v or 0)
+    except Exception:
+        return 50.0
+
+
+def _plugin_quota_dirs(plugin):
+    """插件配额目录：plugins/data/<p>/（正式数据）与 plugins/temp/<p>/（临时文件）。"""
+    base = os.path.join(global_var.BASE_DIR, 'plugins')
+    return [os.path.join(base, 'data', plugin), os.path.join(base, 'temp', plugin)]
+
+
+def _quota_usage(plugin):
+    """插件配额目录总大小（TTL 缓存）。"""
+    now = time.time()
+    hit = _data_dir_cache.get(plugin)
+    if hit and now - hit[0] < _DATA_CACHE_TTL:
+        return hit[1]
+    total = 0
+    for d in _plugin_quota_dirs(plugin):
+        if os.path.isdir(d):
+            for root, _ds, fs in os.walk(d):
+                for fn in fs:
+                    try:
+                        total += os.path.getsize(os.path.join(root, fn))
+                    except OSError:
+                        pass
+    _data_dir_cache[plugin] = (now, total)
+    return total
+
+
+def _in_plugin_quota_area(plugin, target):
+    """target 是否落在插件配额目录下（归一化前缀匹配，与 capabilities 同规则）。"""
+    tn = caps_mod._norm_path(target)
+    for d in _plugin_quota_dirs(plugin):
+        dn = caps_mod._norm_path(d)
+        if tn == dn or tn.startswith(dn + '/'):
+            return True
+    return False
+
+
+def _check_data_quota(plugin, target):
+    """插件数据配额检查：写事件落在配额目录且总量超限时，observe 记录 / enforce 拒绝。"""
+    limit_mb = _data_limit_mb()
+    if not limit_mb or limit_mb <= 0:
+        return
+    if not _in_plugin_quota_area(plugin, target):
+        return
+    usage = _quota_usage(plugin)
+    limit = int(limit_mb * 1048576)
+    if usage >= limit:
+        used = usage / 1048576
+        msg = f'插件 {plugin} 数据配额超限：{used:.1f}MB / {limit_mb:.0f}MB'
+        if _MODE == 'enforce':
+            with _PENDING_LOCK:
+                _PENDING.append(('audit', plugin, 'blocked', msg))
+            raise RuntimeError(f'运行时审计拒绝：{msg}')
+        with _PENDING_LOCK:
+            _PENDING.append(('audit', plugin, 'audit-warn', msg))
+
+
 # ------------------------------ 处理 ------------------------------
 
 def _deny(plugin, domain, target, detail):
@@ -304,6 +375,9 @@ def _handler(event, args):
         allowed, _ = _allowed(plugin, domain, target)
         if not allowed:
             _deny(plugin, domain, target, f'{event}: {target}')
+            return
+        if domain == 'filesystem:write':
+            _check_data_quota(plugin, target)
     finally:
         _local.in_hook = False
 

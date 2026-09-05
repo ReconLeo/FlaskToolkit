@@ -1,35 +1,38 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="{{ lang }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ system_name }} · 系统登录</title>
+    <title>{{ system_name }} · {{ t('系统登录') }}</title>
     <link rel="stylesheet" href="/static/css/main.css">
 </head>
 <body>
     <div class="auth-page">
         <div class="auth-card">
+        <div class="auth-lang" style="text-align:right; margin-bottom:10px;">
+            {% for code, name in available_langs.items() %}{% if code != lang %}<a href="/lang/{{ code }}?next={{ request.path }}" style="font-size:13px; color:#666; text-decoration:none; margin-left:10px;">{{ name }}</a>{% endif %}{% endfor %}
+        </div>
             <!-- 登录表单区 -->
             <div id="loginForm">
-                <h2 class="auth-title">🔐 系统登录</h2>
+                <h2 class="auth-title">🔐 {{ t('系统登录') }}</h2>
                 <div class="form-item">
-                    <label>用户名</label>
+                    <label>{{ t('用户名') }}</label>
                     <div class="input-wrap">
-                        <input type="text" id="username" placeholder="请输入用户名" autocomplete="username">
+                        <input type="text" id="username" placeholder="{{ t('用户名') }}" autocomplete="username">
                     </div>
                 </div>
                 <div class="form-item">
-                    <label>密码</label>
+                    <label>{{ t('密码') }}</label>
                     <div class="input-wrap">
-                        <input type="password" id="password" placeholder="请输入密码" autocomplete="current-password">
-                        <button type="button" id="pwdToggle" class="pwd-toggle" tabindex="-1">显示</button>
+                        <input type="password" id="password" placeholder="{{ t('密码') }}" autocomplete="current-password">
+                        <button type="button" id="pwdToggle" class="pwd-toggle" tabindex="-1">{{ t('显示') }}</button>
                     </div>
                 </div>
                 <div class="form-item" style="display:flex; align-items:center; gap:6px; margin-bottom:20px;">
                     <input type="checkbox" id="remember" style="width:auto; cursor:pointer;">
-                    <label for="remember" style="margin-bottom:0; font-size:13px; color:#666; cursor:pointer;">记住用户名</label>
+                    <label for="remember" style="margin-bottom:0; font-size:13px; color:#666; cursor:pointer;">{{ t('记住用户名') }}</label>
                 </div>
-                <button class="btn btn-primary" id="loginBtn" style="width:100%; padding:11px; font-size:16px;">登录</button>
+                <button class="btn btn-primary" id="loginBtn" style="width:100%; padding:11px; font-size:16px;">{{ t('登录') }}</button>
                 <div class="auth-error" id="errorTip"></div>
                 <div class="auth-tip">默认账号：admin / admin123</div>
             </div>
@@ -37,7 +40,7 @@
             <!-- 登录成功提示区（默认隐藏） -->
             <div id="successArea" class="auth-success">
                 <div class="status-icon">✓</div>
-                <div class="status-title">登录成功</div>
+                <div class="status-title">{{ t('登录成功') }}</div>
                 <div class="status-tip" id="successTip">3秒后自动跳转到首页...</div>
                 <a href="javascript:goRedirect()" class="btn btn-primary" style="width:auto; padding:8px 20px;">立即前往</a>
             </div>

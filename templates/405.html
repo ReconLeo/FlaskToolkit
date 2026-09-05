@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="{{ lang }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>405 请求方法不允许</title>
+    <title>405 {{ t('请求方式不允许') }}</title>
     <link rel="stylesheet" href="/static/css/error.css">
 </head>
 <body>
@@ -11,14 +11,14 @@
         <div class="error-card">
             <div class="error-icon">🚧</div>
             <div class="error-code">405</div>
-            <h1 class="error-title">请求方法不允许</h1>
-            <p class="error-message">{{ message | default('当前请求使用的 HTTP 方法不被目标接口支持，请更换方法后重试。') }}</p>
+            <h1 class="error-title">{{ t('请求方式不允许') }}</h1>
+            <p class="error-message">{{ message | default(t('当前请求使用的 HTTP 方法不被目标接口支持，请更换方法后重试。')) }}</p>
             <div class="error-actions">
-                <a href="javascript:history.back()" class="error-btn error-btn-secondary">← 返回上一页</a>
-                <a href="/" class="error-btn error-btn-primary">返回首页</a>
+                <a href="javascript:history.back()" class="error-btn error-btn-secondary">← {{ t('返回上一页') }}</a>
+                <a href="/" class="error-btn error-btn-primary">{{ t('返回首页') }}</a>
             </div>
         </div>
-        <div class="error-footer">{{ system_name }} · 统一错误码页面</div>
+        <div class="error-footer">{{ system_name }} · {{ t('统一错误码页面') }}</div>
     </div>
 </body>
 </html>
