@@ -1,10 +1,12 @@
 {
   "latest_version": "4.8.0",
-  "published_at": "2026-09-04",
+  "published_at": "2026-09-05",
   "download_url": "https://github.com/ReconLeo/FlaskToolkit/releases/download/v4.8.0/FlaskToolkit-v4.8.0-runtime.zip",
-  "sha256": "bd4aa0be1a54650a023a082944b0d9404aa8c20393c48bcd2d96fcfb6b33bfe3",
+  "sha256": "24aa3ae6de3a42cb7ad02b73bac3dfe49a92e5141068d5a13cd08b4af008a4ff",
   "changes": [
-    "版本检查推送（F1）：changelog.json 数据源 + update_checker 异步检查 + 启动横幅/后台卡片推送",
-    "双后端更新脚本（F4）：git/archive 后端 + 用户数据路径保留 + 自动回滚"
+    "企业环境优化更新：版本检查推送（core/update_checker + changelog.json 数据源 + 配置项 + 管理后台检查接口与展示引导）",
+    "双后端更新机制：tools/update.py（git/archive 双后端 + 用户数据保留 + 校验/备份/回滚）+ tools/release.py 发布工具链（bump/精简·全量·定制包/changelog 签名）",
+    "装饰性更新：项目宣传（PROJECT_* 常量 + 启动横幅 + GitHub 链接）+ 系统名个性化（SYSTEM_NAME/SYSTEM_VERSION_LABEL）",
+    "Community 收尾文档整理：Enterprise 交接文档 + README 双版 Edition Status + Roadmap 远期章节 + 开发规范版本区精简"
   ]
 }
