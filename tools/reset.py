@@ -14,6 +14,8 @@
 
 范围说明（与 Factory Reset 一致）：
   plugins        清除非内置插件（含文件/模板/静态/配置；内置 auth/user_manage 受保护）
+  （locales/ 为框架内置 i18n 语言包，属框架数据，不在任何重置范围内；用户扩展语言包
+    与用户配置同类，深度重置同样保留，与 Factory Reset 语义一致）
   frontend_tools 清空前端工具（注册清单 + 模板目录）
   stats_logs     重置统计数据（data/stats.json + 内存统计）与日志目录
   sessions       清空登录会话
@@ -42,12 +44,23 @@ SCOPE_HELP = {
 }
 
 
-def is_service_running(port: int = 5000) -> bool:
-    """检测默认端口是否有服务在监听（提示用，非强制）"""
+def is_service_running() -> bool:
+    """检测服务监听地址是否有服务在运行（提示用，非强制）。
+
+    适配用户配置 HOST/PORT（tools/config.py 可设，环境变量 FLASKTOOLKIT_HOST/PORT 优先）；
+    PORT 留空时框架自动探测可用端口，此处回退默认 5000 提示。
+    """
+    host, port = '127.0.0.1', 5000
+    try:
+        cfg = global_var.get_user_config()
+        host = cfg.get('HOST') or host
+        port = int(cfg.get('PORT') or port)
+    except Exception:
+        pass
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.settimeout(0.3)
-            return s.connect_ex(('127.0.0.1', port)) == 0
+            return s.connect_ex((host, port)) == 0
     except Exception:
         return False
 

@@ -33,6 +33,8 @@ import zipfile
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # 用户数据路径清单（相对项目根，与 .gitignore 语义对齐；archive 后端解压时显式跳过，git 后端靠 gitignore 保留）
+# 说明：locales/ 整体为框架内置 i18n 语言包（v4.9.0），不入本清单——更新/发布时随框架正常覆盖携带；
+#       users/ 为 AI 助手本地数据（.gitignore 已忽略，非项目内容），发布包与框架备份均不携带。
 USER_DATA_PATHS = [
     'data',
     'plugins/configs',
@@ -43,6 +45,7 @@ USER_DATA_PATHS = [
     'workspace',
     'temp',
     'backups',
+    'users',
 ]
 # 更新下载包存放目录（在 USER_DATA_PATHS 覆盖的 temp/ 下）
 DOWNLOAD_DIR = os.path.join('temp', 'update_downloads')

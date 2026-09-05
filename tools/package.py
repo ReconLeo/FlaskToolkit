@@ -19,7 +19,9 @@
 说明：
 - manifest.json 记录包内全部成员（除清单自身）的 sha256；安装时框架逐文件比对，
   防篡改/损坏/zip slip 错位/加料。签名用 RSA-SHA256（需 cryptography 库）。
-- 包结构（backend）：plugin.json + 主 .py + 可选 templates/static + manifest.json
+- 包结构（backend）：plugin.json + 主 .py + 可选 templates/static/locales + manifest.json
+  （v4.9.0 插件多语言：可携带 locales/<lang>.json 语言包，安装后自动并入 i18n 查找链；
+   打包时目录内文件全部收录，locales/ 自动进包，无需额外参数）
 - 包结构（frontend）：config.json + 入口 .html + 可选 static/ + manifest.json
 """
 import argparse

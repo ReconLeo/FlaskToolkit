@@ -64,9 +64,9 @@ def main():
 
         dest, saved, skipped = bk.create_backup('b1')
         check('backup create 生成备份目录', os.path.isdir(dest), dest)
-        check('backup create 备份 6 类内容',
+        check('backup create 备份 5 类内容',
               set(saved) == {'plugins/configs', 'plugins/status.json', 'plugins/data', 'data',
-                             'data/frontend_tools.json', 'logs'}, f"{saved}")
+                             'logs'}, f"{saved}")
         check('backup create 内容落盘',
               os.path.exists(os.path.join(dest, 'plugins', 'configs', 'auth.json')) and
               os.path.exists(os.path.join(dest, 'data', 'audit.log')) and
@@ -76,7 +76,7 @@ def main():
         backs = bk.list_backups()
         check('backup list 列出备份', any(b['name'] == 'b1' for b in backs), f"{backs}")
         info = bk.info_backup('b1')
-        check('backup info 含 6 条目', len(info['items']) == 6, f"{info['items']}")
+        check('backup info 含 5 条目', len(info['items']) == 5, f"{info['items']}")
 
         # 篡改项目数据后 restore
         open(os.path.join(isolated, 'data', 'audit.log'), 'w', encoding='utf-8').write('TAMPERED')

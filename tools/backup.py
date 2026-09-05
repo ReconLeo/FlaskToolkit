@@ -4,8 +4,10 @@
 用途：
 - 在 Factory Reset（重置）前手动备份关键数据，支持重置后还原。
 - 备份内容默认覆盖：插件配置（plugins/configs）、插件启用状态（plugins/status.json）、
-  插件会话（plugins/data）、运行数据（data：统计/审计日志/用户配置）、前端工具清单
-  （data/frontend_tools.json，v4.5.0 起随前端工具清单迁移至 data/）、日志（logs）。
+  插件会话（plugins/data）、运行数据（data：统计/审计日志/用户配置/前端工具清单，
+  frontend_tools.json 自 v4.5.0 起位于 data/ 下，由 data 整目录覆盖）、日志（logs）。
+- locales/（框架内置 i18n 语言包）与 users/（AI 助手本地数据）不属备份范围：前者随框架
+  版本一致，后者非框架数据。
 - 建议在服务停止时执行（避免文件被占用）。
 
 用法：
@@ -32,8 +34,7 @@ BACKUP_ITEMS = [
     ('plugins/configs', 'plugins/configs'),
     ('plugins/status.json', 'plugins/status.json'),
     ('plugins/data', 'plugins/data'),
-    ('data', 'data'),
-    ('data/frontend_tools.json', 'data/frontend_tools.json'),
+    ('data', 'data'),  # 含 stats/audit/user_config/frontend_tools.json 等全部运行数据
     ('logs', 'logs'),
 ]
 
