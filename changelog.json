@@ -1,0 +1,10 @@
+{
+  "latest_version": "4.8.0",
+  "published_at": "2026-09-04",
+  "download_url": "https://github.com/ReconLeo/FlaskToolkit/releases/download/v4.8.0/FlaskToolkit-v4.8.0-runtime.zip",
+  "sha256": "bd4aa0be1a54650a023a082944b0d9404aa8c20393c48bcd2d96fcfb6b33bfe3",
+  "changes": [
+    "版本检查推送（F1）：changelog.json 数据源 + update_checker 异步检查 + 启动横幅/后台卡片推送",
+    "双后端更新脚本（F4）：git/archive 后端 + 用户数据路径保留 + 自动回滚"
+  ]
+}

@@ -508,6 +508,37 @@ def register(app):
         }
         return jsonify({"code": 200, "data": info})
 
+    # ---------- 版本更新检查接口（v4.8.0，F1） ----------
+    @app.route('/api/admin/update/check', methods=['POST'])
+    @admin_api
+    def admin_update_check():
+        """手动触发版本检查（force 刷新）；返回最新版本信息与是否有更新。
+        数据源由 UPDATE_FEED_URL 指定（默认 GitHub changelog.json，内网可指向镜像）。"""
+        try:
+            from core.update_checker import check_for_update, is_newer
+            _payload = request.get_json(silent=True) or {}
+            info = check_for_update(force=bool(_payload.get("force")))
+            current = global_var.FRAMEWORK_VERSION
+            if info is None or not info.latest_version:
+                return jsonify({"code": 200, "data": {
+                    "checked": False,
+                    "message": "检查失败：无法访问更新数据源（网络/格式），可查看日志",
+                    "current_version": current,
+                }})
+            has_update = is_newer(info.latest_version, current)
+            return jsonify({"code": 200, "data": {
+                "checked": True,
+                "current_version": current,
+                "latest_version": info.latest_version,
+                "published_at": info.published_at,
+                "download_url": info.download_url,
+                "changes": info.changes,
+                "has_update": has_update,
+                "checked_at": info.checked_at,
+            }})
+        except Exception as e:
+            return jsonify({"code": 500, "message": f"版本检查异常: {e}"}), 500
+
     # ---------- 管理后台页面路由（均受管理员权限保护；auth 未安装时全放行） ----------
     def _admin_page(template, active_page, **extra):
         """管理页面通用渲染：注入 active_page 供 base.html 高亮导航"""

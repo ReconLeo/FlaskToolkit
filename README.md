@@ -4,7 +4,7 @@
   <img src="https://github.com/ReconLeo/FlaskToolkit/actions/workflows/ci.yml/badge.svg" alt="CI">
   <img src="https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB?logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/License-MIT-yellow" alt="License">
-  <img src="https://img.shields.io/badge/version-4.7.0-blue" alt="Version">
+  <img src="https://img.shields.io/badge/version-4.8.0-blue" alt="Version">
 </p>
 
 > A Flask-based plugin **framework**: bring scattered Python plugins and pure-frontend tools into one unified runtime —
@@ -34,9 +34,10 @@ Over time it grew into what it is today:
 - Optional HTTPS: point `SSL_CERT_FILE` / `SSL_KEY_FILE` at a certificate/key pair (generate a self-signed one via `python tools/gen_cert.py`) and the server serves HTTPS; plain HTTP remains the default. Frontend-tool registry `frontend_tools.json` moved under `data/` (legacy root file auto-migrated on startup);
 - Manual unlock for locked accounts: the admin panel's user management now shows lock status (login-failure lockout) and provides a one-click **unlock** action (`POST /api/user_manage/unlock`) — clears all lock records (IP+username or username dimension) so the user can log in immediately without waiting for the lockout to expire;
 - Project branding & customization (v4.7.0): startup banner (name / slogan / version / author / GitHub), admin header GitHub link, "About" card on the admin system page, and user-customizable system name & version label (`SYSTEM_NAME` / `SYSTEM_VERSION_LABEL` via `tools/config.py`) injected into every page (display-only, internal identifiers unchanged);
-- Added plugin-package integrity verification & signing, Factory Reset, backup/restore, startup self-check, plus a **500-assertion regression suite and GitHub Actions CI**.
+- Version check & update mechanism (v4.8.0): startup/console and admin-panel update pushes driven by a `changelog.json` feed (latest version only, user-customizable via `UPDATE_FEED_URL`, async check with 3s timeout and 24h cache); `tools/update.py` dual-backend updater — git backend (fetch/stash/reset + selfcheck rollback) and archive backend for non-Git intranets (sha256-required + optional signature, zip-slip guard, user-data paths preserved, auto backup/rollback); `tools/release.py` publishing chain (version bump / runtime & full & custom packages / changelog signing).
+- Added plugin-package integrity verification & signing, Factory Reset, backup/restore, startup self-check, plus a **540-assertion regression suite and GitHub Actions CI**.
 
-To be honest, this framework's goal is not to "reinvent Django": it stands on the shoulders of giants like Flask, APScheduler, and Werkzeug, and lands the parts I needed. Its trust model is blunt — **installing a plugin means trusting its author**: plugins run in-process with the framework, without sandboxing (see dev guide 10.1). But it does not stop at "bare trust": layered defense — **static scanning (4.3.1) → capability cross-validation (4.3.2) → runtime audit hooks (4.4.0)** — sits on top, together with optional HTTPS (4.5.0) and login lockout/manual unlock (4.3.0/4.5.1) and project branding / customizable system name (4.7.0). That is enough for trusted LANs / enterprise intranets running daily tools; exposing to an adversarial public network still needs your own risk assessment (plugins are still unsandboxed).
+To be honest, this framework's goal is not to "reinvent Django": it stands on the shoulders of giants like Flask, APScheduler, and Werkzeug, and lands the parts I needed. Its trust model is blunt — **installing a plugin means trusting its author**: plugins run in-process with the framework, without sandboxing (see dev guide 10.1). But it does not stop at "bare trust": layered defense — **static scanning (4.3.1) → capability cross-validation (4.3.2) → runtime audit hooks (4.4.0)** — sits on top, together with optional HTTPS (4.5.0) and login lockout/manual unlock (4.3.0/4.5.1) and project branding / customizable system name (4.7.0) plus version check & dual-backend update tooling (4.8.0). That is enough for trusted LANs / enterprise intranets running daily tools; exposing to an adversarial public network still needs your own risk assessment (plugins are still unsandboxed).
 
 My only principle: **need-driven, whatever is convenient**. So what you get is an out-of-the-box, low-barrier toolbox that lets you drop in tools whenever you want, with your data always in your own hands.
 
@@ -104,7 +105,7 @@ Detailed specs live in the [Flask Plugin Framework Development Guide](documents/
 
 ## Tests & CI
 
-`tests/` contains **22 scripts / 500 assertions** of regression tests (isolated-directory mode, no pollution of project files); GitHub Actions runs them automatically on Python 3.10 / 3.11 / 3.12, covering permissions, plugin-package / frontend-tool chains, integrity signatures, uninstall manifests, Factory Reset, large-plugin multi-template page routing, file transfer (upload limits / Chinese-name downloads / Range), static security scanning, capability cross-validation, runtime audit hooks, ops tools, etc.
+`tests/` contains **23 scripts / 540 assertions** of regression tests (isolated-directory mode, no pollution of project files); GitHub Actions runs them automatically on Python 3.10 / 3.11 / 3.12, covering permissions, plugin-package / frontend-tool chains, integrity signatures, uninstall manifests, Factory Reset, large-plugin multi-template page routing, file transfer (upload limits / Chinese-name downloads / Range), static security scanning, capability cross-validation, runtime audit hooks, ops tools, etc.
 
 <details>
 <summary>Expand: 22 test scripts</summary>
@@ -133,7 +134,7 @@ python tests/test_security.py              # system security: headers / cookie h
 python tests/test_plugin_scan.py           # plugin static scanning (v4.3.1): risky imports/calls/obfuscation/network+file touchpoints 35
 python tests/test_capabilities.py          # plugin capability declarations (v4.3.2): parse/match/cross-check/runtime authorization 51
 python tests/test_audit_hook.py            # runtime audit hooks (v4.4.0): event mapping/stack attribution/observe/enforce 36
-# total: 22 scripts / 500 assertions
+# total: 23 scripts / 540 assertions
 ```
 
 </details>
@@ -151,7 +152,7 @@ MIT License · contribution guidelines in [CONTRIBUTING.md](CONTRIBUTING.md) · 
 
 ### AI-Assisted Development Statement
 
-This project used AI-assisted programming tools during development, including but not limited to: code generation and refactoring, code review, test case authoring, and documentation writing. All AI-assisted content has been manually reviewed by the developer and is only merged after passing the project's own regression suite (`tests/`, 500 assertions) and startup integrity self-check.
+This project used AI-assisted programming tools during development, including but not limited to: code generation and refactoring, code review, test case authoring, and documentation writing. All AI-assisted content has been manually reviewed by the developer and is only merged after passing the project's own regression suite (`tests/`, 540 assertions) and startup integrity self-check.
 
 Transparency conventions for contributors:
 

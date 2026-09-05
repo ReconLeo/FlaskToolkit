@@ -1,5 +1,15 @@
 # Flask插件框架开发规范
 
+## 版本：v4.8.0（企业环境优化更新：版本检查推送 + 双后端更新机制） | 更新日期：2026年09月04日
+
+### 版本说明（v4.8.0 变更：企业环境优化更新 F1/F4）
+- **框架版本升级至 v4.8.0**，本次为企业环境优化更新（不影响插件 API，新增运维/发布能力）：
+  1. **版本检查推送（F1）**：新增 `core/update_checker.py` 版本检查模块——`parse_version` / `is_newer`（tuple 逐段比较）、`check_for_update`（数据源根目录 `changelog.json` 只存最新版本：`latest_version` / `published_at` / `download_url` / `sha256` / `signature` / `changes`，urllib 拉取 3s 超时 + 24h TTL 内存/落盘缓存）、`_verify_feed_signature`（配置 `UPDATE_PUBLIC_KEY_PEM` 后复用 `core/package_sign.verify_signature` 强制验签，未配置则跳过）；`app.py` 启动横幅下打印缓存检查结果并起 threading 后台检查线程；管理后台新增 `POST /api/admin/update/check`（`force` 从请求体读取，强制刷新），dashboard 版本更新卡片 + system 页版本检查行，**仅展示并引导下载，不做一键更新**（避免更新过程中会话失效与前后端版本撕裂）。
+  2. **双后端更新机制（F4）**：新增 `tools/update.py`——**git 后端**（fetch/stash/reset + selfcheck 失败回滚，开源环境 gitignore 天然保留配置）与 **archive 后端**（面向无 Git 企业内网，显式跳过 `USER_DATA_PATHS` 用户数据清单——`data/plugins` / `data/configs` / `plugins/data` / `plugins/temp` / `logs` / `.plugin_cache` / `workspace` / `temp` / `backups` + `frontend_tools.json` / `.version` / `plugins/status.json`，含 `check_zip_slip` 防护、`verify_update_archive` sha256 必选 + 签名可选、`backup_framework` 自动备份、失败 `rollback_archive` 回滚）；子命令 `check` / `backup` / `apply` / `rollback` / `selfcheck`，支持 `--dry-run` / `--backend` / `--feed-url` / `--json`。新增 `tools/release.py` 发布工具链——`--bump-version` 同步版本三处 + `SYSTEM_VERSION_LABEL` + README 徽章；`--build` 默认**精简运行包**（仅运行必需，不含 tests/documents/examples）/ `--full` **全量包**（含 tests/documents/examples 供归档审计）/ `--include src:dest` **定制包**（企业私有插件/文档/配置模板叠加打入，用户数据路径清单始终保留）；`write_changelog` + `--sign` 生成签名 changelog.json（审计意见落地：默认精简，全量可选，企业可自定义附加）。
+- **新增配置项**：`UPDATE_FEED_URL`（默认 GitHub raw 地址）、`UPDATE_CHECK_ENABLED`（默认 True）、`UPDATE_CHECK_INTERVAL`（默认 24h）、`UPDATE_PUBLIC_KEY_PEM`（可选，配置后强制验签）；配置预设三档联动——daily → `True`，strict / lan-open → `False`（企业内网不发起 3s 超时检查）。
+- **版本边界**：`changelog.json` 的 `latest_version` 与本地 `FRAMEWORK_VERSION` 比较由 `is_newer` 完成；`SYSTEM_VERSION_LABEL` 随发布工具链同步更新。
+- **回归测试扩充至 23 脚本 540 项**：新增 `tests/test_update_checker.py` 40 项（版本比较 / 用户数据路径判定 / zip slip / archive 校验链 / 缓存 TTL / 数据源结构校验）。
+
 ## 版本：v4.7.0（装饰性更新：项目宣传与系统名个性化） | 更新日期：2026年09月04日
 
 ### 版本说明（v4.7.0 变更：装饰性更新 F2/F3）

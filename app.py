@@ -123,6 +123,24 @@ if __name__ == '__main__':
     print(f"  GitHub: {global_var.PROJECT_GITHUB}", flush=True)
     print('-' * 60, flush=True)
 
+    # ===== v4.8.0：版本检查（有缓存直接展示；无缓存由后台线程检查，下次启动/后台刷新可见）=====
+    if _ucfg.get('UPDATE_CHECK_ENABLED'):
+        try:
+            from core.update_checker import check_for_update, is_newer, _read_cache
+            _upd = check_for_update()
+            if _upd is not None and _upd.latest_version:
+                if is_newer(_upd.latest_version, global_var.FRAMEWORK_VERSION):
+                    print(f"  [更新] 发现新版本 v{_upd.latest_version}"
+                          f"（当前 v{global_var.FRAMEWORK_VERSION}，变更 {len(_upd.changes)} 条，"
+                          f"详见 tools/update.py --help）", flush=True)
+                else:
+                    print(f"  [更新] 已是最新版本 v{global_var.FRAMEWORK_VERSION}", flush=True)
+            else:
+                # 无缓存且拉取失败：静默（后台线程会再试并写缓存）
+                pass
+        except Exception:
+            pass
+
     # 重新读取配置后的路径常量（顶部 from global_var import 为模块加载时绑定，需刷新）
     PLUGIN_CONFIGS_DIR, PLUGIN_TEMP_DIR, LOG_DIR, STATS_FILE, UPLOAD_TEMP_DIR = (
         global_var.PLUGIN_CONFIGS_DIR, global_var.PLUGIN_TEMP_DIR, global_var.LOG_DIR,
@@ -152,6 +170,16 @@ if __name__ == '__main__':
     install_audit_hook(global_var.AUDIT_HOOK_MODE)
 
     scheduler.start()
+
+    # ===== v4.8.0：后台线程执行版本检查（不阻塞启动；结果写入 data/cache/update_check.json）=====
+    if global_var.get_user_config().get('UPDATE_CHECK_ENABLED'):
+        try:
+            import threading
+            from core.update_checker import background_check
+            threading.Thread(target=background_check, daemon=True, name='update-check').start()
+        except Exception:
+            pass
+
     load_plugins()
     load_frontend_tools()
     watcher = start_file_watcher()

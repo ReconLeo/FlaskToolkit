@@ -120,6 +120,7 @@
                 const d = res.data;
                 const rows = [
                     ['系统名称', d.system_name],
+                    ['版本检查', '<span id="sysVerLine" style="color:#7f8c8d;">待检查</span>'],
                     ['系统版本', '<span class="badge badge-blue">' + d.system_version + '</span>'],
                     ['框架版本', '<span class="badge badge-blue">v' + d.framework_version + '</span>'],
                     ['Python 版本', d.python_version],
@@ -136,6 +137,25 @@
                     `<tr><td style="width:150px; color:#7f8c8d; font-weight:600;">${r[0]}</td><td>${r[1]}</td></tr>`
                 ).join('');
             }).catch(() => {});
+    }
+
+    function loadSysVer() {
+        fetch('/api/admin/update/check', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': _getCsrfCookie() },
+            credentials: 'include',
+            body: JSON.stringify({ force: false })
+        })
+            .then(r => r.json())
+            .then(res => {
+                const el = document.getElementById('sysVerLine');
+                if (!el) return;
+                if (res.code !== 200 || !res.data || !res.data.checked) { el.textContent = '检查失败/未配置'; return; }
+                const d = res.data;
+                if (d.has_update) { el.innerHTML = `<span class="badge badge-orange">v${d.latest_version}（有新版本）</span>`; }
+                else { el.innerHTML = `<span class="badge badge-green">v${d.latest_version}（已是最新）</span>`; }
+            })
+            .catch(() => { const el = document.getElementById('sysVerLine'); if (el) el.textContent = '检查失败'; });
     }
 
     function loadAuditLog() {
@@ -219,6 +239,6 @@
             .finally(() => { btn.disabled = false; });
     }
 
-    document.addEventListener('DOMContentLoaded', () => { loadSysInfo(); loadAuditLog(); });
+    document.addEventListener('DOMContentLoaded', () => { loadSysInfo(); loadSysVer(); loadAuditLog(); });
 </script>
 {% endblock %}

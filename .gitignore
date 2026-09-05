@@ -9,6 +9,7 @@ venv/
 # ---------- FlaskToolkit 运行时数据（首次启动自动生成，无需提交） ----------
 # 统计数据 / 审计日志 / 用户配置 / 首次自检标记
 data/stats.json
+data/cache/
 data/audit.log
 data/user_config.json
 data/.initialized
@@ -69,3 +70,4 @@ Thumbs.db
 .vscode/
 *.swp
 workspace/
+releases/
