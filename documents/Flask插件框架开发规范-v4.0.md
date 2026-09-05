@@ -10,130 +10,28 @@
 - **版本边界**：`changelog.json` 的 `latest_version` 与本地 `FRAMEWORK_VERSION` 比较由 `is_newer` 完成；`SYSTEM_VERSION_LABEL` 随发布工具链同步更新。
 - **回归测试扩充至 23 脚本 540 项**：新增 `tests/test_update_checker.py` 40 项（版本比较 / 用户数据路径判定 / zip slip / archive 校验链 / 缓存 TTL / 数据源结构校验）。
 
-## 版本：v4.7.0（装饰性更新：项目宣传与系统名个性化） | 更新日期：2026年09月04日
+## 版本历史（精简表）
 
-### 版本说明（v4.7.0 变更：装饰性更新 F2/F3）
-- **框架版本升级至 v4.7.0**，本次为装饰性更新（不影响插件 API 与内部逻辑）：
-  1. **项目宣传（F2）**：`global_var.py` 新增只读常量 `PROJECT_NAME` / `PROJECT_AUTHOR` / `PROJECT_GITHUB` / `PROJECT_SLOGAN`（不进 `CONFIG_ITEMS`）；`app.py` 启动时打印项目横幅（系统名称 + 版本标签 + 标语 + 框架版本 + 作者 + GitHub 链接）；管理后台页眉新增 GitHub 链接；`/api/admin/system/info` 返回 `system_name` / `system_version` / `project_*` 字段；系统管理页新增"关于项目"卡片。
-  2. **系统名个性化（F3）**：新增 `CONFIG_ITEMS` 配置项 `SYSTEM_NAME`（默认 FlaskToolkit）与 `SYSTEM_VERSION_LABEL`（默认 v4.7.0，仅装饰展示，不改 `FRAMEWORK_VERSION` 逻辑，升级框架时建议同步更新）；`app.py` 注册模块级 Jinja context processor，向所有页面注入 `system_name` / `system_version` / `project_github` / `project_name` / `project_author` / `project_slogan`（内部动态读取用户配置，测试环境直接导入 app 亦生效）；登录页 / 首页 / 管理后台 / 插件默认页 / 7 个错误码页面将硬编码系统名替换为 `{{ system_name }}`；footer 仅完成注入准备、不新增布局。
-- **版本边界**：`SYSTEM_VERSION_LABEL` 只影响前端展示，`FRAMEWORK_VERSION` 仍为插件 `require_framework_version` 比较基准；自定义 `SYSTEM_NAME` 不改内部插件名/路由标识。
-- **回归测试 22 脚本 500 项全部通过**（F2/F3 为纯展示层变更，未新增断言）。
+> 历史版本详情见 `documents/archive/开发规范-版本历史-4.x.md`（本地归档）。
 
-## 版本：v4.6.0（审计钩子归因修复） | 更新日期：2026年09月04日
+| 版本 | 日期 | 主题 | 提交 |
+|------|------|------|------|
+| **v4.8.0** | 2026-09-05 | 企业环境优化更新：版本检查推送（F1）+ 双后端更新机制（F4） | a582945 |
+| v4.7.0 | 2026-09-04 | 装饰性更新：项目宣传 + 系统名个性化 | 8f2af0c |
+| v4.6.0 | 2026-09-04 | 审计钩子归因修复 + 严格模式系统验证（D1-D8） | c244585 |
+| v4.5.1 | 2026-09-03 | 登录锁定手动解封 | f88fafe |
+| v4.5.0 | 2026-09-03 | 收尾：HTTPS 支持 + 路径迁移 + 检修 | b76c832 |
+| v4.4.0 | 2026-09-03 | 运行时审计钩子（安全 P1 阶段三，P1 收官） | c707c46 |
+| v4.3.2 | 2026-09-03 | 插件能力声明模型（安全 P1 阶段二） | ec7faa0 |
+| v4.3.1 | 2026-09-03 | 插件静态扫描 + 配置预设（安全 P1 阶段一） | 20763b4 |
+| v4.3.0 | 2026-09-03 | 系统安全强化（P0 阶段） | f71b000 |
+| v4.2.2 | 2026-08-25 | 文件传输强化（统一上传限制 + 下载增强 + on_ready） | 4d7d602 |
+| v4.2.1 | 2026-08-25 | 框架小修复累计（public_page 豁免 + CSRF 单值注入） | c1ad373 |
+| v4.2.0 | 2026-08-24 | 大插件多模板 / 卸载清单 / 前端权限 / UI 与调试页 | 0057e98 |
+| v4.1 | 2026-08-23 | 插件包机制 / 管理后台 / 内置插件 / Factory Reset / 测试套件 | 13819f6 |
+| v4.0 | 2026-08-22 | 全栈重构（权限体系 / 安全加固 / 架构拆分） | 重构基线 |
+| AirDrop 补充 | 2026-08-26 | 插件化改造文档补充（public_page / CSRF 复核 / airdrop 落地） | — |
 
-### 版本说明（v4.6.0 变更：审计钩子归因修复 + 严格模式验证）
-- **框架版本升级至 v4.6.0**：严格模式（`PLUGIN_SCAN_MODE=enforce` + `AUDIT_HOOK_MODE=enforce` + `PACKAGE_INTEGRITY_MODE=strict` 预设）系统验证中修复 `core/audit_hook.py` 插件归因两处缺陷：
-  1. **enforce 下任何插件无法加载（阻断级）**：框架自身扫描/加载插件时（`scan_plugin_metadata` / `load_plugins` 经 `importlib.import_module` 导入），模块顶层 `from plugins.base_plugin import ...` 触发 `open(plugins/base_plugin.py)`，`_locate_plugin()` 沿调用栈把发起者误归因为被导入插件 → 未声明 `filesystem:read` 拒绝安装/加载。修复：调用栈中出现框架加载器帧（`core/plugin_cache.py` / `core/plugin_loader.py`）即视为框架行为放行。
-  2. **插件包辅助模块误归因**：`corp_utils.py` 等非 `BasePlugin` 子类的辅助模块被归因为独立插件名，导致主插件自属路径（`plugins/data/<name>/`、`plugins/configs/<name>.json`）隐式豁免失效，enforce 下异步落盘/数据目录读写被误拦。修复：优先归因“定义了 `BasePlugin` 子类”的最近帧，辅助模块帧跳过；全栈无插件类时回退最近帧。
-- **回归测试扩充至 22 脚本 499 项**：`test_audit_hook.py` B 组新增 B4（框架加载器帧放行）/ B5（辅助模块归因主插件，含 sys.modules 污染防护——B5 用桩基类避免污染 E 组隔离环境）。
-- **严格模式验证（D1-D8）**：预设可应用性与持久化、冷启动自检、上传链路（恶意拒绝/良性放行/未声明网络拒绝/zip slip）、运行时（corp_tools 定时探测/异步落盘/越权拦截）、登录会话（3 次锁定/解封/secure cookie/空闲超时）、管理后台、全量回归（strict 下 22 脚本全过）、资源稳定性（30 轮探测/审计统计/路径过滤）全部通过；验证结论：strict 预设可直接用于可信局域网/企业内网，配套 HTTPS 使用。
-
-### 版本说明（v4.5.1 变更：登录锁定手动解封）
-- **框架版本升级至 v4.5.1**：审计意见落地——登录失败锁定后，后台应可手动解封。auth 插件新增 `unlock_user(username)`（清除该用户名全部维度锁定记录，兼容 `LOGIN_LOCK_MODE` 的 username / ip_username 双维度）与 `is_user_locked(username)`（锁定状态查询）；user_manage 插件新增 `POST /api/user_manage/unlock` 接口（admin 权限）并在用户列表返回 `locked` 状态字段，前端表格新增"状态"列（正常/已锁定）与**解封**按钮（仅锁定用户显示）。
-- **解封语义**：无需等待锁定期满即可立即恢复登录；解封不存在的用户返回 404，解封无锁定记录用户返回 200 并提示"当前无锁定记录"（幂等）。
-- **回归测试扩充至 22 脚本 497 项**：test_security.py 新增 H 段（auth 方法层 6 项：ip_username/username 双维度锁定识别与解封、解封后恢复登录、未锁定用户幂等）与 I 段（user_manage 端点层 9 项：未登录 401、管理员登录后解封 200、解封后可登录、不存在用户 404、未锁定用户提示无记录）。
-
-### 版本说明（v4.5.0 变更，收尾：HTTPS 支持 + 路径迁移 + 检修）
-- **框架版本升级至 v4.5.0**：在 4.4.0 安全强化收官后的收尾版本——补齐部署形态（HTTPS）、归位运行时数据路径（frontend_tools.json / auth 会话），并对既有检修文件（selfcheck / factory_reset / tools / 示例插件）做一致性体检。
-- **可选 HTTPS（默认 HTTP）**：新增 `SSL_CERT_FILE` / `SSL_KEY_FILE` 配置项（`kind=path`），两者均配置且文件存在时 `app.run(ssl_context=(cert, key))` 以 HTTPS 启动并打印 `https://` 地址；只配一项或文件缺失回退 HTTP 并告警。配套 `tools/gen_cert.py` 用系统 openssl 一键生成自签名证书/私钥（RSA 2048、SAN 含 localhost/127.0.0.1 可 `--san` 追加局域网 IP/DNS，输出 `data/certs/`，`.gitignore` 已忽略私钥）。
-- **frontend_tools.json 默认路径迁移至 `data/`**：`FRONTEND_CONFIG_FILE` 默认值改为 `data/frontend_tools.json`（`core/frontend_tools.py` 同步改用常量并新增 `LEGACY_CONFIG_FILE` + `migrate_legacy_config()`——根目录旧文件在 `data/` 无文件时 os.replace 原子迁移，两处并存时告警保留新路径）；`tools/backup.py` BACKUP_ITEMS、`core/selfcheck.py` 相应更新。
-- **auth 会话文件迁移至插件自属目录**：`_get_session_file_path` 由 `plugins/data/sessions.json` 改为 `self.get_data_path("sessions.json")`（`plugins/data/auth/`，纳入 capabilities 隐式豁免，enforce 模式下不再崩溃）；旧文件在加载时自动 os.replace 迁移；`core/factory_reset.reset_sessions`、`tools/backup`、`tests/ci_cleanup` 等同步新路径并兼容清理旧文件。
-- **示例插件数据路径归位**：`async_file_demo` 结果目录由 `data/async_file_demo` 改为 `self.get_data_path('results')`（插件自属目录，enforce 安全）；`hello_plugin` / `scheduler_demo` / `multitool_demo` / `dependent_demo` 已确认使用自属路径或无文件操作；`user_manage` 无自有文件读写（全部经 auth 插件 API）。
-- **审计钩子框架路径过滤**：`core/audit_hook.py` 新增 `_is_framework_path()`——logs/data/backups/temp 属框架管理目录（插件经框架 logger/stats 写入非插件业务），不归因拦截（此前 enforce 模式下插件写日志会触发崩溃）；解释器路径过滤保持原有逻辑。
-- **selfcheck CORE_FILES 补全**：纳入 v4.3.x-v4.4.0 新增模块（plugin_scanner / capabilities / audit_hook / plugin_cache / plugin_status / routes/security.py）；`frontend_tools.json` 属运行时配置（不入库、缺失不致命），从致命清单移除由迁移逻辑初始化。
-- **回归测试 22 脚本 482 项全量通过**（新增/调整用例覆盖会话路径迁移、frontend_tools 迁移与备份条目、框架路径过滤等），已纳入 CI。
-
-### 版本说明（v4.4.0 变更，安全强化 P1 阶段三：运行时审计钩子）
-- **框架版本升级至 v4.4.0**：安全强化 P1 收官。基于 CPython 原生 `sys.addaudithook` 建立运行时防线，与 4.3.1 静态扫描（安装时事实）、4.3.2 capabilities 声明（安装时授权比对）构成纵深防御第三层——"安装时静态审查 → 安装时授权比对 → **运行时兜底**"。
-- **运行时审计钩子（`core/audit_hook.py`，新增 10.8）**：监听敏感操作事件（open 读写/删除族/mkdir、os.system/subprocess.Popen、socket.connect/bind、sqlite3.connect），**调用栈遍历定位 plugins/<name>.py 帧**归属插件（base_plugin 等框架内置帧排除、解释器内部路径过滤），按 4.3.2 注册的 capabilities 授权判定（网络白名单即"防火墙"）。
-- **AUDIT_HOOK_MODE 三档**：`off` 不安装（零开销）/ `observe`（默认）聚合计数+审计落盘不阻断 / `enforce` 未授权行为抛 RuntimeError 阻断（插件可捕获）；config CLI 可调，profile 三预设联动（daily→observe / strict→enforce / lan-open→off）。
-- **未授权行为按插件聚合**（审计意见落地）：`core/audit_hook._VIOLATIONS` 内存聚合（plugin→capability→count+事件样本），`/api/admin/stats` 新增 `audit_violations` 按插件分组返回，**合计由前端完成**；管理后台统计页新增红色统计卡与明细表，**建议声明可点击复制**（`suggest_for_action` 与安装期交叉校验共用生成器，作者可明确看到"哪个插件、缺哪条声明、干了什么"）。
-- **实现约束**：hook 内零 IO（递归防护 threading.local）；审计写入走内存待落盘队列 + 后台线程（`flush_now()` 同步落盘）；插件重载/卸载时聚合清零。
-- **顺带修复框架既有 bug**：`core/audit.py current_actor()` 在无请求上下文（后台线程）时 werkzeug LocalProxy 抛 RuntimeError 崩溃——getattr 访问移入 try（此前 scheduler 后台任务写审计日志也会触发）。
-- **回归测试扩充至 22 脚本 482 项**：新增 `test_audit_hook.py`（36 项：事件映射 9 / 栈定位 3 / observe 聚合 7 / enforce 阻断 5 / 隔离集成 12），已纳入 CI。
-- **P1 安全强化至此全部完成**（P0 4.3.0 + P1 阶段一 4.3.1 + 阶段二 4.3.2 + 阶段三 4.4.0）；权限模型细化（超级管理员/普通管理员）与进程级沙箱列为远期规划。
-
-### 版本说明（v4.3.2 变更，安全强化 P1 阶段二：插件能力声明模型）
-- **框架版本升级至 v4.3.2**：继 4.3.1 静态扫描（事实提取）之后，本阶段引入插件**能力白名单声明**（授权声明），安装时交叉校验，构建"安装时静态审查 → 安装时授权比对 → 运行时兜底"纵深防御的中间层。
-- **能力声明模型（`core/capabilities.py`，新增 10.7）**：plugin.json 可选 `capabilities` 字段，扁平字符串列表语法（`域:子域:参数`），8 大域能力目录——filesystem（read/write 路径前缀）、network（http/tcp/udp/server，host 精确或 `*.dom` 子域通配，禁裸 `*`）、webhook（wecom/dingtalk/feishu + URL 白名单）、process（exec[.bin]）、scheduler、database（sqlite/mysql/postgres）、device（serial/print）、env（read 变量名模式）；未知域安装告警不拒绝（开放集合，向后兼容）。
-- **安装链路交叉校验**：`_scan_gate` 扩展——扫描器范围输出（paths_read/paths_written/network_endpoints/findings）× 声明白名单 → `missing`（未声明）/`implicit_granted`（隐式豁免）/`unused`（声明未用，info）/`suggested`（**建议声明自动生成**，可整段复制回 plugin.json）；`PLUGIN_SCAN_MODE=enforce` 下高风险 **或** missing 非空即拒绝（400 附完整清单），report 放行附摘要；上传/更新响应新增 `capabilities` 字段。
-- **自属路径隐式豁免（implicit grants）**：插件自己的 `plugins/configs/<name>.json`、`plugins/data/<name>/**`、`plugins/temp/<name>/**` 无需声明即可读写（基类配置 API 与拼接写法的扫描盲区由运行时层兜底）；跨插件目录与 `data/`（框架自身数据）不豁免。
-- **插件数据目录框架化（base_plugin）**：新增 `data_dir` 属性（`plugins/data/<name>/`，自动创建）与 `get_data_path(*sub)` 助手。
-- **运行时授权 API（阶段三契约）**：`register_capabilities`/`check_filesystem`/`check_network`/`check_process`——loader 加载插件时从描述文件注册能力集，作为 4.4.0 运行时审计钩子的授权判定依据（网络白名单即"防火墙"规则）。
-- **官方示例**：全部补 capabilities 声明（scheduler_demo 演示 `scheduler` + 心跳迁移 `get_data_path`；hello_plugin 新增 `/data-demo` 接口演示数据目录隐式豁免）。
-- **回归测试扩充至 21 脚本 447 项**：新增 `test_capabilities.py`（51 项：解析 6 / 匹配语义 10 / 交叉校验 12 / 运行时 API 7 / 安装链路集成 10 / base_plugin data API 6），已纳入 CI。
-- **后续计划（P1 阶段三，4.4.0）**：`sys.addaudithook` 运行时审计钩子 + `AUDIT_HOOK_MODE` 三档（off/observe/enforce 按 capabilities 与网络白名单阻断）。
-
-### 版本说明（v4.3.1 变更，安全强化 P1 阶段一：插件静态扫描 + 配置预设）
-- **框架版本升级至 v4.3.1**：内部安全加固第二阶段（P1 阶段一），新增插件安装链路静态扫描门禁与安全配置预设，并整合审计建议（配置预设 / 读写范围声明 / 网络防火墙）的第一步落地。
-- **插件静态扫描器（`core/plugin_scanner.py`，新增 10.6）**：基于 AST 的后端插件/插件包扫描 + 正则级前端 HTML 扫描——危险导入（subprocess/pickle/ctypes 等 high；socket/requests 等 medium）、危险调用（os.system/eval/exec/rmtree/pickle.loads 等）、动态导入与混淆（base64+exec、`__import__` 拼接）、socket 服务端（bind/listen 视为 high）、`import as` 与实例别名归因（`s = socket.socket(); s.connect(...)`）；**范围提取** `paths_read` / `paths_written` / `network_endpoints`，作为 P1 阶段二 capabilities 声明交叉校验的基准。
-- **安装链路门禁（`PLUGIN_SCAN_MODE` 三档）**：`off` 跳过 / `report`（默认）放行并在响应附 `scan` 摘要与 `scan_scope`、审计日志记录 / `enforce` 检出高风险即拒绝安装（400 附完整 `scan_report`、审计日志记录 blocked）；后端插件上传/更新（admin）与前端工具上传/更新（frontend）四端点全部接入。
-- **扫描 CLI（`tools/scan.py`）**：支持单文件 .py、插件包/前端工具包 .zip（config.json 自动识别）、目录批量递归，`--json` 机器可读输出；退出码 0 无高风险 / 1 有高风险 / 2 错误，供发布者分发前自检。
-- **安全配置预设（`tools/config.py profile`）**：内置 `daily`（日常基线）/ `strict`（运维加固，需 HTTPS）/ `lan-open`（可信局域网开放）三套预设，一键套用后仍可 `set` 单项微调。
-- **回归测试扩充至 20 脚本 396 项**：新增 `test_plugin_scan.py`（35 项：扫描器单元 15 / 插件包 2 / 前端扫描 5 / enforce 门禁集成 7 / 配置预设 6），已纳入 CI。
-- **后续计划（P1 阶段二/三）**：插件 capabilities 声明模型（读写路径 / 网络端点，与扫描范围交叉校验）、运行时审计钩子（网络白名单"防火墙"式阻断）；权限模型细化（超级管理员 / 普通管理员）列为远期规划。
-
-### 版本说明（v4.3.0 变更，系统安全强化）
-- **框架版本升级至 v4.3.0**（`global_var.FRAMEWORK_VERSION`）：外部（局域网环境）与内部（插件恶意代码）双重安全加固的第一阶段（P0），全部项可经 config CLI 调整。
-- **统一安全响应头（10.2）**：所有响应注入 5 项安全头——`X-Content-Type-Options: nosniff` / `X-Frame-Options: DENY` / `Content-Security-Policy`（默认"宽"策略允许 inline script/style 兼容存量插件，P1 静态扫描就绪后收紧）/ `Referrer-Policy: no-referrer` / `Permissions-Policy`（禁用摄像头/麦克风/定位）；同时移除 `Server` / `X-Powered-By` 隐藏框架指纹。由 `SECURITY_HEADERS` 开关控制（默认开启）。
-- **会话 Cookie 加固（6.2 / auth）**：登录会话 token 与 CSRF token Cookie 均携带 `HttpOnly`（token）+ `SameSite=Lax`；新增 `SESSION_COOKIE_SECURE`（默认 False，兼容 HTTP 局域网部署；HTTPS 部署置 True 后 Cookie 带 `Secure` 属性，防中间人窃取）。
-- **会话空闲超时（auth）**：新增 `SESSION_IDLE_TIMEOUT`（默认 30 分钟）：会话在最后活动时间后超过阈值即失效（`verify_token` 校验并在有效请求时刷新 `last_active_at`，仅内存不落盘）。
-- **登录失败锁定（auth）**：新增 `LOGIN_LOCK_MODE` 三档开关——`ip_username`（默认，IP+用户名双维度，防分布式爆破）/ `username`（仅用户名维度）/ `off`（禁用锁定，不安全，仅信任局域网时使用）；阈值 `LOGIN_MAX_ATTEMPTS`（默认 5 次）与锁定时长 `LOGIN_LOCK_SECONDS`（默认 15 分钟）可配置；锁定期间统一返回 **429 通用错误信息**（不泄露锁定剩余时间等细节）；登录成功后自动清除失败计数。
-- **回归测试扩充至 19 脚本 361 项**：新增 `test_security.py`（30 项：安全响应头 8 项 / Cookie 加固 6 项 / 空闲超时 5 项 / 登录锁定 ip_username 6 项 / username 2 项 / off 2 项 / 成功重置 1 项），已纳入 CI。
-- **后续计划（P1）**：静态扫描工具已随 v4.3.1 落地（见上文）；运行时审计钩子、插件 capabilities 声明模型列为后续版本；权限模型细化（超级管理员 / 普通管理员仅管理特定功能）列为远期规划。
-
-### 版本补充说明（2026-08-26，AirDrop 插件化改造同步）
-- **插件公开页面能力（8.1 / 4.5.1）**：`/plugin/<name>` 页面默认要求登录（全局守卫）。新增插件级豁免：插件实例声明 `public_page=True` 时其 `/plugin/` 页面免登录（对局域网公开工具 / 信息落地页友好，默认 False 不影响其他插件）。
-- **plugin_common.js 复核修复（6.2）**：`PluginCommon.request()` 曾与全局 XHR 拦截**双重注入 X-CSRF-Token**（同名头被浏览器逗号拼接为 `token, token`），鉴权模式下写请求后端 CSRF 双提交校验失败返回 403。已移除 `request()` 内手动注入（依赖全局拦截单次注入），浏览器端到端复核确认。
-- **AirDrop 插件落地（`plugins/airdrop`）**：局域网文件共享插件（上传/下载/删除/批量删除/批量下载 zip/过期清理/局域网地址/服务端打开上传文件夹），**可配置双模式鉴权**（`configs/airdrop.json` 的 `auth_required`：false 全 public 免登录、true 按权限矩阵），数据目录经配置指向原 AirDrop `uploads`，零迁移。
-- 注：以上为 AirDrop 插件化改造期间的文档补充（2026-08-26）。
-
-### 版本说明（v4.2.2 变更，文件传输强化）
-- **框架版本升级至 v4.2.2**（`global_var.FRAMEWORK_VERSION`）：统一文件上传与下载能力。
-- **全局上传上限兜底（5.6.x / 6.5）**：`app.config['MAX_CONTENT_LENGTH'] = global_var.MAX_UPLOAD_SIZE`（默认 **100MB**，经 config CLI 的 `MAX_UPLOAD_SIZE_MB` 调整）；超限统一返回 413（API 场景 JSON、页面场景模板 `413.html`）。
-- **插件级上传限制统一（5.6.x）**：`BasePlugin.max_upload_size` 单位统一为 **MB**（None 回退全局默认）；`save_uploaded_file`/`check_upload_limit` 保存前基于流 seek/tell 预检（不落盘）；**route 级 `max_upload`（MB）覆盖**——权限包装器注入 g 并同步提升本请求 `request.max_content_length`，可突破全局默认（如 AirDrop 的 GB 级大文件路由）。
-- **下载能力统一（5.6.x）**：`send_file_response` 增强——中文文件名自动按 **RFC 5987（filename*）** 编码避免乱码、**下载统计**默认计入插件热度（`call_stats[plugin:endpoint]`）、支持 Range 断点续传（206）、`content_disposition_type`/`count_download`/`stats_endpoint` 参数。
-- **依赖检查时机（生命周期）**：`on_load` 阶段跨插件依赖检查默认降级为 **warning**（不阻断）；新增 **`on_ready` 就绪钩子**——所有插件加载完成后统一调用（此时 `global_var.plugins` 完整，依赖判断准确）；启用严格模式（`PLUGIN_STRICT_MODE=True`）时依赖确认延后到 `on_ready` 执行。
-- **存量迁移**：airdrop `max_gb`（GB）映射为插件级 `max_upload_size`（MB）+ upload 路由声明 route 级 `max_upload`；async_file_demo 声明 `max_upload_size=20`（MB）；下载改走 `send_file_response`（中文名/统计）。
-- **回归测试扩充至 18 脚本 331 项**：新增 `test_file_transfer.py`（12 项：全局 413 / 插件级与 route 级上限 / 中文名下载 / 下载统计 / Range / on_ready 顺序），已纳入 CI。
-
-### 版本说明（v4.2.1 变更，框架小修复累计更新）
-- **框架版本升级至 v4.2.1**（`global_var.FRAMEWORK_VERSION`）：AirDrop 插件化改造期间的框架小修复正式合入主项目；官方示例 `require_framework_version` 不变（4.2.0 < 4.2.1 仍满足）。
-- **插件公开页面豁免正式纳入回归**（`tests/test_framework_fixes.py`）：`public_page=True` 插件页面免登录 200 / 普通插件页面仍守卫 302（auth 已装场景），防 interceptor 豁免逻辑回归。
-- **plugin_common.js 双重 CSRF 注入修复固化**：源码静态断言 X-CSRF-Token 注入全文件恰 1 处（全局 XHR send 拦截单次注入），request() 不再手动注入（防同名头逗号拼接 403）。
-- **回归测试套件扩充至 17 脚本 319 项**：新增 `test_framework_fixes.py`（public_page 豁免 + CSRF 单值注入 9 项），已纳入 CI。
-
-### 版本说明（v4.2 变更）
-- **插件包卸载升级为 installed_files 清单机制**（5.6.6）：安装时把插件引入文件的相对路径清单写入 `plugins/<name>.json`，卸载按清单逐个删除（支持多 `.py` 插件包彻底卸载，无残留），无清单回退旧逻辑（兼容存量插件）。
-- **前端工具访问控制**（4.6 / 6.5）：`/frontend/<name>` 页面与 `/frontend-static/` 静态资源按工具的 `permission` 字段做三层校验（`public`/`user`/`admin`，`auth` 未安装时全员放行）；上传/更新缺省 `permission=public`；新增改权限接口 `POST /api/admin/frontend/<name>/permission`；管理后台插件页提供前端工具权限下拉。
-- **回归测试套件扩充至 16 脚本 310 项**（12 章）：新增 `test_plugin_cleanup.py`（卸载 installed_files 清单 + clean_old + 越界防御 23 项）、`test_frontend_permission.py`（前端工具三层权限 + 改权限 API + update 保留 permission 25 项）、`test_tools_ops.py`（backup/reset/config 运维工具 19 项）、`test_page_router.py`（大插件多模板页面路由 + 纯 API 无 name 插件调试页回归 21 项），均隔离目录模式、已纳入 CI。
-- **公共页面体验升级（8.1）**：首页新增搜索与排序（默认/热度/字母，热度取 API 调用与访问统计）；登录页支持记住用户名、显示/隐藏密码；首页/登录/登出/裸插件调试四页面样式统一为 `static/css/main.css` 设计体系，脚本抽离至 `static/js/`。
-- **裸插件调试页增强（8.1）**：支持**路径参数**输入与替换（`<name>`/`<int:name>`，如 async_file_demo 的 `/status/<task_id>`）；**非安全方法自动携带 X-CSRF-Token**（修复带鉴权接口无法调试的 CSRF 403）；PUT/DELETE 改发 JSON body；展示 HTTP 状态/耗时/业务 code/实际 URL；结果一键复制与折叠、会话内请求历史。
-- **框架版本升级至 v4.2.0**（`global_var.FRAMEWORK_VERSION`）：页面路由 page=True / 模板命名空间 / render·render_index 助手（见 5.5.1）等大插件多模板能力随 v4.2 对齐；官方示例 `require_framework_version` 同步为 4.2.0。
-
-### 版本说明（v4.1 变更）
-- 后端插件分发改为**插件包（.zip）**机制：新增 5.6 节描述 plugin.json 描述文件、解压映射、静态资源访问与生命周期行为。
-- 静态资源路由改为全局通配路由 `/plugin-static/<name>/<path>`（热加载友好），插件自定义 `static_dir` 仍受支持。
-- 插件版本以 `plugin.json` 声明为准（落盘 `plugins/<name>.json`），扫描/目录指纹优先读取。
-- 新增**最低框架版本要求** `require_framework_version`（非强制，一经声明须满足，否则拒绝安装/加载），见 5.7。
-- 新增**内置插件**机制（`auth` / `user_manage`，`global_var.BUILTIN_PLUGINS`，不可卸载、受 Factory Reset 保护），见 5.8。
-- 新增 **Factory Reset（重置）**能力：部分/全部还原至安装初始状态，见 5.9。
-- 新增**管理后台**：`/admin/dashboard | plugins | logs | stats | system` 五页面（统一 `templates/admin/base.html` 布局 + `@admin_api` 权限保护）与系统信息接口 `GET /api/admin/system/info`，见 8.2 / 8.3。
-- 新增回归测试套件（zip slip 专项、描述一致性、重载竞态、元信息端到端），见 11 章。
-- `auth` 会话文件改为原子写（`.tmp` + `os.replace`），修复热加载重载时读到空文件的偶发 401 竞态。
-- 新增**前端工具静态资源支持**：工具包 zip 内 `static/` 目录随包分发，经 `/frontend-static/<name>/<path>` 通配路由访问（安全解压 + zip slip 防护），见 6.1 / 6.4。
-- 开启**模板自动重载**（`TEMPLATES_AUTO_RELOAD=True`）：前端工具/插件 html 更新后即时生效，无需重启服务。
-
-### 版本说明
-
-本版本基于 2026-08-22 完成的全栈重构（阶段一权限体系、阶段二安全加固、阶段三架构拆分）对齐更新，相比 v3.x 的主要变更：
-
-- **权限模型正式化**：新增 `@permission("public"/"user"/"admin")` 装饰器，未声明接口默认"仅登录"；旧版 `require_role` 兼容。
-- **鉴权与 CSRF**：登录后下发 HttpOnly `token` Cookie + 非 HttpOnly `csrf_token` Cookie，写请求需携带 `X-CSRF-Token` 头（前端由 `plugin_common.js` 自动注入）。
-- **统一错误语义**：`error_response` 现返回对应 HTTP 状态码（此前 body 带 code 但 HTTP 恒 200），前端以 body.code 判断业务结果。
-- **架构分层**：`app.py` 收敛为纯入口（149 行），服务逻辑拆入 `core/`，路由拆入 `routes/`；插件目录改由**内存注册表**提供，首页/管理页不再每次请求扫描磁盘。
-- **运行配置环境变量化**：`FLASKTOOLKIT_HOST` / `FLASKTOOLKIT_PORT` / `FLASKTOOLKIT_DEBUG`。
-- **生命周期钩子补齐**：新增 `on_unload()` / `on_uninstall()`（与原有 `on_load()` / `on_shutdown()` 对齐）。
 
 ---
 
@@ -1094,6 +992,8 @@ FLASKTOOLKIT_HOST=0.0.0.0 FLASKTOOLKIT_PORT=8000 python app.py
 | `test_plugin_scan.py` | 插件静态扫描回归（v4.3.1）：扫描器单元（危险导入/调用/混淆/范围提取/别名归因）/ 插件包扫描 / 前端 HTML 扫描 / enforce 门禁集成（拒绝 400 + 附报告 + 未落盘 + 真实项目未污染）/ 配置预设三套 | 35 项 |
 | `test_capabilities.py` | 插件能力声明回归（v4.3.2）：解析器（合法/非法/未知域/裸 * 拒绝）/ 匹配语义（路径前缀递归/URL host·path·端口/子域通配/tcp/env）/ 交叉校验（隐式豁免/跨插件越界/建议声明/unused）/ 运行时授权 API（fail-closed/process 细粒度）/ 安装链路集成（enforce 拒绝与放行/响应附摘要/loader 注册）/ base_plugin data API + hello_plugin 示例端到端 | 51 项 |
 | `test_audit_hook.py` | 运行时审计钩子回归（v4.4.0）：事件映射（open 读写/删除族/sqlite/socket）/ 栈定位（plugins 帧/框架放行/嵌套归因）/ observe 聚合（按插件/建议声明/事件样本）/ enforce 阻断（异常传播/授权放行/自属豁免/fail-closed）/ 隔离集成（真实钩子+栈归因端到端/stats 按插件分组/重载清零/审计落盘/未污染） | 36 项 |
+| `test_update_checker.py` | 版本检查推送（v4.8.0）：版本比较（parse_version/is_newer）/ 用户数据路径判定 / zip slip 防护 / archive 校验链（sha256 必选 + 签名可选）/ 数据源缓存 TTL / 数据源结构校验 | 40 项 |
+
 
 ```bash
 cd FlaskToolkit   # 在项目根目录执行
@@ -1119,7 +1019,8 @@ python tests/test_security.py            # 30 项（系统安全回归 v4.3.0，
 python tests/test_plugin_scan.py           # 35 项（插件静态扫描回归 v4.3.1，隔离目录）
 python tests/test_capabilities.py          # 51 项（插件能力声明回归 v4.3.2，隔离目录）
 python tests/test_audit_hook.py            # 36 项（运行时审计钩子回归 v4.4.0，隔离目录）
-# 合计 22 个脚本 482 项
+python tests/test_update_checker.py     # 40 项（版本检查推送回归 v4.8.0，隔离目录）
+# 合计 23 个脚本 540 项
 ```
 
 说明：`test_meta_e2e.py` 与 `test_frontend_chain.py` / `test_admin_api.py` / `test_factory_reset.py` / `test_error_pages.py` / `test_package_sign.py` 均通过 mock 基础目录 + `sys.path` 指向临时插件目录运行，不污染真实项目，可重复执行；`test_reload_race.py` 使用 Flask test client，在测试开头手动调用 `load_plugins()` 初始化（`load_plugins` 仅在 `app.py` 的 `main` 段自动调用）。

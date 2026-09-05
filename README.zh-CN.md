@@ -102,13 +102,14 @@ python examples/install_all.py                            # 一键安装 7 个�
 - [Flask 插件框架 Roadmap](documents/Flask插件框架-Roadmap-v4.1.md)
 - [版本收尾 checklist](documents/版本收尾-checklist.md)
 - [GitHub Actions 上手与开源发布指南](documents/GitHub-Actions-上手与开源发布指南.md)
+- [Enterprise Edition 交接与路线（v5.x）](documents/Enterprise-Edition-交接与路线.md)
 
 ## 测试与 CI
 
 `tests/` 23 个脚本共 540 项回归测试（隔离目录模式，不污染项目文件）；GitHub Actions 在 Python 3.10 / 3.11 / 3.12 上自动执行，覆盖权限、插件包 / 前端工具链路、完整性签名、卸载清单、Factory Reset、大插件多模板页面路由、文件传输（上传限制 / 中文名下载 / Range）、插件静态安全扫描、能力声明交叉校验、运行时审计钩子、运维工具等。
 
 <details>
-<summary>展开：22 个测试脚本</summary>
+<summary>展开：23 个测试脚本</summary>
 
 ```bash
 cd FlaskToolkit
@@ -134,10 +135,16 @@ python tests/test_security.py              # 系统安全：安全响应头 / Co
 python tests/test_plugin_scan.py           # 插件静态扫描（v4.3.1）：危险导入/调用/混淆/网络文件触点 35 项
 python tests/test_capabilities.py          # 插件能力声明（v4.3.2）：解析/匹配/交叉校验/运行时授权 51 项
 python tests/test_audit_hook.py            # 运行时审计钩子（v4.4.0）：事件映射/栈定位/observe/enforce 36 项
+python tests/test_update_checker.py     # 版本检查推送（v4.8.0）：版本比较/数据源缓存 TTL/archive 校验链/zip slip 防护 40 项
 # 合计 23 个脚本 540 项
 ```
 
 </details>
+
+## 版本状态
+
+- **Community Edition（v4.x）**：功能开发已接近终点（v4.8.0 后功能冻结），我们继续日常维护——bug 修复、安全补丁、文档、示例与版本发布（23 脚本 540 项回归 + CI）。
+- **Enterprise Edition（v5.x）**：规划承载远期路线（权限模型细化、进程级沙箱、CSP 收紧、企业身份对接等）。因当前小团队开发能力有限，公开寻求接手者——详见 [Enterprise Edition 交接与路线](documents/Enterprise-Edition-交接与路线.md)。
 
 ## 已知局限
 

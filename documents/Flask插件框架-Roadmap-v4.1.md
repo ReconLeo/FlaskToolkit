@@ -80,6 +80,21 @@
 | P1-阶段一 静态扫描 | **v4.3.1** | ✅ 已完成（`20763b4`） | `core/plugin_scanner.py` AST 级扫描器（危险导入/调用、动态执行、混淆检测、socket 服务端、实例别名归因、范围提取 paths_read/paths_written/network_endpoints）+ 前端 HTML 正则扫描；安装链路门禁 `PLUGIN_SCAN_MODE`（off/report/enforce）四端点接入；`tools/scan.py` 分发前自检 CLI；`tools/config.py profile` 三套配置预设（daily/strict/lan-open）。回归 20 脚本 396 项。 |
 | P1-阶段二 capabilities 声明模型 | **v4.3.2** | ✅ 已完成 | 插件能力白名单声明（Deny by Default）：plugin.json 可选 `capabilities` 字段，8 大域能力目录（filesystem/network/webhook/process/scheduler/database/device/env），安装时与静态扫描范围**交叉校验**产生 mismatch 清单；**自属路径隐式豁免**（plugins/configs/<name>.json、plugins/data/<name>/**、plugins/temp/<name>/**，base_plugin 框架化 data_dir API）；建议声明自动生成（suggested_capabilities）；声明结果落盘成为阶段三运行时授权基准。 |
 | P1-阶段三 运行时审计钩子 | **v4.4.0** | ✅ 已完成 | `sys.addaudithook` 监听 open/os.remove/subprocess.Popen/socket.connect/socket.bind；调用栈 plugins/ 来源判定插件归属；`AUDIT_HOOK_MODE` 三档（off/observe 默认记录未授权访问/enforce 按 capabilities + 网络白名单阻断——"防火墙"落地）；与 core/audit.py JSONL 审计日志整合。 |
-| 远期规划 | — | 📋 暂不实施 | 权限模型细化（超级管理员/普通管理员仅管理特定功能）；进程级沙箱（内存/CPU 配额）；CSP 收紧为严格策略。 |
+| 远期规划（Enterprise 5.x） | — | 📋 待接手（见第七章） | 权限模型细化（超级管理员/普通管理员仅管理特定功能）；进程级沙箱（内存/CPU 配额）；CSP 收紧为严格策略。Community 4.x 功能冻结后，此规划移交 Enterprise Edition 5.x。 |
+
+## 七、远期规划与 Enterprise Edition（5.x）
+
+> 2026-09-05：Community Edition 功能开发接近终点（v4.8.0 后功能冻结），远期规划移交 **Enterprise Edition（v5.x）**，公开寻求接手。交接声明、架构地图与接手指引见 `documents/Enterprise-Edition-交接与路线.md`。
+
+| 候选能力 | 状态 | 说明 |
+|----------|------|------|
+| 权限模型细化（超级管理员/普通管理员分级、RBAC、插件 API 细粒度授权） | 规划中 | Community 三层权限（public/user/admin）为基线，Enterprise 扩展角色与分级治理 |
+| 进程级沙箱（内存/CPU 配额、插件隔离） | 远期 | Community 以扫描+声明+审计钩子为风险缓解（非绝对隔离），Enterprise 追求强隔离 |
+| CSP 收紧为严格策略（nonce/hash） | 远期 | 依赖插件静态扫描与前端工具规范成熟后收紧 |
+| 插件市场 / 集中签名中心 | 待评估 | 插件分发与更新签名托管 |
+| 企业身份对接（LDAP / OAuth2 / SSO） | 待评估 | 登录源扩展 |
+| 多租户与水平扩展、部署形态（Docker/服务化/配置加密） | 待评估 | 企业部署面 |
+
+**Community 维护承诺**：v4.8.0 后不新增功能（安全必需除外），日常维护 bug 修复 / 安全补丁 / 文档 / 示例 / 发布；每次变更继续走版本收尾 checklist（23 脚本 540 项回归 + CI）。
 
 **阶段依赖链**：静态扫描（范围输出=事实基准）→ capabilities 声明（授权声明）→ 运行时审计钩子（以声明为授权依据的运行时防线）。三阶段构成"安装时静态审查 → 安装时授权比对 → 运行时兜底"的纵深防御。**P1 安全强化已全部完成。**

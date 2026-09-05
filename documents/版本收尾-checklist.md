@@ -65,7 +65,7 @@
 
 ## 7. 回归与验证
 
-- [ ] 全量回归：`for t in tests/test_*.py; do python $t; done`（当前 22 脚本 497 项）
+- [ ] 全量回归：`for t in tests/test_*.py; do python $t; done`（当前 23 脚本 540 项）
 - [ ] 新增功能专项测试通过（如 test_capabilities / test_security / test_page_router）
 - [ ] `python examples/install_all.py --pack-only` 打包校验
 - [ ] `python tools/selfcheck.py`（或等价）启动自检通过
@@ -76,6 +76,7 @@
 - [ ] `documents/Flask插件框架开发规范-v4.0.md`：版本标题/版本说明/新章节/目录树（主要更新点）
 - [ ] `README.md`（英文主版）+ `README.zh-CN.md`（中文版）：亮点、断言数、徽章、示例表（**双版本同步**，勿只改一处）
 - [ ] `documents/Flask插件框架-Roadmap-v4.1.md`：版本对照表（当前版本行 + 已完成行；注意多行编辑顺序勿覆盖旧行）
+- [ ] **测试清单四端点同步**（历次漏过：v4.8.0 的 test_update_checker 未入四处）：① `.github/workflows/ci.yml` TESTS 数组与注释脚本数；② `README.md` 折叠测试列表（条目 + `<summary>` 标题数字）；③ `README.zh-CN.md` 折叠测试列表（同上）；④ `开发规范` 十二章表格行 + 运行命令列表 + `合计 N 个脚本 M 项` 数字
 - [ ] 两文档内容边界：README=门面（精简），开发规范=权威规格（目录树/详细规格唯一出处）
 
 ## 9. 提交与推送

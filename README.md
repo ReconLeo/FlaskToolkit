@@ -102,13 +102,14 @@ Detailed specs live in the [Flask Plugin Framework Development Guide](documents/
 - [Flask Plugin Framework Roadmap](documents/Flask插件框架-Roadmap-v4.1.md)
 - [Version wrap-up checklist](documents/版本收尾-checklist.md)
 - [GitHub Actions setup & open-source publishing guide](documents/GitHub-Actions-上手与开源发布指南.md)
+- [Enterprise Edition handover & roadmap (v5.x)](documents/Enterprise-Edition-交接与路线.md)
 
 ## Tests & CI
 
 `tests/` contains **23 scripts / 540 assertions** of regression tests (isolated-directory mode, no pollution of project files); GitHub Actions runs them automatically on Python 3.10 / 3.11 / 3.12, covering permissions, plugin-package / frontend-tool chains, integrity signatures, uninstall manifests, Factory Reset, large-plugin multi-template page routing, file transfer (upload limits / Chinese-name downloads / Range), static security scanning, capability cross-validation, runtime audit hooks, ops tools, etc.
 
 <details>
-<summary>Expand: 22 test scripts</summary>
+<summary>Expand: 23 test scripts</summary>
 
 ```bash
 cd FlaskToolkit
@@ -134,10 +135,16 @@ python tests/test_security.py              # system security: headers / cookie h
 python tests/test_plugin_scan.py           # plugin static scanning (v4.3.1): risky imports/calls/obfuscation/network+file touchpoints 35
 python tests/test_capabilities.py          # plugin capability declarations (v4.3.2): parse/match/cross-check/runtime authorization 51
 python tests/test_audit_hook.py            # runtime audit hooks (v4.4.0): event mapping/stack attribution/observe/enforce 36
+python tests/test_update_checker.py     # update checker (v4.8.0): version compare / feed cache TTL / archive verify chain / zip-slip guard 40
 # total: 23 scripts / 540 assertions
 ```
 
 </details>
+
+## Edition Status
+
+- **Community Edition (v4.x)**: feature development has reached its functional end (frozen after v4.8.0); we continue daily maintenance — bug fixes, security patches, documentation, examples, and releases (23 scripts / 540 assertions regression + CI).
+- **Enterprise Edition (v5.x)**: planned to carry the long-term roadmap (refined permission model, process-level sandboxing, stricter CSP, enterprise identity integration, etc.). Due to limited team capacity, we are openly looking for maintainers to take over — see the [Enterprise Edition handover & roadmap](documents/Enterprise-Edition-交接与路线.md).
 
 ## Known Limitations
 
