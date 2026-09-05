@@ -39,6 +39,14 @@ global_var.scheduler = scheduler
 PluginLogAdapter = setup_logging(app)
 load_stats()  # 新增：启动时加载历史统计数据
 
+# v4.9.2：运行目录提前到模块级创建（原在 main 块）——test client / 工具脚本等
+# 不经 main 的入口同样需要 temp/ 等目录（CI 干净环境 test_meta_e2e 曾因缺 temp/ 失败）
+os.makedirs(PLUGIN_CONFIGS_DIR, exist_ok=True)
+os.makedirs(PLUGIN_TEMP_DIR, exist_ok=True)
+os.makedirs(LOG_DIR, exist_ok=True)
+os.makedirs(os.path.dirname(STATS_FILE), exist_ok=True)
+os.makedirs(UPLOAD_TEMP_DIR, exist_ok=True)
+
 
 # ------------------------------ 路由注册（routes 包） ------------------------------
 register_routes(app)
@@ -185,13 +193,7 @@ if __name__ == '__main__':
     if _self['first_run']:
         print("[自检] 首次启动：完整性自检通过，框架已初始化。", flush=True)
 
-    # 创建运行所需的目录
-    # 变量已于global_var.py声明
-    os.makedirs(PLUGIN_CONFIGS_DIR, exist_ok=True)
-    os.makedirs(PLUGIN_TEMP_DIR, exist_ok=True)
-    os.makedirs(LOG_DIR, exist_ok=True)
-    os.makedirs(os.path.dirname(STATS_FILE), exist_ok=True)
-    os.makedirs(UPLOAD_TEMP_DIR, exist_ok=True)
+    # 运行目录已在模块级创建（v4.9.2：提前至 import 时，test client/工具入口同样可用）
     
     # 运行时审计钩子（v4.4.0）：在插件加载前安装，插件模块级顶层代码执行亦纳入审计
     from core.audit_hook import install_audit_hook

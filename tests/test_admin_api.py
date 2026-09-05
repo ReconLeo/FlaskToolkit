@@ -88,7 +88,7 @@ def main():
     data = r.get_json().get('data', {}) if r.status_code == 200 else {}
     check('system/info 返回 200', r.status_code == 200, f'status={r.status_code}')
     check('system/info framework_version=4.2.2',
-          data.get('framework_version') == '4.9.1', f"{data.get('framework_version')}")
+          data.get('framework_version') == '4.9.2', f"{data.get('framework_version')}")
     check('system/info builtin_plugins 含 auth/user_manage',
           set(data.get('builtin_plugins', [])) == {'auth', 'user_manage'},
           f"{data.get('builtin_plugins')}")
@@ -103,6 +103,29 @@ def main():
     check('plugins 列表 200 + data 为 list',
           r.status_code == 200 and isinstance(r.get_json().get('data'), list),
           f'status={r.status_code}')
+
+    # 2b. quota（插件空间管理，v4.9.2）
+    r = client.get('/api/admin/quota')
+    qdata = r.get_json().get('data', {}) if r.status_code == 200 else {}
+    check('quota 200 + data.plugins 为 list（隔离目录空列表）',
+          r.status_code == 200 and isinstance(qdata.get('plugins'), list),
+          f'status={r.status_code} plugins={type(qdata.get("plugins")).__name__}')
+    check('quota plugins 各项含 plugin/limit_mb/usage_mb/remaining_mb',
+          all(isinstance(p, dict)
+              and set(p.keys()) >= {'plugin', 'limit_mb', 'usage_mb', 'remaining_mb'}
+              for p in qdata.get('plugins', [])),
+          f"{qdata.get('plugins')}")
+    check('quota data.total 含 limit_mb/usage_mb/remaining_mb',
+          isinstance(qdata.get('total'), dict)
+          and set(qdata['total'].keys()) >= {'limit_mb', 'usage_mb', 'remaining_mb'},
+          f"{qdata.get('total')}")
+    check('quota total.limit_mb 为数字（隔离目录默认 0 无限制）',
+          isinstance(qdata.get('total', {}).get('limit_mb'), (int, float)), '')
+    check('quota total.usage_mb 为数字',
+          isinstance(qdata.get('total', {}).get('usage_mb'), (int, float)), '')
+    check('quota total.remaining_mb 为 None 或数字（无限制时 None）',
+          qdata.get('total', {}).get('remaining_mb') is None
+          or isinstance(qdata['total']['remaining_mb'], (int, float)), '')
 
     # 3. stats
     r = client.get('/api/admin/stats')

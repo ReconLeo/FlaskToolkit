@@ -282,23 +282,36 @@ def _data_limit_mb(plugin=None):
 
 
 def _check_data_quota(plugin, target):
-    """写事件配额检查（v4.9.1 声明模型）：落在配额作用目录且超限时 observe 记录 / enforce 拒绝。"""
+    """写事件配额检查（v4.9.1 声明模型 + v4.9.2 全局总量）：落在配额作用目录且超限时 observe 记录 / enforce 拒绝。"""
     if not _quota_mod._in_quota_area(plugin, target):
         return
+    # 单插件配额
     limit_mb = _quota_mod.data_limit_mb(plugin)
-    if not limit_mb:
-        return
-    usage = _quota_mod._quota_usage(plugin)
-    limit = int(limit_mb * 1048576)
-    if usage >= limit:
-        used = usage / 1048576
-        msg = f'插件 {plugin} 数据配额超限：{used:.1f}MB / {limit_mb:.0f}MB'
-        if _MODE == 'enforce':
+    if limit_mb:
+        usage = _quota_mod._quota_usage(plugin)
+        limit = int(limit_mb * 1048576)
+        if usage >= limit:
+            used = usage / 1048576
+            msg = f'插件 {plugin} 数据配额超限：{used:.1f}MB / {limit_mb:.0f}MB'
+            if _MODE == 'enforce':
+                with _PENDING_LOCK:
+                    _PENDING.append(('audit', plugin, 'blocked', msg))
+                raise RuntimeError(f'运行时审计拒绝：{msg}')
             with _PENDING_LOCK:
-                _PENDING.append(('audit', plugin, 'blocked', msg))
-            raise RuntimeError(f'运行时审计拒绝：{msg}')
-        with _PENDING_LOCK:
-            _PENDING.append(('audit', plugin, 'audit-warn', msg))
+                _PENDING.append(('audit', plugin, 'audit-warn', msg))
+    # 全局总量（v4.9.2）
+    g_limit = _quota_mod.total_limit_mb()
+    if g_limit:
+        g_usage = _quota_mod._total_usage()
+        g_lim = int(g_limit * 1048576)
+        if g_usage >= g_lim:
+            msg = f'全部插件数据总量超限：{g_usage / 1048576:.1f}MB / {g_limit:.0f}MB'
+            if _MODE == 'enforce':
+                with _PENDING_LOCK:
+                    _PENDING.append(('audit', plugin, 'blocked', msg))
+                raise RuntimeError(f'运行时审计拒绝：{msg}')
+            with _PENDING_LOCK:
+                _PENDING.append(('audit', plugin, 'audit-warn', msg))
 
 
 # ------------------------------ 处理 ------------------------------

@@ -99,5 +99,11 @@
   "请求体超过大小限制": "Request body exceeds size limit",
   "未登录或登录已过期，请重新登录": "Not signed in or session expired, please sign in again",
   "您没有权限访问该资源": "You do not have permission to access this resource",
-  "请求参数有误或格式不正确": "Invalid request parameters or format"
+  "请求参数有误或格式不正确": "Invalid request parameters or format",
+  "插件空间": "Plugin Storage",
+  "限额": "Limit",
+  "已用": "Used",
+  "剩余": "Remaining",
+  "总用量": "Total Usage",
+  "无限制": "Unlimited"
 }

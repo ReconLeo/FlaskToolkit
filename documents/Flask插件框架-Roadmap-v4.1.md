@@ -52,7 +52,8 @@
 
 | 版本 | 状态 |
 |------|------|
-| v4.9.1（当前） | 配额声明模型：capabilities 新增 storage 域（storage:limit:<size>，插件请求框架授权存储空间，覆盖全局默认）；配额作用目录自动扩展至 filesystem:write 声明路径（AirDrop uploads/ 场景）；上传预检 API（check_upload 413+剩余空间）+ 审计钩子兑底；core/quota.py（含 v4.9.2 全局总量预留与批量接口）；示例：async_file_demo 配额展示 + corp_tools 插件多语言演示；回归 25 脚本 602 项 |
+| v4.9.2（当前） | CI 三问题修复（f-string 嵌套同引号 PEP 701 仅 3.12+ 导致 3.10/3.11 SyntaxError→改单引号嵌套 + ast 3.10 语法体检入 checklist；temp 目录模块级 makedirs + 上传兜底修复 test client 路径；Actions 升 Node 24 checkout/setup-python/upload-artifact v6）+ 全局总量配额（PLUGIN_DATA_TOTAL_LIMIT_MB 默认 0=无限制，quota.total_limit_mb + check_upload 自动接线 + 审计钩子全局维度 enforce/observe）+ 后台插件空间管理（GET /api/admin/quota + system 页插件空间卡片 + loadQuota JS + en.json 6 词条）；回归 25 脚本 612 项 |
+| v4.9.1（已完成） | 配额声明模型：capabilities 新增 storage 域（storage:limit:<size>，插件请求框架授权存储空间，覆盖全局默认）；配额作用目录自动扩展至 filesystem:write 声明路径（AirDrop uploads/ 场景）；上传预检 API（check_upload 413+剩余空间）+ 审计钩子兑底；core/quota.py（含 v4.9.2 全局总量预留与批量接口）；示例：async_file_demo 配额展示 + corp_tools 插件多语言演示；回归 25 脚本 602 项 |
 | v4.9.0（已完成） | i18n 可扩展语言框架（core/i18n.py + locales/ JSON 语言包，中文原文即 key，插件语言包合并，LANGUAGE 配置 + 用户级 Cookie 切换，t() 模板/后端/前端统一，核心模板与错误消息迁移）+ 插件数据配额防恶意写盘（PLUGIN_DATA_LIMIT_MB 默认 50MB/0 禁用，审计钩子写事件强制，data/temp 目录总量 TTL 缓存，enforce 拒绝/observe 记录）；回归 25 脚本 583 项 |
 | v4.8.0（已完成） | 企业环境优化更新 F1/F4：版本检查推送（core/update_checker.py + 数据源 changelog.json 只存最新版本 + UPDATE_FEED_URL/UPDATE_CHECK_ENABLED/UPDATE_CHECK_INTERVAL/UPDATE_PUBLIC_KEY_PEM 配置 + 启动后台检查线程 + 管理后台 check 接口 + dashboard/system 展示引导）+ 双后端更新机制（tools/update.py git/archive 双后端 + USER_DATA_PATHS 用户数据保留 + sha256 必选/签名可选 + 自动备份/回滚；tools/release.py 发布工具链：版本同步/精简·全量·定制包/changelog 签名）；回归 23 脚本 540 项；首个分割 Release（v4.8.0 tag + GitHub Release） |
 | v4.7.0（已完成） | 装饰性更新 F2/F3：项目宣传（启动横幅/后台页眉 GitHub 链接/系统管理页关于卡片/system/info 项目字段）+ 系统名个性化（SYSTEM_NAME/SYSTEM_VERSION_LABEL 配置项 + Jinja 全局注入 + 登录页/首页/后台/错误页硬编码系统名变量化，仅装饰不影响内部逻辑）；回归 22 脚本 500 项 |

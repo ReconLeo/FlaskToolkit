@@ -126,11 +126,21 @@ def _in_quota_area(plugin, target):
 
 # ------------------------------ 预检与批量（供插件 API / 4.9.2 后台） ------------------------------
 
+def total_limit_mb():
+    """全局总量配额（MB）；0 = 无限制（v4.9.2，配置项 PLUGIN_DATA_TOTAL_LIMIT_MB）。"""
+    try:
+        v = global_var.get_user_config().get('PLUGIN_DATA_TOTAL_LIMIT_MB', 0)
+        return float(v or 0)
+    except Exception:
+        return 0.0
+
+
 def check_upload(plugin, new_size_bytes, global_limit_mb=None):
     """上传预检（插件上传 API 写文件前调用）：返回 dict。
 
     - ``plugin_quota_exceeded``：单插件配额超限（现有用量 + 新文件大小 > 限额）
-    - ``global_quota_exceeded``：全局总量超限（4.9.2 接线 global_limit_mb 后生效）
+    - ``global_quota_exceeded``：全局总量超限（全部插件数据总和 > PLUGIN_DATA_TOTAL_LIMIT_MB，
+      可传 global_limit_mb 显式覆盖，缺省自动读配置）
     - ``ok``：放行
     返回：{'ok', 'limit_mb', 'usage_mb', 'remaining_mb', 'reason'}
     """
@@ -142,6 +152,8 @@ def check_upload(plugin, new_size_bytes, global_limit_mb=None):
     if limit_mb and (usage_bytes + int(new_size_bytes)) > int(limit_mb * 1048576):
         return {'ok': False, 'limit_mb': limit_mb, 'usage_mb': usage_mb,
                 'remaining_mb': remaining_mb, 'reason': 'plugin_quota_exceeded'}
+    if global_limit_mb is None:
+        global_limit_mb = total_limit_mb()
     if global_limit_mb:
         total_bytes = _total_usage()
         if (total_bytes + int(new_size_bytes)) > int(global_limit_mb * 1048576):

@@ -53,6 +53,20 @@ def register(app):
 
         return jsonify({"code": 200, "data": all_plugins})
 
+    @app.route('/api/admin/quota', methods=['GET'])
+    @admin_api
+    def get_all_quota():
+        """插件空间管理（v4.9.2）：按插件列配额/用量/剩余 + 全局总量"""
+        from core import quota
+        plugins = quota.all_plugins_quota()
+        g_limit = quota.total_limit_mb()
+        g_usage = quota._total_usage() / 1048576
+        return jsonify({"code": 200, "data": {
+            "plugins": plugins,
+            "total": {"limit_mb": g_limit, "usage_mb": round(g_usage, 1),
+                        "remaining_mb": None if not g_limit else round(max(0.0, g_limit - g_usage), 1)}
+        }})
+
     # 全局插件调用入口
     @app.route('/api/admin/plugins/<plugin_name>/enable', methods=['POST'])
     @admin_api
@@ -170,6 +184,8 @@ def register(app):
 
         temp_filename = secure_filename_cn(file.filename)
         temp_path = os.path.join(global_var.UPLOAD_TEMP_DIR, temp_filename)
+        # v4.9.2 兜底：确保上传临时目录存在（模块级已创建，此处防御其他调用路径）
+        os.makedirs(global_var.UPLOAD_TEMP_DIR, exist_ok=True)
         file.save(temp_path)
         try:
             desc = parse_plugin_pack(temp_path)

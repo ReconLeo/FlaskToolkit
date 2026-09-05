@@ -65,7 +65,8 @@
 
 ## 7. 回归与验证
 
-- [ ] 全量回归：`for t in tests/test_*.py; do python $t; done`（当前 23 脚本 540 项）
+- [ ] 全量回归：`for t in tests/test_*.py; do python $t; done`（当前 25 脚本 602 项）
+- [ ] **Python 3.10 语法体检**（v4.9.2 教训：f-string 嵌套同引号为 PEP 701 仅 3.12+，本地 3.12 不暴露）：`ast.parse(src, feature_version=(3,10))` 全项目 .py 扫描零错误（注意 f-string 内 `_tr()("...")` 嵌套双引号写法）
 - [ ] 新增功能专项测试通过（如 test_capabilities / test_security / test_page_router）
 - [ ] `python examples/install_all.py --pack-only` 打包校验
 - [ ] `python tools/selfcheck.py`（或等价）启动自检通过

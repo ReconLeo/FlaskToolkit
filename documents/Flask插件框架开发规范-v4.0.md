@@ -1,5 +1,32 @@
 # Flask插件框架开发规范
 
+## 版本：v4.9.2（CI 三问题修复 + 全局总量配额 + 后台插件空间管理） | 更新日期：2026年09月05日
+
+### 版本说明（v4.9.2 变更）
+- **框架版本升级至 v4.9.2**（CI 回归三问题修复 + 配额体系全局化 + 后台空间管理）：
+  1. **CI 兼容性修复（GitHub Actions Python 3.10/3.11 报错）**：
+     - f-string 内复用同引号调用（`f"{_tr()("不支持的请求方法")}"`）为 PEP 701 语法（仅 Python 3.12+ 合法），
+       3.10/3.11 报 `SyntaxError: f-string: unmatched '('`；修复为单引号嵌套 `_tr()('...')`（3.6+ 兼容），
+       并以 `ast.parse(src, feature_version=(3, 10))` 语法体检纳入收尾 checklist 防再犯。
+     - 上传临时目录 `UPLOAD_TEMP_DIR`（`BASE_DIR/temp`）原仅 main() 内 makedirs，test client 路径
+       （import app 不执行 main）下 `file.save(temp_path)` 抛 FileNotFoundError——修为模块级 makedirs
+       （app.py 加载早期执行）+ admin 上传前 `os.makedirs` 兜底双保险。
+     - GitHub Actions Node 20 弃用警告：checkout@v6 / setup-python@v6 / upload-artifact@v6（Node 24）。
+  2. **全局总量配额（防恶意写盘的框架级维度）**：新增配置项 `PLUGIN_DATA_TOTAL_LIMIT_MB`
+     （默认 0=无限制，0 即不启用）；`core/quota.total_limit_mb()` 读取配置，`check_upload` 自动接线
+     （未显式传 global_limit_mb 时自动读配置）；审计钩子 `_check_data_quota` 增加全局维度——
+     单插件配额检查 + 全部插件数据总量检查双层防线，`enforce` 抛 RuntimeError 拒绝 / `observe` 记录
+     "全部插件数据总量超限"审计事件。
+  3. **后台插件空间管理（前端可视化）**：新增管理端接口 `GET /api/admin/quota`（`@admin_api` 鉴权）
+     返回 `{plugins: all_plugins_quota(), total: {limit_mb, usage_mb, remaining_mb}}`；系统管理页新增
+     "插件空间"卡片——按插件列出配额/用量/剩余（无限制显示"无限制"），底部全局总量行
+     （全局上限 / 总用量 / 剩余，无限制时剩余不显示），`loadQuota` JS 通过 `X-CSRF-Token` 请求头调用。
+  4. **en.json 补充 6 词条**（插件空间卡片文案），语言切换后管理页完整翻译。
+- **回归测试扩充至 25 脚本 612 项**：`tests/test_data_limit.py` 28→32（全局总量配额：
+  total_limit_mb 解析 / check_upload 全局维度 reason / 审计钩子全局拒绝与 observe 记录）；
+  `tests/test_admin_api.py` 21→27（/api/admin/quota 接口：200 + plugins 列表结构 +
+  total 字段完整性与类型）。
+
 ## 版本：v4.9.1（配额声明模型：storage:limit 存储空间授权 + 上传预检） | 更新日期：2026年09月04日
 
 ### 版本说明（v4.9.1 变更）
@@ -37,8 +64,9 @@
 
 | 版本 | 日期 | 主题 | 提交 |
 |------|------|------|------|
-| **v4.9.1** | 2026-09-05 | 配额声明模型：storage:limit 存储空间授权 + 写目录推导 + 上传预检 | （待发布） |
-| **v4.9.0** | 2026-09-05 | i18n 可扩展语言框架 + 插件数据配额（防恶意写盘） | （待发布） |
+| **v4.9.2** | 2026-09-05 | CI 三问题修复 + 全局总量配额 + 后台插件空间管理 | （待发布） |
+| **v4.9.1** | 2026-09-05 | 配额声明模型：storage:limit 存储空间授权 + 写目录推导 + 上传预检 | 69c9ceb |
+| **v4.9.0** | 2026-09-05 | i18n 可扩展语言框架 + 插件数据配额（防恶意写盘） | b1cf31d |
 | **v4.8.0** | 2026-09-05 | 企业环境优化更新：版本检查推送（F1）+ 双后端更新机制（F4） | a582945 |
 | v4.7.0 | 2026-09-04 | 装饰性更新：项目宣传 + 系统名个性化 | 8f2af0c |
 | v4.6.0 | 2026-09-04 | 审计钩子归因修复 + 严格模式系统验证（D1-D8） | c244585 |
@@ -965,6 +993,11 @@ python tools/config.py set AUDIT_HOOK_MODE enforce   # 运维加固：未授权�
 ---
 
 ### 10.10 插件数据配额（v4.9.1，声明模型，防恶意写盘）
+### 10.11 全局总量配额与后台空间管理（v4.9.2）
+- **全局总量配额**：配置项 `PLUGIN_DATA_TOTAL_LIMIT_MB`（默认 0=无限制）约束**全部插件数据总和**（所有插件 data/temp/声明写目录用量之和，TTL 缓存）；上传预检 `check_upload` 自动接线（单插件限额 + 全局总量双检查，超限 reason 分别为 `plugin_quota_exceeded` / `global_quota_exceeded`）；审计钩子写事件同样做全局维度检查（enforce 拒绝 / observe 记录"全部插件数据总量超限"）。
+- **后台插件空间管理**：`GET /api/admin/quota`（管理端接口）返回按插件配额列表 + 全局总量；系统管理页"插件空间"卡片可视化（每插件配额/用量/剩余 + 全局总量行）。
+
+
 
 **配额来源优先级**：插件 capabilities `storage:limit:<size>` 声明 > 全局 `PLUGIN_DATA_LIMIT_MB`（默认 50，0=无限制）。
 
@@ -1020,7 +1053,7 @@ FLASKTOOLKIT_HOST=0.0.0.0 FLASKTOOLKIT_PORT=8000 python app.py
 | `test_meta_e2e.py` | 插件包元信息端到端（上传/冲突/已存在/update 刷新/降级拒绝/require 拒绝，隔离目录模式可重复运行） | 10 项 |
 | `test_frontend_zip_slip.py` | 前端工具包安全解压 zip slip 专项（`..`/绝对路径/盘符拒绝 + 正常落位 + clean_static 更新清理 + 卸载资源清理） | 21 项 |
 | `test_frontend_chain.py` | 前端工具上传/更新/卸载端到端（含页面/静态资源渲染、clean_static、413 上传大小限制） | 23 项 |
-| `test_admin_api.py` | 管理端 API 单测（system/info、plugins、stats、logs、factory-reset scope 校验、上传 413/400） | 21 项 |
+| `test_admin_api.py` | 管理端 API 单测（system/info、plugins、stats、logs、factory-reset scope 校验、上传 413/400） | 27 项 |
 | `test_factory_reset.py` | Factory Reset 范围测试（部分/全部删除与保留、内置插件保护、空/非法 scope 无副作用） | 37 项 |
 | `test_error_pages.py` | 统一错误码页面渲染（404/405 真实触发 + 400/401/403/500 模板，双环境无 auth/带 auth） | 12 项 |
 | `test_package_sign.py` | 插件包完整性校验与签名专项（篡改/加料/缺失检测、签名验证、strict/warn/off 模式、路由集成） | 22 项 |
@@ -1036,7 +1069,7 @@ FLASKTOOLKIT_HOST=0.0.0.0 FLASKTOOLKIT_PORT=8000 python app.py
 | `test_audit_hook.py` | 运行时审计钩子回归（v4.4.0）：事件映射（open 读写/删除族/sqlite/socket）/ 栈定位（plugins 帧/框架放行/嵌套归因）/ observe 聚合（按插件/建议声明/事件样本）/ enforce 阻断（异常传播/授权放行/自属豁免/fail-closed）/ 隔离集成（真实钩子+栈归因端到端/stats 按插件分组/重载清零/审计落盘/未污染） | 36 项 |
 | `test_update_checker.py` | 版本检查推送（v4.8.0）：版本比较（parse_version/is_newer）/ 用户数据路径判定 / zip slip 防护 / archive 校验链（sha256 必选 + 签名可选）/ 数据源缓存 TTL / 数据源结构校验 | 40 项 |
 | `test_i18n.py` | i18n（v4.9.0）：语言包加载 / 查找链（插件合并与覆盖）/ 语言解析优先级 / 切换路由 / 模板渲染（中英） / 缺省回退 / 参数插值 | 28 项 |
-| `test_data_limit.py` | 插件数据配额（v4.9.0-4.9.1）：路径判定（data/temp/边界）/ 用量统计 / enforce 超限拒绝 / observe 记录 / TTL 缓存刷新 / 0 禁用 / **storage:limit 覆盖全局 / write 声明目录推导（uploads/ 场景）/ check_upload 预检 / 全局总量预留** | 28 项 |
+| `test_data_limit.py` | 插件数据配额（v4.9.0-4.9.1）：路径判定（data/temp/边界）/ 用量统计 / enforce 超限拒绝 / observe 记录 / TTL 缓存刷新 / 0 禁用 / **storage:limit 覆盖全局 / write 声明目录推导（uploads/ 场景）/ check_upload 预检 / 全局总量预留** | 32 项 |
 
 
 ```bash
@@ -1066,7 +1099,7 @@ python tests/test_audit_hook.py            # 36 项（运行时审计钩子回�
 python tests/test_update_checker.py     # 40 项（版本检查推送回归 v4.8.0，隔离目录）
 python tests/test_i18n.py                  # 28 项（i18n 回归 v4.9.0，隔离目录）
 python tests/test_data_limit.py            # 28 项（插件数据配额回归 v4.9.0-4.9.1，隔离目录）
-# 合计 25 个脚本 602 项
+# 合计 25 个脚本 612 项
 ```
 
 说明：`test_meta_e2e.py` 与 `test_frontend_chain.py` / `test_admin_api.py` / `test_factory_reset.py` / `test_error_pages.py` / `test_package_sign.py` 均通过 mock 基础目录 + `sys.path` 指向临时插件目录运行，不污染真实项目，可重复执行；`test_reload_race.py` 使用 Flask test client，在测试开头手动调用 `load_plugins()` 初始化（`load_plugins` 仅在 `app.py` 的 `main` 段自动调用）。
@@ -1115,6 +1148,7 @@ python tools/config.py profile <daily|strict|lan-open>   # 套用安全配置预
 | `UPDATE_PUBLIC_KEY_PEM` | （空） | 版本数据源签名公钥路径（配置后强制验签，v4.8.0） |
 | `LANGUAGE` | zh-CN | 系统显示语言（v4.9.0，可选值由 locales/ 语言包决定，Cookie `lang` 可覆盖） |
 | `PLUGIN_DATA_LIMIT_MB` | 50 | 单插件数据目录配额（MB，0=禁用，v4.9.0 见 10.10） |
+| `PLUGIN_DATA_TOTAL_LIMIT_MB` | 0 | 全部插件数据总量配额（MB，0=无限制，v4.9.2 见 10.11） |
 
 示例：
 

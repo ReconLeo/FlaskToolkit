@@ -101,6 +101,43 @@ try:
     check("全局总量预检（4.9.2 铺垫）", (not r['ok']) and r['reason'] == 'global_quota_exceeded')
     caps_mod._REGISTRY.clear()
 
+    # ---------- 3.8 全局总量配额接线（v4.9.2） ----------
+    # 配置接线：check_upload 不传 global_limit_mb 自动读配置（monkeypatch get_user_config）
+    _cfg = {'PLUGIN_DATA_LIMIT_MB': 50, 'PLUGIN_DATA_TOTAL_LIMIT_MB': 0.001}   # 全局 ~1KB
+    _orig_cfg2 = global_var.get_user_config
+    global_var.get_user_config = lambda: _cfg
+    quota_mod._data_dir_cache.pop('demo_plugin', None)
+    quota_mod._total_cache = None
+    r = quota_mod.check_upload('demo_plugin', 1024)
+    check("全局总量配置接线（自动读配置）", (not r['ok']) and r['reason'] == 'global_quota_exceeded')
+    # 全局 0 = 无限制
+    _cfg['PLUGIN_DATA_TOTAL_LIMIT_MB'] = 0
+    r = quota_mod.check_upload('demo_plugin', 1024)
+    check("全局 0 禁用（无限制）", r['ok'] and r['reason'] == 'ok')
+    # 审计钩子全局维度（enforce 拒绝）
+    _cfg['PLUGIN_DATA_TOTAL_LIMIT_MB'] = 0.001
+    _mode_bak = audit_hook._MODE
+    audit_hook._MODE = 'enforce'
+    quota_mod._total_cache = (time.time(), 1024 * 1048576)   # 模拟全局已超
+    try:
+        audit_hook._check_data_quota('demo_plugin', os.path.join(data_dir, 'new.bin'))
+        check("审计钩子全局总量 enforce 拒绝", False)
+    except RuntimeError as e:
+        check("审计钩子全局总量 enforce 拒绝", '全部插件数据总量超限' in str(e))
+    # 审计钩子全局维度（observe 记录）
+    audit_hook._MODE = 'observe'
+    audit_hook._PENDING[:] = []
+    quota_mod._total_cache = (time.time(), 1024 * 1048576)
+    try:
+        audit_hook._check_data_quota('demo_plugin', os.path.join(data_dir, 'new.bin'))
+        check("审计钩子全局总量 observe 记录", any('总量超限' in d for _, _, _, d in audit_hook._PENDING))
+    except RuntimeError:
+        check("审计钩子全局总量 observe 记录", False)
+    audit_hook._MODE = _mode_bak
+    _cfg['PLUGIN_DATA_TOTAL_LIMIT_MB'] = 0
+    global_var.get_user_config = _orig_cfg2
+    caps_mod._REGISTRY.clear()
+
     # ---------- 4. 超限拒绝（enforce） ----------
     _orig_mode = audit_hook._MODE
     audit_hook._MODE = 'enforce'

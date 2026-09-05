@@ -4,7 +4,7 @@
   <img src="https://github.com/ReconLeo/FlaskToolkit/actions/workflows/ci.yml/badge.svg" alt="CI">
   <img src="https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB?logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/License-MIT-yellow" alt="License">
-  <img src="https://img.shields.io/badge/version-4.9.1-blue" alt="Version">
+  <img src="https://img.shields.io/badge/version-4.9.2-blue" alt="Version">
 </p>
 
 > 一个基于 Flask 的插件化**框架**：把散落的 Python 插件与纯前端工具装进统一的运行时，
@@ -37,11 +37,11 @@
 - i18n 可扩展语言框架（v4.9.0）：轻量 JSON 语言包（内置 zh-CN + en，扩展语言=新增 `locales/<lang>.json`；插件可携带自己的语言包合并进查找链）；模板/后端/前端（`window.T`）统一 `t()` 翻译；`LANGUAGE` 配置项选择启动显示语言 + 用户级 Cookie 切换（登录页/后台页眉）。
 - 插件数据配额（v4.9.0）：单插件数据目录大小限制（`PLUGIN_DATA_LIMIT_MB`，默认 50MB，0=禁用），由运行时审计钩子强制执行——`observe` 记录 / `enforce` 拒绝 `plugins/data/<name>/` 与 `plugins/temp/<name>/` 下的写入。
 - 声明式存储配额（v4.9.1）：插件通过 capabilities 声明请求存储空间授权（`storage:limit:500mb`），覆盖全局默认；配额作用目录自动扩展至 `filesystem:write` 声明路径（如 AirDrop `uploads/`）；上传预检 API（`check_upload`，413 + 剩余空间提示）+ 审计钩子兜底双层。
-- 声明式存储配额（v4.9.1）：插件通过 capabilities 声明请求存储空间授权（`storage:limit:500mb`），覆盖全局默认；配额作用目录自动扩展至 `filesystem:write` 声明路径（如 AirDrop `uploads/`）；上传预检 API（`check_upload`，413 + 剩余空间提示）+ 审计钩子兜底双层。
+- 全局总量配额与后台插件空间管理（v4.9.2）：全框架插件数据总量上限（`PLUGIN_DATA_TOTAL_LIMIT_MB`，默认 0=无限制），由同一运行时审计钩子强制执行（单插件配额 + 全局总量双重检查，`observe` 记录 / `enforce` 拒绝）；管理后台新增"插件空间"卡片，按插件展示配额/用量/剩余 + 全局总量（`GET /api/admin/quota`）。
 - 版本检查与更新机制（v4.8.0）：启动/命令行与管理后台推送新版本（数据源 `changelog.json` 只存最新版本，`UPDATE_FEED_URL` 可自定义，异步检查 3s 超时 + 24h 缓存）；`tools/update.py` 双后端更新脚本——git 后端（fetch/stash/reset + 自检失败回滚）与面向无 Git 企业内网的 archive 后端（sha256 必选 + 签名可选、zip slip 防护、用户数据路径保留、自动备份/回滚）；`tools/release.py` 发布工具链（版本号同步 / 精简·全量·定制包 / changelog 签名）。
 - 补上了插件包的完整性校验与签名、Factory Reset、备份/恢复、启动自检，以及一套 540 项的回归测试和 GitHub Actions CI。
 
-坦白说，这框架的目标不是"再造一个 Django"：它站在 Flask、APScheduler、Werkzeug 这些巨人的肩膀上，把我需要的那部分想法落了地。它的信任模型是朴素的——**安装插件即信任其作者**：插件与框架同进程、无沙箱隔离（详见开发规范 10.1）。但框架并没有停留在"裸奔"：在"安装即信任"之上，叠加了**静态扫描（4.3.1）→ 能力声明交叉校验（4.3.2）→ 运行时审计钩子（4.4.0）** 的纵深防御，配合可选 HTTPS（4.5.0）与登录锁定/解封（4.3.0/4.5.1）及项目宣传与系统名自定义（4.7.0）与版本检查/双后端更新工具链（4.8.0）及 i18n/声明式存储配额（4.9.1），足以支撑**可信局域网 / 企业内网**的日常工具运行；若要对公网对抗性环境开放，仍需自行评估风险（插件仍无沙箱）。
+坦白说，这框架的目标不是"再造一个 Django"：它站在 Flask、APScheduler、Werkzeug 这些巨人的肩膀上，把我需要的那部分想法落了地。它的信任模型是朴素的——**安装插件即信任其作者**：插件与框架同进程、无沙箱隔离（详见开发规范 10.1）。但框架并没有停留在"裸奔"：在"安装即信任"之上，叠加了**静态扫描（4.3.1）→ 能力声明交叉校验（4.3.2）→ 运行时审计钩子（4.4.0）** 的纵深防御，配合可选 HTTPS（4.5.0）与登录锁定/解封（4.3.0/4.5.1）及项目宣传与系统名自定义（4.7.0）与版本检查/双后端更新工具链（4.8.0）及 i18n/声明式存储配额（4.9.1）/全局总量配额与空间管理（4.9.2），足以支撑**可信局域网 / 企业内网**的日常工具运行；若要对公网对抗性环境开放，仍需自行评估风险（插件仍无沙箱）。
 
 我坚持的原则只有一个：**需求导向，怎么方便怎么来**。所以最终呈现给你的，是一个开箱即用、低门槛、能随手往里加工具、且数据始终在自己手里的工具箱。
 
@@ -110,7 +110,7 @@ python examples/install_all.py                            # 一键安装 7 个�
 
 ## 测试与 CI
 
-`tests/` 25 个脚本共 602 项回归测试（隔离目录模式，不污染项目文件）；GitHub Actions 在 Python 3.10 / 3.11 / 3.12 上自动执行，覆盖权限、插件包 / 前端工具链路、完整性签名、卸载清单、Factory Reset、大插件多模板页面路由、文件传输（上传限制 / 中文名下载 / Range）、插件静态安全扫描、能力声明交叉校验、运行时审计钩子、i18n 语言框架、插件数据配额、运维工具等。
+`tests/` 25 个脚本共 612 项回归测试（隔离目录模式，不污染项目文件）；GitHub Actions 在 Python 3.10 / 3.11 / 3.12 上自动执行，覆盖权限、插件包 / 前端工具链路、完整性签名、卸载清单、Factory Reset、大插件多模板页面路由、文件传输（上传限制 / 中文名下载 / Range）、插件静态安全扫描、能力声明交叉校验、运行时审计钩子、i18n 语言框架、插件数据配额、运维工具等。
 
 <details>
 <summary>展开：25 个测试脚本</summary>
@@ -125,7 +125,7 @@ python tests/test_reload_race.py           # 热加载重载竞态 1 项（20 �
 python tests/test_meta_e2e.py              # 插件包元信息端到端 10 项
 python tests/test_frontend_zip_slip.py     # 前端工具 zip slip 21 项
 python tests/test_frontend_chain.py        # 前端工具链路端到端 23 项
-python tests/test_admin_api.py             # 管理端 API 21 项
+python tests/test_admin_api.py             # 管理端 API 27 项
 python tests/test_factory_reset.py         # Factory Reset 范围 37 项
 python tests/test_error_pages.py           # 错误码页面 12 项
 python tests/test_package_sign.py          # 完整性校验/签名 22 项
@@ -137,19 +137,19 @@ python tests/test_framework_fixes.py       # 框架小修复：public_page 豁�
 python tests/test_file_transfer.py         # 文件传输：全局 413 / 插件级与 route 级上传上限 / 中文名下载 / 下载统计 / Range / on_ready 顺序 12 项
 python tests/test_security.py              # 系统安全：安全响应头 / Cookie 加固 / 空闲超时 / 登录锁定与手动解封 45 项
 python tests/test_plugin_scan.py           # 插件静态扫描（v4.3.1）：危险导入/调用/混淆/网络文件触点 35 项
-python tests/test_capabilities.py          # 插件能力声明（v4.3.2）：解析/匹配/交叉校验/运行时授权 51 项
-python tests/test_audit_hook.py            # 运行时审计钩子（v4.4.0）：事件映射/栈定位/observe/enforce 36 项
+python tests/test_capabilities.py          # 插件能力声明（v4.3.2）：解析/匹配/交叉校验/运行时授权 57 项
+python tests/test_audit_hook.py            # 运行时审计钩子（v4.4.0）：事件映射/栈定位/observe/enforce 38 项
 python tests/test_update_checker.py     # 版本检查推送（v4.8.0）：版本比较/数据源缓存 TTL/archive 校验链/zip slip 防护 40 项
 python tests/test_i18n.py                  # i18n（v4.9.0）：语言包/查找链/语言解析/切换路由/模板渲染 28 项
-python tests/test_data_limit.py            # 插件数据配额（v4.9.0-4.9.1）：路径判定/用量统计/storage:limit 声明/写目录作用域/上传预检/TTL/禁用 28 项
-# 合计 25 个脚本 602 项
+python tests/test_data_limit.py            # 插件数据配额（v4.9.0-4.9.2）：路径判定/用量统计/storage:limit 声明/写目录作用域/上传预检/全局总量/TTL/禁用 32 项
+# 合计 25 个脚本 612 项
 ```
 
 </details>
 
 ## 版本状态
 
-- **Community Edition（v4.x）**：功能开发持续进行，但架构规模有意识控制——专注小型局域网/个人用户场景，我们定期维护与发布（25 脚本 602 项回归 + CI）。
+- **Community Edition（v4.x）**：功能开发持续进行，但架构规模有意识控制——专注小型局域网/个人用户场景，我们定期维护与发布（25 脚本 612 项回归 + CI）。
 - **Enterprise Edition（v5.x）**：规划承载远期路线（权限模型细化、进程级沙箱、CSP 收紧、企业身份对接等）。因当前小团队开发能力有限，公开寻求接手者——详见 [Enterprise Edition 交接与路线](documents/Enterprise-Edition-交接与路线.md)。
 
 ## 已知局限
@@ -165,7 +165,7 @@ MIT License · 贡献指南见 [CONTRIBUTING.md](CONTRIBUTING.md) · 开发过�
 
 ### 人工智能辅助开发声明
 
-本项目在开发过程中使用了 AI 辅助编程工具，包括但不限于：代码生成与重构、代码审查、测试用例编写、文档撰写。所有 AI 辅助生成或修改的内容，均已由开发者人工审查，并通过项目自身的回归测试套件（`tests/`，602 项）与启动完整性自检验证后才会合入。
+本项目在开发过程中使用了 AI 辅助编程工具，包括但不限于：代码生成与重构、代码审查、测试用例编写、文档撰写。所有 AI 辅助生成或修改的内容，均已由开发者人工审查，并通过项目自身的回归测试套件（`tests/`，612 项）与启动完整性自检验证后才会合入。
 
 对贡献者的透明性约定：
 

@@ -4,7 +4,7 @@
   <img src="https://github.com/ReconLeo/FlaskToolkit/actions/workflows/ci.yml/badge.svg" alt="CI">
   <img src="https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB?logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/License-MIT-yellow" alt="License">
-  <img src="https://img.shields.io/badge/version-4.9.1-blue" alt="Version">
+  <img src="https://img.shields.io/badge/version-4.9.2-blue" alt="Version">
 </p>
 
 > A Flask-based plugin **framework**: bring scattered Python plugins and pure-frontend tools into one unified runtime —
@@ -37,11 +37,11 @@ Over time it grew into what it is today:
 - i18n language framework (v4.9.0): lightweight JSON language packs (built-in zh-CN + en, extensible by adding `locales/<lang>.json`; plugins may ship their own language packs merged into the lookup chain); `t()` translation in templates / backend / frontend (`window.T`); `LANGUAGE` config for the startup language plus per-user cookie switching (login page / admin header).
 - Plugin data quota (v4.9.0): per-plugin data directory size limit (`PLUGIN_DATA_LIMIT_MB`, default 50 MB, 0 = disabled) enforced by the runtime audit hook — `observe` logs / `enforce` blocks writes under `plugins/data/<name>/` and `plugins/temp/<name>/`.
 - Declarative storage quota (v4.9.1): plugins request storage space authorization via capabilities (`storage:limit:500mb`), overriding the global default; quota scope auto-extends to `filesystem:write` declared paths (e.g. AirDrop `uploads/`); upload pre-check API (`check_upload`, 413 + remaining space) plus audit-hook fallback.
-- Declarative storage quota (v4.9.1): plugins request storage space authorization via capabilities (`storage:limit:500mb`), overriding the global default; quota scope auto-extends to `filesystem:write` declared paths (e.g. AirDrop `uploads/`); upload pre-check API (`check_upload`, 413 + remaining space) plus audit-hook fallback.
+- Global plugin data quota & storage dashboard (v4.9.2): framework-wide total cap over all plugin data (`PLUGIN_DATA_TOTAL_LIMIT_MB`, default 0 = unlimited), enforced by the same runtime audit hook (single-plugin cap + global total, `observe` logs / `enforce` blocks); admin panel gets a "Plugin Storage" card listing per-plugin limit/usage/remaining plus the global total (`GET /api/admin/quota`).
 - Version check & update mechanism (v4.8.0): startup/console and admin-panel update pushes driven by a `changelog.json` feed (latest version only, user-customizable via `UPDATE_FEED_URL`, async check with 3s timeout and 24h cache); `tools/update.py` dual-backend updater — git backend (fetch/stash/reset + selfcheck rollback) and archive backend for non-Git intranets (sha256-required + optional signature, zip-slip guard, user-data paths preserved, auto backup/rollback); `tools/release.py` publishing chain (version bump / runtime & full & custom packages / changelog signing).
 - Added plugin-package integrity verification & signing, Factory Reset, backup/restore, startup self-check, plus a **540-assertion regression suite and GitHub Actions CI**.
 
-To be honest, this framework's goal is not to "reinvent Django": it stands on the shoulders of giants like Flask, APScheduler, and Werkzeug, and lands the parts I needed. Its trust model is blunt — **installing a plugin means trusting its author**: plugins run in-process with the framework, without sandboxing (see dev guide 10.1). But it does not stop at "bare trust": layered defense — **static scanning (4.3.1) → capability cross-validation (4.3.2) → runtime audit hooks (4.4.0)** — sits on top, together with optional HTTPS (4.5.0) and login lockout/manual unlock (4.3.0/4.5.1) and project branding / customizable system name (4.7.0) plus version check & dual-backend update tooling (4.8.0) and i18n / declarative storage quota (4.9.1). That is enough for trusted LANs / enterprise intranets running daily tools; exposing to an adversarial public network still needs your own risk assessment (plugins are still unsandboxed).
+To be honest, this framework's goal is not to "reinvent Django": it stands on the shoulders of giants like Flask, APScheduler, and Werkzeug, and lands the parts I needed. Its trust model is blunt — **installing a plugin means trusting its author**: plugins run in-process with the framework, without sandboxing (see dev guide 10.1). But it does not stop at "bare trust": layered defense — **static scanning (4.3.1) → capability cross-validation (4.3.2) → runtime audit hooks (4.4.0)** — sits on top, together with optional HTTPS (4.5.0) and login lockout/manual unlock (4.3.0/4.5.1) and project branding / customizable system name (4.7.0) plus version check & dual-backend update tooling (4.8.0) and i18n / declarative storage quota (4.9.1) / global quota & storage dashboard (4.9.2). That is enough for trusted LANs / enterprise intranets running daily tools; exposing to an adversarial public network still needs your own risk assessment (plugins are still unsandboxed).
 
 My only principle: **need-driven, whatever is convenient**. So what you get is an out-of-the-box, low-barrier toolbox that lets you drop in tools whenever you want, with your data always in your own hands.
 
@@ -110,7 +110,7 @@ Detailed specs live in the [Flask Plugin Framework Development Guide](documents/
 
 ## Tests & CI
 
-`tests/` contains **25 scripts / 602 assertions** of regression tests (isolated-directory mode, no pollution of project files); GitHub Actions runs them automatically on Python 3.10 / 3.11 / 3.12, covering permissions, plugin-package / frontend-tool chains, integrity signatures, uninstall manifests, Factory Reset, large-plugin multi-template page routing, file transfer (upload limits / Chinese-name downloads / Range), static security scanning, capability cross-validation, runtime audit hooks, i18n framework, plugin data quota, ops tools, etc.
+`tests/` contains **25 scripts / 612 assertions** of regression tests (isolated-directory mode, no pollution of project files); GitHub Actions runs them automatically on Python 3.10 / 3.11 / 3.12, covering permissions, plugin-package / frontend-tool chains, integrity signatures, uninstall manifests, Factory Reset, large-plugin multi-template page routing, file transfer (upload limits / Chinese-name downloads / Range), static security scanning, capability cross-validation, runtime audit hooks, i18n framework, plugin data quota, ops tools, etc.
 
 <details>
 <summary>Expand: 25 test scripts</summary>
@@ -125,7 +125,7 @@ python tests/test_reload_race.py           # hot-reload race 1 (20 rounds)
 python tests/test_meta_e2e.py              # plugin-package meta end-to-end 10
 python tests/test_frontend_zip_slip.py     # frontend-tool zip slip 21
 python tests/test_frontend_chain.py        # frontend-tool chain end-to-end 23
-python tests/test_admin_api.py             # admin API 21
+python tests/test_admin_api.py             # admin API 27
 python tests/test_factory_reset.py         # Factory Reset scope 37
 python tests/test_error_pages.py           # error-code pages 12
 python tests/test_package_sign.py          # integrity verification / signing 22
@@ -137,19 +137,19 @@ python tests/test_framework_fixes.py       # framework small fixes: public_page 
 python tests/test_file_transfer.py         # file transfer: global 413 / plugin & route upload limits / Chinese-name downloads / download stats / Range / on_ready order 12
 python tests/test_security.py              # system security: headers / cookie hardening / idle timeout / login lockout & manual unlock 45
 python tests/test_plugin_scan.py           # plugin static scanning (v4.3.1): risky imports/calls/obfuscation/network+file touchpoints 35
-python tests/test_capabilities.py          # plugin capability declarations (v4.3.2): parse/match/cross-check/runtime authorization 51
-python tests/test_audit_hook.py            # runtime audit hooks (v4.4.0): event mapping/stack attribution/observe/enforce 36
+python tests/test_capabilities.py          # plugin capability declarations (v4.3.2): parse/match/cross-check/runtime authorization 57
+python tests/test_audit_hook.py            # runtime audit hooks (v4.4.0): event mapping/stack attribution/observe/enforce 38
 python tests/test_update_checker.py     # update checker (v4.8.0): version compare / feed cache TTL / archive verify chain / zip-slip guard 40
 python tests/test_i18n.py                  # i18n (v4.9.0): language packs / lookup chain / lang resolution / cookie switch / template render 28
-python tests/test_data_limit.py            # plugin data quota (v4.9.0-4.9.1): path judge / usage / storage:limit declaration / write-dir scope / upload pre-check / TTL / disable 28
-# total: 25 scripts / 602 assertions
+python tests/test_data_limit.py            # plugin data quota (v4.9.0-4.9.2): path judge / usage / storage:limit declaration / write-dir scope / upload pre-check / global total / TTL / disable 32
+# total: 25 scripts / 612 assertions
 ```
 
 </details>
 
 ## Edition Status
 
-- **Community Edition (v4.x)**: feature development continues with a deliberately controlled architectural scale, focused on small-LAN / personal-use scenarios; we maintain and release regularly (25 scripts / 602 assertions regression + CI).
+- **Community Edition (v4.x)**: feature development continues with a deliberately controlled architectural scale, focused on small-LAN / personal-use scenarios; we maintain and release regularly (25 scripts / 612 assertions regression + CI).
 - **Enterprise Edition (v5.x)**: planned to carry the long-term roadmap (refined permission model, process-level sandboxing, stricter CSP, enterprise identity integration, etc.). Due to limited team capacity, we are openly looking for maintainers to take over — see the [Enterprise Edition handover & roadmap](documents/Enterprise-Edition-交接与路线.md).
 
 ## Known Limitations

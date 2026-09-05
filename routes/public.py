@@ -138,7 +138,7 @@ def register(app):
     @app.errorhandler(405)
     def method_not_allowed_error(e):
         logger.warning(f"405请求方法不允许: {request.path} - {request.method}", extra={'plugin': 'system'})
-        return render_template('405.html', message=f"{_tr()("不支持的请求方法")} {request.method}"), 405
+        return render_template('405.html', message=f"{_tr()('不支持的请求方法')} {request.method}"), 405
 
     # 404错误处理器（优化Chrome开发者工具请求过滤）
     @app.errorhandler(404)
@@ -162,7 +162,7 @@ def register(app):
     def request_entity_too_large(e):
         limit_mb = global_var.MAX_UPLOAD_SIZE_MB
         logger.warning(f"413请求体过大: {request.path} - 限制 {limit_mb}MB", extra={'plugin': 'system'})
-        msg = f"{_tr()("请求体超过大小限制")}（{limit_mb}MB）"
+        msg = f"{_tr()('请求体超过大小限制')}（{limit_mb}MB）"
         if request.path.startswith('/api/'):
             return jsonify({"code": 413, "message": msg}), 413
         return render_template('413.html', message=msg), 413

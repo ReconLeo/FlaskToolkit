@@ -34,6 +34,18 @@
         </div>
     </div>
 
+    <!-- 插件空间管理（v4.9.2） -->
+    <div class="card">
+        <h3 class="card-title">💾 {{ t('插件空间') }}</h3>
+        <div class="card-body">
+            <table class="table table-sm" style="font-size:13px;">
+                <thead><tr><th>{{ t('插件') }}</th><th>{{ t('限额') }}</th><th>{{ t('已用') }}</th><th>{{ t('剩余') }}</th></tr></thead>
+                <tbody id="quotaBody"></tbody>
+                <tfoot><tr style="font-weight:600;"><td>{{ t('总用量') }}</td><td id="quotaTotalLimit">-</td><td id="quotaTotalUsage">-</td><td id="quotaTotalRemain">-</td></tr></tfoot>
+            </table>
+        </div>
+    </div>
+
     <!-- Factory Reset -->
     <div class="card">
         <h3 class="card-title">♻️ Factory Reset（恢复出厂设置）</h3>
@@ -240,5 +252,27 @@
     }
 
     document.addEventListener('DOMContentLoaded', () => { loadSysInfo(); loadSysVer(); loadAuditLog(); });
+
+    // v4.9.2：插件空间管理（/api/admin/quota）
+    function loadQuota() {
+        fetch('/api/admin/quota', {headers: {'X-CSRF-Token': getCsrfToken()}})
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+                if (d.code !== 200) return;
+                var q = d.data || {};
+                var rows = (q.plugins || []).map(function (it) {
+                    var lim = it.limit_mb ? it.limit_mb + ' MB' : window.T('无限制');
+                    var rem = it.remaining_mb === null ? '-' : it.remaining_mb.toFixed(1) + ' MB';
+                    return '<tr><td>' + it.plugin + '</td><td>' + lim + '</td><td>' + it.usage_mb.toFixed(1) + ' MB</td><td>' + rem + '</td></tr>';
+                }).join('');
+                document.getElementById('quotaBody').innerHTML = rows;
+                var t = q.total || {};
+                document.getElementById('quotaTotalLimit').textContent = t.limit_mb ? t.limit_mb + ' MB' : window.T('无限制');
+                document.getElementById('quotaTotalUsage').textContent = (t.usage_mb || 0).toFixed(1) + ' MB';
+                document.getElementById('quotaTotalRemain').textContent = t.remaining_mb === null ? '-' : t.remaining_mb.toFixed(1) + ' MB';
+            })
+            .catch(function () {});
+    }
+    document.addEventListener('DOMContentLoaded', () => { loadQuota(); });
 </script>
 {% endblock %}
