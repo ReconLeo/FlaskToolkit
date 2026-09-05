@@ -2,13 +2,13 @@
   "latest_version": "4.9.2",
   "published_at": "2026-09-06",
   "download_url": "https://github.com/ReconLeo/FlaskToolkit/releases/download/v4.9.2/FlaskToolkit-4.9.2-runtime.zip",
-  "sha256": "641a21ddbe8ea506ae1e429b5b4cd9e4359ed7120aad0dae1c119b893291c20f",
+  "sha256": "f232d50169a73dc2892a6ab0f50f44476d819fdb587a446dd7c709c69cac92e7",
   "changes": [
     "CI 三问题修复：f-string 嵌套同引号（PEP 701 仅 3.12+）改单引号 + ast 3.10 语法体检入 checklist；上传临时目录 UPLOAD_TEMP_DIR 模块级创建 + 上传兜底（修复 test client 路径）；GitHub Actions 升 Node 24（checkout/setup-python/upload-artifact v6）",
     "全局总量配额：PLUGIN_DATA_TOTAL_LIMIT_MB（默认 0=无限制），quota.total_limit_mb + check_upload 自动接线 + 审计钩子全局维度（单插件限额 + 全局总量双层，enforce/observe）",
     "后台插件空间管理：GET /api/admin/quota + 系统管理页插件空间卡片（每插件配额/用量/剩余 + 全局总量）",
     "声明式存储配额（v4.9.1）：capabilities storage:limit 覆盖全局默认 + filesystem:write 声明目录推导 + 上传预检 API（413+剩余空间）",
     "i18n 可扩展语言框架 + 插件数据配额（v4.9.0）：轻量 JSON 语言包（zh-CN+en 可扩展）+ t() 全端统一 + 单插件数据配额防恶意写盘",
-    "回归测试扩充至 25 脚本 612 项，全量通过"
+    "回归测试扩充至 25 脚本 615 项，全量通过"
   ]
 }
