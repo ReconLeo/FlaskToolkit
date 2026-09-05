@@ -79,6 +79,23 @@ r = C.parse_capabilities(['network:http:https://erp.corp.local/*'])
 check("A6 process:exec 三段语法 param=bin",
       C.parse_capabilities(['process:exec:ffmpeg'])['valid'][0]['param'] == 'ffmpeg')
 
+# ============ A7-A12：storage 域（v4.9.1 存储配额声明） ============
+r = C.parse_capabilities(['storage:limit:500mb', 'storage:limit:2gb', 'storage:limit:100'])
+check("A7 storage:limit 合法声明解析", len(r['valid']) == 3 and not r['errors'])
+check("A8 storage 大小解析换算",
+      C._parse_storage_size('2GB') == 2048.0 and C._parse_storage_size('100') == 100.0
+      and C._parse_storage_size('500mb') == 500.0)
+r = C.parse_capabilities(['storage:limit:0', 'storage:limit:abc', 'storage:bad:x'])
+check("A9 storage 非法大小/子域进 errors", len(r['errors']) == 3 and not r['valid'])
+C._REGISTRY.clear()
+C.register_capabilities('quota_demo', ['storage:limit:200mb', 'filesystem:write:uploads/**'])
+check("A10 get_storage_limit_mb 从注册表解析", C.get_storage_limit_mb('quota_demo') == 200.0)
+check("A11 无声明返回 None", C.get_storage_limit_mb('no_such_plugin') is None)
+_dirs = C.get_write_dirs('quota_demo', base_dir='D:/proj')
+check("A12 get_write_dirs 推导声明目录（相对根）",
+      any(d.replace('\\', '/').lower().endswith('/proj/uploads') for d in _dirs))
+C._REGISTRY.clear()
+
 # ============ B：匹配语义 ============
 check("B1 目录前缀递归（data 覆盖任意深度）", C.match_path_decl('data', 'data/a/b/c.txt'))
 check("B2 尾 * / 尾斜杠 / 裸目录三写法等价",

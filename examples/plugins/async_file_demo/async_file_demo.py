@@ -63,6 +63,13 @@ class AsyncFileDemoPlugin(BasePlugin):
                 "view_func": self.upload_and_process,
             },
             {
+                "path": "/quota",
+                "name": "查询存储配额状态",
+                "methods": ["GET"],
+                "params": [],
+                "view_func": self.get_quota,
+            },
+            {
                 "path": "/status/<task_id>",
                 "name": "查询异步任务状态",
                 "methods": ["GET"],
@@ -81,8 +88,22 @@ class AsyncFileDemoPlugin(BasePlugin):
     @permission_required("user")
     def upload_and_process(self):
         """上传文件并启动异步处理，立即返回 task_id"""
+        from flask import request
         try:
-            # 1. 保存上传文件（自动校验 allowed_upload_types）
+            # 1. 配额预检（v4.9.1）：现有用量 + 新文件大小 <= 插件配额（storage:limit 声明）
+            up = request.files.get("file")
+            if up is None:
+                return self.error_response("未收到文件字段 file", code=400)
+            up.stream.seek(0, 2)
+            fsize = up.stream.tell()
+            up.stream.seek(0)
+            qc = self.check_upload(fsize)
+            if not qc["ok"]:
+                return self.error_response(
+                    f"存储配额不足：已用 {qc['usage_mb']:.1f}MB / 限额 "
+                    f"{qc['limit_mb']:.0f}MB（剩余 {qc['remaining_mb']:.1f}MB），请清理后重试",
+                    code=413)
+            # 2. 保存上传文件（自动校验 allowed_upload_types）
             temp_path, original_name = self.save_uploaded_file("file")
         except ValueError as e:
             return self.error_response(str(e), code=400)
@@ -102,6 +123,12 @@ class AsyncFileDemoPlugin(BasePlugin):
             },
             message="上传成功，任务已启动",
         )
+
+    @permission_required("user")
+    def get_quota(self):
+        """查询存储配额状态（v4.9.1）：限额/已用/剩余（MB），0 限额=无限制"""
+        qi = self.quota_info()
+        return self.success_response(data=qi)
 
     @permission_required("user")
     def get_status(self, task_id: str):

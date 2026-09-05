@@ -38,6 +38,8 @@ CORE_FILES = [
     # v4.3.x-v4.4.0 安全强化新增模块
     'core/plugin_scanner.py', 'core/capabilities.py', 'core/audit_hook.py',
     'core/plugin_cache.py', 'core/plugin_status.py',
+    # v4.9.0 i18n + v4.9.1 配额声明
+    'core/i18n.py', 'core/quota.py',
     'plugins/__init__.py', 'plugins/base_plugin.py',
     'plugins/auth.py', 'plugins/user_manage.py',
 ]

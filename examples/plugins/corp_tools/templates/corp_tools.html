@@ -1,50 +1,54 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="{{ lang }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ title }} - 企业内网工具箱</title>
+    <title>{{ title }} - {{ t('企业内网工具箱') }}</title>
     <link rel="stylesheet" href="/plugin-static/{{ name }}/css/corp.css">
+    <script>window.__I18N = {{ t_json | tojson }}; window.T = function (k) { return (window.__I18N && window.__I18N[k]) || k; };</script>
 </head>
 <body>
 <div class="corp-wrap">
-    <header class="corp-header">
+            <div style="text-align:right; font-size:13px;">
+            {% for code, name in available_langs.items() %}{% if code != lang %}<a href="/lang/{{ code }}?next={{ request.path }}" style="color:#666; text-decoration:none; margin-left:10px;">{{ name }}</a>{% endif %}{% endfor %}
+        </div>
+<header class="corp-header">
         <h1>{{ title }}</h1>
         <p class="corp-muted">
-            欢迎，<strong>{{ username }}</strong>（{{ role }}）·
-            插件名 <code>{{ name }}</code> · 企业内网生产场景综合示例
+            {{ t('欢迎，') }}<strong>{{ username }}</strong>（{{ role }}）·
+            {{ t('插件名') }} <code>{{ name }}</code> · {{ t('企业内网生产场景综合示例') }}
         </p>
     </header>
 
     <section class="corp-overview">
         <div class="corp-stat">
             <span class="corp-stat-num">{{ health.up }}/{{ health.total }}</span>
-            <span class="corp-muted">服务在线</span>
+            <span class="corp-muted">{{ t('服务在线') }}</span>
         </div>
-        <div class="corp-muted">框架能力：多模板页面路由 · 三层权限 · 定时任务 · capabilities 网络白名单 · 配置读写 · 数据目录 · 异步任务 · 跨插件调用 · 静态资源</div>
+        <div class="corp-muted">{{ t('框架能力：多模板页面路由 · 三层权限 · 定时任务 · capabilities 网络白名单 · 配置读写 · 数据目录 · 异步任务 · 跨插件调用 · 静态资源') }}</div>
     </section>
 
     <div class="corp-cards">
         <a class="corp-card" href="/plugin/{{ name }}/health">
-            <h3>🩺 服务健康</h3>
-            <p>每 60s 定时探测内网服务，红/绿状态实时展示（scheduler + network:http capabilities）。</p>
+            <h3>🩺 {{ t('服务健康') }}</h3>
+            <p>{{ t('每 60s 定时探测内网服务，红/绿状态实时展示（scheduler + network:http capabilities）。') }}</p>
         </a>
         <a class="corp-card" href="/plugin/{{ name }}/links">
-            <h3>🧭 工具导航</h3>
-            <p>配置驱动内部系统链接，按当前用户权限（public/user/admin）过滤可见项。</p>
+            <h3>🧭 {{ t('工具导航') }}</h3>
+            <p>{{ t('配置驱动内部系统链接，按当前用户权限（public/user/admin）过滤可见项。') }}</p>
         </a>
         <a class="corp-card" href="/plugin/{{ name }}/notices">
-            <h3>📢 公告板</h3>
-            <p>管理员发布/删除公告（异步落盘），登录用户查看，级别区分信息/警告/重要。</p>
+            <h3>📢 {{ t('公告板') }}</h3>
+            <p>{{ t('管理员发布/删除公告（异步落盘），登录用户查看，级别区分信息/警告/重要。') }}</p>
         </a>
     </div>
 
-    <h3>子页面</h3>
+    <h3>{{ t('子页面') }}</h3>
     <ul class="corp-list">
         {% for p in sub_pages %}<li><a href="/plugin/{{ name }}{{ p }}">{{ p }}</a></li>{% endfor %}
     </ul>
 
-    <p class="corp-muted">欢迎语与用户角色来自 <code>request.user</code>（全局鉴权拦截器注入）；本页由 <code>render_index()</code> 提供上下文。</p>
+    <p class="corp-muted">{{ t('欢迎语与用户角色来自 request.user（全局鉴权拦截器注入）；本页由 render_index() 提供上下文。') }}</p>
 </div>
 <script src="/plugin-static/{{ name }}/js/corp.js"></script>
 </body>

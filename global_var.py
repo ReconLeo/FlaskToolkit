@@ -29,7 +29,7 @@ CACHE_VERSION = 1  # 缓存格式版本，变更时自动失效
 LOG_DIR = os.path.join(BASE_DIR, 'logs')
 
 # ------------------------------ 全局常量 ------------------------------
-FRAMEWORK_VERSION = "4.9.0"  # 框架版本（后端插件 require_framework_version 比较基准）
+FRAMEWORK_VERSION = "4.9.1"  # 框架版本（后端插件 require_framework_version 比较基准）
 # 项目宣传信息（v4.7.0，只读常量，供 app.py 启动横幅与后台关于页展示）
 PROJECT_NAME = "FlaskToolkit"  # 项目名称
 PROJECT_AUTHOR = "ReconLeo"  # 作者/维护者
@@ -127,7 +127,7 @@ CONFIG_ITEMS = {
                     'desc': '系统显示名称（v4.7.0，前端主页面/后台页眉展示，仅装饰不影响内部标识）'},
     'LANGUAGE': {'default': 'zh-CN', 'kind': 'str',
                              'desc': '系统显示语言（v4.9.0，内置 zh-CN/en，可扩展；可选值由 locales/ 语言包决定；Cookie lang 可覆盖）'},
-    'SYSTEM_VERSION_LABEL': {'default': 'v4.9.0', 'kind': 'str',
+    'SYSTEM_VERSION_LABEL': {'default': 'v4.9.1', 'kind': 'str',
                              'desc': '系统版本显示标签（v4.7.0，前端展示用，仅装饰不改 FRAMEWORK_VERSION 逻辑；升级框架时建议同步更新）'},
     'UPDATE_FEED_URL': {'default': 'https://raw.githubusercontent.com/ReconLeo/FlaskToolkit/main/changelog.json', 'kind': 'str',
                          'desc': '版本更新数据源（v4.8.0，默认 GitHub changelog.json，企业内网可指向内网镜像）'},

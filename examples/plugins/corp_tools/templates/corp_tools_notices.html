@@ -1,27 +1,31 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="{{ lang }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>公告板 - {{ name }}</title>
+    <title>{{ t('公告板') }} - {{ name }}</title>
     <link rel="stylesheet" href="/plugin-static/{{ name }}/css/corp.css">
+    <script>window.__I18N = {{ t_json | tojson }}; window.T = function (k) { return (window.__I18N && window.__I18N[k]) || k; };</script>
 </head>
 <body>
 <div class="corp-wrap">
-    <header class="corp-header">
-        <h1>📢 公告板</h1>
-        <p class="corp-muted">管理员发布（异步落盘 run_async_task）/ 删除公告；登录用户查看。数据存 <code>plugins/data/{{ name }}/notices.json</code>（自属路径隐式豁免）。</p>
+            <div style="text-align:right; font-size:13px;">
+            {% for code, name in available_langs.items() %}{% if code != lang %}<a href="/lang/{{ code }}?next={{ request.path }}" style="color:#666; text-decoration:none; margin-left:10px;">{{ name }}</a>{% endif %}{% endfor %}
+        </div>
+<header class="corp-header">
+        <h1>📢 {{ t('公告板') }}</h1>
+        <p class="corp-muted">{{ t('管理员发布（异步落盘 run_async_task）/ 删除公告；登录用户查看。数据存 plugins/data/{{ name }}/notices.json（自属路径隐式豁免）。') }}</p>
         <p class="corp-muted">API：<code>GET /api/{{ name }}/notices</code>（user）· <code>POST /api/{{ name }}/notices</code>（admin）· <code>DELETE /api/{{ name }}/notices/&lt;id&gt;</code>（admin）</p>
     </header>
     <form id="corp-notice-form" class="corp-form">
-        <input type="text" name="title" placeholder="公告标题" required>
-        <textarea name="content" placeholder="公告正文" rows="3" required></textarea>
+        <input type="text" name="title" placeholder="{{ t('公告标题') }}" required>
+        <textarea name="content" placeholder="{{ t('公告正文') }}" rows="3" required></textarea>
         <select name="level">
-            <option value="info">信息</option>
-            <option value="warning">警告</option>
-            <option value="danger">重要</option>
+            <option value="info">{{ t('信息') }}</option>
+            <option value="warning">{{ t('警告') }}</option>
+            <option value="danger">{{ t('重要') }}</option>
         </select>
-        <button type="submit">发布公告</button>
+        <button type="submit">{{ t('发布公告') }}</button>
     </form>
     <div id="corp-notices" class="corp-muted">加载中…</div>
 </div>

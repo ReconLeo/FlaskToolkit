@@ -59,6 +59,7 @@
         </div>
         <input type="file" id="fileInput" accept=".txt,.log,.csv,.json,.md" style="display:none;">
         <div style="text-align:center;">
+            <div id="quotaLine" style="margin-top:8px; font-size:13px; color:#666;"></div>
             <button id="uploadBtn" onclick="upload()">上传并启动异步处理</button>
         </div>
 
@@ -105,6 +106,7 @@
             const data = await resp.json();
             if (!resp.ok) {
                 statusLine.textContent = `上传失败（HTTP ${resp.status}）: ${data.message || ''}`;
+                refreshQuota();
                 btn.disabled = false;
                 return;
             }
@@ -145,6 +147,25 @@
         html += `<a class="download" href="/api/async_file_demo/result/${taskId}">下载统计结果</a>`;
         box.innerHTML = html;
     }
+
+    // v4.9.1：展示插件存储配额状态（storage:limit 声明）
+    function refreshQuota() {
+        fetch('/api/async_file_demo/quota')
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+                var el = document.getElementById('quotaLine');
+                if (!el) return;
+                var q = d.data || {};
+                if (!q.limit_mb || q.limit_mb === 0) {
+                    el.textContent = '存储配额：无限制（当前已用 ' + (q.usage_mb || 0).toFixed(1) + ' MB）';
+                } else {
+                    el.textContent = '存储配额：限额 ' + q.limit_mb + ' MB / 已用 ' + (q.usage_mb || 0).toFixed(1)
+                        + ' MB / 剩余 ' + (q.remaining_mb || 0).toFixed(1) + ' MB（插件声明 storage:limit:10mb）';
+                }
+            })
+            .catch(function () {});
+    }
+    refreshQuota();
 </script>
 </body>
 </html>

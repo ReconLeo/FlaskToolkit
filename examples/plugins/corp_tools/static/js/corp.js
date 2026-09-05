@@ -32,7 +32,7 @@
         api("GET", "/api/corp_tools/health").then(function (res) {
             var items = (res.data && res.data.items) || [];
             if (!items.length) {
-                box.innerHTML = "<p class='corp-muted'>暂无探测数据（首次探测后 60s 内出现）。</p>";
+                box.innerHTML = "<p class='corp-muted'>" + window.T('暂无探测数据（首次探测后 60s 内出现）。') + "</p>";
                 return;
             }
             var html = items.map(function (h) {
@@ -48,7 +48,7 @@
             }).join("");
             box.innerHTML = html;
         }).catch(function () {
-            box.innerHTML = "<p class='corp-muted'>健康状态加载失败（未登录或服务异常）。</p>";
+            box.innerHTML = "<p class='corp-muted'>" + window.T('健康状态加载失败（未登录或服务异常）。') + "</p>";
         });
     }
 
@@ -76,7 +76,7 @@
             }).join("");
             box.innerHTML = html;
         }).catch(function () {
-            box.innerHTML = "<p class='corp-muted'>导航加载失败。</p>";
+            box.innerHTML = "<p class='corp-muted'>" + window.T('导航加载失败。') + "</p>";
         });
     }
 
@@ -87,7 +87,7 @@
         api("GET", "/api/corp_tools/notices").then(function (res) {
             var items = (res.data && res.data.items) || [];
             if (!items.length) {
-                box.innerHTML = "<p class='corp-muted'>暂无公告。</p>";
+                box.innerHTML = "<p class='corp-muted'>" + window.T('暂无公告。') + "</p>";
                 return;
             }
             box.innerHTML = items.map(function (n) {
@@ -105,12 +105,12 @@
                     api("DELETE", "/api/corp_tools/notices/" + encodeURIComponent(btn.dataset.id)).then(function () {
                         loadNotices();
                     }).catch(function (e) {
-                        alert((e && e.message) || "删除失败（无权限或公告不存在）");
+                        alert((e && e.message) || window.T('删除失败（无权限或公告不存在）'));
                     });
                 });
             });
         }).catch(function () {
-            box.innerHTML = "<p class='corp-muted'>公告加载失败（需登录）。</p>";
+            box.innerHTML = "<p class='corp-muted'>" + window.T('公告加载失败（需登录）。') + "</p>";
         });
     }
 
@@ -128,7 +128,7 @@
                 form.reset();
                 loadNotices();
             }).catch(function (e) {
-                alert((e && e.message) || "发布失败（需要管理员权限）");
+                alert((e && e.message) || window.T('发布失败（需要管理员权限）'));
             });
         });
     }

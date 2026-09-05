@@ -26,6 +26,7 @@ import time
 import global_var
 
 from core import capabilities as caps_mod
+from core import quota as _quota_mod
 
 _local = threading.local()
 
@@ -263,64 +264,31 @@ def _allowed(plugin, domain, target):
     return True, 'unmonitored-domain'
 
 
-# ------------------------------ 数据配额（v4.9.0 防恶意写盘） ------------------------------
+# ------------------------------ 数据配额（v4.9.1：委托 core/quota.py，capabilities 声明模型） ------------------------------
 
-_DATA_CACHE_TTL = 5.0          # 目录总量缓存秒数（避免每次写事件 os.walk）
-_data_dir_cache = {}           # plugin -> (checked_ts, size_bytes)
-
-
-def _data_limit_mb():
-    """配置项 PLUGIN_DATA_LIMIT_MB（单插件数据目录配额，0/缺省禁用）。"""
-    try:
-        v = global_var.get_user_config().get('PLUGIN_DATA_LIMIT_MB', 50)
-        return float(v or 0)
-    except Exception:
-        return 50.0
-
-
-def _plugin_quota_dirs(plugin):
-    """插件配额目录：plugins/data/<p>/（正式数据）与 plugins/temp/<p>/（临时文件）。"""
-    base = os.path.join(global_var.BASE_DIR, 'plugins')
-    return [os.path.join(base, 'data', plugin), os.path.join(base, 'temp', plugin)]
+def _in_plugin_quota_area(plugin, target):
+    """target 是否落在插件配额作用目录（data/temp 自属 + filesystem:write 声明路径）。"""
+    return _quota_mod._in_quota_area(plugin, target)
 
 
 def _quota_usage(plugin):
-    """插件配额目录总大小（TTL 缓存）。"""
-    now = time.time()
-    hit = _data_dir_cache.get(plugin)
-    if hit and now - hit[0] < _DATA_CACHE_TTL:
-        return hit[1]
-    total = 0
-    for d in _plugin_quota_dirs(plugin):
-        if os.path.isdir(d):
-            for root, _ds, fs in os.walk(d):
-                for fn in fs:
-                    try:
-                        total += os.path.getsize(os.path.join(root, fn))
-                    except OSError:
-                        pass
-    _data_dir_cache[plugin] = (now, total)
-    return total
+    """插件配额目录总大小（字节，TTL 缓存）。"""
+    return _quota_mod._quota_usage(plugin)
 
 
-def _in_plugin_quota_area(plugin, target):
-    """target 是否落在插件配额目录下（归一化前缀匹配，与 capabilities 同规则）。"""
-    tn = caps_mod._norm_path(target)
-    for d in _plugin_quota_dirs(plugin):
-        dn = caps_mod._norm_path(d)
-        if tn == dn or tn.startswith(dn + '/'):
-            return True
-    return False
+def _data_limit_mb(plugin=None):
+    """插件配额（MB）：storage:limit 声明 > 全局默认；0 = 无限制。"""
+    return _quota_mod.data_limit_mb(plugin)
 
 
 def _check_data_quota(plugin, target):
-    """插件数据配额检查：写事件落在配额目录且总量超限时，observe 记录 / enforce 拒绝。"""
-    limit_mb = _data_limit_mb()
-    if not limit_mb or limit_mb <= 0:
+    """写事件配额检查（v4.9.1 声明模型）：落在配额作用目录且超限时 observe 记录 / enforce 拒绝。"""
+    if not _quota_mod._in_quota_area(plugin, target):
         return
-    if not _in_plugin_quota_area(plugin, target):
+    limit_mb = _quota_mod.data_limit_mb(plugin)
+    if not limit_mb:
         return
-    usage = _quota_usage(plugin)
+    usage = _quota_mod._quota_usage(plugin)
     limit = int(limit_mb * 1048576)
     if usage >= limit:
         used = usage / 1048576

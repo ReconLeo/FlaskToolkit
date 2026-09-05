@@ -36,7 +36,11 @@ import global_var  # 模块级导入（v4.4.0）：避免判定过程中延迟�
 # ------------------------------ 能力目录 ------------------------------
 
 KNOWN_DOMAINS = {'filesystem', 'network', 'webhook', 'process', 'scheduler',
-                 'database', 'device', 'env'}
+                 'database', 'device', 'env', 'storage'}
+
+# storage 域（v4.9.1）：存储空间授权声明 storage:limit:<size>
+# size 支持纯数字（MB）或带单位（mb/m/gb/g，大小写不敏感），须 > 0
+_STORAGE_SIZE_RE = re.compile(r'^(\d+)(mb|m|gb|g)?$', re.IGNORECASE)
 WEBHOOK_PLATFORMS = {'wecom', 'dingtalk', 'feishu'}
 
 # 安装时可从扫描事实交叉验证的域（其余域仅记录声明，不做 mismatch 判定）
@@ -226,6 +230,9 @@ def parse_capabilities(caps):
         elif dom == 'env':
             ok = sub == 'read' and bool(param)
             reason = '须为 env:read:<变量名模式>'
+        elif dom == 'storage':
+            ok = sub == 'limit' and bool(param) and _parse_storage_size(param) is not None
+            reason = '须为 storage:limit:<大小>（纯数字=MB 或带单位 mb/m/gb/g，须 > 0，如 storage:limit:500mb）'
         if ok:
             out['valid'].append(cap)
         else:
@@ -513,3 +520,78 @@ def check_process(plugin_name, bin_name=None):
                          or c['param'].endswith('\\' + bin_name)):
             return True, f'declared:{c["raw"]}'
     return False, 'not-declared'
+
+
+# ------------------------------ storage 配额辅助（v4.9.1） ------------------------------
+
+def _parse_storage_size(param):
+    """解析 storage:limit 参数 → MB 浮点数；非法返回 None。
+
+    支持：'500'（MB）、'500mb'、'500m'、'2gb'、'2g'（大小写不敏感）；须 > 0。
+    """
+    m = _STORAGE_SIZE_RE.match(str(param).strip())
+    if not m:
+        return None
+    val = int(m.group(1))
+    unit = (m.group(2) or 'mb').lower()
+    if val <= 0:
+        return None
+    mb = val * 1024 if unit in ('gb', 'g') else val
+    return float(mb)
+
+
+def get_storage_limit_mb(plugin_name):
+    """插件声明的存储配额（MB）；无声明返回 None（调用方回退全局默认/无限制）。
+
+    从 capabilities 注册表解析 storage:limit:<size>（v4.9.1）；声明多条时取最小值
+    （最保守原则）。与审计钩子/上传预检共用，插件、框架一致生效。
+    """
+    cset = get_capability_set(plugin_name)
+    if not cset:
+        return None
+    limits = []
+    for cap in cset.get('valid', []):
+        if cap.get('domain') == 'storage' and cap.get('sub') == 'limit':
+            mb = _parse_storage_size(cap.get('param'))
+            if mb is not None:
+                limits.append(mb)
+    return min(limits) if limits else None
+
+
+def get_write_dirs(plugin_name, base_dir=None):
+    """插件 filesystem:write 声明的路径 → 绝对路径列表（供配额目录推导）。
+
+    - 相对路径（相对项目根 base_dir）与绝对路径均支持；
+    - `**` / `*` 通配（目录级授权）剥离为目录前缀；
+    - 自属目录（plugins/data/<name>/、plugins/temp/<name>/）由配额模块另行加入，
+      此处仅返回声明路径中位于自属目录之外的（避免重复计数不影响，但语义清晰）。
+    """
+    if base_dir is None:
+        base_dir = global_var.BASE_DIR
+    cset = get_capability_set(plugin_name)
+    if not cset:
+        return []
+    out = []
+    own = {
+        _norm_path(os.path.join(base_dir, 'plugins', 'data', str(plugin_name))),
+        _norm_path(os.path.join(base_dir, 'plugins', 'temp', str(plugin_name))),
+    }
+    def _strip_all_glob(p):
+        """剥离目录级通配：/**、/*、尾部 *（循环处理，如 uploads/** → uploads）。"""
+        while p.endswith('*'):
+            p = p[:-1]
+        return p.rstrip('/')
+
+    for cap in cset.get('valid', []):
+        if cap.get('domain') == 'filesystem' and cap.get('sub') == 'write' and cap.get('param'):
+            raw = cap['param']
+            p = _strip_all_glob(_norm_path(raw))
+            if not os.path.isabs(p):
+                p = _norm_path(os.path.join(base_dir, p))
+            else:
+                p = _strip_all_glob(p)
+            if p in own:
+                continue
+            if p not in out:
+                out.append(p)
+    return out

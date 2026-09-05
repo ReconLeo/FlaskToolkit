@@ -1,19 +1,23 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="{{ lang }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>工具导航 - {{ name }}</title>
+    <title>{{ t('工具导航') }} - {{ name }}</title>
     <link rel="stylesheet" href="/plugin-static/{{ name }}/css/corp.css">
+    <script>window.__I18N = {{ t_json | tojson }}; window.T = function (k) { return (window.__I18N && window.__I18N[k]) || k; };</script>
 </head>
 <body>
 <div class="corp-wrap">
-    <header class="corp-header">
-        <h1>🧭 内部工具导航</h1>
-        <p class="corp-muted">配置驱动（load_config/save_config），按当前用户权限过滤。当前角色：<strong>{{ role }}</strong></p>
+            <div style="text-align:right; font-size:13px;">
+            {% for code, name in available_langs.items() %}{% if code != lang %}<a href="/lang/{{ code }}?next={{ request.path }}" style="color:#666; text-decoration:none; margin-left:10px;">{{ name }}</a>{% endif %}{% endfor %}
+        </div>
+<header class="corp-header">
+        <h1>🧭 {{ t('内部工具导航') }}</h1>
+        <p class="corp-muted">{{ t('配置驱动（load_config/save_config），按当前用户权限过滤。当前角色：') }}<strong>{{ role }}</strong></p>
         <p class="corp-muted">API：<code>GET /api/{{ name }}/links</code>（public 按权限过滤）· <code>POST /api/{{ name }}/links</code>（admin 新增）</p>
     </header>
-    <div id="corp-links" class="corp-muted">加载中…</div>
+    <div id="corp-links" class="corp-muted">{{ t('加载中…') }}</div>
 </div>
 <script src="/plugin-static/{{ name }}/js/corp.js"></script>
 </body>

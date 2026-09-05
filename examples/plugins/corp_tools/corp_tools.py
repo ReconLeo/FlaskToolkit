@@ -41,6 +41,12 @@ HEALTH_INTERVAL = 60
 MAX_NOTICES = 100
 
 
+def _tr():
+    """当前请求语言的翻译器（corp_tools 后端消息 i18n，v4.9.1 演示插件语言包合并）。"""
+    from core import i18n
+    return i18n.make_translator(i18n.get_lang())
+
+
 class CorpToolsPlugin(BasePlugin):
     name = "corp_tools"
     title = "示例：企业内网工具箱"
@@ -201,7 +207,7 @@ class CorpToolsPlugin(BasePlugin):
         """服务健康状态（public）"""
         return self.success_response(
             data={"interval": HEALTH_INTERVAL, "items": self._get_health()},
-            message="服务健康状态获取成功",
+            message=_tr()("服务健康状态获取成功"),
         )
 
     @permission_required("public")
@@ -211,7 +217,7 @@ class CorpToolsPlugin(BasePlugin):
         links = corp_utils.filter_links((self.config or {}).get("links", []), role)
         return self.success_response(
             data={"role": role, "items": links},
-            message="导航链接获取成功",
+            message=_tr()("导航链接获取成功"),
         )
 
     @permission_required("admin")
@@ -223,7 +229,7 @@ class CorpToolsPlugin(BasePlugin):
         cfg = self.config or dict(self.DEFAULT_CONFIG)
         perm = data.get("permission", "user")
         if perm not in ("public", "user", "admin"):
-            return self.error_response("permission 仅支持 public/user/admin", code=400)
+            return self.error_response(_tr()("permission 仅支持 public/user/admin"), code=400)
         link = {
             "name": data["name"],
             "url": data["url"],
@@ -233,7 +239,7 @@ class CorpToolsPlugin(BasePlugin):
         cfg.setdefault("links", []).append(link)
         self.config = cfg
         self.save_config()
-        return self.success_response(data={"link": link}, message="导航链接已添加")
+        return self.success_response(data={"link": link}, message=_tr()("导航链接已添加"))
 
     @permission_required("user")
     def get_notices(self):
@@ -241,7 +247,7 @@ class CorpToolsPlugin(BasePlugin):
         notices = self._load_notices()
         return self.success_response(
             data={"items": corp_utils.sort_notices(notices)},
-            message="公告列表获取成功",
+            message=_tr()("公告列表获取成功"),
         )
 
     @permission_required("admin")
@@ -251,7 +257,7 @@ class CorpToolsPlugin(BasePlugin):
         data = request.validated_data
         level = data.get("level", "info")
         if level not in ("info", "warning", "danger"):
-            return self.error_response("level 仅支持 info/warning/danger", code=400)
+            return self.error_response(_tr()("level 仅支持 info/warning/danger"), code=400)
         notice = {
             "id": str(int(time.time() * 1000)),
             "title": data["title"],
@@ -262,7 +268,7 @@ class CorpToolsPlugin(BasePlugin):
         }
         # 异步落盘：不阻塞请求（真实场景可接通知推送）
         self.run_async_task(self._append_notice, notice)
-        return self.success_response(data={"notice": notice}, message="公告发布成功（异步落盘）")
+        return self.success_response(data={"notice": notice}, message=_tr()("公告发布成功（异步落盘）"))
 
     @permission_required("admin")
     def delete_notice(self, notice_id: str):
@@ -270,9 +276,9 @@ class CorpToolsPlugin(BasePlugin):
         notices = self._load_notices()
         remain = [n for n in notices if n.get("id") != notice_id]
         if len(remain) == len(notices):
-            return self.error_response(f"公告 {notice_id} 不存在", code=404)
+            return self.error_response(_tr()("公告 {id} 不存在", id=notice_id), code=404)
         self._save_notices(remain)
-        return self.success_response(message="公告已删除")
+        return self.success_response(message=_tr()("公告已删除"))
 
     @permission_required("user")
     def get_me(self):
@@ -288,7 +294,7 @@ class CorpToolsPlugin(BasePlugin):
             extra["auth_plugin"] = "not installed"
         return self.success_response(
             data={"username": username, "role": role, **extra},
-            message="当前用户信息获取成功",
+            message=_tr()("当前用户信息获取成功"),
         )
 
     # ---------------- 公告持久化 ----------------

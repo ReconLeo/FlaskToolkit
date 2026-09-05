@@ -633,6 +633,23 @@ class BasePlugin(ABC):
         # 返回 Response 而非字符串：插件视图函数可直接 return self.render(...) 作为页面响应
         return make_response(render_template(resolved, plugin=self, **context))
 
+    def check_upload(self, size_bytes):
+        """上传预检（v4.9.1）：现有用量 + 新文件大小 ≤ 插件配额。
+
+        返回 dict：{'ok', 'limit_mb', 'usage_mb', 'remaining_mb', 'reason'}
+        reason: ok / plugin_quota_exceeded / global_quota_exceeded（4.9.2 全局总量）。
+        超限时上传 API 应返回 413 并提示剩余空间。
+        """
+        from core import quota
+        return quota.check_upload(self.name, size_bytes)
+
+    def quota_info(self):
+        """插件配额信息（v4.9.1）：{limit_mb, usage_mb, remaining_mb}（页面展示用）。"""
+        from core import quota
+        limit, usage = quota.get_plugin_quota(self.name)
+        return {'limit_mb': limit, 'usage_mb': usage,
+                'remaining_mb': None if not limit else max(0.0, limit - usage)}
+
     def render_index(self):
         """主入口 index 模板的数据注入钩子：插件可选覆盖，返回渲染上下文 dict。
         默认无额外数据（模板可自行通过 plugin 对象访问属性/方法）。"""

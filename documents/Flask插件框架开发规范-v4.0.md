@@ -1,5 +1,17 @@
 # Flask插件框架开发规范
 
+## 版本：v4.9.1（配额声明模型：storage:limit 存储空间授权 + 上传预检） | 更新日期：2026年09月04日
+
+### 版本说明（v4.9.1 变更）
+- **框架版本升级至 v4.9.1**（配额机制升级为 capabilities 声明模型，示例插件同步更新）：
+  1. **声明式存储配额（capabilities 扩展）**：能力目录新增 `storage` 域——`storage:limit:<size>`（纯数字=MB 或带单位 mb/m/gb/g，须 > 0），语义为**插件请求框架授权其存储空间**；安装时格式校验（非法告警不拒绝，开放集合），运行时按插件解析（`core/capabilities.get_storage_limit_mb`）。配额来源优先级：**插件 `storage:limit` 声明 > 全局 `PLUGIN_DATA_LIMIT_MB` > 0（无限制）**。
+  2. **配额作用目录推导**：`plugins/data/<name>/` 与 `plugins/temp/<name>/` 始终计入 + 插件 `filesystem:write` 声明的外部路径（相对项目根归一化，`**` 通配剥离为目录前缀）——**覆盖 AirDrop `uploads/` 等自定义存储目录场景**（AirDrop 启用方式：airdrop.json 声明 `filesystem:write:uploads/**` 即纳入配额保护）。
+  3. **上传预检 API（联动上传）**：新增 `core/quota.py`（`get_plugin_quota` / `check_upload` / `all_plugins_quota`），base_plugin 提供 `check_upload(size)` / `quota_info()` 一行接入；上传 API 写文件前预检（现有用量 + 新文件 ≤ 限额），超限返回 **413 + 剩余空间提示**；审计钩子写事件兜底保留（流式写入最终防线）。下载为读操作不占配额；批量下载打包（temp 目录 zip）自然计入 temp 配额。
+  4. **v4.9.2 衔接铺垫**：`check_upload` 预留 `global_limit_mb` 参数（全局总量配额，0/None=不启用，4.9.2 接线 `PLUGIN_DATA_TOTAL_LIMIT_MB`）；`all_plugins_quota()` 批量接口供后台"插件空间管理"页（4.9.2）按插件列配额/用量/剩余。
+  5. **示例同步**：`async_file_demo` 声明 `storage:limit:10mb` + 上传预检（413）+ `/quota` 接口与页面配额状态展示；`corp_tools` 演示**插件多语言**（自带 `locales/en.json` 语言包合并进查找链 + 4 模板与后端消息 t() 迁移 + window.T 前端翻译）。
+- **回归测试扩充至 25 脚本 602 项**：`tests/test_capabilities.py` 51→57（storage 域解析/换算/非法/注册表/目录推导）；`tests/test_data_limit.py` 15→28（storage:limit 覆盖全局、write 声明目录推导含 uploads/ 场景、上传预检与全局总量预留）。
+- **框架自检**：CORE_FILES 补 `core/i18n.py`、`core/quota.py`。
+
 ## 版本：v4.9.0（i18n 可扩展语言框架 + 插件数据配额） | 更新日期：2026年09月04日
 
 ### 版本说明（v4.9.0 变更）
@@ -25,6 +37,7 @@
 
 | 版本 | 日期 | 主题 | 提交 |
 |------|------|------|------|
+| **v4.9.1** | 2026-09-05 | 配额声明模型：storage:limit 存储空间授权 + 写目录推导 + 上传预检 | （待发布） |
 | **v4.9.0** | 2026-09-05 | i18n 可扩展语言框架 + 插件数据配额（防恶意写盘） | （待发布） |
 | **v4.8.0** | 2026-09-05 | 企业环境优化更新：版本检查推送（F1）+ 双后端更新机制（F4） | a582945 |
 | v4.7.0 | 2026-09-04 | 装饰性更新：项目宣传 + 系统名个性化 | 8f2af0c |
@@ -829,7 +842,7 @@ python tools/config.py set PLUGIN_SCAN_MODE enforce   # 单项覆盖
 
 插件在 plugin.json 中以可选字段 `capabilities` 声明**白名单授权**（扁平字符串列表，语法 `域:子域:参数`），安装时与静态扫描的行为范围（10.6）交叉校验。核心哲学：**Deny by Default，声明即授权**——扫描器输出的是"事实"，capabilities 是"授权"，两者比对产生 mismatch 清单。
 
-**能力目录（8 大域，开放集合）**：
+**能力目录（9 大域，开放集合）**：
 
 | 域 | 能力项 | 语法 | 授权语义 |
 |----|--------|------|---------|
@@ -843,6 +856,7 @@ python tools/config.py set PLUGIN_SCAN_MODE enforce   # 单项覆盖
 | database | 数据库 | `database:sqlite:<path>` / `database:mysql:<host:port/db>` / `database:postgres:...` | 连接目标 |
 | device | 串口/打印 | `device:serial:<port>` / `device:print` | 串口枚举（如 COM3） |
 | env | 环境变量 | `env:read:<pattern>` | 变量名前缀或 `*` 通配 |
+| storage | 存储配额 | `storage:limit:<size>` | 存储空间授权（v4.9.1）：插件声明配额覆盖全局默认；纯数字=MB 或带单位 mb/m/gb/g（须 > 0） |
 
 声明示例：
 
@@ -950,18 +964,23 @@ python tools/config.py set AUDIT_HOOK_MODE enforce   # 运维加固：未授权�
 
 ---
 
-### 10.10 插件数据配额（v4.9.0，防恶意写盘）
+### 10.10 插件数据配额（v4.9.1，声明模型，防恶意写盘）
 
-插件自属数据目录（`plugins/data/<name>/` 与 `plugins/temp/<name>/`）的写入总量受
-`PLUGIN_DATA_LIMIT_MB` 配额限制（默认 50MB，0=禁用）：
+**配额来源优先级**：插件 capabilities `storage:limit:<size>` 声明 > 全局 `PLUGIN_DATA_LIMIT_MB`（默认 50，0=无限制）。
 
-- **判定**：写事件（open/io.open w/a/x 等）发生时，先做 capabilities 授权判定；授权通过后
-  检查目标路径是否落在该插件自属数据/临时目录（归一化前缀匹配，与 10.7 同规则）。
-- **用量统计**：目录总量 TTL 缓存（5 秒），避免每次写事件全量 os.walk；超限即拒绝后续写入。
-- **行为**：`observe` 模式记录 `audit-warn` 审计（不阻断）；`enforce` 模式抛
-  `RuntimeError` 拒绝写入（fail-closed），与 `AUDIT_HOOK_MODE` 联动。
-- **边界**：仅限插件自属数据/临时目录；框架 `data/` 区域写入与显式声明写入的跨插件
-  目录按 10.7 现有机制处理，本期不叠加配额；配额为运行时兜底，不替代安装期静态审查。
+**配额作用目录**：`plugins/data/<name>/` 与 `plugins/temp/<name>/`（自属，始终计入）+ 插件 `filesystem:write` 声明的
+外部路径（如 AirDrop 声明 `uploads/**` 后其共享目录纳入配额）。
+
+- **判定**：写事件（open/io.open w/a/x 等）发生时，capabilities 授权判定通过后，检查目标是否落在配额作用目录
+  （归一化前缀匹配）；用量 TTL 缓存（5 秒）避免每次 os.walk。
+- **行为**：`observe` 记录 `audit-warn` 审计（不阻断）；`enforce` 抛 `RuntimeError` 拒绝写入（fail-closed），与
+  `AUDIT_HOOK_MODE` 联动。
+- **上传预检（联动上传，v4.9.1）**：插件上传 API 在写文件前调用 `self.check_upload(size)`（base_plugin 封装
+  `core/quota.check_upload`）——现有用量 + 新文件大小 ≤ 限额则放行，否则返回 413 并提示剩余空间；审计钩子
+  写事件兜底拦截流式写入绕过。下载为读操作不占配额；批量下载打包（temp 下 zip）计入所属插件 temp 配额。
+- **v4.9.2 铺垫**：全局总量配额（`PLUGIN_DATA_TOTAL_LIMIT_MB`，0=无限制）与后台"插件空间管理"页
+  （`all_plugins_quota()` 批量接口已就位）。
+- **边界**：配额为运行时资源管控，不替代安装期静态审查（10.6/10.7）；框架 `data/` 区域写入按 10.7 现有机制处理。
 
 ## 十一、部署说明
 
@@ -1013,11 +1032,11 @@ FLASKTOOLKIT_HOST=0.0.0.0 FLASKTOOLKIT_PORT=8000 python app.py
 | `test_file_transfer.py` | 文件传输强化（v4.2.2）：全局 413 / 插件级 max_upload_size 预检 / route 级 max_upload 覆盖 / 中文名下载 / 下载统计 / Range / on_ready 顺序 | 12 项 |
 | `test_security.py` | 系统安全回归（v4.3.0）：安全响应头注入与开关 / 指纹头移除 / Cookie HttpOnly+SameSite+Secure 联动 / 会话空闲超时 / 登录失败锁定三档（ip_username/username/off）+ 通用 429 + 成功重置 | 30 项 |
 | `test_plugin_scan.py` | 插件静态扫描回归（v4.3.1）：扫描器单元（危险导入/调用/混淆/范围提取/别名归因）/ 插件包扫描 / 前端 HTML 扫描 / enforce 门禁集成（拒绝 400 + 附报告 + 未落盘 + 真实项目未污染）/ 配置预设三套 | 35 项 |
-| `test_capabilities.py` | 插件能力声明回归（v4.3.2）：解析器（合法/非法/未知域/裸 * 拒绝）/ 匹配语义（路径前缀递归/URL host·path·端口/子域通配/tcp/env）/ 交叉校验（隐式豁免/跨插件越界/建议声明/unused）/ 运行时授权 API（fail-closed/process 细粒度）/ 安装链路集成（enforce 拒绝与放行/响应附摘要/loader 注册）/ base_plugin data API + hello_plugin 示例端到端 | 51 项 |
+| `test_capabilities.py` | 插件能力声明回归（v4.3.2）：解析器（合法/非法/未知域/裸 * 拒绝）/ 匹配语义（路径前缀递归/URL host·path·端口/子域通配/tcp/env）/ 交叉校验（隐式豁免/跨插件越界/建议声明/unused）/ 运行时授权 API（fail-closed/process 细粒度）/ 安装链路集成（enforce 拒绝与放行/响应附摘要/loader 注册）/ base_plugin data API + hello_plugin 示例端到端 / **storage 域解析与目录推导（v4.9.1）** | 57 项 |
 | `test_audit_hook.py` | 运行时审计钩子回归（v4.4.0）：事件映射（open 读写/删除族/sqlite/socket）/ 栈定位（plugins 帧/框架放行/嵌套归因）/ observe 聚合（按插件/建议声明/事件样本）/ enforce 阻断（异常传播/授权放行/自属豁免/fail-closed）/ 隔离集成（真实钩子+栈归因端到端/stats 按插件分组/重载清零/审计落盘/未污染） | 36 项 |
 | `test_update_checker.py` | 版本检查推送（v4.8.0）：版本比较（parse_version/is_newer）/ 用户数据路径判定 / zip slip 防护 / archive 校验链（sha256 必选 + 签名可选）/ 数据源缓存 TTL / 数据源结构校验 | 40 项 |
 | `test_i18n.py` | i18n（v4.9.0）：语言包加载 / 查找链（插件合并与覆盖）/ 语言解析优先级 / 切换路由 / 模板渲染（中英） / 缺省回退 / 参数插值 | 28 项 |
-| `test_data_limit.py` | 插件数据配额（v4.9.0）：路径判定（data/temp/边界）/ 用量统计 / enforce 超限拒绝 / observe 记录 / TTL 缓存刷新 / 0 禁用 | 15 项 |
+| `test_data_limit.py` | 插件数据配额（v4.9.0-4.9.1）：路径判定（data/temp/边界）/ 用量统计 / enforce 超限拒绝 / observe 记录 / TTL 缓存刷新 / 0 禁用 / **storage:limit 覆盖全局 / write 声明目录推导（uploads/ 场景）/ check_upload 预检 / 全局总量预留** | 28 项 |
 
 
 ```bash
@@ -1042,12 +1061,12 @@ python tests/test_framework_fixes.py    # 9 项（public_page 豁免 + CSRF 单�
 python tests/test_file_transfer.py       # 12 项（文件传输强化，隔离目录）
 python tests/test_security.py            # 30 项（系统安全回归 v4.3.0，隔离目录）
 python tests/test_plugin_scan.py           # 35 项（插件静态扫描回归 v4.3.1，隔离目录）
-python tests/test_capabilities.py          # 51 项（插件能力声明回归 v4.3.2，隔离目录）
+python tests/test_capabilities.py          # 57 项（插件能力声明回归 v4.3.2 + storage 域，隔离目录）
 python tests/test_audit_hook.py            # 36 项（运行时审计钩子回归 v4.4.0，隔离目录）
 python tests/test_update_checker.py     # 40 项（版本检查推送回归 v4.8.0，隔离目录）
 python tests/test_i18n.py                  # 28 项（i18n 回归 v4.9.0，隔离目录）
-python tests/test_data_limit.py            # 15 项（插件数据配额回归 v4.9.0，隔离目录）
-# 合计 25 个脚本 583 项
+python tests/test_data_limit.py            # 28 项（插件数据配额回归 v4.9.0-4.9.1，隔离目录）
+# 合计 25 个脚本 602 项
 ```
 
 说明：`test_meta_e2e.py` 与 `test_frontend_chain.py` / `test_admin_api.py` / `test_factory_reset.py` / `test_error_pages.py` / `test_package_sign.py` 均通过 mock 基础目录 + `sys.path` 指向临时插件目录运行，不污染真实项目，可重复执行；`test_reload_race.py` 使用 Flask test client，在测试开头手动调用 `load_plugins()` 初始化（`load_plugins` 仅在 `app.py` 的 `main` 段自动调用）。
@@ -1184,4 +1203,8 @@ python tools/reset.py reset all --auto-backup         # 先自动备份再全部
 
 插件可在插件包内携带 `locales/<lang>.json`，安装后自动合并进查找链（插件词条覆盖框架词条）；
 插件模板直接使用 `{{ t('...') }}` 即随框架语言联动。框架不翻译插件内容，由插件作者自行提供语言包。
+官方示例 `corp_tools`（v4.9.1）演示完整插件多语言：自带 `locales/en.json`（含 `__name__`），4 个模板
+`{{ t('...') }}` 迁移 + 后端消息经 `_tr()`（`i18n.make_translator(i18n.get_lang())`）+ 前端 `window.T`
+（模板内注入 `window.__I18N = {{ t_json | tojson }}`）；页面顶部自动出现语言切换入口
+（`/lang/<code>?next=<当前路径>`）。
 
