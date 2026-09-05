@@ -18,9 +18,9 @@ I have written a lot of "little things": sign-in scripts, scheduled tasks, file 
 
 What bothered me even more: more and more things that should stay lightweight were being pushed online — unusable offline, and quietly collecting my data. I did not want to register an account and accept a privacy policy just to use an internal mini tool. What I wanted were small programs running on my own computer (at most shared with a few people on a LAN).
 
-So FlaskToolkit was born: a plugin **framework** — not another run-of-the-mill tools site — that packs my "private little apps", along with their capabilities, into one reusable and extensible foundation.
+The breaking point was my own **Kaleido question-bank system**: a single-file Flask app that had grown past 3,600 lines, with dozens of API routes bolted together — adding a feature meant touching login, uploads, pages and jobs all over again. All the friction I had been accumulating finally exploded there, and many of FlaskToolkit's design ideas are a direct continuation of Kaleido's DNA: permission-aware API design, data-integrity checks, tools packaged for one-click delivery. Kaleido itself later moved onto this framework as three backend plugins plus a packaged frontend tool — the design's first real stress test. It is open source too: [github.com/ReconLeo/Kaleido](https://github.com/ReconLeo/Kaleido).
 
-The direct trigger was my own **Kaleido question-bank system**: a single-file Flask app that had grown past 3,600 lines, with dozens of API routes bolted together — adding a feature meant touching login, uploads, pages and jobs all over again. Kaleido's API sprawl became too painful to maintain, and that is exactly what drove me to build this framework: strip out the common runtime (auth, upload/download, plugin lifecycle, permissions, audit), and let each little tool just ship its own pages and logic. The design later proved itself — Kaleido was split into three backend plugins (question banks, search, crypto) plus a packaged frontend tool, all running inside FlaskToolkit.
+So FlaskToolkit was born: a plugin **framework** — not another run-of-the-mill tools site — that packs my "private little apps", along with their capabilities, into one reusable and extensible foundation.
 
 Over time it grew into what it is today — a few highlights:
 
