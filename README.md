@@ -20,6 +20,8 @@ What bothered me even more: more and more things that should stay lightweight we
 
 So FlaskToolkit was born: a plugin **framework** — not another run-of-the-mill tools site — that packs my "private little apps", along with their capabilities, into one reusable and extensible foundation.
 
+The direct trigger was my own **Kaleido question-bank system**: a single-file Flask app that had grown past 3,600 lines, with dozens of API routes bolted together — adding a feature meant touching login, uploads, pages and jobs all over again. Kaleido's API sprawl became too painful to maintain, and that is exactly what drove me to build this framework: strip out the common runtime (auth, upload/download, plugin lifecycle, permissions, audit), and let each little tool just ship its own pages and logic. The design later proved itself — Kaleido was split into three backend plugins (question banks, search, crypto) plus a packaged frontend tool, all running inside FlaskToolkit.
+
 Over time it grew into what it is today — a few highlights:
 
 - **Plugin ecosystem**: from single-file plugins to **plugin packages (.zip)** (templates + static assets, install and go); pure-frontend HTML tools as first-class citizens; large plugins split into **multi-template + helper modules + static assets** with their own sub-pages (`page=True`);
@@ -112,6 +114,7 @@ See [examples/README.md](examples/README.md).
 Detailed specs live in the [Flask Plugin Framework Development Guide](documents/Flask插件框架开发规范-v4.0.md) (plugin development, permission model, frontend-tool spec, plugin-package format, security design, ops tools):
 
 - [Official examples guide](examples/README.md)
+- [Version history & evolution](documents/Flask插件框架-版本演进记录.md)
 - [Flask Plugin Framework Roadmap](documents/Flask插件框架-Roadmap-v4.1.md)
 - [Version wrap-up checklist](documents/版本收尾-checklist.md)
 - [GitHub Actions setup & open-source publishing guide](documents/GitHub-Actions-上手与开源发布指南.md)

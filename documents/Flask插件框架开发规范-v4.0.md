@@ -1,5 +1,8 @@
 # Flask插件框架开发规范
 
+> 版本特性与演进史（来龙去脉）见 [Flask插件框架-版本演进记录.md](Flask插件框架-版本演进记录.md)；
+> 下方为各版本变更说明（按时间倒序）。
+
 ## 版本：v4.9.2（CI 三问题修复 + 全局总量配额 + 后台插件空间管理） | 更新日期：2026年09月05日
 
 ### 版本说明（v4.9.2 变更）
@@ -22,7 +25,7 @@
      "插件空间"卡片——按插件列出配额/用量/剩余（无限制显示"无限制"），底部全局总量行
      （全局上限 / 总用量 / 剩余，无限制时剩余不显示），`loadQuota` JS 通过 `X-CSRF-Token` 请求头调用。
   4. **en.json 补充 6 词条**（插件空间卡片文案），语言切换后管理页完整翻译。
-- **回归测试扩充至 25 脚本 612 项**：`tests/test_data_limit.py` 28→32（全局总量配额：
+- **回归测试扩充至 25 脚本 615 项**：`tests/test_data_limit.py` 28→32（全局总量配额：
   total_limit_mb 解析 / check_upload 全局维度 reason / 审计钩子全局拒绝与 observe 记录）；
   `tests/test_admin_api.py` 21→27（/api/admin/quota 接口：200 + plugins 列表结构 +
   total 字段完整性与类型）。
@@ -150,7 +153,7 @@ FlaskToolkit/
 ├── .github/workflows/ci.yml   # GitHub Actions CI 工作流
 ├── data/                      # 运行时数据（统计/审计/用户配置，已 gitignore）
 ├── logs/                      # 运行日志（已 gitignore）
-├── documents/                 # 开发规范 / Roadmap / CI 上手指南 / 版本收尾 checklist
+├── documents/                 # 开发规范 / Roadmap / CI 上手指南 / 版本收尾 checklist / 版本演进记录
 ├── LICENSE                    # MIT 许可
 ├── CONTRIBUTING.md            # 贡献指南
 └── .gitignore                 # 运行时数据与归档文档忽略规则
@@ -1099,7 +1102,7 @@ python tests/test_audit_hook.py            # 36 项（运行时审计钩子回�
 python tests/test_update_checker.py     # 40 项（版本检查推送回归 v4.8.0，隔离目录）
 python tests/test_i18n.py                  # 28 项（i18n 回归 v4.9.0，隔离目录）
 python tests/test_data_limit.py            # 28 项（插件数据配额回归 v4.9.0-4.9.1，隔离目录）
-# 合计 25 个脚本 612 项
+# 合计 25 个脚本 615 项
 ```
 
 说明：`test_meta_e2e.py` 与 `test_frontend_chain.py` / `test_admin_api.py` / `test_factory_reset.py` / `test_error_pages.py` / `test_package_sign.py` 均通过 mock 基础目录 + `sys.path` 指向临时插件目录运行，不污染真实项目，可重复执行；`test_reload_race.py` 使用 Flask test client，在测试开头手动调用 `load_plugins()` 初始化（`load_plugins` 仅在 `app.py` 的 `main` 段自动调用）。
