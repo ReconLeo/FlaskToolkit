@@ -31,20 +31,39 @@ Over time it grew into what it is today — a few highlights:
 
 The full feature specification lives in the [development guide](documents/Flask插件框架开发规范-v4.0.md).
 
-To be honest, this framework's goal is not to "reinvent Django": it stands on the shoulders of giants like Flask, APScheduler, and Werkzeug, and lands the parts I needed. Its trust model is blunt — **installing a plugin means trusting its author**: plugins run in-process with the framework, without sandboxing (see dev guide 10.1). But it does not stop at "bare trust": layered defense — **static scanning (4.3.1) → capability cross-validation (4.3.2) → runtime audit hooks (4.4.0)** — sits on top, together with optional HTTPS (4.5.0) and login lockout/manual unlock (4.3.0/4.5.1) and project branding / customizable system name (4.7.0) plus version check & dual-backend update tooling (4.8.0) and i18n / declarative storage quota (4.9.1) / global quota & storage dashboard (4.9.2). That is enough for trusted LANs / enterprise intranets running daily tools; exposing to an adversarial public network still needs your own risk assessment (plugins are still unsandboxed).
+To be honest, this framework's goal is not to "reinvent Django": it stands on the shoulders of giants like Flask, APScheduler, and Werkzeug, and lands the parts I needed. Its trust model is blunt — **installing a plugin means trusting its author**: plugins run in-process with the framework, without sandboxing (see dev guide 10.1). Beyond "bare trust", the framework layers on defense — static scanning, capability cross-validation, runtime audit hooks — plus optional auth / HTTPS and data-quota controls, enough for trusted LANs and intranet teams running daily tools. Exposing it to an adversarial public network still needs your own risk assessment (plugins remain unsandboxed).
 
 My only principle: **need-driven, whatever is convenient**. So what you get is an out-of-the-box, low-barrier toolbox that lets you drop in tools whenever you want, with your data always in your own hands.
 
 ## What It Is
 
-A Flask-based plugin **framework** (self-hosted runtime):
+A self-hosted Flask plugin **framework**:
 
-- Both **backend plugins (Python)** and **frontend tools (HTML packages)** can be dynamically installed / updated / uninstalled / enabled / disabled;
-- Auth is an **optional plugin** — skip it for guest mode, install it for login / permission control;
-- File-watching hot reload, changes take effect immediately;
-- Built-in admin panel (dashboard / plugin management / logs / stats / system reset).
+- **Backend plugins (Python)** and **frontend tools (HTML packages)** are first-class citizens — install / update / uninstall / enable / disable at runtime, as single files or **.zip plugin packages** carrying templates, static assets and even sub-pages;
+- **Auth is an optional plugin** — skip it for guest mode, install it for login / three-level permission control;
+- **File-watching hot reload** — changes take effect immediately, no restart needed;
+- **Built-in admin panel** — dashboard, plugin management, logs, stats, system reset;
+- **Safety rails** — AST static scanning → capability cross-validation → runtime audit hooks, optional HTTPS, per-plugin & global data quotas (see Why above);
+- **Ops tooling** — backup / restore, Factory Reset, startup self-check, dual-backend (git / archive) updates.
 
-In one sentence: this is a **plugin framework** — a unified home for your local mini programs, plus a "foundation" you never have to rewrite.
+In one sentence: a **plugin framework** — one unified home for your local mini programs, on a "foundation" you never have to rewrite.
+
+## Who Is It For
+
+**Personal users** — a private toolbox on your own machine:
+
+- Default setup is local-only (`127.0.0.1`); your data stays on your disk and never leaves your machine;
+- Auth is optional: skip it for a guest-mode personal workspace, or install it if you want login protection;
+- Start from the official examples, then drop your own scripts in as plugins whenever the need arises;
+- Get into the habit of `python tools/backup.py create` before big changes.
+
+**LAN / small-team users** — share internal tools within a trusted network:
+
+- Set `FLASKTOOLKIT_HOST=0.0.0.0` so colleagues can reach the service over the LAN;
+- Install the `auth` plugin and hand out accounts — the three-level permission model (public / user / admin) decides what each person can see and change;
+- For sensitive traffic, generate an HTTPS certificate with `python tools/gen_cert.py` (or place the service behind a reverse proxy);
+- Keep it up to date with `python tools/update.py` (git backend for open-source repos, archive backend for offline intranets);
+- Remember the trust model: only install plugins from authors you trust.
 
 ## Quick Start
 

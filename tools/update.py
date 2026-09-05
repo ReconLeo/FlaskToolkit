@@ -6,12 +6,12 @@
 - git 后端：项目目录是 git 仓库（默认）：git fetch → stash → reset --hard origin/main → pip install → selfcheck
 - archive 后端（非 Git，企业内网主路径）：读 changelog.json → 下载 zip → 校验 → 备份 → 替换（跳过用户数据路径）→ selfcheck
 
-用法：
-  python tools/update.py --check [--force] [--json]
-  python tools/update.py --backup [--tag xxx]          # 备份框架文件 + 用户配置
-  python tools/update.py --apply [--dry-run] [--backend git|archive] [--feed-url URL]
-  python tools/update.py --rollback [--backup-file xxx]
-  python tools/update.py --selfcheck                    # 单独跑启动自检
+用法（子命令为位置参数）：
+  python tools/update.py check [--force] [--json]      # 检查新版本
+  python tools/update.py backup [--tag xxx]            # 备份框架文件 + 用户配置
+  python tools/update.py apply [--dry-run] [--backend git|archive] [--feed-url URL]
+  python tools/update.py rollback [--backup-file xxx]  # 回滚到最近备份
+  python tools/update.py selfcheck                     # 单独跑启动自检
 
 设计要点：
 - 用户数据路径清单（USER_DATA_PATHS）单处定义，git 后端（gitignore 语义）与 archive 后端共用。
@@ -321,7 +321,7 @@ def apply_archive(changelog, download_url, gv, dry_run=False):
         log(f'回滚后自检: {"通过" if ok2 else "仍失败（请手动检查备份 " + backup_file + "）"}')
         return False
     log('更新后自检通过 ✓')
-    log('更新完成，请重启服务生效。如需回滚: python tools/update.py --rollback')
+    log('更新完成，请重启服务生效。如需回滚: python tools/update.py rollback')
     return True
 
 
@@ -392,7 +392,7 @@ def cmd_check(args):
             print(f"  - {c}")
         if has_update:
             print(f"下载: {info.download_url}")
-            print("更新: python tools/update.py --apply")
+            print("更新: python tools/update.py apply")
     return 0 if has_update else 0
 
 

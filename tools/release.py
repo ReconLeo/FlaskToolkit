@@ -4,9 +4,9 @@
 
 用法：
   1) 版本号同步（三处 + SYSTEM_VERSION_LABEL）：
-     python tools/release.py --bump-version 4.8.0
+     python tools/release.py bump --version 4.8.0
   2) 构建更新包 + 写 changelog.json：
-     python tools/release.py --build --version 4.8.0 \
+     python tools/release.py build --version 4.8.0 \
          --changes "版本检查与更新机制（F1/F4）" --changes "..." \
          --download-url "https://github.com/ReconLeo/FlaskToolkit/releases/download/v4.8.0/FlaskToolkit-v4.8.0-runtime.zip" \
          [--full] [--include /path/src:rel/dest ...] [--sign private.pem] [--out dist]
