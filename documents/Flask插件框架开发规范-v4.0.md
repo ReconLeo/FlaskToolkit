@@ -3,6 +3,22 @@
 > 版本特性与演进史（来龙去脉）见 [Flask插件框架-版本演进记录.md](Flask插件框架-版本演进记录.md)；
 > 下方为各版本变更说明（按时间倒序）。
 
+## 版本：v4.12.0（Secure：安全传输） | 更新日期：2026年09月06日
+
+### 版本说明（v4.12.0 变更，M1-M4 已完成）
+
+**主题：Secure（安全传输）**——承接 v4.11 Reachability，把 HTTPS/反代部署链路补齐：框架自身完成 HTTP→HTTPS 自动跳转、会话 Cookie 自动加 Secure，配置文件与桌面启动器同步适配（阶段 1-2 的 TRUST_PROXY_HEADERS / EXTERNAL_SCHEME / EXTERNAL_HOST / EXTERNAL_PORT 反代支持一并归档）。
+
+1. **HTTP→HTTPS 自动跳转（M1）**：`core/network.start_http_redirect(host, https_port)`——直连 HTTPS 模式下额外启动一个 HTTP 跳转端口（主端口+1，被占用自动探测），所有请求以 **308**（保留 POST 方法与 body）跳转到 `https://<host>:<主端口><原路径>`；Host 头取主机部分（兼容 IPv6 `[::1]`）；daemon 线程随进程回收；`app.py` HTTPS 启用段接入并打印跳转横幅。反向代理场景不启用（跳转由 Nginx 负责）。新增 tests/test_network.py J 组 7 项（308 GET/POST、Secure Cookie 四态）。
+2. **SESSION_COOKIE_SECURE 自动配置（M2）**：`SESSION_COOKIE_SECURE` 默认 **None=自动**——`core/network.is_secure_cookie_mode()`：HTTPS 直连（SSL 证书生效）或反代外部 https（EXTERNAL_SCHEME=https）时自动 True，纯 HTTP 局域网自动 False（防止浏览器丢弃非 HTTPS 下的 Secure Cookie）；True/False 仍可显式强制。`plugins/auth.py` 两处 set_cookie（token/csrf_token）统一走该判定。
+3. **config.py 适配（M3）**：`set` 命令对 SSL_CERT_FILE/SSL_KEY_FILE 做配对提示（只配一个时提醒需同时配置另一个）；`check` 命令新增 **HTTPS 状态块**（证书配对 / 文件存在 / 反代一致性提示——TRUST_PROXY_HEADERS 与 EXTERNAL_SCHEME 互补缺失提醒）。
+4. **桌面启动器 HTTPS 适配（M4）**：`ensure_https_cert(out_dir=None)`（缺失时 subprocess 调 tools/gen_cert.py 生成到 data/certs/，gitignore 排除）+ `prepare_config(shared, https)`（https 写 SSL_CERT_FILE/SSL_KEY_FILE，否则移除）+ GUI 新增 **HTTPS 复选框**（按现有配置预选）+ CLI `--https` 参数；启动横幅/分享链接随 get_scheme 显示 https。tests/test_desktop_launcher.py 27→36 项。
+5. **反向代理支持（阶段 1-2 归档）**：`TRUST_PROXY_HEADERS`（ProxyFix 信任 X-Forwarded-Proto/For/Host，恢复客户端 IP 归因与 request.scheme）+ `EXTERNAL_SCHEME`（外部协议，分享链接/二维码/横幅显示 https）+ `EXTERNAL_HOST`/`EXTERNAL_PORT`（外部域名/端口，反代分享地址可达）；`app.validate_ssl_cert`（PEM 可读/配对/有效期校验，启动失败友好退出）；mDNS 提示随 scheme 插值；详见 3.4 反向代理部署。
+- **配置项新增**：`SESSION_COOKIE_SECURE`（默认自动 None，HTTPS/反代自动 true）、`TRUST_PROXY_HEADERS`（默认 false）、`EXTERNAL_SCHEME`（默认空）、`EXTERNAL_HOST`（默认空）、`EXTERNAL_PORT`（默认 0=内部端口）。
+- **已知局限**：自签名证书不被浏览器/系统信任（首次访问需手动确认）；公网直连 https 需自行评估风险；HTTP 跳转端口仅监听 HTTP，不可单独承载流量。
+- **回归**：32 脚本 807 项（v4.11 779 项；新增 network 跳转/Secure 判定 7 项 + desktop_launcher HTTPS 9 项）。
+
+## 版本：v4.11.0（Reachability：网络可达） | 更新日期：2026年09月06日
 ## 版本：v4.11.0（Reachability：网络可达） | 更新日期：2026年09月06日
 
 ### 版本说明（v4.11.0 变更，M1-M5 已完成）
@@ -120,7 +136,8 @@
 
 | 版本 | 日期 | 主题 | 提交 |
 |------|------|------|------|
-| **v4.11.0** | 2026-09-06 | Reachability：网络可达（地址中心 / mDNS / 网络页 / IP 检测 / 桌面启动器） | （待发布） |
+| **v4.12.0** | 2026-09-06 | Secure：安全传输（HTTP→HTTPS 跳转 / Cookie Secure 自动 / 反代支持 / 桌面启动器 HTTPS） | （待发布） |
+| **v4.11.0** | 2026-09-06 | Reachability：网络可达（地址中心 / mDNS / 网络页 / IP 检测 / 桌面启动器） | e16e67b |
 | **v4.10.0** | 2026-09-06 | Accessibility：能力可达（向导 / 自助注册 / pip 依赖 / API 文档页 / 空间清理） | cf6b114 |
 | **v4.9.2** | 2026-09-05 | CI 三问题修复 + 全局总量配额 + 后台插件空间管理 | fb7aa5b |
 | **v4.9.1** | 2026-09-05 | 配额声明模型：storage:limit 存储空间授权 + 写目录推导 + 上传预检 | 69c9ceb |
@@ -180,7 +197,7 @@ FlaskToolkit/
 │   ├── audit_hook.py           #   运行时审计钩子（sys.addaudithook，10.8）
 │   ├── selfcheck.py           #   启动完整性自检
 │   ├── logging_setup.py       #   日志配置 + 插件日志适配器
-│   ├── network.py           #   网络地址中心（局域网 IP / 绑定 / 端口 / 访问地址，v4.11 M1）
+│   ├── network.py           #   网络地址中心（局域网 IP / 绑定 / 端口 / 访问地址，v4.11 M1；HTTP→HTTPS 308 跳转 / Secure Cookie 判定，v4.12）
 │   ├── mdns.py              #   mDNS 服务注册（可选依赖 zeroconf，v4.11 M2）
 │   ├── ip_watcher.py        #   IP 变化检测（快照比较 + 后台线程，v4.11 M4）
 
@@ -204,10 +221,10 @@ FlaskToolkit/
 │   ├── gen_cert.py             #   HTTPS 自签名证书生成工具（v4.5.0，openssl）
 │   ├── scaffold.py            #   插件脚手架 CLI（backend/frontend 骨架生成，v4.10 M6）
 │   ├── install_plugin.py      #   插件离线安装/卸载 CLI（backend/frontend/list/uninstall，v4.10 M6/M6-Extra）
-│   ├── desktop_launcher.py  #   桌面启动器（tkinter GUI，subprocess 启动服务，v4.11 M5）
+│   ├── desktop_launcher.py  #   桌面启动器（tkinter GUI，subprocess 启动服务，v4.11 M5；HTTPS 复选框 + 证书自动生成，v4.12）
 
 │   └── reset.py               #   深度重置工具（服务停止时使用，绕过运行时文件锁定）
-├── tests/                     # 回归测试套件（32 脚本 779 项 + 端到端链路验证）
+├── tests/                     # 回归测试套件（32 脚本 807 项 + 端到端链路验证）
 ├── templates/                 # 页面模板（首页/登录/错误码页 400-500/admin 管理后台/插件页）
 │   ├── admin/                 #   管理后台（dashboard / plugins / logs / stats / system）
 │   ├── frontend_tools/        #   前端工具模板
@@ -256,6 +273,9 @@ FLASKTOOLKIT_HOST=0.0.0.0 FLASKTOOLKIT_PORT=8000 python app.py
 
 适用场景：**TLS 由 Nginx 等反向代理终止**（框架内部仍为 HTTP），用户通过 `https://` 访问。
 
+> 直连 HTTPS 模式（SSL_CERT_FILE/SSL_KEY_FILE 生效）下，框架自动在**主端口+1** 启动 HTTP→HTTPS 308 跳转端口（保留 POST 方法与 body），访问旧 `http://` 地址自动落到 `https://`；反向代理场景跳转由 Nginx 负责，框架不重复启用。
+> `SESSION_COOKIE_SECURE` 默认**自动**（None）：HTTPS 直连或 EXTERNAL_SCHEME=https 时自动开启 Secure，纯 HTTP 局域网自动关闭（防浏览器丢 Cookie），无需手动配置；如需显式强制可用 `set SESSION_COOKIE_SECURE true/false`。
+
 配置（`python tools/config.py set <KEY> <VALUE>`）：
 
 ```bash
@@ -263,7 +283,7 @@ python tools/config.py set TRUST_PROXY_HEADERS true   # 信任 X-Forwarded-Proto
 python tools/config.py set EXTERNAL_SCHEME https     # 分享链接/二维码/横幅/桌面启动器显示 https://
 python tools/config.py set EXTERNAL_PORT 8443        # 外部端口（Nginx 监听端口；分享地址/二维码用它，0=内部端口）
 python tools/config.py set EXTERNAL_HOST your.domain  # 外部域名（可选；不设则自动用本机 IP/主机名，需与证书 SAN 一致）
-python tools/config.py set SESSION_COOKIE_SECURE true # 会话与 CSRF Cookie 加 Secure（HTTPS 必需，防中间人嗅探）
+# python tools/config.py set SESSION_COOKIE_SECURE true  # 可选：显式强制 Cookie Secure（默认已自动）
 ```
 
 Nginx 配置要点：
@@ -1215,7 +1235,7 @@ python tests/test_data_limit.py            # 32 项（插件数据配额回归 v
 python tests/test_setup.py             # 17 项（首次运行向导 + 强制改密 v4.10，隔离目录）
 python tests/test_register.py             # 25 项（自助注册 + 邀请码 + 审核 v4.10 M5，隔离目录）
 python tests/test_scaffold_tools.py  # 53 项（M6 脚手架 + 离线安装/卸载闭环，subprocess 驱动 CLI，隔离目录）
-# 合计 32 个脚本 779 项
+# 合计 32 个脚本 807 项
 # （AirDrop 插件加载回归 test_airdrop_loader.py 8 项已移交 AirDrop 子项目维护，不入主仓库）
 ```
 
@@ -1269,7 +1289,10 @@ python tools/config.py profile <daily|strict|lan-open>   # 套用安全配置预
 | `MDNS_ENABLED` | false | mDNS 服务注册开关（v4.11，需重启生效，需 pip install zeroconf） |
 | `MDNS_HOSTNAME` | flasktoolkit | mDNS 主机名（v4.11，服务以 <name>.local 可达） |
 | `IP_WATCH_INTERVAL` | 30 | IP 变化检测间隔（秒，0=关闭，v4.11） |
+| `SESSION_COOKIE_SECURE` | （自动） | 会话/CSRF Cookie Secure 属性（v4.12，None=自动：HTTPS 直连或反代外部 https 时自动 true，纯 HTTP 局域网自动 false；true 强制 / false 强制关闭） |
 | `TRUST_PROXY_HEADERS` | false | 反向代理头信任（v4.12，TLS 在 Nginx 等代理终止时开启；信任 X-Forwarded-Proto/For/Host，恢复客户端 IP 归因；仅可信代理后方可开启） |
+| `EXTERNAL_HOST` | （空） | 外部域名（v4.12，反向代理场景可选；分享地址/二维码用它，不设则自动用本机 IP/主机名，需与证书 SAN 一致） |
+| `EXTERNAL_PORT` | 0 | 外部端口（v4.12，反向代理监听端口；分享地址/二维码用它，0=内部端口） |
 | `EXTERNAL_SCHEME` | （空） | 外部访问协议（v4.12，空=按 SSL_CERT_FILE 自动判断；反向代理 TLS 终止场景设 https，使分享链接/二维码/横幅/桌面启动器显示 https） |
 
 
