@@ -277,3 +277,65 @@ def get_access_urls(port=None) -> list:
             seen.add(it['url'])
             result.append(it)
     return result
+
+
+# ------------------------------ v4.12 Secure：HTTP→HTTPS 跳转 + Secure Cookie 自动判定 ------------------------------
+
+def start_http_redirect(host, https_port):
+    """HTTPS 直连模式下启动 HTTP→HTTPS 自动跳转端口（https_port+1，被占用自动探测）。
+
+    浏览器/curl 访问 ``http://host:<跳转端口>`` 时以 **308**（保留 POST 方法与 body）
+    跳转到 ``https://host:<https_port><原路径>``。Host 头取主机部分（兼容 IPv6 [::1]）。
+
+    返回 (redirect_port, None, server) 成功 / (None, 错误消息, None) 失败；
+    跳转服务器为 daemon 线程，随进程退出自动回收（测试可 server.shutdown 手动关闭）。
+    仅直连 HTTPS 模式启用（反向代理场景跳转由 Nginx 负责）。
+    """
+    import threading
+    from http.server import BaseHTTPRequestHandler, HTTPServer
+
+    from core.utils import get_available_port, is_port_available
+
+    class _RedirectHandler(BaseHTTPRequestHandler):
+        def _jump(self):
+            raw_host = (self.headers.get('Host', '') or host).strip()
+            host_part = raw_host.rsplit(':', 1)[0] if ':' in raw_host else raw_host
+            host_part = host_part.strip('[]')
+            target = f'https://{host_part}:{https_port}{self.path}'
+            self.send_response(308)
+            self.send_header('Location', target)
+            self.send_header('Content-Length', '0')
+            self.end_headers()
+
+        do_GET = do_POST = do_HEAD = do_PUT = do_DELETE = do_OPTIONS = _jump
+
+        def log_message(self, fmt, *args):  # 抑制访问日志刷屏
+            pass
+
+    redirect_port = https_port + 1
+    if not is_port_available(redirect_port):
+        redirect_port = get_available_port(start_port=https_port + 1)
+    try:
+        server = HTTPServer((host, redirect_port), _RedirectHandler)
+    except OSError as e:
+        return None, f'HTTP 跳转端口启动失败（{e}）', None
+    threading.Thread(target=server.serve_forever, daemon=True,
+                     name='http-redirect').start()
+    return redirect_port, None, server
+
+
+def is_secure_cookie_mode() -> bool:
+    """会话/CSRF Cookie Secure 属性判定。
+
+    优先级：SESSION_COOKIE_SECURE 显式配置（True=强制 / False=强制关闭）>
+    自动——HTTPS 直连（SSL_CERT_FILE/SSL_KEY_FILE 生效）或反向代理外部 https
+    （EXTERNAL_SCHEME=https）时自动开启 Secure，纯 HTTP 局域网自动关闭
+    （否则浏览器会丢弃非 https 下的 Secure Cookie）。
+    """
+    v = getattr(global_var, 'SESSION_COOKIE_SECURE', None)
+    if v is True:
+        return True
+    if v is False:
+        return False
+    # 自动：https 直连（SSL 证书生效）或反代外部 https（EXTERNAL_SCHEME=https）时开启
+    return get_scheme() == 'https'

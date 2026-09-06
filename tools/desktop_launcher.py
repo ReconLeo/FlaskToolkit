@@ -46,10 +46,35 @@ def save_user_config(data: dict) -> None:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
 
-def prepare_config(shared: bool) -> str:
-    """按共享模式写 HOST 配置，返回生效的绑定地址。"""
+def ensure_https_cert(out_dir=None) -> tuple:
+    """确保自签名证书存在：data/certs/cert.pem + key.pem（缺失时调 tools/gen_cert.py 生成）。
+
+    返回 (cert_path, key_path)；生成失败抛 RuntimeError。
+    """
+    out_dir = out_dir or os.path.join(BASE_DIR, 'data', 'certs')
+    cert = os.path.join(out_dir, 'cert.pem')
+    key = os.path.join(out_dir, 'key.pem')
+    if not (os.path.isfile(cert) and os.path.isfile(key)):
+        r = subprocess.run(
+            [sys.executable, os.path.join(BASE_DIR, 'tools', 'gen_cert.py'),
+             '--out', out_dir],
+            capture_output=True, text=True, encoding='utf-8', errors='replace')
+        if r.returncode != 0 or not (os.path.isfile(cert) and os.path.isfile(key)):
+            raise RuntimeError(f'自签名证书生成失败：{(r.stderr or r.stdout or "").strip()[:200]}')
+    return cert, key
+
+
+def prepare_config(shared: bool, https: bool = False) -> str:
+    """按共享/HTTPS 模式写 HOST 与 SSL 配置，返回生效的绑定地址。"""
     data = load_user_config()
     data['HOST'] = '0.0.0.0' if shared else '127.0.0.1'
+    if https:
+        cert, key = ensure_https_cert()
+        data['SSL_CERT_FILE'] = cert
+        data['SSL_KEY_FILE'] = key
+    else:
+        data.pop('SSL_CERT_FILE', None)
+        data.pop('SSL_KEY_FILE', None)
     save_user_config(data)
     return data['HOST']
 
@@ -126,7 +151,7 @@ def monitor_output(proc: subprocess.Popen, on_line, on_port, on_exit):
 
 # ------------------------------ GUI（tkinter） ------------------------------
 
-def run_gui(initial_shared=False, initial_port=''):
+def run_gui(initial_shared=False, initial_port='', initial_https=False):
     import tkinter as tk
     from tkinter import messagebox, ttk
 
@@ -139,13 +164,14 @@ def run_gui(initial_shared=False, initial_port=''):
 
     root = tk.Tk()
     root.title('FlaskToolkit 启动器')
-    root.geometry('460x430')
+    root.geometry('460x450')
     root.resizable(False, False)
 
     proc = {'p': None}
     status_var = tk.StringVar(value='未启动')
     port_var = tk.StringVar(value=initial_port)
     shared_var = tk.BooleanVar(value=initial_shared)
+    https_var = tk.BooleanVar(value=initial_https)
     log_var = tk.StringVar(value='启动后此处显示服务输出')
 
     # ---- 模式选择 ----
@@ -154,6 +180,10 @@ def run_gui(initial_shared=False, initial_port=''):
     frame_mode.pack(anchor='w', padx=24)
     tk.Radiobutton(frame_mode, text='仅本机访问', variable=shared_var, value=False).pack(side='left')
     tk.Radiobutton(frame_mode, text='共享给局域网（同一 Wi-Fi/网线设备可访问）', variable=shared_var, value=True).pack(side='left', padx=10)
+
+    # ---- HTTPS（v4.12）：自签名证书自动生成，分享链接/二维码带 https:// ----
+    tk.Checkbutton(root, text='启用 HTTPS（自签名证书，首次访问需在浏览器接受）',
+                   variable=https_var).pack(anchor='w', padx=24)
 
     # ---- 端口 ----
     tk.Label(root, text='端口（留空自动选择）：').pack(anchor='w', padx=14, pady=(10, 2))
@@ -217,7 +247,7 @@ def run_gui(initial_shared=False, initial_port=''):
         if proc['p'] and proc['p'].poll() is None:
             return
         shared = bool(shared_var.get())
-        prepare_config(shared)
+        prepare_config(shared, bool(https_var.get()))
         proc['p'] = start_server(port_var.get())
         start_btn.config(state='disabled')
         stop_btn.config(state='normal')
@@ -262,17 +292,22 @@ def run_gui(initial_shared=False, initial_port=''):
 # ------------------------------ 入口 ------------------------------
 
 def main():
-    ap = argparse.ArgumentParser(description='FlaskToolkit 桌面启动器（v4.11 Reachability）')
+    ap = argparse.ArgumentParser(description='FlaskToolkit 桌面启动器（v4.11 Reachability / v4.12 Secure）')
     ap.add_argument('--smoke', action='store_true', help='无 GUI：打印配置准备与地址信息（测试用）')
     ap.add_argument('--shared', action='store_true', help='启动时预选"共享给局域网"')
+    ap.add_argument('--https', action='store_true', help='启用 HTTPS（自签名证书自动生成，分享链接带 https://）')
     ap.add_argument('--port', default='', help='指定端口（留空自动选择）')
     args = ap.parse_args()
 
     if args.smoke:
-        binding = prepare_config(args.shared)
+        try:
+            binding = prepare_config(args.shared, args.https)
+        except RuntimeError as e:
+            print(f'[smoke] HTTPS 配置失败：{e}')
+            return 1
         info = generate_access_info(args.port, shared=None)
         print(f'[smoke] 绑定地址: {binding}（{"共享局域网" if args.shared else "仅本机"}）')
-        print(f'[smoke] 端口: {info["port"]}  协议: {info["scheme"]}')
+        print(f'[smoke] HTTPS: {"开启（证书就绪）" if args.https else "关闭"}  端口: {info["port"]}  协议: {info["scheme"]}')
         print(f'[smoke] 局域网 IP: {", ".join(info["lan_addresses"]) or "(无)"}')
         print(f'[smoke] 访问地址:')
         for it in info['urls']:
@@ -282,7 +317,10 @@ def main():
 
     # GUI
     try:
-        run_gui(initial_shared=args.shared, initial_port=args.port)
+        # 初始 HTTPS 勾选：当前 user_config 已配置 SSL 证书则预选
+        _ucfg = load_user_config()
+        _init_https = bool(_ucfg.get('SSL_CERT_FILE') and _ucfg.get('SSL_KEY_FILE')) or args.https
+        run_gui(initial_shared=args.shared, initial_port=args.port, initial_https=_init_https)
     except Exception as e:
         if 'display' in str(e).lower() or 'TclError' in type(e).__name__:
             print(f'无法打开图形窗口（当前环境可能无显示）：{e}')

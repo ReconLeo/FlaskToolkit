@@ -110,6 +110,10 @@ def cmd_set(args):
         extra = f"（PACKAGE_MAX_UPLOAD_SIZE = {converted * 1024 * 1024} 字节）"
     elif key in ENV_MAP:
         extra = f"（也可通过环境变量 {ENV_MAP[key]} 设置，优先级更高）"
+    elif key in ('SSL_CERT_FILE', 'SSL_KEY_FILE'):
+        _pair = 'SSL_KEY_FILE' if key == 'SSL_CERT_FILE' else 'SSL_CERT_FILE'
+        if not data.get(_pair):
+            extra = f"（HTTPS 需同时配置 {_pair} 才生效；生成证书见 tools/gen_cert.py）"
     print(f"已设置 {key} = {converted} {extra}")
 
 
@@ -157,6 +161,26 @@ def cmd_check(args):
             print(f"  - {p}")
         sys.exit(1)
     print(f"校验通过（{len(data)} 项配置均合法）")
+    # HTTPS 状态检查（v4.12）：SSL 配对 / 证书文件存在 / 反代配置一致性
+    cert, key = data.get('SSL_CERT_FILE'), data.get('SSL_KEY_FILE')
+    if cert or key:
+        if cert and key:
+            _miss = [p for p in (cert, key) if not os.path.isfile(p)]
+            if _miss:
+                print(f"  - 警告：SSL 文件不存在 {_miss}（HTTPS 将回退 HTTP；生成证书见 tools/gen_cert.py）")
+            else:
+                print(f"  - HTTPS 直连：证书 {cert} / 私钥 {key} 就绪")
+                print(f"  - 会话 Cookie Secure：{'自动开启（HTTPS 直连）' if (data.get('SESSION_COOKIE_SECURE') is None) else ('强制开启' if data.get('SESSION_COOKIE_SECURE') else '强制关闭')}")
+        else:
+            print(f"  - 警告：仅配置了{'证书' if cert else '私钥'}，HTTPS 需 SSL_CERT_FILE 与 SSL_KEY_FILE 成对配置")
+    elif data.get('TRUST_PROXY_HEADERS') or data.get('EXTERNAL_SCHEME'):
+        _need = []
+        if data.get('TRUST_PROXY_HEADERS') and not data.get('EXTERNAL_SCHEME'):
+            _need.append('EXTERNAL_SCHEME https（外部 https 分享链接）')
+        if data.get('EXTERNAL_SCHEME') == 'https' and not data.get('TRUST_PROXY_HEADERS'):
+            _need.append('TRUST_PROXY_HEADERS true（客户端 IP 归因）')
+        if _need:
+            print(f"  - 提示：反向代理部署建议补齐 {_need}（见开发规范 3.4）")
 
 
 def cmd_env(args):

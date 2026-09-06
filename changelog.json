@@ -1,16 +1,13 @@
 {
-  "latest_version": "4.11.0",
+  "latest_version": "4.12.0",
   "published_at": "2026-09-06",
-  "download_url": "https://github.com/ReconLeo/FlaskToolkit/releases/download/v4.11.0/FlaskToolkit-4.11.0-runtime.zip",
-  "sha256": "d594dad131e2bbf2ec8aeb5d051d06fe8bc5819670b27faaffed11ad386e2b34",
+  "download_url": "https://github.com/ReconLeo/FlaskToolkit/releases/download/v4.12.0/FlaskToolkit-4.12.0-runtime.zip",
+  "sha256": "da9711c16dca1231ea6f6362611d5db326cabf7ea09eeb94b2ba8825eb65ee00",
   "changes": [
-    "地址中心（M1）：新增 core/network.py（纯标准库）——get_lan_addresses（socket.getaddrinfo + ipconfig / hostname -I + UDP 兜底，过滤 127./169.254./0.0.0.0 并去重）、get_effective_port 三级优先（运行时注册值 > FLASKTOOLKIT_PORT 环境变量 > 用户配置 > 5000）、get_access_urls 组合可达地址（mDNS 置顶 / 127 仅本机 / 0.0.0.0 全部可达 / 去重）；app.py 启动后 register_effective_port 接入真实端口；tests/test_network.py 24 项",
-    "mDNS 服务注册（M2）：新增 core/mdns.py——可选依赖 zeroconf（缺失降级提示 pip install zeroconf，不影响框架启动），SERVICE_TYPE='_flasktoolkit._tcp.local.'，start 幂等 / stop / available / is_active，ServiceInfo 构造兼容新旧版参数；新增配置项 MDNS_ENABLED / MDNS_HOSTNAME；tests/test_mdns.py 22 项",
-    "后台网络与访问页（M3）：GET/POST /api/admin/network API（白名单 HOST / MDNS_ENABLED / MDNS_HOSTNAME / IP_WATCH_INTERVAL，类型校验 + 写 user_config + 审计日志，HOST/MDNS 改需重启生效）+ /admin/network 页面——分享入口地址列表（复制 / 二维码，qrcodejs 单文件离线内置）+ 共享开关 + mDNS 开关 + 主机名 + IP 检测间隔 + 防火墙提示；后台导航补『🌐 网络与访问』；tests/test_admin_api.py 44→60",
-    "启动横幅播报（M4）：app.py 启动后打印『[共享] 访问地址...』横幅（每个可达地址一行），共享场景对普通用户一目了然",
-    "IP 变化检测（M4）：新增 core/ip_watcher.py——check_once 快照比较（首次不视为变化）+ start / stop / get_status，IP_WATCH_INTERVAL 配置（默认 30 秒，0=关闭），变化时日志告警；tests/test_ip_watcher.py 15 项",
-    "桌面启动器（M5）：新增 tools/desktop_launcher.py——tkinter 标准库 GUI（双击即用）：启动/停止服务、仅本机/局域网共享切换、地址列表复制 / 打开浏览器 / 日志展示，subprocess 启动 app.py 与框架解耦（不 import 框架核心）；CLI --smoke / --shared / --port；二维码需 qrcode+PIL 可选库缺失仅隐藏；tests/test_desktop_launcher.py 27 项",
-    "配置项新增：MDNS_ENABLED（默认 false，改需重启生效）、MDNS_HOSTNAME（默认 flasktoolkit，服务以 <name>.local 可达）、IP_WATCH_INTERVAL（默认 30 秒，0=关闭）；tools/release.py bump 改为读取 global_var 当前版本作替换锚点（修复旧 bug）",
-    "回归扩充至 32 脚本 779 项（v4.10 28 脚本 737 项）；文档：README 双版补 Reachability 特性条目与普通用户 GUI 指引、开发规范 v4.11 段与目录树/配置项表、Roadmap 与版本演进记录更新"
+    "HTTP→HTTPS 自动跳转：自签名 HTTPS 模式下框架在 主端口+1 启动 308 跳转端口，访问旧 http 地址自动落到 https（保留 POST 方法与 body）",
+    "SESSION_COOKIE_SECURE 自动配置：默认自动（HTTPS 直连或反代外部 https 自动开启 Secure，纯 HTTP 局域网自动关闭防丢 Cookie），可显式强制 true/false",
+    "config.py 适配：SSL 配对提示 + check 命令新增 HTTPS 状态块（证书配对/文件存在/反代一致性检查）",
+    "桌面启动器适配：HTTPS 复选框 + --https 参数，证书自动生成到 data/certs/",
+    "反向代理支持（阶段1-2）：TRUST_PROXY_HEADERS（ProxyFix）+ EXTERNAL_SCHEME/EXTERNAL_HOST/EXTERNAL_PORT + validate_ssl_cert 启动校验 + mDNS 提示随 scheme 插值"
   ]
 }

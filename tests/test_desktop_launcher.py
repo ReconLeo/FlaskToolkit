@@ -110,6 +110,39 @@ def main():
         check('monitor_output 端口回调', ('port', 5011) in events, str(events))
         check('monitor_output 退出回调携带端口', ('exit', 5011) in events, str(events))
 
+        # ---------- v4.12 HTTPS（ensure_https_cert + prepare_config https） ----------
+        cert_dir = os.path.join(isolated, 'certs')
+        cert_path, key_path = desktop_launcher.ensure_https_cert(out_dir=cert_dir)
+        check('ensure_https_cert 生成 cert.pem',
+              os.path.isfile(cert_path) and cert_path.endswith('cert.pem'), cert_path)
+        check('ensure_https_cert 生成 key.pem',
+              os.path.isfile(key_path) and key_path.endswith('key.pem'), key_path)
+        _ctxt = open(cert_path, encoding='utf-8', errors='replace').read()
+        _ktxt = open(key_path, encoding='utf-8', errors='replace').read()
+        check('ensure_https_cert PEM 内容',
+              'BEGIN CERTIFICATE' in _ctxt and 'BEGIN PRIVATE KEY' in _ktxt, '')
+        cert2, key2 = desktop_launcher.ensure_https_cert(out_dir=cert_dir)
+        check('ensure_https_cert 幂等复用', cert2 == cert_path and key2 == key_path, '')
+
+        # prepare_config https：mock 证书路径，验证配置写入（不触碰真实 data/certs）
+        real_ehc = desktop_launcher.ensure_https_cert
+        desktop_launcher.ensure_https_cert = lambda out_dir=None: (cert_path, key_path)
+        try:
+            desktop_launcher.prepare_config(shared=True, https=True)
+            data3 = json.load(open(iso_cfg, encoding='utf-8'))
+            check('prepare_config https 写 SSL_CERT_FILE',
+                  data3.get('SSL_CERT_FILE') == cert_path, str(data3.get('SSL_CERT_FILE')))
+            check('prepare_config https 写 SSL_KEY_FILE',
+                  data3.get('SSL_KEY_FILE') == key_path, str(data3.get('SSL_KEY_FILE')))
+            check('prepare_config https 保留 HOST=0.0.0.0', data3.get('HOST') == '0.0.0.0', '')
+            desktop_launcher.prepare_config(shared=False, https=False)
+            data4 = json.load(open(iso_cfg, encoding='utf-8'))
+            check('prepare_config https=False 移除 SSL 键',
+                  'SSL_CERT_FILE' not in data4 and 'SSL_KEY_FILE' not in data4, str(data4))
+            check('prepare_config https=False 保留 HOST=127.0.0.1', data4.get('HOST') == '127.0.0.1', '')
+        finally:
+            desktop_launcher.ensure_https_cert = real_ehc
+
         # ---------- start_server env 注入（mock Popen，不真启动框架） ----------
         captured = {}
         real_popen = desktop_launcher.subprocess.Popen

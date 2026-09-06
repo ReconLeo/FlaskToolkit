@@ -300,6 +300,14 @@ if __name__ == '__main__':
                 app.logger.warning(_msg, extra={'plugin': 'system'})
             ssl_context = (ssl_cert, ssl_key)
             app.logger.info(f"服务启动地址: https://{host}:{port} (HTTPS, debug={debug_mode})", extra={'plugin': 'system'})
+            # v4.12：HTTP→HTTPS 自动跳转（跳转端口=主端口+1，被占用自动探测；反代场景由 Nginx 负责不启用）
+            from core.network import start_http_redirect
+            _redir_port, _redir_err, _ = start_http_redirect(host, port)
+            if _redir_port:
+                app.logger.info(f"HTTP→HTTPS 自动跳转已启用：http://{host}:{_redir_port} → https://{host}:{port}（308）", extra={'plugin': 'system'})
+                print(f"  [HTTPS] 旧链接自动跳转：http://{host}:{_redir_port} → https://{host}:{port}", flush=True)
+            else:
+                app.logger.warning(f"HTTP→HTTPS 跳转未启用：{_redir_err}", extra={'plugin': 'system'})
         else:
             app.logger.warning(f"已配置 SSL_CERT_FILE/SSL_KEY_FILE 但文件不存在（{ssl_cert} / {ssl_key}），回退 HTTP 启动；可使用 tools/gen_cert.py 生成自签名证书", extra={'plugin': 'system'})
             app.logger.info(f"服务启动地址: http://{host}:{port} (debug={debug_mode})", extra={'plugin': 'system'})

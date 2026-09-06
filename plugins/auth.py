@@ -725,6 +725,9 @@ class AuthPlugin(BasePlugin):
                 "must_change_pwd": bool(_pwd_hash) and self._verify_password("admin123", _pwd_hash)
             })
             # 会话 token：HttpOnly Cookie（JS 不可读，防 XSS 窃取）
+            # v4.12：Secure 属性自动——HTTPS 直连 / 反代外部 https 时开启，纯 HTTP 局域网关闭
+            from core import network as _net
+            _secure = _net.is_secure_cookie_mode()
             response.set_cookie(
                 'token',
                 token,
@@ -732,7 +735,7 @@ class AuthPlugin(BasePlugin):
                 path='/',
                 httponly=True,
                 samesite='Lax',
-                secure=global_var.SESSION_COOKIE_SECURE
+                secure=_secure
             )
             # CSRF token：非 HttpOnly Cookie，前端读取后放入 X-CSRF-Token 头（双提交校验）
             csrf_token = secrets.token_hex(16)
@@ -743,7 +746,7 @@ class AuthPlugin(BasePlugin):
                 path='/',
                 httponly=False,
                 samesite='Lax',
-                secure=global_var.SESSION_COOKIE_SECURE
+                secure=_secure
             )
             return response
         # 登录失败：记录失败计数，连续达阈值触发锁定

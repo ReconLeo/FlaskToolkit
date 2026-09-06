@@ -187,6 +187,56 @@ def main():
               str(network.get_external_port()))
         global_var.EXTERNAL_HOST = saved_host
         global_var.EXTERNAL_PORT = saved_xport
+
+        # ---------- J. HTTP→HTTPS 跳转服务器 + Secure Cookie 自动判定（v4.12 Secure） ----------
+        import urllib.request
+        from core.network import start_http_redirect, is_secure_cookie_mode
+
+        class _NoRedirect(urllib.request.HTTPRedirectHandler):  # 禁用自动跟随，让 308 以 HTTPError 抛出
+            def redirect_request(self, req, fp, code, msg, headers, newurl):
+                return None
+        _opener = urllib.request.build_opener(_NoRedirect())
+        redir_port, redir_err, redir_srv = start_http_redirect('127.0.0.1', 5099)
+        check('J1 跳转服务器启动', redir_port is not None and redir_err is None, f'{redir_port}')
+        if redir_srv:
+            try:
+                req = urllib.request.Request(f'http://127.0.0.1:{redir_port}/foo?x=1')
+                try:
+                    _opener.open(req, timeout=5)
+                    check('J2 GET 308 跳转', False, '未跳转')
+                except urllib.error.HTTPError as e:
+                    loc = e.headers.get('Location', '')
+                    check('J2 GET 308 跳转 https 主端口',
+                          e.code == 308 and loc == 'https://127.0.0.1:5099/foo?x=1', f'{e.code} {loc}')
+                try:
+                    req2 = urllib.request.Request(f'http://127.0.0.1:{redir_port}/api', data=b'x' * 10, method='POST')
+                    _opener.open(req2, timeout=5)
+                    check('J3 POST 308 保留方法', False, '未跳转')
+                except urllib.error.HTTPError as e:
+                    check('J3 POST 308 保留方法',
+                          e.code == 308 and e.headers.get('Location', '').endswith('/api'),
+                          f'{e.code}')
+            finally:
+                redir_srv.shutdown()
+                redir_srv.server_close()
+
+        saved_scs = getattr(global_var, 'SESSION_COOKIE_SECURE', None)
+        try:
+            global_var.SESSION_COOKIE_SECURE = None
+            global_var.EXTERNAL_SCHEME = 'https'
+            check('J4 自动模式 + 外部 https → Secure 开启', is_secure_cookie_mode() is True, '')
+            global_var.EXTERNAL_SCHEME = ''
+            global_var.SSL_CERT_FILE = ''
+            global_var.SSL_KEY_FILE = ''
+            check('J5 自动模式 + 纯 HTTP → Secure 关闭', is_secure_cookie_mode() is False, '')
+            global_var.SESSION_COOKIE_SECURE = True
+            check('J6 显式 True 强制开启', is_secure_cookie_mode() is True, '')
+            global_var.SESSION_COOKIE_SECURE = False
+            global_var.EXTERNAL_SCHEME = 'https'
+            check('J7 显式 False 强制关闭（HTTP 兼容场景）', is_secure_cookie_mode() is False, '')
+        finally:
+            global_var.SESSION_COOKIE_SECURE = saved_scs
+            global_var.EXTERNAL_SCHEME = saved_scheme
     finally:
         global_var._user_config.clear()
         global_var._user_config.update(saved_cfg)

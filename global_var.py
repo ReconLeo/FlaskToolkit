@@ -29,7 +29,7 @@ CACHE_VERSION = 1  # 缓存格式版本，变更时自动失效
 LOG_DIR = os.path.join(BASE_DIR, 'logs')
 
 # ------------------------------ 全局常量 ------------------------------
-FRAMEWORK_VERSION = "4.11.0"  # 框架版本（后端插件 require_framework_version 比较基准）
+FRAMEWORK_VERSION = "4.12.0"  # 框架版本（后端插件 require_framework_version 比较基准）
 # 项目宣传信息（v4.7.0，只读常量，供 app.py 启动横幅与后台关于页展示）
 PROJECT_NAME = "FlaskToolkit"  # 项目名称
 PROJECT_AUTHOR = "ReconLeo"  # 作者/维护者
@@ -50,8 +50,9 @@ PLUGIN_PUBLIC_KEY_PEM = ''
 # ------------------------------ 系统安全配置（v4.3.0，可经 config CLI 调整） ------------------------------
 # 统一注入安全响应头（X-Content-Type-Options/X-Frame-Options/CSP/Referrer-Policy/Permissions-Policy）
 SECURITY_HEADERS = True
-# 会话 Cookie 加 Secure 属性（仅 HTTPS 生效；HTTP 局域网部署保持 False，否则浏览器丢弃 Cookie）
-SESSION_COOKIE_SECURE = False
+# 会话 Cookie 加 Secure 属性（v4.12：默认 None=自动——HTTPS 直连或反代外部 https 时自动开启，
+# 纯 HTTP 局域网自动关闭（否则浏览器丢弃 Cookie）；True/False 可显式强制）
+SESSION_COOKIE_SECURE = None
 # 登录连续失败锁定阈值（次）
 LOGIN_MAX_ATTEMPTS = 5
 # 登录失败锁定时长（秒，默认 15 分钟）
@@ -102,8 +103,9 @@ CONFIG_ITEMS = {
                            'desc': '严格模式：on_load 依赖检查降级由 on_ready 钩子延后（所有插件加载完成后执行）'},
     'SECURITY_HEADERS': {'default': True, 'kind': 'bool',
                          'desc': '统一注入安全响应头（X-Content-Type-Options/X-Frame-Options/CSP/Referrer-Policy/Permissions-Policy）'},
-    'SESSION_COOKIE_SECURE': {'default': False, 'kind': 'bool',
-                              'desc': '会话 Cookie 加 Secure 属性（仅 HTTPS 生效；HTTP 局域网部署保持 False，否则浏览器丢弃 Cookie）'},
+    'SESSION_COOKIE_SECURE': {'default': None, 'kind': 'bool',
+                              'desc': '会话 Cookie Secure 属性（v4.12：空=自动——HTTPS 直连或反代外部 https 自动开启，纯 HTTP 局域网自动关闭；True/False 强制）'},
+
     'LOGIN_MAX_ATTEMPTS': {'default': 5, 'kind': 'int',
                            'desc': '登录连续失败锁定阈值（次）'},
     'LOGIN_LOCK_SECONDS': {'default': 900, 'kind': 'int',
@@ -142,7 +144,7 @@ CONFIG_ITEMS = {
                     'desc': '系统显示名称（v4.7.0，前端主页面/后台页眉展示，仅装饰不影响内部标识）'},
     'LANGUAGE': {'default': 'zh-CN', 'kind': 'str',
                              'desc': '系统显示语言（v4.9.0，内置 zh-CN/en，可扩展；可选值由 locales/ 语言包决定；Cookie lang 可覆盖）'},
-    'SYSTEM_VERSION_LABEL': {'default': 'v4.11.0', 'kind': 'str',
+    'SYSTEM_VERSION_LABEL': {'default': 'v4.12.0', 'kind': 'str',
                              'desc': '系统版本显示标签（v4.7.0，前端展示用，仅装饰不改 FRAMEWORK_VERSION 逻辑；升级框架时建议同步更新）'},
     'UPDATE_FEED_URL': {'default': 'https://raw.githubusercontent.com/ReconLeo/FlaskToolkit/main/changelog.json', 'kind': 'str',
                          'desc': '版本更新数据源（v4.8.0，默认 GitHub changelog.json，企业内网可指向内网镜像）'},
