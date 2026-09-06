@@ -5,7 +5,7 @@
 
 ## 版本：v4.10.0（Accessibility：能力可达性，开发中） | 更新日期：2026年09月06日
 
-### 版本说明（v4.10.0 变更，M1-M4 已完成，M5-M7 待做）
+### 版本说明（v4.10.0 变更，M1-M6 已完成，M7 版本收尾待做）
 面向个人用户/局域网用户的**能力可达性**主题更新（计划 6 模块，第一批已落地）：
 1. **插件第三方依赖独立声明（M1，pip_dependencies）**：`dependencies` 语义收窄为**仅插件依赖**；
    新增 `pip_dependencies` 独立字段（plugin.json / 类属性 / AST 提取 / 描述一致性冲突与兜底），
@@ -28,7 +28,10 @@
    （密码仍为默认 admin123 时为 true；**注意 login() 返回的 user_info 已剥离 password，须按 id 反查
    config 哈希**）；前端登录成功存 `ftk_must_pwd` localStorage 标记，后台每次加载弹改密窗
    （用户可拒绝，拒绝不消除标记，下次登录仍提醒）。
-- **回归测试扩充至 27 脚本 674 项**：新增 `tests/test_setup.py` 17 项（向导 10 + 改密 7，隔离目录全路径 mock）与 `tests/test_register.py` 25 项（自助注册 + 邀请码 + 审核，隔离目录）；AirDrop 插件加载回归（`test_airdrop_loader.py` 8 项，routes @property 修复）已随 AirDrop 插件移交子项目维护（见子项目 `FlaskToolkit-插件测试交接说明.md`），不入主仓库。
+
+5. **邀请码自助注册（M5）**：auth 插件新增 `ALLOW_REGISTER` 配置（默认关，管理员经 /api/auth/config 开关，boolean 走 validate_params）；一次性邀请码（FTK-XXXXXXXX-XXXX，secrets.token_hex，存 plugins/data/auth/invite_codes.json，used_by 标记一次性消费）；用户 `status` 字段 pending/active（on_load 老数据缺省 active）；`/register` 页面（?code= 自动填充邀请码），有邀请码注册即 active（免审核），无邀请码进 pending 待管理员审核；login 拦截 pending（403 "账号待管理员审核，请稍后再试"）；user_manage 新增待审列表 / 通过 / 拒绝 / 邀请码生成 / 复制注册链接 / 撤销 6 个管理 API（require_role admin，register_url 拼接返回）；login.html 注册入口（仅 ALLOW_REGISTER 开启时显示）。新增 tests/test_register.py 25 项。
+6. **插件脚手架 + 离线安装（M6）**：`tools/scaffold.py` 生成标准骨架——backend（plugin.json + BasePlugin 主 .py + 可选 templates/static）、frontend（config.json + 入口 html + 可选 static），产出目录可直接 package.py 打包；`tools/install_plugin.py` 不跑框架时手动安装——backend（完整性校验 / 描述一致性 / 框架版本 / 静态扫描门禁 → extract_plugin_pack 安全解压 + installed_files 落盘 → 缺失 pip 依赖提示与 pip install 命令）、frontend（config.json/入口 html 校验 → safe_extract_frontend → frontend_tools.json 注册）；同名拒绝 / --update 升级（版本不低于已装，拒绝降级）；`list` 子命令离线查看；`--base` 指定框架根。新增 tests/test_scaffold_tools.py 39 项。
+- **回归测试扩充至 28 脚本 713 项**：新增 `tests/test_setup.py` 17 项（向导 10 + 改密 7，隔离目录全路径 mock）、`tests/test_register.py` 25 项（自助注册 + 邀请码 + 审核，隔离目录）与 `tests/test_scaffold_tools.py` 39 项（脚手架 + 离线安装闭环，subprocess 驱动 CLI）；AirDrop 插件加载回归（`test_airdrop_loader.py` 8 项，routes @property 修复）已随 AirDrop 插件移交子项目维护（见子项目 `FlaskToolkit-插件测试交接说明.md`），不入主仓库。
   `tests/test_pack_meta.py` 19→22（pip_dependencies）；`tests/test_admin_api.py` 28→36（能力预览/确认两段式）；
   `tests/test_framework_fixes.py` 9→12（调试页权限 E1-E3）；`tests/test_error_pages.py` 修复隔离环境
   PLUGIN_CACHE_FILE 串扰 + sys.modules plugins 残留（真实 `.plugin_cache` 曾被污染为 0 插件）；
@@ -174,6 +177,8 @@ FlaskToolkit/
 │   ├── package.py             #   插件包打包/签名/校验 CLI（genkey/pack/verify/show）
 │   ├── backup.py              #   手动备份/恢复工具（Factory Reset 前备份关键数据）
 │   ├── gen_cert.py             #   HTTPS 自签名证书生成工具（v4.5.0，openssl）
+│   ├── scaffold.py            #   插件脚手架 CLI（backend/frontend 骨架生成，v4.10 M6）
+│   ├── install_plugin.py      #   插件离线安装 CLI（backend/frontend/list，v4.10 M6）
 │   └── reset.py               #   深度重置工具（服务停止时使用，绕过运行时文件锁定）
 ├── tests/                     # 回归测试套件（22 脚本 482 项 + 端到端链路验证）
 ├── templates/                 # 页面模板（首页/登录/错误码页 400-500/admin 管理后台/插件页）
@@ -1135,7 +1140,8 @@ python tests/test_i18n.py                  # 28 项（i18n 回归 v4.9.0，隔�
 python tests/test_data_limit.py            # 32 项（插件数据配额回归 v4.9.0-4.9.2，隔离目录）
 python tests/test_setup.py             # 17 项（首次运行向导 + 强制改密 v4.10，隔离目录）
 python tests/test_register.py             # 25 项（自助注册 + 邀请码 + 审核 v4.10 M5，隔离目录）
-# 合计 27 个脚本 674 项
+python tests/test_scaffold_tools.py  # 39 项（M6 脚手架 + 离线安装闭环，subprocess 驱动 CLI，隔离目录）
+# 合计 28 个脚本 713 项
 # （AirDrop 插件加载回归 test_airdrop_loader.py 8 项已移交 AirDrop 子项目维护，不入主仓库）
 ```
 
