@@ -37,7 +37,7 @@ Kaleido 同样开源（自托管题库系统）：[github.com/ReconLeo/Kaleido](
 | v4.9.1 | 2026-09-05 | 配额声明模型（storage:limit）+ 示例多语言 | `69c9ceb` |
 | **v4.9.2** | 2026-09-05/06 | CI 三问题修复 + 全局总量配额 + 后台空间管理 | `fb7aa5b` + `18ff7ec`，tag `v4.9.2` |
 | 补丁覆盖 | 2026-09-06 | tools 运维工具适配 v4.9 结构 + v4.9.2 覆盖发布 | `73c6a9f` `ee3e23d` `612c565` |
-| **v4.12.0** | 2026-09-06 | Secure 安全传输：HTTP→HTTPS 自动跳转（308 保留 POST）+ SESSION_COOKIE_SECURE 自动配置（None=自动）+ config.py SSL 配对提示/HTTPS 状态检查 + 桌面启动器 HTTPS 复选框与证书自动生成 + 反代支持归档（TRUST_PROXY_HEADERS / EXTERNAL_SCHEME / EXTERNAL_HOST / EXTERNAL_PORT） | （待发布） |
+| **v4.12.0** | 2026-09-06 | Secure 安全传输：HTTP→HTTPS 自动跳转（308 保留 POST）+ SESSION_COOKIE_SECURE 自动配置（None=自动）+ config.py SSL 配对提示/HTTPS 状态检查 + 桌面启动器 HTTPS 复选框与证书自动生成 + 反代支持归档（TRUST_PROXY_HEADERS / EXTERNAL_SCHEME / EXTERNAL_HOST / EXTERNAL_PORT） | `919cb0b` `d0ccec7`（阶段1-2）`2b3762c`（feat）`fbbc60a`（docs），tag `v4.12.0` |
 | **v4.11.0** | 2026-09-06 | Reachability 网络可达：地址中心（core/network.py）+ mDNS 服务注册（core/mdns.py 可选 zeroconf）+ 后台网络与访问页（二维码/共享/mDNS/IP 检测）+ 启动横幅播报 + IP 变化检测（core/ip_watcher.py）+ 桌面启动器（tools/desktop_launcher.py） | `e16e67b`（M1-M5）`4a76811`（文档），tag `v4.11.0` |
 | **v4.10.0** | 2026-09-06 | Accessibility 能力可达性：pip 依赖独立声明 + 能力清单确认 + 调试页权限修正/API 文档增强 + 首次运行向导/强制改密 + 邀请码自助注册 + 脚手架/离线安装卸载 + 单插件空间清理 | `e26b25e`（M4）`2ecb8b7`（M5）`941ea66`（airdrop 移交）`32aa2ce`（M6）`9d3aaf4`（M6-Extra）`699fae0`（前端清理），tag `v4.10.0` |
 
