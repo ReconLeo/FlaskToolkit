@@ -3,6 +3,17 @@
 > 版本特性与演进史（来龙去脉）见 [Flask插件框架-版本演进记录.md](Flask插件框架-版本演进记录.md)；
 > 下方为各版本变更说明（按时间倒序）。
 
+## 版本：v4.12.1（Secure 修复：登录回归） | 更新日期：2026年09月06日
+
+### 版本说明（v4.12.1 变更）
+
+**主题：修复 P1 登录回归（F10）**——v4.12.0 的 `SESSION_COOKIE_SECURE` 自动判定被 `EXTERNAL_SCHEME` 全局联动：反代场景配置 `EXTERNAL_SCHEME=https` 后，内部 HTTP 直连（http://IP:端口）的登录 cookie 也被加 `Secure`，被浏览器/客户端按标准丢弃 → 登录后会话立即失效（登录态 API 全部 401）。评估（压力与多机归因）真机复现并修复：
+
+1. **`core/network.is_secure_cookie_mode()` 跟随请求实际协议**：自动模式下优先取 `request.scheme`（反代场景经 ProxyFix 已反映外部协议 https、内部 http 直连为 http），不再受 `EXTERNAL_SCHEME` 联动；无请求上下文（启动横幅/CLI）回退 `get_scheme()`。显式 `true/false` 强制不受影响。test_network J 组 41/41 兼容。
+2. **压力与多机归因评估（阶段 3/4）落地**：`test_server/` 测试脚手架（android_client 三模式 + pc_stress + pc_collect + pc_audit_lookup + echo-upload 测试插件）入库；评估报告 documents/HTTPS与反向代理稳定性评估-补充-压力与多机归因-2026-09-06.md。
+3. **评估结论（部署建议）**：dev server 保持单线程（threaded 高并发会假死，F7）；大文件路由声明 `max_upload` 突破全局 100MB（F9）且反代需同步调大 Nginx `client_max_body_size`（F11）；多机 IP 归因直连/反代均验证正确（R6 闭环）。
+
+## 版本：v4.12.0（Secure：安全传输） | 更新日期：2026年09月06日
 ## 版本：v4.12.0（Secure：安全传输） | 更新日期：2026年09月06日
 
 ### 版本说明（v4.12.0 变更，M1-M4 已完成）
@@ -136,6 +147,7 @@
 
 | 版本 | 日期 | 主题 | 提交 |
 |------|------|------|------|
+| **v4.12.1** | 2026-09-06 | Secure 修复：登录回归 F10（Cookie Secure 判定跟随请求实际协议）+ 压力/多机归因评估落地（test_server 脚手架 + 评估报告） | 待发布 |
 | **v4.12.0** | 2026-09-06 | Secure：安全传输（HTTP→HTTPS 跳转 / Cookie Secure 自动 / 反代支持 / 桌面启动器 HTTPS） | 2b3762c |
 | **v4.11.0** | 2026-09-06 | Reachability：网络可达（地址中心 / mDNS / 网络页 / IP 检测 / 桌面启动器） | e16e67b |
 | **v4.10.0** | 2026-09-06 | Accessibility：能力可达（向导 / 自助注册 / pip 依赖 / API 文档页 / 空间清理） | cf6b114 |
