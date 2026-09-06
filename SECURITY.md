@@ -4,7 +4,7 @@
 
 | Version | Support |
 |---------|---------|
-| **v4.x (Community Edition)** | ✅ Actively maintained — security fixes are backported and land in the next patch or minor release, with the usual full regression (28 scripts / 737 assertions) + CI |
+| **v4.x (Community Edition)** | ✅ Actively maintained — security fixes are backported and land in the next patch or minor release, with the usual full regression (32 scripts / 869 assertions, verified 2026-09-06) + CI |
 | **v5.x (Enterprise Edition)** | ⚠️ Roadmap only — carries the long-term enterprise plans (fine-grained permission model, process-level sandbox, stricter CSP, etc.) and is **publicly seeking a new maintainer**. See [Enterprise handover & roadmap](documents/Enterprise-Edition-交接与路线.md) |
 | **< v4.x** | ❌ Not supported — historical versions (archived in `documents/archive/`) receive no security updates |
 
@@ -17,8 +17,20 @@ Please read this before installing anything:
   1. **AST static scanning** (4.3.1) — blocks obviously risky code at install time;
   2. **Capability declaration & cross-validation** (4.3.2) — a plugin can only exercise what it declares (`filesystem:`, `network:`, `scheduler:`, `storage:` …);
   3. **Runtime audit hooks** (4.4.0) — `sys.addaudithook`-based interception with `off / observe / enforce` modes, per-plugin attribution;
-  4. Optional **HTTPS** (4.5.0), login-failure lockout & manual unlock (4.3.0/4.5.1), per-plugin & global **data quotas** (4.9.0–4.9.2).
+  4. **Data quotas** — per-plugin & global total caps enforced at write time (4.9.0–4.9.2), plus per-plugin storage cleanup from the admin dashboard or the offline CLI (4.10);
+  5. **Supply-chain visibility** (4.10) — `pip_dependencies` declared per plugin; missing packages skip that plugin with a `pip install` hint instead of silently installing;
+  6. **Transport & access** — optional HTTPS with self-signed cert helper (4.5.0), automatic **HTTP→HTTPS 308 redirect** that keeps POST method & body (4.12), **auto-configured `SESSION_COOKIE_SECURE`** (4.12: on under HTTPS / trusted reverse proxy, off on plain-HTTP LAN), trusted reverse-proxy headers (4.12), login-failure lockout & manual unlock (4.3.0/4.5.1), first-run wizard with **forced password change** (4.10), invite-code self-registration (4.10).
 - This posture is designed for **trusted LANs / enterprise intranets** running daily internal tools. Exposing the service to an adversarial public network still requires your own risk assessment — plugins remain unsandboxed.
+
+## Deployment Notes & Attack Surface
+
+When exposing the framework beyond localhost, keep these in mind:
+
+- **LAN sharing is opt-in**: the default bind is `127.0.0.1`. Set `FLASKTOOLKIT_HOST=0.0.0.0` only on a network you trust — combined with the `auth` plugin and, ideally, HTTPS.
+- **Reachability features (4.11) widen the surface**: the admin **Network & Access** page and startup banner publish every reachable address (plus share links/QR codes), and optional **mDNS** (`pip install zeroconf`, `MDNS_ENABLED=true`) advertises a stable `flasktoolkit.local` name. Enable these only on trusted LANs; an mDNS-advertised, auth-less instance is trivially discoverable by anyone on the same subnet.
+- **Reverse proxy**: enable `TRUST_PROXY_HEADERS` only behind a proxy you control — forged `X-Forwarded-*` headers can bypass client-IP attribution used by login lockout and audit. Set `EXTERNAL_SCHEME=https` so share links/QR codes show the external HTTPS entry (see dev guide 3.4).
+- **HTTPS modes (4.12)**: direct HTTPS auto-redirects plain-HTTP port (main+1) with 308 keeping POST; `SESSION_COOKIE_SECURE` auto-adapts (None = automatic). Self-signed certs are for local/trusted-LAN use only — public deployment should use a trusted certificate or proxy TLS termination.
+- **Hardening presets**: `python tools/config.py profile strict` applies scan `enforce`, integrity `strict`, stricter lockout (3 tries/30 min) and Secure cookies — intended for HTTPS + trusted intranet deployments.
 
 ## Reporting a Vulnerability
 

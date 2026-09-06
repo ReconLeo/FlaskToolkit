@@ -37,9 +37,9 @@ Kaleido 同样开源（自托管题库系统）：[github.com/ReconLeo/Kaleido](
 | v4.9.1 | 2026-09-05 | 配额声明模型（storage:limit）+ 示例多语言 | `69c9ceb` |
 | **v4.9.2** | 2026-09-05/06 | CI 三问题修复 + 全局总量配额 + 后台空间管理 | `fb7aa5b` + `18ff7ec`，tag `v4.9.2` |
 | 补丁覆盖 | 2026-09-06 | tools 运维工具适配 v4.9 结构 + v4.9.2 覆盖发布 | `73c6a9f` `ee3e23d` `612c565` |
-| **v4.12.0** | 2026-09-06 | Secure 安全传输：HTTP→HTTPS 自动跳转（308 保留 POST）+ SESSION_COOKIE_SECURE 自动配置（None=自动）+ config.py SSL 配对提示/HTTPS 状态检查 + 桌面启动器 HTTPS 复选框与证书自动生成 + 反代支持归档（TRUST_PROXY_HEADERS / EXTERNAL_SCHEME / EXTERNAL_HOST / EXTERNAL_PORT） | `919cb0b` `d0ccec7`（阶段1-2）`2b3762c`（feat）`fbbc60a`（docs），tag `v4.12.0` |
-| **v4.11.0** | 2026-09-06 | Reachability 网络可达：地址中心（core/network.py）+ mDNS 服务注册（core/mdns.py 可选 zeroconf）+ 后台网络与访问页（二维码/共享/mDNS/IP 检测）+ 启动横幅播报 + IP 变化检测（core/ip_watcher.py）+ 桌面启动器（tools/desktop_launcher.py） | `e16e67b`（M1-M5）`4a76811`（文档），tag `v4.11.0` |
 | **v4.10.0** | 2026-09-06 | Accessibility 能力可达性：pip 依赖独立声明 + 能力清单确认 + 调试页权限修正/API 文档增强 + 首次运行向导/强制改密 + 邀请码自助注册 + 脚手架/离线安装卸载 + 单插件空间清理 | `e26b25e`（M4）`2ecb8b7`（M5）`941ea66`（airdrop 移交）`32aa2ce`（M6）`9d3aaf4`（M6-Extra）`699fae0`（前端清理），tag `v4.10.0` |
+| **v4.11.0** | 2026-09-06 | Reachability 网络可达：地址中心（core/network.py）+ mDNS 服务注册（core/mdns.py 可选 zeroconf）+ 后台网络与访问页（二维码/共享/mDNS/IP 检测）+ 启动横幅播报 + IP 变化检测（core/ip_watcher.py）+ 桌面启动器（tools/desktop_launcher.py） | `e16e67b`（M1-M5）`4a76811`（文档），tag `v4.11.0` |
+| **v4.12.0** | 2026-09-06 | Secure 安全传输：HTTP→HTTPS 自动跳转（308 保留 POST）+ SESSION_COOKIE_SECURE 自动配置（None=自动）+ config.py SSL 配对提示/HTTPS 状态检查 + 桌面启动器 HTTPS 复选框与证书自动生成 + 反代支持归档（TRUST_PROXY_HEADERS / EXTERNAL_SCHEME / EXTERNAL_HOST / EXTERNAL_PORT） | `919cb0b` `d0ccec7`（阶段1-2）`2b3762c`（feat）`fbbc60a`（docs），tag `v4.12.0` |
 
 ## 3. 版本详情
 
@@ -141,6 +141,43 @@ P1 安全强化至此全部完成，形成纵深防御：**静态扫描 → 能�
 - **update.py / release.py**：用法文档修正为位置子命令（`check`/`apply`/`rollback`、`bump`/`build`）。
 - 全量回归 25 脚本 615 项；v4.9.2 Release 资产覆盖上传（新 sha256 `f232d501`）、changelog 同步、Release 描述 Upgrade hint 修正（locales 已内置）；README 双版 Why/What 精简更新 + 新增两类人群（个人/局域网）使用建议 + Kaleido 灵感故事。
 
+### 3.15 v4.10.0（2026-09-06，tag `v4.10.0`）
+
+**Accessibility（能力可达性）**——让"该有的能力够得着"：对个人/局域网用户补齐首次使用、注册、脚手架、离线部署等关键路径（计划 6 模块，本批全部落地）。
+
+- **M1 pip 依赖独立声明**：`dependencies` 语义收窄为**仅插件依赖**，新增 `pip_dependencies` 独立字段（plugin.json / 类属性 / AST 提取 / 描述一致性冲突与兜底）；用 `importlib.metadata` 检测第三方包，缺失时**仅跳过加载 + 告警**（附 `pip install` 命令，不自动安装）；老写法（3.x 在 dependencies 混写 pip 包）向后兼容按包检测 + 迁移告警。
+- **M2 安装前能力清单确认**：上传两段式——`preview=1` 返回能力预览（依赖 / pip 依赖 / capabilities 声明 / 静态扫描摘要）+ `preview_id`，`confirm=1&preview_id` 才执行安装；修复 upload `finally` 清理误删 preview 文件的 bug。
+- **M3 API 文档页增强（仅管理员）**：`build_api_info` 提升为共享函数（含 `permission` 权限层级标注）；新增 `/__plugin_api__/<name>` 直达调试页；调试页权限修正移入 `ADMIN_GUARD_PREFIXES`（游客 302 / 普通用户 403 / 管理员 200）。
+- **M4 首次运行向导 + 强制改密**：`data/.setup_done` 向导标记 + `/setup` 路由（LANGUAGE 白名单写入）；首页未完成初始化重定向 `/setup`；auth 自助改密（校验旧密码 + 踢除其他会话），登录响应 `must_change_pwd`（默认密码仍为 admin123 时为 true），后台弹改密窗可暂缓但下次登录仍提醒。
+- **M5 邀请码自助注册**：`ALLOW_REGISTER`（默认关）；一次性邀请码（FTK-XXXXXXXX-XXXX，`plugins/data/auth/invite_codes.json` 一次性消费）；用户 `status` pending/active——持码注册即 active 免审核，无码进 pending 待管理员审核（登录 403 拦截）；user_manage 新增待审列表/通过/拒绝/邀请码生成/复制注册链接/撤销 6 个管理 API。
+- **M6 插件脚手架 + 离线安装**：`tools/scaffold.py` 生成 backend/frontend 标准骨架（产出可直接 `tools/package.py` 打包）；`tools/install_plugin.py` 不跑框架手动安装——backend（完整性校验 / 描述一致性 / 框架版本 / 静态扫描门禁 → 安全解压 + installed_files 落盘 → 缺失 pip 依赖提示）、frontend（config.json/入口 html 校验 → 注册）；同名拒绝 / `--update` 升级拒绝降级；`list` 离线查看；`--base` 指定框架根。
+- **M6-Extra 离线卸载 + 单插件空间清理**：`cleanup_plugin_data(name, include_data)`——临时目录与全部数据（data/ + 临时 + capabilities `filesystem:write` 声明写目录，如 AirDrop `uploads/`，离线自动从描述文件解析）；后台 `POST /api/admin/plugins/<name>/purge-data`（scope=temp/all，含配额缓存失效）；`install_plugin.py uninstall --purge-data` 离线等价；`factory_reset` plugins 范围补漏——一并清理非内置插件数据目录（`plugins/data/<name>/`）。
+- **M7 版本收尾**：修复 `tools/release.py` bump 锚点 bug（版本替换锚点误用新版本号，改为从 global_var 读当前版本）；精简运行包 `RUNTIME_TOP` 补 `tools/`（离线 CLI 面向使用者）；后台插件空间卡片补『清理临时/清理全部』（修复 loadQuota 既有 getCsrfToken 未定义 bug → `_getCsrfCookie()`）；locales/en.json 补 6 词条。
+- **回归**：25 脚本 615 项 → **28 脚本 737 项**（新增 test_setup 17 / test_register 25 / test_scaffold_tools 53，多脚本扩充）；AirDrop 插件加载回归（8 项）移交 AirDrop 子项目维护，不入主仓库。
+
+### 3.16 v4.11.0（2026-09-06，tag `v4.11.0`）
+
+**Reachability（网络可达）**——承接 v4.10"用得上"的递进：解决"非固定 IP 每次都要重新发布访问链接"痛点，让普通用户"够得着"框架。
+
+- **M1 地址中心（core/network.py，纯标准库）**：局域网 IP 发现（getaddrinfo + ipconfig / hostname -I + UDP 兜底，过滤 127./169.254./0.0.0.0 去重）、端口三级优先（运行时注册 > 环境变量 > 配置 > 5000）、访问地址组合去重、`is_https_enabled`/`get_scheme`/`get_access_urls`（mDNS 置顶、127 仅本机、0.0.0.0 全部可达）。
+- **M2 mDNS 服务注册（core/mdns.py，可选依赖）**：`zeroconf` 缺失降级提示不影响启动（延续 v4.10 pip_dependencies"可选依赖增强"理念）；`_flasktoolkit._tcp.local.` 服务类型；ServiceInfo 构造兼容新版（addresses）/旧版（address）。
+- **M3 后台『网络与访问』页**：`GET /api/admin/network` + `POST /api/admin/network/config`（白名单 HOST/MDNS_ENABLED/MDNS_HOSTNAME/IP_WATCH_INTERVAL，类型校验，审计日志）+ 页面（分享地址列表/复制/二维码 qrcodejs 离线/共享开关/mDNS 开关/IP 检测间隔/防火墙提示）；后台导航新增『🌐 网络与访问』。
+- **M4 启动横幅播报 + IP 变化检测（core/ip_watcher.py）**：启动后注册真实端口并逐行播报访问地址；`check_once` 快照比较（首次不视为变化，变化记 last_change_ts/详情并日志 warning），`IP_WATCH_INTERVAL` 秒轮询（0=关闭）。
+- **M5 桌面启动器（tools/desktop_launcher.py，tkinter）**：GUI 启动/停止服务、仅本机·局域网切换、地址列表/复制/打开浏览器、日志区；subprocess 解耦不 import 框架核心；`--smoke`/`--shared`/`--port` CLI；二维码需 qrcode + PIL 可选库（缺失仅隐藏二维码区）。
+- **配置项新增**：`MDNS_ENABLED`（默认 false，需重启）、`MDNS_HOSTNAME`（默认 flasktoolkit）、`IP_WATCH_INTERVAL`（默认 30）。
+- **回归**：28 脚本 737 项 → **32 脚本 779 项**（新增 network / mdns / ip_watcher / desktop_launcher 四脚本 + admin_api 网络用例扩充；2026-09-06 复核：本批最终项数 network 41 / admin_api 62，全仓实测 869）。
+
+### 3.17 v4.12.0（2026-09-06，tag `v4.12.0`）
+
+**Secure（安全传输）**——承接 v4.11 Reachability，补齐 HTTPS/反代部署链路（阶段 1-2 反代支持 + 本批四模块）；HTTPS 稳定性经五阶段评估（见 `documents/HTTPS与反向代理稳定性评估-2026-09-06.md`）。
+
+- **M1 HTTP→HTTPS 自动跳转**：`core/network.start_http_redirect`——直连 HTTPS 模式下主端口+1 起 **308** 跳转端口（保留 POST 方法与 body，Host 头兼容 IPv6，daemon 线程）；反向代理场景不启用（Nginx 负责）。
+- **M2 SESSION_COOKIE_SECURE 自动配置**：默认 **None=自动**——`is_secure_cookie_mode()`：HTTPS 直连或 `EXTERNAL_SCHEME=https` 自动 True，纯 HTTP 局域网自动 False（防浏览器丢 Cookie）；true/false 可显式强制；auth 两处 set_cookie（token/csrf_token）统一接入。
+- **M3 config.py 适配**：`set` 对 SSL_CERT_FILE/SSL_KEY_FILE 配对提示；`check` 新增 HTTPS 状态块（配对/文件存在/反代一致性提示）。
+- **M4 桌面启动器 HTTPS**：`ensure_https_cert` 缺证书自动 subprocess 调 gen_cert.py 生成；GUI HTTPS 复选框（按现有配置预选）+ CLI `--https`；分享链接/横幅随 scheme 显示 https。
+- **反代支持归档**：`TRUST_PROXY_HEADERS`（ProxyFix 信任 X-Forwarded-Proto/For/Host，恢复客户端 IP 归因）+ `EXTERNAL_SCHEME`/`EXTERNAL_HOST`/`EXTERNAL_PORT`（外部入口，分享地址/二维码/横幅置顶输出）+ `app.validate_ssl_cert`（PEM 可读/配对/有效期校验，启动失败友好退出）；mDNS 提示随 scheme 插值。
+- **回归**：v4.11 收尾时 32 脚本 779 项；2026-09-06 全量实测复核 **32 脚本 869 项**（network 41 / mdns 22 / ip_watcher 15 / desktop_launcher 36 / admin_api 62——版本说明中的 779/807 系增量估算，以实测为准）；runtime 83 文件（sha256 `da9711c1...`），changelog 5 条。
+
 ## 4. 发布实践沉淀
 
 - **changelog.json 是发布强制同步点**：`tools/release.py build` 会重写（latest_version/sha256/download_url/changes），须随 Release 一起 commit + push（v4.9.0/v4.9.1 曾漏同步，v4.9.2 补齐并固化）。
@@ -148,3 +185,6 @@ P1 安全强化至此全部完成，形成纵深防御：**静态扫描 → 能�
 - **Release 完整流程**：release.py build（拿 sha256 + 写 changelog）→ git commit（README/changelog）→ git tag + push → gh release create 上传 zip + Release notes → 端到端验证（raw changelog.json 200 + zip 下载 sha256 比对）。
 - **覆盖发布**：同版本号重新发布时，用 `gh release upload <tag> <zip> --clobber` 覆盖资产；Release 描述与 changelog sha256 必须同步更新，避免更新校验链断裂。
 - **README 故事段维护**：保持精简（主题里程碑聚合），细节指向开发规范与本演进记录，避免随版本膨胀。
+- **release.py bump 锚点必须是"当前版本"**：版本替换锚点曾误用"新版本号"（v4.8.0 引入，首次使用即暴露）——替换锚点应从 `global_var.FRAMEWORK_VERSION` 读取当前值，而不是目标新值；发布工具链改动必须经真实 bump 演练（v4.10 M7 修复）。
+- **runtime 精简包内容随版本核对**：新增面向使用者的工具（如 v4.10 的 scaffold/install_plugin）必须补进 `RUNTIME_TOP`，否则离线包缺文件（v4.10 曾漏 tools/）。
+- **回归数字是 CI 口径**：本地（无 AirDrop 子项目）与 CI（含子项目测试）口径不同，README/开发规范/SECURITY.md 统一使用 CI 口径（32 脚本 807 项），并在开发规范标注 AirDrop 移交说明，避免文档间数字漂移。

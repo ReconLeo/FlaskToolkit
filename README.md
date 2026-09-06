@@ -32,7 +32,7 @@ Over time it grew into what it is today — a few highlights:
 - **Accessibility (4.10)**: first-run wizard with forced password change (dismissible, re-prompted on each login until changed); invite-code self-registration (admin issues invite links — holders skip review, others land in the pending queue); optional `pip_dependencies` per plugin (missing packages skip that plugin with a warning instead of breaking startup); per-plugin API doc pages with permission labels, reachable from the admin UI; **per-plugin storage cleanup** — temp-only or all data including declared write dirs, from the admin dashboard or the offline CLI;
 - **Secure (4.12)**: the framework now does the **HTTP→HTTPS redirect** itself (308, keeps POST method & body) whenever self-signed HTTPS mode is on — an extra plain-HTTP entry port (main port + 1) bounces visitors to the HTTPS address, so stale `http://` links never die; **SESSION_COOKIE_SECURE is auto-configured** (turned on automatically under HTTPS / reverse proxy, off on plain-HTTP LAN so browsers do not drop cookies, still forceable via config); `config.py` gained SSL pairing hints and an HTTPS status check; the desktop launcher gained an **HTTPS checkbox** with automatic self-signed cert generation (`--https`);
 - **Reachability (4.11)**: stop re-publishing your access link every time your IP changes — a **Network & Access page** in the admin UI lists every reachable address (share links + QR codes, mDNS switch, IP-change detection with a configurable interval); optional **mDNS** (`pip install zeroconf`) keeps the service reachable at a stable `flasktoolkit.local` name; plus a **desktop launcher** (`tools/desktop_launcher.py`) — double-click friendly, starts/stops the server, switches local-only vs LAN-sharing, and copies the access address for you;
-- **Ops & tooling**: version check with a `changelog.json` feed + dual-backend updater (git / archive), Factory Reset, backup/restore, startup self-check, package integrity signing, plugin scaffolding + offline install/uninstall CLI (`scaffold.py` / `install_plugin.py`), plus a **779-assertion regression suite and GitHub Actions CI**.
+- **Ops & tooling**: version check with a `changelog.json` feed + dual-backend updater (git / archive), Factory Reset, backup/restore, startup self-check, package integrity signing, plugin scaffolding + offline install/uninstall CLI (`scaffold.py` / `install_plugin.py`), plus a **869-assertion regression suite and GitHub Actions CI**.
 
 The full feature specification lives in the [development guide](documents/Flask插件框架开发规范-v4.0.md).
 
@@ -128,10 +128,10 @@ Detailed specs live in the [Flask Plugin Framework Development Guide](documents/
 
 ## Tests & CI
 
-`tests/` contains **32 scripts / 779 assertions** of regression tests (isolated-directory mode, no pollution of project files); GitHub Actions runs them automatically on Python 3.10 / 3.11 / 3.12, covering permissions, plugin-package / frontend-tool chains, integrity signatures, uninstall manifests, Factory Reset, large-plugin multi-template page routing, file transfer (upload limits / Chinese-name downloads / Range), static security scanning, capability cross-validation, runtime audit hooks, i18n framework, plugin data quota, plugin scaffolding / offline install-uninstall CLI, per-plugin space cleanup, ops tools, etc.
+`tests/` contains **32 scripts / 869 assertions** of regression tests (isolated-directory mode, no pollution of project files); GitHub Actions runs them automatically on Python 3.10 / 3.11 / 3.12, covering permissions, plugin-package / frontend-tool chains, integrity signatures, uninstall manifests, Factory Reset, large-plugin multi-template page routing, file transfer (upload limits / Chinese-name downloads / Range), static security scanning, capability cross-validation, runtime audit hooks, i18n framework, plugin data quota, plugin scaffolding / offline install-uninstall CLI, per-plugin space cleanup, ops tools, etc.
 
 <details>
-<summary>Expand: 25 test scripts</summary>
+<summary>Expand: 32 test scripts</summary>
 
 ```bash
 cd FlaskToolkit
@@ -157,17 +157,24 @@ python tests/test_security.py              # system security: headers / cookie h
 python tests/test_plugin_scan.py           # plugin static scanning (v4.3.1): risky imports/calls/obfuscation/network+file touchpoints 35
 python tests/test_capabilities.py          # plugin capability declarations (v4.3.2): parse/match/cross-check/runtime authorization 57
 python tests/test_audit_hook.py            # runtime audit hooks (v4.4.0): event mapping/stack attribution/observe/enforce 38
-python tests/test_update_checker.py     # update checker (v4.8.0): version compare / feed cache TTL / archive verify chain / zip-slip guard 40
+python tests/test_update_checker.py     # update checker (v4.8.0): version compare / feed cache TTL / archive verify chain / zip-slip guard 43
 python tests/test_i18n.py                  # i18n (v4.9.0): language packs / lookup chain / lang resolution / cookie switch / template render 28
 python tests/test_data_limit.py            # plugin data quota (v4.9.0-4.9.2): path judge / usage / storage:limit declaration / write-dir scope / upload pre-check / global total / TTL / disable 32
-# total: 32 scripts / 779 assertions
+python tests/test_setup.py               # first-run wizard + forced password change (v4.10 M4) 17
+python tests/test_register.py             # invite-code self-registration + review (v4.10 M5) 25
+python tests/test_scaffold_tools.py       # scaffolding + offline install/uninstall (v4.10 M6) 53
+python tests/test_network.py              # network & access (v4.11) + 308 redirect / Secure cookie (v4.12) 41
+python tests/test_mdns.py                 # mDNS service registration (v4.11, optional zeroconf) 22
+python tests/test_ip_watcher.py           # IP-change detection (v4.11) 15
+python tests/test_desktop_launcher.py     # desktop launcher (v4.11) + HTTPS checkbox (v4.12) 36
+# total: 32 scripts / 869 assertions
 ```
 
 </details>
 
 ## Edition Status
 
-- **Community Edition (v4.x)**: feature development continues with a deliberately controlled architectural scale, focused on small-LAN / personal-use scenarios; we maintain and release regularly (32 scripts / 779 assertions regression + CI).
+- **Community Edition (v4.x)**: feature development continues with a deliberately controlled architectural scale, focused on small-LAN / personal-use scenarios; we maintain and release regularly (32 scripts / 869 assertions regression + CI).
 - **Enterprise Edition (v5.x)**: planned to carry the long-term roadmap (refined permission model, process-level sandboxing, stricter CSP, enterprise identity integration, etc.). Due to limited team capacity, we are openly looking for maintainers to take over — see the [Enterprise Edition handover & roadmap](documents/Enterprise-Edition-交接与路线.md).
 
 ## Known Limitations

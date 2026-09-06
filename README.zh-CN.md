@@ -32,7 +32,7 @@
 - **无障碍易用（4.10）**：首次运行向导 + 强制改密（可暂缓，未改则每次登录后台提醒）；邀请码自助注册（管理员发邀请链接，持码免审核，无码进待审队列）；插件可选 pip_dependencies 声明（缺失仅跳过加载并告警，不影响框架启动）；带权限标注的插件 API 文档页，后台直达；**单插件空间清理**——仅临时目录或全部数据（含声明的自定义写目录），后台卡片或离线 CLI 均可操作；
 - **安全传输（4.12）**：框架自身实现 **HTTP→HTTPS 自动跳转**（308 保留 POST 方法与 body）——自签名 HTTPS 模式下额外监听一个 HTTP 跳转端口（主端口+1），访问旧 `http://` 地址自动落到 HTTPS，链接永不失效；**SESSION_COOKIE_SECURE 自动配置**（HTTPS / 反向代理下自动开启 Secure，纯 HTTP 局域网自动关闭防浏览器丢 Cookie，仍可显式强制）；config.py 新增 SSL 配对提示与 HTTPS 状态检查；桌面启动器新增 **HTTPS 复选框**（自动生成自签名证书，`--https` 参数）；
 - **网络可达（4.11）**：告别"每次 IP 变了都要重新发访问链接"——后台新增**网络与访问页**（列出全部可达地址、分享链接 + 二维码、mDNS 开关、IP 变化检测与间隔配置）；可选 **mDNS**（`pip install zeroconf`）让服务在稳定的 `flasktoolkit.local` 主机名下可达；新增**桌面启动器**（tools/desktop_launcher.py，双击即用）——启动/停止服务、切换仅本机/局域网共享、一键复制访问地址；
-- **运维与工具链**：版本检查推送 + 双后端更新（git / archive）、Factory Reset、备份/恢复、启动自检、完整性签名、插件脚手架与离线安装/卸载 CLI（scaffold.py / install_plugin.py）与单插件空间清理，以及一套 **779 项回归测试与 GitHub Actions CI**。
+- **运维与工具链**：版本检查推送 + 双后端更新（git / archive）、Factory Reset、备份/恢复、启动自检、完整性签名、插件脚手架与离线安装/卸载 CLI（scaffold.py / install_plugin.py）与单插件空间清理，以及一套 **869 项回归测试与 GitHub Actions CI**。
 
 完整功能规格见[开发规范](documents/Flask插件框架开发规范-v4.0.md)。
 
@@ -128,10 +128,10 @@ python examples/install_all.py                            # 一键安装 7 个�
 
 ## 测试与 CI
 
-`tests/` 32 个脚本共 779 项回归测试（隔离目录模式，不污染项目文件）；GitHub Actions 在 Python 3.10 / 3.11 / 3.12 上自动执行，覆盖权限、插件包 / 前端工具链路、完整性签名、卸载清单、Factory Reset、大插件多模板页面路由、文件传输（上传限制 / 中文名下载 / Range）、插件静态安全扫描、能力声明交叉校验、运行时审计钩子、i18n 语言框架、插件数据配额、插件脚手架与离线安装/卸载 CLI、单插件空间清理、运维工具等。
+`tests/` 32 个脚本共 869 项回归测试（隔离目录模式，不污染项目文件）；GitHub Actions 在 Python 3.10 / 3.11 / 3.12 上自动执行，覆盖权限、插件包 / 前端工具链路、完整性签名、卸载清单、Factory Reset、大插件多模板页面路由、文件传输（上传限制 / 中文名下载 / Range）、插件静态安全扫描、能力声明交叉校验、运行时审计钩子、i18n 语言框架、插件数据配额、插件脚手架与离线安装/卸载 CLI、单插件空间清理、运维工具等。
 
 <details>
-<summary>展开：25 个测试脚本</summary>
+<summary>展开：32 个测试脚本</summary>
 
 ```bash
 cd FlaskToolkit
@@ -160,14 +160,21 @@ python tests/test_audit_hook.py            # 运行时审计钩子（v4.4.0）�
 python tests/test_update_checker.py     # 版本检查推送（v4.8.0）：版本比较/数据源缓存 TTL/archive 校验链/zip slip 防护 40 项
 python tests/test_i18n.py                  # i18n（v4.9.0）：语言包/查找链/语言解析/切换路由/模板渲染 28 项
 python tests/test_data_limit.py            # 插件数据配额（v4.9.0-4.9.2）：路径判定/用量统计/storage:limit 声明/写目录作用域/上传预检/全局总量/TTL/禁用 32 项
-# 合计 32 个脚本 779 项
+python tests/test_setup.py               # 首次运行向导 + 强制改密（v4.10 M4）17 项
+python tests/test_register.py             # 邀请码自助注册 + 审核（v4.10 M5）25 项
+python tests/test_scaffold_tools.py       # 脚手架 + 离线安装/卸载闭环（v4.10 M6）53 项
+python tests/test_network.py              # 网络与访问（v4.11）+ 308 跳转/Secure 判定（v4.12）41 项
+python tests/test_mdns.py                 # mDNS 服务注册（v4.11，可选 zeroconf）22 项
+python tests/test_ip_watcher.py           # IP 变化检测（v4.11）15 项
+python tests/test_desktop_launcher.py     # 桌面启动器（v4.11）+ HTTPS 复选框（v4.12）36 项
+# 合计 32 个脚本 869 项
 ```
 
 </details>
 
 ## 版本状态
 
-- **Community Edition（v4.x）**：功能开发持续进行，但架构规模有意识控制——专注小型局域网/个人用户场景，我们定期维护与发布（32 脚本 779 项回归 + CI）。
+- **Community Edition（v4.x）**：功能开发持续进行，但架构规模有意识控制——专注小型局域网/个人用户场景，我们定期维护与发布（32 脚本 869 项回归 + CI）。
 - **Enterprise Edition（v5.x）**：规划承载远期路线（权限模型细化、进程级沙箱、CSP 收紧、企业身份对接等）。因当前小团队开发能力有限，公开寻求接手者——详见 [Enterprise Edition 交接与路线](documents/Enterprise-Edition-交接与路线.md)。
 
 ## 已知局限
@@ -183,7 +190,7 @@ MIT License · 贡献指南见 [CONTRIBUTING.md](CONTRIBUTING.md) · 开发过�
 
 ### 人工智能辅助开发声明
 
-本项目在开发过程中使用了 AI 辅助编程工具，包括但不限于：代码生成与重构、代码审查、测试用例编写、文档撰写。所有 AI 辅助生成或修改的内容，均已由开发者人工审查，并通过项目自身的回归测试套件（`tests/`，779 项）与启动完整性自检验证后才会合入。
+本项目在开发过程中使用了 AI 辅助编程工具，包括但不限于：代码生成与重构、代码审查、测试用例编写、文档撰写。所有 AI 辅助生成或修改的内容，均已由开发者人工审查，并通过项目自身的回归测试套件（`tests/`，869 项）与启动完整性自检验证后才会合入。
 
 对贡献者的透明性约定：
 

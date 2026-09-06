@@ -16,7 +16,7 @@
 5. **反向代理支持（阶段 1-2 归档）**：`TRUST_PROXY_HEADERS`（ProxyFix 信任 X-Forwarded-Proto/For/Host，恢复客户端 IP 归因与 request.scheme）+ `EXTERNAL_SCHEME`（外部协议，分享链接/二维码/横幅显示 https）+ `EXTERNAL_HOST`/`EXTERNAL_PORT`（外部域名/端口，反代分享地址可达）；`app.validate_ssl_cert`（PEM 可读/配对/有效期校验，启动失败友好退出）；mDNS 提示随 scheme 插值；详见 3.4 反向代理部署。
 - **配置项新增**：`SESSION_COOKIE_SECURE`（默认自动 None，HTTPS/反代自动 true）、`TRUST_PROXY_HEADERS`（默认 false）、`EXTERNAL_SCHEME`（默认空）、`EXTERNAL_HOST`（默认空）、`EXTERNAL_PORT`（默认 0=内部端口）。
 - **已知局限**：自签名证书不被浏览器/系统信任（首次访问需手动确认）；公网直连 https 需自行评估风险；HTTP 跳转端口仅监听 HTTP，不可单独承载流量。
-- **回归**：32 脚本 807 项（v4.11 779 项；新增 network 跳转/Secure 判定 7 项 + desktop_launcher HTTPS 9 项）。
+- **回归**：32 脚本 869 项（2026-09-06 全量实测复核；network 41 / mdns 22 / ip_watcher 15 / desktop_launcher 36 / admin_api 62）。
 
 ## 版本：v4.11.0（Reachability：网络可达） | 更新日期：2026年09月06日
 ## 版本：v4.11.0（Reachability：网络可达） | 更新日期：2026年09月06日
@@ -32,7 +32,7 @@
 5. **桌面启动器（M5）**：新增 `tools/desktop_launcher.py`（tkinter 标准库，随 Python 分发，面向"有极客精神但不想碰命令行"的普通用户，双击即用）——`prepare_config`（按共享模式写 HOST）/ `generate_access_info`（复用 core/network 纯逻辑）/ `start_server`（subprocess 启动 app.py + CREATE_NO_WINDOW，注入 FLASKTOOLKIT_PORT 环境变量）/ `extract_port_from_output`（正则解析 Running on http://...:port）/ `monitor_output`（后台线程，行/端口/退出回调）/ `run_gui`（访问模式单选 / 端口 / 启动停止 / 地址列表 / 复制 / 打开浏览器 / 日志；二维码需 qrcode + PIL 可选库，缺失仅隐藏二维码区）；CLI `--smoke`（无 GUI 测试模式）/ `--shared` / `--port`；与框架解耦——subprocess 管理、不 import 框架核心（避免初始化副作用）。新增 tests/test_desktop_launcher.py 27 项。
 - **配置项新增**：`MDNS_ENABLED`（默认 false，改需重启生效）、`MDNS_HOSTNAME`（默认 flasktoolkit，服务以 `<name>.local` 可达）、`IP_WATCH_INTERVAL`（默认 30 秒，0=关闭）。
 - **已知局限**：mDNS 需局域网支持（Windows 10+ / macOS / 多数 Linux 已内置响应端）；跨网段不可达；公网环境需自行评估风险（插件仍无沙箱）。
-- **回归**：32 脚本 779 项（v4.10 28 脚本 737 项；新增 network 24 / mdns 22 / ip_watcher 15 / desktop_launcher 27 四脚本与 admin_api 网络用例扩充）。
+- **回归**：32 脚本 779 项（v4.10 28 脚本 737 项；新增 network / mdns / ip_watcher / desktop_launcher 四脚本与 admin_api 网络用例扩充；2026-09-06 实测复核最终 869 项）。
 
 
 ## 版本：v4.10.0（Accessibility：能力可达性） | 更新日期：2026年09月06日
@@ -224,7 +224,7 @@ FlaskToolkit/
 │   ├── desktop_launcher.py  #   桌面启动器（tkinter GUI，subprocess 启动服务，v4.11 M5；HTTPS 复选框 + 证书自动生成，v4.12）
 
 │   └── reset.py               #   深度重置工具（服务停止时使用，绕过运行时文件锁定）
-├── tests/                     # 回归测试套件（32 脚本 807 项 + 端到端链路验证）
+├── tests/                     # 回归测试套件（32 脚本 869 项 + 端到端链路验证）
 ├── templates/                 # 页面模板（首页/登录/错误码页 400-500/admin 管理后台/插件页）
 │   ├── admin/                 #   管理后台（dashboard / plugins / logs / stats / system）
 │   ├── frontend_tools/        #   前端工具模板
@@ -841,27 +841,6 @@ def validate_params(self, params):
 
 ---
 
-## 九、常见问题
-
-### 9.1 插件 API 返回 404
-
-- 插件未加载：检查是否启用、依赖是否满足。
-- 路径不匹配：确认 `routes` 中 path 与请求一致（含参数格式）。
-
-### 9.2 写请求返回 403 CSRF 校验失败
-
-- 前端必须引入 `plugin_common.js` 或手动注入 `X-CSRF-Token` 头（值 = `csrf_token` Cookie）。
-- GET/HEAD/OPTIONS 不需要 CSRF 头。
-
-### 9.3 插件接口 401 未登录
-
-- 接口未声明 `@permission_required("public")` 时默认"仅登录"，未登录访问返回 401 并跳转登录页。
-
-### 9.4 登录失败提示"用户名或密码错误"
-
-- auth 插件默认管理员 `admin / admin123`，可在 `plugins/configs/auth.json` 修改。
-
----
 
 ## 十、插件信任模型与安全
 
@@ -871,8 +850,22 @@ def validate_params(self, params):
 
 因此：
 - **安装插件即信任其作者**。只应安装来源可信、经过审查的插件包。
-- 管理后台「插件管理」页安装/更新/启用插件前，请确认插件包来源与内容。
+- 管理后台「插件管理」页安装/更新/启用插件前，请确认插件包来源与内容；v4.10 起上传接口为「能力预览 + 确认」两段式（依赖 / pip 依赖 / capabilities 声明 / 静态扫描摘要先展示，确认后才落盘安装）。
 - 框架不对插件行为做运行时隔离；插件导致的任何数据/安全影响由安装者自行承担。
+
+**裸信任之上叠加纵深防御**：框架在"安装=信任"的底线之上分层提供缓解手段——不改变底线，只提高防线强度：
+
+| 阶段 | 防线 | 章节 |
+|------|------|------|
+| 安装期 | 插件包完整性校验 + 可选 RSA 签名（manifest sha256 清单） | 10.5 |
+| 安装期 | AST 静态扫描（危险导入/调用/混淆/范围提取） | 10.6 |
+| 安装期 | capabilities 能力声明与交叉校验（Deny by Default） | 10.7 |
+| 运行时 | 审计钩子（sys.addaudithook 实时拦截，off/observe/enforce） | 10.8 |
+| 运行时 | 插件数据配额（单插件 + 全局总量，防写盘失控） | 10.10/10.11 |
+| 传输/访问 | 可选鉴权（三层权限 + 登录锁定 + 空闲超时 + 强制改密） | 4 / 10.2 |
+| 传输/访问 | HTTPS 直连 + HTTP→HTTPS 308 自动跳转 + Secure Cookie 自动 | 10.2/10.9 |
+
+**适用边界**：该信任模型针对**可信局域网 / 企业内网**的日常工具场景（配合 `auth` 插件，可选 `PLUGIN_SCAN_MODE=enforce` + `AUDIT_HOOK_MODE=enforce` + HTTPS）。暴露到对抗性公网仍需自行风险评估——插件始终无沙箱。
 
 ### 10.2 系统安全配置（v4.3.0）
 
@@ -881,7 +874,8 @@ def validate_params(self, params):
 | 配置项 | 默认值 | 说明 |
 |--------|--------|------|
 | `SECURITY_HEADERS` | `True` | 统一注入安全响应头（X-Content-Type-Options / X-Frame-Options / CSP / Referrer-Policy / Permissions-Policy）并移除 Server / X-Powered-By 指纹头 |
-| `SESSION_COOKIE_SECURE` | `False` | 会话 Cookie 加 Secure 属性（仅 HTTPS 生效；HTTP 局域网部署保持 False，否则浏览器丢弃 Cookie） |
+| `SESSION_COOKIE_SECURE` | `None`（自动） | 会话/CSRF Cookie 加 Secure 属性（v4.12 默认自动：HTTPS 直连或反代 `EXTERNAL_SCHEME=https` 时自动 True，纯 HTTP 局域网自动 False 防浏览器丢弃 Cookie；`true`/`false` 可显式强制） |
+| `TRUST_PROXY_HEADERS` | `False` | 反向代理头信任（v4.12，TLS 在 Nginx 等代理终止时开启；信任 X-Forwarded-Proto/For/Host，恢复客户端 IP 归因；**仅可信代理后方可开启**） |
 | `LOGIN_MAX_ATTEMPTS` | `5` | 登录连续失败锁定阈值（次） |
 | `LOGIN_LOCK_SECONDS` | `900` | 登录失败锁定时长（秒，默认 15 分钟） |
 | `LOGIN_LOCK_MODE` | `ip_username` | 登录锁定维度：`username`=仅用户名 / `ip_username`=IP+用户名（默认，防分布式爆破）/ `off`=禁用锁定（不安全，仅信任局域网时使用） |
@@ -895,6 +889,8 @@ def validate_params(self, params):
 
 **手动解封（v4.5.1）**：管理员可在 user_manage 用户管理页查看各用户锁定状态（列表 `locked` 字段）并**一键解封**（`POST /api/user_manage/unlock`，admin 权限）——清除该用户名全部维度（username / ip_username）锁定记录，无需等待锁定期满即可立即登录；解封不存在用户返回 404，解封未锁定用户幂等返回提示。
 
+**HTTPS 自动跳转与 Secure 自动配置（v4.12）**：直连 HTTPS 模式（`SSL_CERT_FILE`/`SSL_KEY_FILE` 均生效）下，框架自动在**主端口+1** 启动 HTTP 跳转端口，所有请求以 **308**（保留 POST 方法与 body）跳转到 `https://<主端口><原路径>`（反向代理场景不启用，跳转由 Nginx 负责，见 3.4）；`SESSION_COOKIE_SECURE` 按 3.4 的自动判定接入 auth 两处 set_cookie（token / csrf_token），无需手动配置。
+
 ### 10.3 上传大小限制
 
 - 管理后台上传的**后端插件包**与**前端工具包**统一受 `global_var.PACKAGE_MAX_UPLOAD_SIZE`（默认 10MB）限制，超限返回 `413 Payload Too Large`。
@@ -902,10 +898,22 @@ def validate_params(self, params):
 
 ### 10.4 Factory Reset（恢复出厂设置）
 
-- 设计意图：将部分/全部框架数据还原至安装初始状态，**不提供自动备份**（数据丢失由用户自行承担）。
-- **此操作不可逆**：执行前请务必手动备份关键数据（`plugins/configs/`、`data/`、`frontend_tools.json` 等）。
-- 管理后台重置弹窗已内置「不可撤销、请先备份」的风险提示，确认后才会执行。
-- 内置插件（`auth`、`user_manage`）在重置中受保护不被删除；`all` 范围会重置其配置（auth 恢复默认 `admin/admin123`）。
+**设计意图**：将部分/全部框架数据还原至安装初始状态，**不提供自动备份**（恢复初始状态即意图，数据丢失由用户自行承担）——执行前务必先用 `tools/backup.py` 手动备份（见 14.2）。
+
+**范围**（管理后台系统页重置弹窗 / `core/factory_reset.py`，`all` = 下列全部 + `builtin`）：
+
+| 范围 | 语义 |
+|------|------|
+| `plugins` | 清除全部非内置插件（.py / 描述文件 / 模板 / 静态 / temp 子目录 / **插件数据目录** `plugins/data/<name>/`——v4.10 M6-Extra 补漏，与单插件空间清理语义一致） |
+| `frontend_tools` | 移除全部前端工具注册与文件 |
+| `stats_logs` | 清空统计与日志 |
+| `sessions` | 清空会话 |
+| `temp` | 清空临时目录 |
+| `builtin` | 还原内置插件配置（`all` 范围自动附带） |
+
+- **内置插件保护**：`auth`、`user_manage` 在重置中受保护不被删除；`builtin`/`all` 范围重置其配置（auth 恢复默认 `admin/admin123`，v4.10 起首次登录强制改密向导仍生效）。
+- **不可逆确认**：管理后台重置弹窗内置「不可撤销、请先备份」风险提示，确认后才执行；重置过程记录 `cleaned`/`failed` 清单并写审计日志。
+- **运行时限制**：服务运行期间文件被占用时重置可能失败——**深度重置 CLI**（`tools/reset.py`，见 14.3）在服务停止状态下直接操作文件系统完成同样范围的重置，支持 `--auto-backup` 先备份再重置。
 
 ### 10.5 插件包完整性校验与签名（方案C）
 
@@ -1126,27 +1134,55 @@ python tools/config.py set AUDIT_HOOK_MODE enforce   # 运维加固：未授权�
 ---
 
 ### 10.10 插件数据配额（v4.9.1，声明模型，防恶意写盘）
+
+配额是运行时审计钩子的**纵深防御第四层**（承接 10.8）——即使插件通过安装期审查，其运行时写盘总量仍受框架管控，防止恶意或失控插件无限写盘。v4.9.0 引入全局单插件默认配额，v4.9.1 升级为 **capabilities 声明模型**：插件显式向框架申请存储空间，框架据此授权并执行。
+
+**配额来源优先级**：
+
+```
+插件 capabilities `storage:limit:<size>` 声明 > 全局 `PLUGIN_DATA_LIMIT_MB`（默认 50，0=无限制）
+```
+
+- `storage:limit:<size>`：纯数字=MB，或带单位 `mb` / `m` / `gb` / `g`（须 > 0）；非法声明安装期告警不拒绝（开放集合，语义见 10.7 能力目录）。
+- `PLUGIN_DATA_LIMIT_MB`：全局单插件默认配额，`0`=禁用（插件不声明时按此执行）。
+
+**配额作用目录**（`core/quota._plugin_quota_dirs` 推导）：
+
+- `plugins/data/<name>/` 与 `plugins/temp/<name>/`——插件自属目录，**始终计入**；
+- 插件 `filesystem:write` 声明的外部路径（相对项目根归一化，`**` 通配剥离为目录前缀）——覆盖 AirDrop
+  `uploads/` 等自定义存储目录场景（AirDrop 启用方式：描述文件声明 `filesystem:write:uploads/**` 即纳入配额保护）。
+
+**判定与行为**（与 `AUDIT_HOOK_MODE` 联动）：
+
+- 写事件（open/io.open w/a/x 等）发生时，capabilities 授权判定通过后，检查目标是否落在配额作用目录
+  （归一化前缀匹配）；目录总量 TTL 缓存（5 秒）避免每次 os.walk；
+- `observe`：记录 `audit-warn` 审计（不阻断）；`enforce`：抛 `RuntimeError` 拒绝写入（fail-closed）。
+
+**上传预检（联动上传）**：插件上传 API 在写文件前调用 `self.check_upload(size)`（base_plugin 封装
+`core/quota.check_upload`，上传接口可一行接入）——现有用量 + 新文件大小 <= 限额则放行，否则返回 **413 + 剩余空间提示**；审计钩子写事件兜底拦截流式写入绕过。下载为读操作不占配额；批量下载打包（temp 下 zip）计入所属插件 temp 配额。
+
+**后台可视化与在线清理**：`GET /api/admin/quota` + 系统管理页"插件空间"卡片（每插件配额/用量/剩余 + 全局总量行）；管理员可在线执行单插件空间清理（`POST /api/admin/plugins/<name>/purge-data`，scope=`temp`/`all`，含配额缓存失效，v4.10 M6-Extra）——`temp` 仅清临时目录，`all` 级联清理数据目录与 `filesystem:write` 声明写目录（离线等价物见 14.8）。
+
+**示例**：官方示例 `async_file_demo` 声明 `storage:limit:10mb` 并演示上传预检（413 + 剩余空间）与配额状态页。
+
+**边界**：配额为运行时资源管控，**不替代安装期静态审查**（10.6/10.7）；插件写框架 `data/` 区域仍须声明 `filesystem:write`（10.7 现有机制）。
+
+---
+
 ### 10.11 全局总量配额与后台空间管理（v4.9.2）
-- **全局总量配额**：配置项 `PLUGIN_DATA_TOTAL_LIMIT_MB`（默认 0=无限制）约束**全部插件数据总和**（所有插件 data/temp/声明写目录用量之和，TTL 缓存）；上传预检 `check_upload` 自动接线（单插件限额 + 全局总量双检查，超限 reason 分别为 `plugin_quota_exceeded` / `global_quota_exceeded`）；审计钩子写事件同样做全局维度检查（enforce 拒绝 / observe 记录"全部插件数据总量超限"）。
-- **后台插件空间管理**：`GET /api/admin/quota`（管理端接口）返回按插件配额列表 + 全局总量；系统管理页"插件空间"卡片可视化（每插件配额/用量/剩余 + 全局总量行）。
 
+在单插件配额之上增加**框架级总量防线**，防多插件合计写盘失控：
 
+- **全局总量配额**：配置项 `PLUGIN_DATA_TOTAL_LIMIT_MB`（默认 0=无限制）约束**全部插件数据总和**（所有插件
+  data/temp/声明写目录用量之和，TTL 缓存）；上传预检 `check_upload` 自动接线（单插件限额 + 全局总量双检查，
+  超限 reason 分别为 `plugin_quota_exceeded` / `global_quota_exceeded`）；审计钩子写事件同样做全局维度检查
+  （enforce 拒绝 / observe 记录"全部插件数据总量超限"）。
+- **后台插件空间管理**：`GET /api/admin/quota`（管理端接口）返回 `{plugins: all_plugins_quota(),
+  total: {limit_mb, usage_mb, remaining_mb}}`——系统管理页"插件空间"卡片按插件列出配额/用量/剩余
+  （无限制显示"无限制"），底部全局总量行（全局上限 / 总用量 / 剩余）；配合 `purge-data` 在线清理入口
+  （10.10）与离线 `tools/install_plugin.py uninstall --purge-data`（14.8）。
 
-**配额来源优先级**：插件 capabilities `storage:limit:<size>` 声明 > 全局 `PLUGIN_DATA_LIMIT_MB`（默认 50，0=无限制）。
-
-**配额作用目录**：`plugins/data/<name>/` 与 `plugins/temp/<name>/`（自属，始终计入）+ 插件 `filesystem:write` 声明的
-外部路径（如 AirDrop 声明 `uploads/**` 后其共享目录纳入配额）。
-
-- **判定**：写事件（open/io.open w/a/x 等）发生时，capabilities 授权判定通过后，检查目标是否落在配额作用目录
-  （归一化前缀匹配）；用量 TTL 缓存（5 秒）避免每次 os.walk。
-- **行为**：`observe` 记录 `audit-warn` 审计（不阻断）；`enforce` 抛 `RuntimeError` 拒绝写入（fail-closed），与
-  `AUDIT_HOOK_MODE` 联动。
-- **上传预检（联动上传，v4.9.1）**：插件上传 API 在写文件前调用 `self.check_upload(size)`（base_plugin 封装
-  `core/quota.check_upload`）——现有用量 + 新文件大小 ≤ 限额则放行，否则返回 413 并提示剩余空间；审计钩子
-  写事件兜底拦截流式写入绕过。下载为读操作不占配额；批量下载打包（temp 下 zip）计入所属插件 temp 配额。
-- **v4.9.2 铺垫**：全局总量配额（`PLUGIN_DATA_TOTAL_LIMIT_MB`，0=无限制）与后台"插件空间管理"页
-  （`all_plugins_quota()` 批量接口已就位）。
-- **边界**：配额为运行时资源管控，不替代安装期静态审查（10.6/10.7）；框架 `data/` 区域写入按 10.7 现有机制处理。
+---
 
 ## 十一、部署说明
 
@@ -1186,7 +1222,7 @@ FLASKTOOLKIT_HOST=0.0.0.0 FLASKTOOLKIT_PORT=8000 python app.py
 | `test_meta_e2e.py` | 插件包元信息端到端（上传/冲突/已存在/update 刷新/降级拒绝/require 拒绝，隔离目录模式可重复运行） | 10 项 |
 | `test_frontend_zip_slip.py` | 前端工具包安全解压 zip slip 专项（`..`/绝对路径/盘符拒绝 + 正常落位 + clean_static 更新清理 + 卸载资源清理） | 21 项 |
 | `test_frontend_chain.py` | 前端工具上传/更新/卸载端到端（含页面/静态资源渲染、clean_static、413 上传大小限制） | 23 项 |
-| `test_admin_api.py` | 管理端 API 单测（system/info、plugins、stats、logs、factory-reset scope 校验、上传 413/400、空间管理、能力预览两段式、单插件空间清理 purge-data v4.10） | 44 项 |
+| `test_admin_api.py` | 管理端 API 单测（system/info、plugins、stats、logs、factory-reset scope 校验、上传 413/400、空间管理、能力预览两段式、单插件空间清理 purge-data v4.10、网络与访问页接口 v4.11） | 62 项 |
 | `test_factory_reset.py` | Factory Reset 范围测试（部分/全部删除与保留、内置插件保护、插件数据目录清理 v4.10 M6-Extra、空/非法 scope 无副作用） | 39 项 |
 | `test_error_pages.py` | 统一错误码页面渲染（404/405 真实触发 + 400/401/403/500 模板，双环境无 auth/带 auth） | 12 项 |
 | `test_package_sign.py` | 插件包完整性校验与签名专项（篡改/加料/缺失检测、签名验证、strict/warn/off 模式、路由集成） | 22 项 |
@@ -1203,6 +1239,13 @@ FLASKTOOLKIT_HOST=0.0.0.0 FLASKTOOLKIT_PORT=8000 python app.py
 | `test_update_checker.py` | 版本检查推送（v4.8.0）：版本比较（parse_version/is_newer）/ 用户数据路径判定（v4.9.2 补 users/locales）/ zip slip 防护 / archive 校验链（sha256 必选 + 签名可选）/ 数据源缓存 TTL / 数据源结构校验 | 43 项 |
 | `test_i18n.py` | i18n（v4.9.0）：语言包加载 / 查找链（插件合并与覆盖）/ 语言解析优先级 / 切换路由 / 模板渲染（中英） / 缺省回退 / 参数插值 | 28 项 |
 | `test_data_limit.py` | 插件数据配额（v4.9.0-4.9.2）：路径判定（data/temp/边界）/ 用量统计 / enforce 超限拒绝 / observe 记录 / TTL 缓存刷新 / 0 禁用 / **storage:limit 覆盖全局 / write 声明目录推导（uploads/ 场景）/ check_upload 预检 / 全局总量配额** | 32 项 |
+| `test_network.py` | 网络与访问（v4.11/v4.12）：局域网地址发现/端口三级优先/访问地址组合/mDNS 集成/**HTTP→HTTPS 308 跳转与 Secure Cookie 四态（v4.12）** | 41 项 |
+| `test_mdns.py` | mDNS 服务注册（v4.11）：ServiceInfo 构造（新旧参数兼容）/ 启动停止幂等 / 依赖缺失降级 | 22 项 |
+| `test_ip_watcher.py` | IP 变化检测（v4.11）：快照比较 / 首次不报 / 启停与间隔控制 | 15 项 |
+| `test_desktop_launcher.py` | 桌面启动器（v4.11/v4.12）：配置写入/访问信息生成/启动与端口解析/**HTTPS 复选框与证书自动生成（v4.12）** | 36 项 |
+| `test_setup.py` | 首次运行向导 + 强制改密（v4.10 M4）：/setup 路由与标记 / 改密校验与踢会话 / must_change_pwd 标记 | 17 项 |
+| `test_register.py` | 邀请码自助注册（v4.10 M5）：邀请码生成消费 / pending 拦截 / 审核 API | 25 项 |
+| `test_scaffold_tools.py` | 脚手架 + 离线安装/卸载闭环（v4.10 M6）：scaffold 骨架 / install_plugin 安装升级降级拒绝 / uninstall 清理 | 53 项 |
 
 
 ```bash
@@ -1215,7 +1258,7 @@ python tests/test_reload_race.py      # 1 项
 python tests/test_meta_e2e.py         # 10 项（隔离目录模式）
 python tests/test_frontend_zip_slip.py# 21 项
 python tests/test_frontend_chain.py   # 23 项（前端工具链路，隔离目录）
-python tests/test_admin_api.py        # 44 项（管理端 API + purge-data，隔离目录）
+python tests/test_admin_api.py        # 62 项（管理端 API + purge-data + 网络接口，隔离目录）
 python tests/test_factory_reset.py    # 39 项（Factory Reset 范围，隔离目录）
 python tests/test_error_pages.py      # 12 项（错误码页面，隔离目录）
 python tests/test_package_sign.py     # 22 项（完整性校验/签名，隔离目录）
@@ -1232,10 +1275,14 @@ python tests/test_audit_hook.py            # 38 项（运行时审计钩子回�
 python tests/test_update_checker.py     # 43 项（版本检查推送回归 v4.8.0，隔离目录）
 python tests/test_i18n.py                  # 28 项（i18n 回归 v4.9.0，隔离目录）
 python tests/test_data_limit.py            # 32 项（插件数据配额回归 v4.9.0-4.9.2，隔离目录）
+python tests/test_network.py            # 41 项（网络与访问 v4.11 + 308 跳转/Secure 判定 v4.12，隔离目录）
+python tests/test_mdns.py               # 22 项（mDNS 服务注册 v4.11，mock zeroconf，隔离目录）
+python tests/test_ip_watcher.py         # 15 项（IP 变化检测 v4.11，隔离目录）
+python tests/test_desktop_launcher.py   # 36 项（桌面启动器 v4.11 + HTTPS v4.12，隔离目录）
 python tests/test_setup.py             # 17 项（首次运行向导 + 强制改密 v4.10，隔离目录）
 python tests/test_register.py             # 25 项（自助注册 + 邀请码 + 审核 v4.10 M5，隔离目录）
 python tests/test_scaffold_tools.py  # 53 项（M6 脚手架 + 离线安装/卸载闭环，subprocess 驱动 CLI，隔离目录）
-# 合计 32 个脚本 807 项
+# 合计 32 个脚本 869 项（2026-09-06 本地全量实测复核）
 # （AirDrop 插件加载回归 test_airdrop_loader.py 8 项已移交 AirDrop 子项目维护，不入主仓库）
 ```
 
@@ -1309,6 +1356,21 @@ python tools/config.py profile strict    # 一键套用运维加固预设
 
 ## 十四、开发运维工具与启动自检
 
+| 工具 | 职责 | 详见 |
+|------|------|------|
+| `tools/config.py` | 配置项查看/设置/预设 | 13 |
+| `tools/package.py` | 插件包打包/签名/校验 | 10.5 |
+| `tools/scan.py` | 插件静态扫描 CLI | 10.6 |
+| `tools/gen_cert.py` | 自签名证书生成 | 14.4 |
+| `tools/update.py` | 双后端更新（git/archive） | 14.5 |
+| `tools/release.py` | 版本发布工具链 | 14.6 |
+| `tools/scaffold.py` | 插件/前端工具脚手架 | 14.7 |
+| `tools/install_plugin.py` | 离线安装/卸载/清理 | 14.8 |
+| `tools/backup.py` | 手动备份/恢复 | 14.2 |
+| `tools/reset.py` | 深度重置（服务停止态） | 14.3 |
+| `tools/desktop_launcher.py` | 桌面启动器（GUI） | 14.9 |
+| `core/selfcheck.py` | 启动完整性自检 | 14.1 |
+
 ### 14.1 启动完整性自检（core/selfcheck.py）
 
 框架每次启动时执行完整性自检：
@@ -1352,6 +1414,83 @@ python tools/reset.py reset all --auto-backup         # 先自动备份再全部
 - 服务运行检测读取用户配置 `HOST/PORT`（`tools/config.py` 可设，默认 127.0.0.1:5000），仅提示不强制。
 - `locales/` 语言包（含用户扩展语言包）与用户配置同类，深度重置保留，与 Factory Reset 语义一致。
 
+### 14.4 自签名证书生成（tools/gen_cert.py，v4.5）
+
+调用系统 openssl 生成自签名证书/私钥对（默认 RSA 2048，输出 `data/certs/`，已加入 .gitignore 不提交版本库）：
+
+```bash
+python tools/gen_cert.py                         # 生成 cert.pem / key.pem（默认含 localhost/127.0.0.1 SAN）
+python tools/gen_cert.py --san IP:192.168.1.10   # 追加局域网访问地址（SAN 缺失时现代浏览器直接拒绝连接）
+```
+
+生成后配置启用 HTTPS（见 10.9）：`tools/config.py set SSL_CERT_FILE data/certs/cert.pem` + `SSL_KEY_FILE` 配对；桌面启动器的 HTTPS 复选框缺证书时也会自动调用本工具生成。
+
+### 14.5 双后端更新（tools/update.py，v4.8）
+
+面向部署方：从 Release 资产升级框架，支持 git / archive（离线内网）双后端，均保留用户数据（`USER_DATA_PATHS` 清单：data / plugins/configs / plugins/data / plugins/temp / logs 等）：
+
+```bash
+python tools/update.py check                 # 检查新版本（changelog.json 数据源，24h TTL）
+python tools/update.py backup                # 更新前备份当前框架
+python tools/update.py apply                 # 应用更新（自动探测 git/archive 后端）
+python tools/update.py apply --backend archive --dry-run   # 指定后端 + 演练
+python tools/update.py rollback              # 回滚到最近备份
+python tools/update.py selfcheck             # 更新后运行启动自检
+```
+
+- **git 后端**：fetch/stash/reset 到目标版本，selfcheck 失败自动回滚（开源环境 gitignore 天然保留配置）。
+- **archive 后端**：下载 zip 校验 sha256（必选）+ 签名（可选，配置 `UPDATE_PUBLIC_KEY_PEM`），显式跳过用户数据路径后替换，失败自动回滚。
+
+### 14.6 发布工具链（tools/release.py，v4.8，发布者使用）
+
+```bash
+python tools/release.py bump 4.12.1          # 同步版本号（FRAMEWORK_VERSION / SYSTEM_VERSION_LABEL / test 断言 / README 徽章）
+python tools/release.py build                # 构建精简运行包 + 写 changelog.json（--sign 生成签名 feed）
+python tools/release.py build --full         # 全量包（含 tests/documents/examples，供归档审计）
+python tools/release.py build --include src:dest   # 定制包（叠加企业私有插件/文档）
+```
+
+- `build` 默认**精简运行包**（仅运行必需：core/routes/plugins 内置/templates/static/locales），用户数据路径清单始终保留；
+- `changelog.json` 是发布强制同步点（latest_version/sha256/download_url/changes），须随 Release 一起提交推送。
+
+### 14.7 插件脚手架（tools/scaffold.py，v4.10）
+
+生成标准插件骨架，产出目录可直接 `tools/package.py pack` 打包分发：
+
+```bash
+python tools/scaffold.py backend my_plugin [--with-static] [--with-templates]   # 后端插件（plugin.json + 主 .py + 可选资源）
+python tools/scaffold.py frontend my_tool [--with-static]                      # 前端工具（config.json + 入口 html + 可选 static）
+```
+
+### 14.8 离线安装/卸载与单插件空间清理（tools/install_plugin.py，v4.10）
+
+不启动框架服务时手动安装/卸载插件包（离线部署、交付前自测场景）：
+
+```bash
+python tools/install_plugin.py backend my_plugin.zip          # 安装/更新后端插件（--update 升级，拒绝降级）
+python tools/install_plugin.py frontend my_tool.zip           # 安装/更新前端工具
+python tools/install_plugin.py uninstall backend my_plugin    # 离线卸载（按 installed_files 清单删除，内置插件受保护）
+python tools/install_plugin.py uninstall frontend my_tool --purge-data   # 卸载并级联清理数据/临时/声明写目录
+python tools/install_plugin.py list                           # 列出已安装插件与前端工具
+```
+
+- 安装链路与在线一致：完整性校验 → 描述一致性 → 框架版本门槛 → 静态扫描门禁 → 安全解压 + installed_files 落盘；缺失 pip 依赖仅提示并附 `pip install` 命令（不自动安装）；
+- `--base` 指定框架根目录（默认自动探测）；离线卸载不执行插件 `on_uninstall` 钩子（框架未运行）；
+- `--purge-data` 与后台 `purge-data` API（10.10）语义一致：临时目录 + 数据目录 + capabilities `filesystem:write` 声明写目录。
+
+### 14.9 桌面启动器（tools/desktop_launcher.py，v4.11）
+
+面向"免命令行"普通用户的 tkinter GUI（Python 标准库，双击即用，subprocess 解耦不 import 框架核心）：
+
+```bash
+python tools/desktop_launcher.py             # 打开 GUI：访问模式（仅本机/局域网）/ 端口 / 启动停止 / 地址列表 / 复制 / 打开浏览器
+python tools/desktop_launcher.py --shared    # CLI：局域网共享模式启动
+python tools/desktop_launcher.py --https     # CLI：启用 HTTPS（缺证书自动调用 gen_cert.py 生成）
+python tools/desktop_launcher.py --smoke     # 无 GUI 冒烟测试模式
+```
+
+GUI 内含 **HTTPS 复选框**（按现有配置预选，勾选后自动生成/配置证书，v4.12）；二维码展示需 `qrcode` + `PIL` 可选库（缺失仅隐藏二维码区）。
+
 ## 十五、国际化（i18n，v4.9.0）
 
 ### 15.1 语言包格式
@@ -1392,4 +1531,107 @@ python tools/reset.py reset all --auto-backup         # 先自动备份再全部
 `{{ t('...') }}` 迁移 + 后端消息经 `_tr()`（`i18n.make_translator(i18n.get_lang())`）+ 前端 `window.T`
 （模板内注入 `window.__I18N = {{ t_json | tojson }}`）；页面顶部自动出现语言切换入口
 （`/lang/<code>?next=<当前路径>`）。
+
+---
+
+## 附录 A：常见问题（FAQ）
+
+> 按主题分节；每题给出症状、原因与处理步骤。历史版本 FAQ 归档于 `documents/archive/`。
+
+### A.1 安装与启动
+
+**A.1.1 启动自检失败、服务无法启动**
+- 症状：启动输出 `selfcheck` 失败并中止（`sys.exit(1)`）。
+- 原因：核心文件缺失（`CORE_FILES`）或第三方依赖（flask / flask_cors / apscheduler / watchdog）不可导入。
+- 处理：按提示 `pip install -r requirements.txt`；检查项目文件完整性（勿删除 core/、routes/ 等运行必需目录）；数据目录写权限问题仅告警不阻断。
+
+**A.1.2 端口被占用导致启动失败或端口不符**
+- 处理：默认端口自动探测回落（被占用时自动换端口并打印实际地址）；显式指定用 `FLASKTOOLKIT_PORT` 环境变量或 `python tools/config.py set PORT <port>`。
+
+**A.1.3 插件未加载且提示缺少第三方依赖**
+- 症状：后台插件列表中插件缺失，日志/响应附 `pip install <pkg>` 提示（v4.10 `pip_dependencies`）。
+- 处理：按提示安装依赖后重载；框架**不自动安装**依赖（设计如此，避免供应链风险）。
+
+### A.2 权限与登录
+
+**A.2.1 插件接口返回 401 未登录**
+- 原因：接口未声明 `@permission_required("public")` 时默认"仅登录"。
+- 处理：给公开接口补 public 声明，或用登录态访问（未登录访问会跳转登录页）。
+
+**A.2.2 写请求返回 403 CSRF 校验失败**
+- 原因：缺少 CSRF 双提交校验头。
+- 处理：前端引入 `plugin_common.js`（自动注入 `X-CSRF-Token`，值 = `csrf_token` Cookie）或手动注入该头；GET/HEAD/OPTIONS 不需要 CSRF 头。
+
+**A.2.3 登录提示"用户名或密码错误"**
+- 原因：默认管理员 `admin / admin123`；v4.10 起首次登录**强制改密**（登录响应 `must_change_pwd`，后台弹改密窗）。
+- 处理：管理员账号在 `plugins/configs/auth.json` 修改；如已改密请用新密码；忘记密码可在服务停止态直接编辑该文件还原。
+
+**A.2.4 登录被锁定（HTTP 429）**
+- 原因：连续失败达到 `LOGIN_MAX_ATTEMPTS`（默认 5），锁定 `LOGIN_LOCK_SECONDS`（默认 900 秒），维度 `ip_username`/`username`。
+- 处理：等待锁定期满；管理员在 user_manage 用户管理页一键解封（v4.5.1）；锁定计数仅存内存，重启即清零。
+
+**A.2.5 登录提示"账号待管理员审核"**
+- 原因：v4.10 M5 邀请码自助注册——无邀请码注册进入 `pending` 待审状态。
+- 处理：管理员在 user_manage 审核通过；或持邀请码注册（`?code=` 自动填充）即时 active。
+
+### A.3 插件开发与安装
+
+**A.3.1 插件 API 返回 404**
+- 插件未加载：检查是否启用、依赖是否满足、`pip_dependencies` 是否缺失；
+- 路径不匹配：确认 `routes` 中 path 与请求一致（含参数格式）；
+- 页面路由未生效：大插件多模板需 `page=True` 并放模板到 `templates/plugins/<name>/`（见 5.5.1）。
+
+**A.3.2 插件安装被拒绝（400 附 scan_report / capabilities missing）**
+- 原因：`PLUGIN_SCAN_MODE=enforce` 下检出高风险（high > 0）或 `missing` 非空（Deny by Default）。
+- 处理：按响应中的 `suggested` 建议声明补齐 `capabilities`（可整段复制回 plugin.json）后重新打包；确属误报可在 `report` 模式放行后人工复核（不建议关扫描）。
+
+**A.3.3 插件包安装报完整性校验失败**
+- 原因：包缺 `manifest.json` 且 `PACKAGE_INTEGRITY_MODE=strict`，或包内容被篡改/加料。
+- 处理：用 `python tools/package.py pack` 重新打包（自动生成 manifest）；校验模式见 10.5。
+
+**A.3.4 插件安装提示框架版本不足**
+- 原因：插件 `require_framework_version` 高于当前框架版本。
+- 处理：升级框架（`tools/update.py apply`）或选用兼容版本插件。
+
+**A.3.5 插件热重载未生效**
+- 处理：确认文件监听运行（watchdog 依赖）；修改后等待增量重载；`plugins/status.json` 中插件状态为启用；如改的是描述文件/依赖声明，需手动重载或重启。
+
+### A.4 文件上传与数据配额
+
+**A.4.1 上传插件包/工具包返回 413**
+- 原因：超过 `PACKAGE_MAX_UPLOAD_SIZE_MB`（默认 10MB）。
+- 处理：`python tools/config.py set PACKAGE_MAX_UPLOAD_SIZE_MB 20`（需重启生效）。
+
+**A.4.2 插件数据上传 413（配额超限）**
+- 原因：`check_upload` 预检发现超出插件配额（`plugin_quota_exceeded`）或全局总量配额（`global_quota_exceeded`）。
+- 处理：提高 `storage:limit` 声明或 `PLUGIN_DATA_LIMIT_MB` / `PLUGIN_DATA_TOTAL_LIMIT_MB`；或清理旧数据（后台插件空间卡片/`purge-data`）。
+
+**A.4.3 enforce 模式下插件写文件被拒（RuntimeError）**
+- 原因：`AUDIT_HOOK_MODE=enforce` 时未授权/超配额写操作被运行时拦截（消息含插件名与建议声明）。
+- 处理：按建议声明补 `capabilities`；配额超限按 A.4.2 处理。
+
+### A.5 安全与 HTTPS
+
+**A.5.1 访问 http:// 被 308 跳转到 https://**
+- 原因：直连 HTTPS 模式（v4.12）下框架自动在主端口+1 起 308 跳转（保留 POST 方法与 body）——这是设计行为，旧 `http://` 链接不会死。
+- 处理：无需处理；反向代理场景跳转由 Nginx 负责（见 3.4）。
+
+**A.5.2 浏览器提示证书不受信任**
+- 原因：自签名证书（`tools/gen_cert.py` 生成）不被浏览器信任。
+- 处理：本机/可信局域网手动信任或导入证书；公网部署建议正式证书或反向代理 TLS 终止（3.4）。
+
+**A.5.3 HTTP 局域网下 Cookie 丢失、登录态保持不住**
+- 原因：`SESSION_COOKIE_SECURE` 被显式强制 `true`，纯 HTTP 下浏览器丢弃 Secure Cookie。
+- 处理：改回 `unset SESSION_COOKIE_SECURE`（默认自动：纯 HTTP 局域网自动 false）或关闭显式强制；启用 HTTPS 后再设 true。
+
+### A.6 网络与访问
+
+**A.6.1 局域网其他设备无法访问**
+- 处理：`FLASKTOOLKIT_HOST=0.0.0.0` 或 `tools/config.py set HOST 0.0.0.0`；检查系统防火墙放行端口；地址从后台"网络与访问"页复制（v4.11）。
+
+**A.6.2 mDNS 不可用（flasktoolkit.local 无法解析）**
+- 处理：`pip install zeroconf`（可选依赖）+ `python tools/config.py set MDNS_ENABLED true`（需重启）；确认局域网支持 mDNS（Windows 10+ / macOS / 多数 Linux）；跨网段不可达。
+
+**A.6.3 本机 IP 变化后旧地址失效**
+- 处理：启动横幅与后台网络页会提示新的可达地址（v4.11 IP 变化检测，`IP_WATCH_INTERVAL` 可调）；固定环境可开启 mDNS 保持 `flasktoolkit.local` 稳定可达。
 
