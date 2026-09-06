@@ -142,6 +142,51 @@ def main():
         with mock.patch.object(network, 'get_lan_addresses', return_value=['192.168.1.5']):
             items = network.get_access_urls()
         check('G3 mDNS 置顶', items[0]['kind'] == 'mdns' and items[0]['url'].endswith('.local:5010'), f'{items}')
+
+        # ---------- H. EXTERNAL_SCHEME（反向代理 TLS 终止场景的静态协议声明） ----------
+        saved_scheme = getattr(global_var, 'EXTERNAL_SCHEME', '')
+        global_var.EXTERNAL_SCHEME = 'https'
+        check('H1 EXTERNAL_SCHEME=https 时 get_scheme=https', network.get_scheme() == 'https', network.get_scheme())
+        with mock.patch.object(network, 'get_lan_addresses', return_value=['192.168.1.5']):
+            global_var._user_config['HOST'] = '0.0.0.0'
+            items = network.get_access_urls()
+        check('H2 外部 https 时访问地址为 https://',
+              all(u['url'].startswith('https://') for u in items), f'{items}')
+        check('H3 mDNS 地址随 scheme', network.get_mdns_url(5010).startswith('https://'),
+              network.get_mdns_url(5010))
+        global_var.EXTERNAL_SCHEME = 'http'
+        check('H4 EXTERNAL_SCHEME=http 时 get_scheme=http', network.get_scheme() == 'http', '')
+        global_var.EXTERNAL_SCHEME = 'ftp'
+        check('H5 非法 EXTERNAL_SCHEME 回退自动判断',
+              network.get_scheme() in ('http', 'https'), network.get_scheme())
+
+        # ---------- I. EXTERNAL_HOST / EXTERNAL_PORT（反代分享地址外部入口） ----------
+        saved_host = getattr(global_var, 'EXTERNAL_HOST', '')
+        saved_xport = getattr(global_var, 'EXTERNAL_PORT', 0)
+        global_var.EXTERNAL_SCHEME = 'https'
+        global_var.EXTERNAL_HOST = 'ft.example.com'
+        global_var.EXTERNAL_PORT = 8443
+        with mock.patch.object(network, 'get_lan_addresses', return_value=['192.168.1.5']):
+            global_var._user_config['HOST'] = '0.0.0.0'
+            items = network.get_access_urls()
+        check('I1 外部主机/端口置顶为分享入口',
+              items[0]['kind'] == 'external'
+              and items[0]['url'] == 'https://ft.example.com:8443',
+              f'{items}')
+        check('I2 get_external_port 优先外部端口',
+              network.get_external_port() == 8443, str(network.get_external_port()))
+        check('I3 get_external_host 返回配置',
+              network.get_external_host() == 'ft.example.com', network.get_external_host())
+        check('I4 mDNS 地址用外部端口',
+              network.get_mdns_url().endswith('.local:8443'), network.get_mdns_url())
+        global_var.EXTERNAL_HOST = ''
+        global_var.EXTERNAL_PORT = 0
+        global_var.EXTERNAL_SCHEME = saved_scheme
+        check('I5 清空外部配置回退内部端口',
+              network.get_external_port() == 5010 and network.get_external_host() == '',
+              str(network.get_external_port()))
+        global_var.EXTERNAL_HOST = saved_host
+        global_var.EXTERNAL_PORT = saved_xport
     finally:
         global_var._user_config.clear()
         global_var._user_config.update(saved_cfg)

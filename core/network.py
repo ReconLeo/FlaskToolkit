@@ -162,7 +162,15 @@ def is_https_enabled() -> bool:
 
 
 def get_scheme() -> str:
-    """当前访问协议（https/http）。"""
+    """当前访问协议（https/http）。
+
+    优先级：EXTERNAL_SCHEME 显式声明（反向代理 TLS 终止场景，如 'https'）
+    > 直连自签名 HTTPS（SSL_CERT_FILE/SSL_KEY_FILE 均配置且存在）> http。
+    非法 EXTERNAL_SCHEME 值自动回退按证书判断。
+    """
+    external = str(getattr(global_var, 'EXTERNAL_SCHEME', '') or '').strip().lower()
+    if external in ('https', 'http'):
+        return external
     return 'https' if is_https_enabled() else 'http'
 
 
@@ -196,9 +204,23 @@ def get_ip_watch_interval() -> int:
         return 30
 
 
+def get_external_port() -> int:
+    """外部访问端口：EXTERNAL_PORT>0（反向代理场景，Nginx 监听端口）时用之，否则内部端口。"""
+    try:
+        p = int(getattr(global_var, 'EXTERNAL_PORT', 0) or 0)
+    except (TypeError, ValueError):
+        p = 0
+    return p if p > 0 else get_effective_port()
+
+
+def get_external_host() -> str:
+    """外部访问主机/域名（EXTERNAL_HOST 配置；反向代理场景分享地址输出外部入口）。"""
+    return str(getattr(global_var, 'EXTERNAL_HOST', '') or '').strip()
+
+
 def get_mdns_url(port=None) -> str:
-    """mDNS 主机名访问地址（http://<hostname>.local:port）。"""
-    port = port or get_effective_port()
+    """mDNS 主机名访问地址（scheme://<hostname>.local:port）。"""
+    port = port or get_external_port()
     return f"{get_scheme()}://{get_mdns_hostname()}.local:{port}"
 
 
@@ -209,10 +231,26 @@ def get_access_urls(port=None) -> list:
     - mdns：mDNS 开启时置顶（链接不随 IP 变化，优先分享）
     - 绑定 127.0.0.1 仅本机时：只返回本机地址（kind=local，提示需开启共享）
     - 绑定 0.0.0.0 / 具体 IP：返回全部可达 IP（kind=lan，去重）
+    - EXTERNAL_HOST 配置（反向代理场景）：置顶返回外部入口（kind=external，host/端口取外部配置）
     """
-    port = port or get_effective_port()
+    port = port or get_external_port()
     scheme = get_scheme()
+    external_host = get_external_host()
     items = []
+
+    if external_host:
+        # 反向代理：分享地址输出外部入口（内部地址对外不可达）
+        items.append({'label': '外部地址',
+                      'url': f'{scheme}://{external_host}:{port}',
+                      'kind': 'external'})
+        if is_mdns_enabled():
+            items.append({'label': 'mDNS 主机名', 'url': get_mdns_url(port), 'kind': 'mdns'})
+        seen, result = set(), []
+        for it in items:
+            if it['url'] not in seen:
+                seen.add(it['url'])
+                result.append(it)
+        return result
 
     if is_mdns_enabled():
         items.append({'label': 'mDNS 主机名', 'url': get_mdns_url(port), 'kind': 'mdns'})

@@ -111,5 +111,6 @@
   "清理全部": "Purge All",
   "清理临时数据": "Clean temporary data for",
   "清理全部数据": "Purge all data for",
-  "清理失败": "Cleanup failed"
+  "清理失败": "Cleanup failed",
+  "开启后可用 {scheme}://<主机名>.local:端口 访问，例如 flasktoolkit.local": "When enabled, visit {scheme}://<hostname>.local:port — e.g. flasktoolkit.local"
 }

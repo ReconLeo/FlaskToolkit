@@ -70,7 +70,7 @@
             <div class="toggle-row">
                 <div>
                     <div><strong>mDNS 主机名（{{ t('IP 变了链接不变') }}）</strong></div>
-                    <div class="net-hint">{{ t('开启后可用 http://<主机名>.local:端口 访问，例如 flasktoolkit.local') }}</div>
+                    <div class="net-hint">{{ t('开启后可用 {scheme}://<主机名>.local:端口 访问，例如 flasktoolkit.local', scheme=scheme) }}</div>
                     <div id="mdnsErr" class="notice-warn" style="display:none;"></div>
                 </div>
                 <label class="switch"><input type="checkbox" id="mdnsChk" onchange="setMdns(this.checked)"><span class="slider"></span></label>

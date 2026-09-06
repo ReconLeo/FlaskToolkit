@@ -49,7 +49,8 @@ for attr, val in (('BASE_DIR', _isolated), ('UPLOAD_TEMP_DIR', os.path.join(_iso
                   ('PLUGIN_CONFIGS_DIR', os.path.join(_isolated, 'plugins', 'configs')),
                   ('FRONTEND_CONFIG_FILE', os.path.join(_isolated, 'frontend_tools.json')),
                   ('FRONTEND_TEMPLATE_DIR', os.path.join(_isolated, 'templates', 'frontend_tools')),
-                  ('USER_CONFIG_FILE', os.path.join(_isolated, 'user_config.json'))):
+                  ('USER_CONFIG_FILE', os.path.join(_isolated, 'user_config.json')),
+                  ('AUDIT_LOG_FILE', os.path.join(_isolated, 'audit.log'))):
     _SAVED[attr] = getattr(global_var, attr, None)
     setattr(global_var, attr, val)
 
@@ -316,6 +317,24 @@ def main():
     check('network config 空更新 400', r.status_code == 400, f'{r.status_code}')
     r = client.post('/api/admin/network/config', json={'UNKNOWN_KEY': 1})
     check('network config 未知键 400', r.status_code == 400, f'{r.status_code}')
+
+    # ---------- 15. 反向代理头信任（apply_proxy_fix，v4.12） ----------
+    saved_wsgi = appmod.app.wsgi_app
+    saved_tph = global_var.TRUST_PROXY_HEADERS
+    try:
+        global_var.TRUST_PROXY_HEADERS = True
+        ok = appmod.apply_proxy_fix(appmod.app)
+        check('proxyfix 开启时返回 True 且包装 wsgi_app',
+              ok is True and type(appmod.app.wsgi_app).__name__ == 'ProxyFix',
+              f'{ok} / {type(appmod.app.wsgi_app).__name__}')
+        # 包装后 X-Forwarded-Proto 生效：访问 network API（静态 scheme 不受请求头影响），
+        # 但可验证 ProxyFix 已接线——直接调用包装后的 wsgi_app 由 Werkzeug 负责，此处验证包装本身
+        global_var.TRUST_PROXY_HEADERS = False
+        ok2 = appmod.apply_proxy_fix(appmod.app)
+        check('proxyfix 关闭时返回 False 不重复包装', ok2 is False, f'{ok2}')
+    finally:
+        global_var.TRUST_PROXY_HEADERS = saved_tph
+        appmod.app.wsgi_app = saved_wsgi
 
 if __name__ == '__main__':
     try:

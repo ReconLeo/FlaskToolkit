@@ -626,6 +626,8 @@ def register(app):
             'hostname': net_mod.get_hostname(),
             'binding_host': net_mod.get_binding_host(),
             'effective_port': net_mod.get_effective_port(),
+            'external_port': net_mod.get_external_port(),
+            'external_host': net_mod.get_external_host(),
             'scheme': net_mod.get_scheme(),
             'lan_addresses': net_mod.get_lan_addresses(),
             'access_urls': net_mod.get_access_urls(),
@@ -802,7 +804,8 @@ def register(app):
     @admin_api
     def admin_network():
         """管理后台：网络与访问（v4.11 Reachability，共享入口）"""
-        return _admin_page('admin/network.html', 'network')
+        from core import network as net_mod
+        return _admin_page('admin/network.html', 'network', scheme=net_mod.get_scheme())
 
     @app.route('/debug/plugin-list')
     def debug_plugin_list():

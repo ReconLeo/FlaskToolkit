@@ -131,6 +131,52 @@ def on_server_shutdown(signal_num=None, frame=None):
     # 强制终止进程，避免Flask/scheduler继续运行
     os._exit(0)  # 见 on_server_shutdown 注释：atexit 中 sys.exit 会打印警告并可能污染退出码
  
+# ==================== HTTPS / 反向代理支持（v4.12） ====================
+
+def apply_proxy_fix(app):
+    """反向代理头信任：TRUST_PROXY_HEADERS=true 时注册 Werkzeug ProxyFix。
+
+    信任 X-Forwarded-Proto（request.scheme）/ X-Forwarded-For（request.remote_addr，
+    审计日志与登录锁定 IP 归因恢复真实客户端）/ X-Forwarded-Host。
+    仅可信代理（内网 Nginx 等）后方可开启，避免伪造转发头。
+    返回是否已注册（供测试断言与日志）。
+    """
+    if not getattr(global_var, 'TRUST_PROXY_HEADERS', False):
+        return False
+    from werkzeug.middleware.proxy_fix import ProxyFix
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+    return True
+
+
+def validate_ssl_cert(cert, key):
+    """起服前校验证书/私钥：PEM 可读性与配对匹配。
+
+    返回 (ok: bool, expired: bool, message: str)。证书无效/不匹配时返回
+    (False, False, 原因)——启动段据此友好报错退出，避免 app.run 内部
+    ssl.SSLError 裸崩溃；有效期过期时 expired=True 仅警告不阻断（浏览器会
+    提示，本地自签名证书用户自知）。
+    """
+    try:
+        import ssl
+        ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        ctx.load_cert_chain(cert, key)
+    except Exception as e:
+        return False, False, f'证书或私钥无效/不匹配（{e}）'
+    # 有效期尽力校验（_test_decode_cert 为 CPython 私有 API，失败即跳过不阻断）
+    try:
+        import ssl as _ssl
+        import datetime
+        der = _ssl._ssl._test_decode_cert(cert)
+        not_after = der.get('notAfter', '')
+        if not_after:
+            exp = datetime.datetime.strptime(not_after, '%b %d %H:%M:%S %Y GMT')
+            if exp < datetime.datetime.utcnow():
+                return True, True, f'证书已于 {not_after} 过期（浏览器将拒绝访问，请重新生成）'
+    except Exception:
+        pass
+    return True, False, ''
+
+
 # 注册停止钩子
 atexit.register(on_server_shutdown)
 # 捕获系统停止信号
@@ -236,12 +282,22 @@ if __name__ == '__main__':
     _dbg_env = os.environ.get('FLASKTOOLKIT_DEBUG', '').strip().lower()
     debug_mode = (_dbg_env in ('1', 'true', 'yes', 'on')) if _dbg_env else bool(_ucfg.get('DEBUG'))
     app.debug = debug_mode  # 同步 app.debug，影响模板自动重载等
+    # 反向代理头信任（v4.12）：TLS 在 Nginx 等代理终止时开启，scheme 与客户端 IP 归因恢复
+    if apply_proxy_fix(app):
+        app.logger.info("已启用反向代理头信任（TRUST_PROXY_HEADERS=true，X-Forwarded-Proto/For/Host）", extra={'plugin': 'system'})
+
     # HTTPS 支持（v4.5.0）：SSL_CERT_FILE/SSL_KEY_FILE 均配置且文件存在时启用 HTTPS（默认 HTTP）
     ssl_context = None
     ssl_cert = global_var.SSL_CERT_FILE
     ssl_key = global_var.SSL_KEY_FILE
     if ssl_cert and ssl_key:
         if os.path.exists(ssl_cert) and os.path.exists(ssl_key):
+            _ok, _expired, _msg = validate_ssl_cert(ssl_cert, ssl_key)
+            if not _ok:
+                print(f"[HTTPS] 配置错误：{_msg}。请用 tools/gen_cert.py 重新生成或检查路径后重试。", flush=True)
+                sys.exit(1)
+            if _expired:
+                app.logger.warning(_msg, extra={'plugin': 'system'})
             ssl_context = (ssl_cert, ssl_key)
             app.logger.info(f"服务启动地址: https://{host}:{port} (HTTPS, debug={debug_mode})", extra={'plugin': 'system'})
         else:

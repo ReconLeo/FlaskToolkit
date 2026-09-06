@@ -67,6 +67,13 @@ AUDIT_HOOK_MODE = 'observe'
 # HTTPS 支持（默认 HTTP）：配置证书与私钥 PEM 路径后启用 HTTPS（见 tools/gen_cert.py 生成自签名证书）
 SSL_CERT_FILE = ''
 SSL_KEY_FILE = ''
+# 反向代理支持（v4.12）：TRUST_PROXY_HEADERS=信任 X-Forwarded-Proto/For/Host（仅可信代理）；
+# EXTERNAL_SCHEME=外部访问协议（''=按证书自动判断 / https / http，TLS 在代理终止时设 https）；
+# EXTERNAL_HOST/EXTERNAL_PORT=外部访问域名/端口（反代场景分享地址输出外部入口，空=自动按本机推导）
+TRUST_PROXY_HEADERS = False
+EXTERNAL_SCHEME = ''
+EXTERNAL_HOST = ''
+EXTERNAL_PORT = 0
 
 # ------------------------------ 用户可配置项（由 CLI 工具 tools/config.py 管理） ------------------------------
 # key -> {default, kind, desc}
@@ -149,6 +156,14 @@ CONFIG_ITEMS = {
                       'desc': 'HTTPS 证书 PEM 文件路径（配置后启用 HTTPS；生成自签名证书见 tools/gen_cert.py）'},
     'SSL_KEY_FILE': {'default': '', 'kind': 'path',
                      'desc': 'HTTPS 私钥 PEM 文件路径（与 SSL_CERT_FILE 配对，均配置才启用 HTTPS）'},
+    'TRUST_PROXY_HEADERS': {'default': False, 'kind': 'bool',
+                            'desc': '反向代理头信任（v4.12，TLS 在 Nginx 等代理终止时开启；信任 X-Forwarded-Proto/For/Host，仅可信代理后方可开启）'},
+    'EXTERNAL_SCHEME': {'default': '', 'kind': 'str',
+                        'desc': '外部访问协议（v4.12，空=按 SSL_CERT 自动判断；反向代理 TLS 终止场景设 https，使分享链接/二维码/横幅正确）'},
+    'EXTERNAL_HOST': {'default': '', 'kind': 'str',
+                      'desc': '外部访问主机名/域名（v4.12，反向代理场景分享地址输出外部入口；空=自动按本机 IP 推导）'},
+    'EXTERNAL_PORT': {'default': 0, 'kind': 'int',
+                      'desc': '外部访问端口（v4.12，反向代理场景设 Nginx 监听端口如 8443；0=使用内部端口）'},
 }
 
 USER_CONFIG_FILE = os.path.join(BASE_DIR, 'data', 'user_config.json')
