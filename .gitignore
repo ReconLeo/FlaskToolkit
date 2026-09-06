@@ -75,3 +75,8 @@ Thumbs.db
 *.swp
 workspace/
 releases/
+
+# 压力/多机归因测试诊断与临时产物（代码模板入库，诊断不入库）
+test_server/diagnostics/
+test_server/certs/
+test_server/fixtures/echo_upload.zip
