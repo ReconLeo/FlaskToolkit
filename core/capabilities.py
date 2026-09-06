@@ -558,19 +558,23 @@ def get_storage_limit_mb(plugin_name):
     return min(limits) if limits else None
 
 
-def get_write_dirs(plugin_name, base_dir=None):
+def get_write_dirs(plugin_name, base_dir=None, capabilities=None):
     """插件 filesystem:write 声明的路径 → 绝对路径列表（供配额目录推导）。
 
     - 相对路径（相对项目根 base_dir）与绝对路径均支持；
     - `**` / `*` 通配（目录级授权）剥离为目录前缀；
     - 自属目录（plugins/data/<name>/、plugins/temp/<name>/）由配额模块另行加入，
-      此处仅返回声明路径中位于自属目录之外的（避免重复计数不影响，但语义清晰）。
+      此处仅返回声明路径中位于自属目录之外的（避免重复计数不影响，但语义清晰）；
+    - capabilities 为 None 时读运行时注册表（插件加载后）；显式传入原始声明列表时
+      直接解析（离线场景：从 plugins/<name>.json 描述文件读取 capabilities 字段）。
     """
     if base_dir is None:
         base_dir = global_var.BASE_DIR
-    cset = get_capability_set(plugin_name)
-    if not cset:
-        return []
+    if capabilities is None:
+        cset = get_capability_set(plugin_name)
+        caps_list = cset.get('valid', []) if cset else []
+    else:
+        caps_list = parse_capabilities(capabilities).get('valid', [])
     out = []
     own = {
         _norm_path(os.path.join(base_dir, 'plugins', 'data', str(plugin_name))),
@@ -582,7 +586,7 @@ def get_write_dirs(plugin_name, base_dir=None):
             p = p[:-1]
         return p.rstrip('/')
 
-    for cap in cset.get('valid', []):
+    for cap in caps_list:
         if cap.get('domain') == 'filesystem' and cap.get('sub') == 'write' and cap.get('param'):
             raw = cap['param']
             p = _strip_all_glob(_norm_path(raw))

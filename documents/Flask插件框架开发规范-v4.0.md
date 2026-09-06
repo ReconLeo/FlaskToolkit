@@ -5,7 +5,7 @@
 
 ## 版本：v4.10.0（Accessibility：能力可达性，开发中） | 更新日期：2026年09月06日
 
-### 版本说明（v4.10.0 变更，M1-M6 已完成，M7 版本收尾待做）
+### 版本说明（v4.10.0 变更，M1-M6 + M6-Extra 已完成，M7 版本收尾待做）
 面向个人用户/局域网用户的**能力可达性**主题更新（计划 6 模块，第一批已落地）：
 1. **插件第三方依赖独立声明（M1，pip_dependencies）**：`dependencies` 语义收窄为**仅插件依赖**；
    新增 `pip_dependencies` 独立字段（plugin.json / 类属性 / AST 提取 / 描述一致性冲突与兜底），
@@ -31,8 +31,10 @@
 
 5. **邀请码自助注册（M5）**：auth 插件新增 `ALLOW_REGISTER` 配置（默认关，管理员经 /api/auth/config 开关，boolean 走 validate_params）；一次性邀请码（FTK-XXXXXXXX-XXXX，secrets.token_hex，存 plugins/data/auth/invite_codes.json，used_by 标记一次性消费）；用户 `status` 字段 pending/active（on_load 老数据缺省 active）；`/register` 页面（?code= 自动填充邀请码），有邀请码注册即 active（免审核），无邀请码进 pending 待管理员审核；login 拦截 pending（403 "账号待管理员审核，请稍后再试"）；user_manage 新增待审列表 / 通过 / 拒绝 / 邀请码生成 / 复制注册链接 / 撤销 6 个管理 API（require_role admin，register_url 拼接返回）；login.html 注册入口（仅 ALLOW_REGISTER 开启时显示）。新增 tests/test_register.py 25 项。
 6. **插件脚手架 + 离线安装（M6）**：`tools/scaffold.py` 生成标准骨架——backend（plugin.json + BasePlugin 主 .py + 可选 templates/static）、frontend（config.json + 入口 html + 可选 static），产出目录可直接 package.py 打包；`tools/install_plugin.py` 不跑框架时手动安装——backend（完整性校验 / 描述一致性 / 框架版本 / 静态扫描门禁 → extract_plugin_pack 安全解压 + installed_files 落盘 → 缺失 pip 依赖提示与 pip install 命令）、frontend（config.json/入口 html 校验 → safe_extract_frontend → frontend_tools.json 注册）；同名拒绝 / --update 升级（版本不低于已装，拒绝降级）；`list` 子命令离线查看；`--base` 指定框架根。新增 tests/test_scaffold_tools.py 39 项。
-- **回归测试扩充至 28 脚本 713 项**：新增 `tests/test_setup.py` 17 项（向导 10 + 改密 7，隔离目录全路径 mock）、`tests/test_register.py` 25 项（自助注册 + 邀请码 + 审核，隔离目录）与 `tests/test_scaffold_tools.py` 39 项（脚手架 + 离线安装闭环，subprocess 驱动 CLI）；AirDrop 插件加载回归（`test_airdrop_loader.py` 8 项，routes @property 修复）已随 AirDrop 插件移交子项目维护（见子项目 `FlaskToolkit-插件测试交接说明.md`），不入主仓库。
-  `tests/test_pack_meta.py` 19→22（pip_dependencies）；`tests/test_admin_api.py` 28→36（能力预览/确认两段式）；
+
+7. **离线卸载 + 单插件空间清理（M6-Extra）**：框架核心新增 `cleanup_plugin_data(plugin_name, include_data)`——临时目录（`plugins/temp/<name>/`）与全部数据（`plugins/data/<name>/` + 临时目录 + capabilities `filesystem:write` 声明的自定义写目录，如 AirDrop 的 `uploads/`；离线场景自动从描述文件解析，`get_write_dirs` 新增 capabilities 参数支持离线解析）；后台新增 `POST /api/admin/plugins/<name>/purge-data`（scope=temp/all，管理员在线清理，含配额缓存失效）；`tools/install_plugin.py` 新增 `uninstall backend|frontend <name> [--purge-data]` 离线卸载（按 installed_files 清单删除引入文件 + 配置，内置插件受保护；--purge-data 级联清理数据空间；离线不执行 on_uninstall 钩子）；`factory_reset` plugins 范围补漏——一并清理非内置插件数据目录（plugins/data/<name>/）。tests/test_scaffold_tools.py 39→53、tests/test_admin_api.py 36→44、tests/test_factory_reset.py 37→39。
+- **回归测试扩充至 28 脚本 737 项**：新增 `tests/test_setup.py` 17 项（向导 10 + 改密 7，隔离目录全路径 mock）、`tests/test_register.py` 25 项（自助注册 + 邀请码 + 审核，隔离目录）与 `tests/test_scaffold_tools.py` 53 项（脚手架 + 离线安装/卸载闭环，subprocess 驱动 CLI）；AirDrop 插件加载回归（`test_airdrop_loader.py` 8 项，routes @property 修复）已随 AirDrop 插件移交子项目维护（见子项目 `FlaskToolkit-插件测试交接说明.md`），不入主仓库。
+  `tests/test_pack_meta.py` 19→22（pip_dependencies）；`tests/test_admin_api.py` 28→36（能力预览/确认两段式），36→44（purge-data 单插件空间清理）；
   `tests/test_framework_fixes.py` 9→12（调试页权限 E1-E3）；`tests/test_error_pages.py` 修复隔离环境
   PLUGIN_CACHE_FILE 串扰 + sys.modules plugins 残留（真实 `.plugin_cache` 曾被污染为 0 插件）；
   `tests/test_permission.py` A3 适配向导守卫。
@@ -1092,8 +1094,8 @@ FLASKTOOLKIT_HOST=0.0.0.0 FLASKTOOLKIT_PORT=8000 python app.py
 | `test_meta_e2e.py` | 插件包元信息端到端（上传/冲突/已存在/update 刷新/降级拒绝/require 拒绝，隔离目录模式可重复运行） | 10 项 |
 | `test_frontend_zip_slip.py` | 前端工具包安全解压 zip slip 专项（`..`/绝对路径/盘符拒绝 + 正常落位 + clean_static 更新清理 + 卸载资源清理） | 21 项 |
 | `test_frontend_chain.py` | 前端工具上传/更新/卸载端到端（含页面/静态资源渲染、clean_static、413 上传大小限制） | 23 项 |
-| `test_admin_api.py` | 管理端 API 单测（system/info、plugins、stats、logs、factory-reset scope 校验、上传 413/400、空间管理、能力预览两段式 v4.10） | 36 项 |
-| `test_factory_reset.py` | Factory Reset 范围测试（部分/全部删除与保留、内置插件保护、空/非法 scope 无副作用） | 37 项 |
+| `test_admin_api.py` | 管理端 API 单测（system/info、plugins、stats、logs、factory-reset scope 校验、上传 413/400、空间管理、能力预览两段式、单插件空间清理 purge-data v4.10） | 44 项 |
+| `test_factory_reset.py` | Factory Reset 范围测试（部分/全部删除与保留、内置插件保护、插件数据目录清理 v4.10 M6-Extra、空/非法 scope 无副作用） | 39 项 |
 | `test_error_pages.py` | 统一错误码页面渲染（404/405 真实触发 + 400/401/403/500 模板，双环境无 auth/带 auth） | 12 项 |
 | `test_package_sign.py` | 插件包完整性校验与签名专项（篡改/加料/缺失检测、签名验证、strict/warn/off 模式、路由集成） | 22 项 |
 | `test_plugin_cleanup.py` | 插件卸载 installed_files 清单专项（多 .py 包安装清单完整/卸载全清/clean_old 更新清理/越界路径防御） | 23 项 |
@@ -1121,8 +1123,8 @@ python tests/test_reload_race.py      # 1 项
 python tests/test_meta_e2e.py         # 10 项（隔离目录模式）
 python tests/test_frontend_zip_slip.py# 21 项
 python tests/test_frontend_chain.py   # 23 项（前端工具链路，隔离目录）
-python tests/test_admin_api.py        # 36 项（管理端 API，隔离目录）
-python tests/test_factory_reset.py    # 37 项（Factory Reset 范围，隔离目录）
+python tests/test_admin_api.py        # 44 项（管理端 API + purge-data，隔离目录）
+python tests/test_factory_reset.py    # 39 项（Factory Reset 范围，隔离目录）
 python tests/test_error_pages.py      # 12 项（错误码页面，隔离目录）
 python tests/test_package_sign.py     # 22 项（完整性校验/签名，隔离目录）
 python tests/test_plugin_cleanup.py    # 23 项（插件卸载 installed_files 清单，隔离目录）
@@ -1140,8 +1142,8 @@ python tests/test_i18n.py                  # 28 项（i18n 回归 v4.9.0，隔�
 python tests/test_data_limit.py            # 32 项（插件数据配额回归 v4.9.0-4.9.2，隔离目录）
 python tests/test_setup.py             # 17 项（首次运行向导 + 强制改密 v4.10，隔离目录）
 python tests/test_register.py             # 25 项（自助注册 + 邀请码 + 审核 v4.10 M5，隔离目录）
-python tests/test_scaffold_tools.py  # 39 项（M6 脚手架 + 离线安装闭环，subprocess 驱动 CLI，隔离目录）
-# 合计 28 个脚本 713 项
+python tests/test_scaffold_tools.py  # 53 项（M6 脚手架 + 离线安装/卸载闭环，subprocess 驱动 CLI，隔离目录）
+# 合计 28 个脚本 737 项
 # （AirDrop 插件加载回归 test_airdrop_loader.py 8 项已移交 AirDrop 子项目维护，不入主仓库）
 ```
 

@@ -12,6 +12,8 @@
 用法：
   python tools/install_plugin.py backend demo_plugin.zip [--update] [--no-scan]
   python tools/install_plugin.py frontend my_tool.zip [--update] [--no-scan]
+  python tools/install_plugin.py uninstall backend demo_plugin [--purge-data]
+  python tools/install_plugin.py uninstall frontend my_tool [--purge-data]
   python tools/install_plugin.py list
   # 指定框架根（默认脚本上级目录，即本仓库根）：
   python tools/install_plugin.py backend demo_plugin.zip --base /path/to/FlaskToolkit
@@ -20,6 +22,9 @@
 - 安装/更新后插件在下次启动框架时自动加载（本工具不启动服务）。
 - 同名插件存在时需 --update（按旧 installed_files 清单清理旧文件后解压新包）；
   --update 仅当包内 plugin.json 版本不低于已装版本时执行。
+- 卸载（uninstall，v4.10 M6-Extra）：按 installed_files 清单删除插件引入文件 +
+  配置；--purge-data 一并清理插件全部数据（plugins/data/ + plugins/temp/ + capabilities
+  filesystem:write 声明目录）。离线卸载不执行插件 on_uninstall 钩子；内置插件受保护。
 - 静态扫描默认按 PLUGIN_SCAN_MODE（off/report/enforce）执行；--no-scan 完全跳过。
 
 退出码：0 = 成功；1 = 参数/校验/IO 错误。
@@ -39,10 +44,11 @@ logging.getLogger('flask.app').setLevel(logging.ERROR)
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import global_var  # noqa: E402
-from core.plugin_pack import (extract_plugin_pack, parse_plugin_pack,  # noqa: E402
-                              compare_versions, check_framework_version)
+from core.plugin_pack import (cleanup_plugin_data, cleanup_plugin_resources,  # noqa: E402
+                              compare_versions, check_framework_version,
+                              extract_plugin_pack, parse_plugin_pack)
 from core.package_sign import verify_package  # noqa: E402
-from routes.frontend import safe_extract_frontend  # noqa: E402
+from routes.frontend import cleanup_frontend_resources, safe_extract_frontend  # noqa: E402
 from core.frontend_tools import load_frontend_tools  # noqa: E402
 from core.plugin_scanner import scan_plugin_zip, scan_frontend_zip, should_block  # noqa: E402
 
@@ -302,8 +308,57 @@ def cmd_list(base: str) -> int:
     return 0
 
 
+# ---------------- uninstall ----------------
+
+def uninstall_backend(args, base: str) -> int:
+    name = args.name
+    if name in global_var.BUILTIN_PLUGINS:
+        print(f"错误：内置插件 {name} 受保护，不允许卸载", file=sys.stderr)
+        return 1
+    plugin_file = os.path.join(base, 'plugins', f'{name}.py')
+    if not os.path.isfile(plugin_file):
+        print(f"错误：插件 {name} 不存在（plugins/{name}.py）", file=sys.stderr)
+        return 1
+
+    removed = []
+    # 1. 数据空间（--purge-data 时先清理：此时描述文件仍在，可解析 capabilities
+    #    filesystem:write 声明目录；随后文件删除会移除描述文件）
+    if args.purge_data:
+        removed += cleanup_plugin_data(name, include_data=True, base_dir=base)
+        data_note = ''
+    else:
+        data_note = '（--purge-data 可一并清理 plugins/data/<name>/、临时目录与 filesystem:write 声明目录）'
+    # 2. 主文件 + installed_files 清单引入的全部文件（含描述文件/模板/静态）
+    os.remove(plugin_file)
+    removed.append(plugin_file)
+    removed += cleanup_plugin_resources(name)
+    # 3. 插件配置
+    cfg = os.path.join(global_var.PLUGIN_CONFIGS_DIR, f'{name}.json')
+    if os.path.isfile(cfg):
+        os.remove(cfg)
+        removed.append(cfg)
+
+    print(f"[OK] 插件 {name} 已卸载（清理 {len(removed)} 项；离线卸载不执行 on_uninstall 钩子，启动框架后自动从列表移除）")
+    print(f"      {data_note}" if data_note else "      数据空间已随卸载清理")
+    return 0
+
+
+def uninstall_frontend(args, base: str) -> int:
+    name = args.name
+    tools = _load_frontend_config(base)
+    existing = next((t for t in tools if t['name'] == name), None)
+    if not existing:
+        print(f"错误：前端工具 {name} 不存在（未注册）", file=sys.stderr)
+        return 1
+    removed = cleanup_frontend_resources(name)
+    tools = [t for t in tools if t['name'] != name]
+    _save_frontend_config(base, tools)
+    print(f"[OK] 前端工具 {name} 已卸载（清理 {len(removed)} 项；前端工具无数据目录）")
+    return 0
+
+
 def main():
-    ap = argparse.ArgumentParser(description='FlaskToolkit 插件手动安装 CLI（不跑框架时离线安装/查看）')
+    ap = argparse.ArgumentParser(description='FlaskToolkit 插件手动安装/卸载 CLI（不跑框架时离线操作）')
     common = argparse.ArgumentParser(add_help=False)
     common.add_argument('--base', default=None, help='FlaskToolkit 框架根（缺省取本脚本上级目录）')
     sub = ap.add_subparsers(dest='action', required=True, help='backend=后端插件 / frontend=前端工具 / list=查看')
@@ -318,6 +373,16 @@ def main():
     p_frontend.add_argument('--update', action='store_true', help='更新模式（清理旧静态资源后重装）')
     p_frontend.add_argument('--no-scan', action='store_true', help='跳过静态扫描门禁')
 
+    p_uninstall = sub.add_parser('uninstall', parents=[common], help='卸载插件/前端工具（离线）')
+    un_sub = p_uninstall.add_subparsers(dest='un_kind', required=True, help='backend=后端插件 / frontend=前端工具')
+    un_b = un_sub.add_parser('backend', parents=[common], help='卸载后端插件')
+    un_b.add_argument('name', help='插件名')
+    un_b.add_argument('--purge-data', action='store_true',
+                      help='一并清理插件全部数据（plugins/data/ + 临时 + filesystem:write 声明目录）')
+    un_f = un_sub.add_parser('frontend', parents=[common], help='卸载前端工具')
+    un_f.add_argument('name', help='工具名')
+    un_f.add_argument('--purge-data', action='store_true', help='前端工具无数据目录，无效果（保留参数一致）')
+
     sub.add_parser('list', parents=[common], help='列出已安装插件与前端工具')
 
     args = ap.parse_args()
@@ -327,6 +392,9 @@ def main():
             code = install_backend(args, base)
         elif args.action == 'frontend':
             code = install_frontend(args, base)
+        elif args.action == 'uninstall':
+            code = (uninstall_backend(args, base) if args.un_kind == 'backend'
+                    else uninstall_frontend(args, base))
         else:
             code = cmd_list(base)
     except ValueError as e:

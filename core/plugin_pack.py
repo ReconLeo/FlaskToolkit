@@ -360,6 +360,59 @@ def cleanup_plugin_resources(plugin_name: str) -> list:
     return removed
 
 
+def cleanup_plugin_data(plugin_name: str, include_data: bool = False, base_dir: str = None) -> list:
+    """清理单插件空间（v4.10 M6-Extra：单插件空间清理）。
+
+    层级（scope）：
+    - 临时目录（include_data=False，默认）：`plugins/temp/<name>/`
+    - 全部数据（include_data=True）：`plugins/data/<name>/` + `plugins/temp/<name>/`
+      + capabilities `filesystem:write` 声明的自定义写目录（如 AirDrop 的 `uploads/`，
+      通配 `**` 剥离为目录前缀）；离线场景（注册表为空）自动从
+      `plugins/<name>.json` 描述文件的 capabilities 字段解析。
+
+    不触碰插件代码/模板/配置（plugins/configs/<name>.json 保留，重装后可复用）。
+    返回清理路径列表；目标不存在时返回 []。
+    """
+    base = os.path.abspath(base_dir or global_var.BASE_DIR)
+    base_nc = os.path.normcase(base)
+    removed = []
+
+    # 1. 临时目录（始终清理）
+    temp_dir = os.path.join(base, 'plugins', 'temp', str(plugin_name))
+    if os.path.isdir(temp_dir):
+        shutil.rmtree(temp_dir, ignore_errors=True)
+        removed.append(temp_dir)
+
+    if include_data:
+        # 2. 数据目录
+        data_dir = os.path.join(base, 'plugins', 'data', str(plugin_name))
+        if os.path.isdir(data_dir):
+            shutil.rmtree(data_dir, ignore_errors=True)
+            removed.append(data_dir)
+        # 3. capabilities filesystem:write 声明的自定义写目录
+        try:
+            from core import capabilities as caps_mod
+            caps = None
+            meta_file = os.path.join(base, 'plugins', f'{plugin_name}.json')
+            if os.path.isfile(meta_file):
+                caps = caps_mod.load_capabilities_from_desc(meta_file)
+            for d in caps_mod.get_write_dirs(str(plugin_name), base_dir=base, capabilities=caps):
+                p = os.path.abspath(d)
+                p_nc = os.path.normcase(p)
+                # 安全护栏：仅删除项目根内路径（normcase 比较防 Windows 盘符/大小写差异），
+                # 且跳过已处理的自属目录（get_write_dirs 已排除，此处防御性再校验）
+                if p_nc == base_nc or not p_nc.startswith(base_nc + os.sep):
+                    continue
+                if p_nc in (os.path.normcase(temp_dir), os.path.normcase(data_dir)):
+                    continue
+                if os.path.isdir(p):
+                    shutil.rmtree(p, ignore_errors=True)
+                    removed.append(p)
+        except Exception:
+            pass
+    return removed
+
+
 def check_framework_version(require: str, framework: str = None) -> tuple:
     """
     校验插件的最低框架版本要求（可选字段，未声明则放行）。

@@ -78,6 +78,15 @@ def reset_custom_plugins(results: dict):
                     continue
                 _safe_remove(os.path.join(full, sub), results, f'插件临时 {sub}')
 
+    # 插件数据目录 plugins/data/<name>/（非内置，v4.10 M6-Extra 补漏：
+    # 深度重置 plugins 范围同样清空插件运行时数据，与单插件空间清理语义一致）
+    data_root = os.path.join(base, 'plugins', 'data')
+    if os.path.isdir(data_root):
+        for fn in sorted(os.listdir(data_root)):
+            if fn in global_var.BUILTIN_PLUGINS:
+                continue
+            _safe_remove(os.path.join(data_root, fn), results, f'插件数据 {fn}')
+
     # templates/plugins 非内置模板与静态资源
     tpl_root = os.path.join(base, 'templates', 'plugins')
     if os.path.isdir(tpl_root):

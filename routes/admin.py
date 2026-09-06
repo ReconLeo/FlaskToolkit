@@ -15,8 +15,9 @@ from core.package_sign import verify_package
 from core.permission import admin_api
 from core.plugin_cache import compute_directory_fingerprint, load_plugin_cache
 from core.plugin_loader import load_plugins
-from core.plugin_pack import (cleanup_plugin_resources, compare_versions,
-                              extract_plugin_pack, parse_plugin_pack)
+from core.plugin_pack import (cleanup_plugin_data, cleanup_plugin_resources,
+                              compare_versions, extract_plugin_pack, parse_plugin_pack)
+from core.quota import invalidate_cache as invalidate_quota_cache
 from core.plugin_status import load_plugin_status, save_plugin_status
 from core.audit import log_audit
 from core.utils import check_upload_size, secure_filename_cn
@@ -163,6 +164,27 @@ def register(app):
             return jsonify({"code": 200, "message": f"插件 {plugin_name} 已卸载"})
         except Exception as e:
             return jsonify({"code": 500, "message": f"卸载失败: {str(e)}"}), 500
+
+    @app.route('/api/admin/plugins/<plugin_name>/purge-data', methods=['POST'])
+    @admin_api
+    def purge_plugin_data(plugin_name):
+        """清理单插件空间（v4.10 M6-Extra）：body {"scope": "temp"}（默认，临时目录）或 {"scope": "all"}（全部数据）
+        - temp：plugins/temp/<name>/
+        - all：plugins/data/<name>/ + plugins/temp/<name>/ + capabilities filesystem:write 声明目录
+        不删除插件代码/模板/配置。"""
+        plugin_file = os.path.join(global_var.BASE_DIR, 'plugins', f'{plugin_name}.py')
+        if not os.path.exists(plugin_file):
+            return jsonify({"code": 404, "message": "插件文件不存在"}), 404
+        body = request.get_json(silent=True) or {}
+        include_data = body.get('scope') == 'all'
+        removed = cleanup_plugin_data(plugin_name, include_data=include_data)
+        invalidate_quota_cache(plugin_name)
+        log_audit('插件数据清理', plugin_name, 'ok', f"scope={'all' if include_data else 'temp'}")
+        return jsonify({
+            "code": 200,
+            "message": f"已清理 {len(removed)} 项空间（{'全部数据' if include_data else '临时目录'}）",
+            "cleaned": [os.path.relpath(p, global_var.BASE_DIR).replace(os.sep, '/') for p in removed],
+        })
 
     @app.route('/api/admin/plugins/<plugin_name>/update', methods=['POST'])
     @admin_api

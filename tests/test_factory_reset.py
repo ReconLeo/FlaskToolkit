@@ -54,6 +54,7 @@ def make_tree(root):
         {"id": 1, "username": "admin", "password": "x", "role": "admin"}
     ]}))
     w(os.path.join(root, 'plugins', 'data', 'auth', 'sessions.json'), '{"s1": {}}')
+    w(os.path.join(root, 'plugins', 'data', 'demo_custom', 'f.json'), '{}')
     # plugins/temp：内置受保护子目录 + 自定义子目录
     w(os.path.join(root, 'plugins', 'temp', 'auth', 't'), 'x')
     w(os.path.join(root, 'plugins', 'temp', 'demo_custom', 't'), 'x')
@@ -137,6 +138,11 @@ def test_plugins_scope():
               not os.path.exists(os.path.join(root, 'plugins', 'temp', 'demo_custom')), '')
         check('plugins scope 保留内置插件临时目录',
               os.path.exists(os.path.join(root, 'plugins', 'temp', 'auth')), '')
+        # plugins/data（v4.10 M6-Extra）：自定义数据目录删、内置数据目录留
+        check('plugins scope 删自定义插件数据目录',
+              not os.path.exists(os.path.join(root, 'plugins', 'data', 'demo_custom')), '')
+        check('plugins scope 保留内置插件数据目录',
+              os.path.exists(os.path.join(root, 'plugins', 'data', 'auth')), '')
         # 其它范围数据不动
         check('plugins scope 不动 frontend_tools',
               os.path.exists(os.path.join(root, 'templates', 'frontend_tools', 'demo_tool.html')), '')

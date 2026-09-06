@@ -210,6 +210,62 @@ def main():
     check("H2 list 含后端插件", 'demo_tool' in out)
     check("H3 list 含前端工具", 'my_tool' in out)
 
+    # ================= I. uninstall（M6-Extra 离线卸载 + 单插件空间清理） =================
+    # 准备数据目录与 filesystem:write 声明（模拟带自定义写目录的插件）
+    os.makedirs(os.path.join(base, 'plugins', 'data', 'demo_tool'))
+    os.makedirs(os.path.join(base, 'plugins', 'temp', 'demo_tool'))
+    os.makedirs(os.path.join(base, 'uploads'))
+    open(os.path.join(base, 'plugins', 'data', 'demo_tool', 'f.json'), 'w').write('{}')
+    open(os.path.join(base, 'plugins', 'temp', 'demo_tool', 't'), 'w').write('x')
+    open(os.path.join(base, 'uploads', 'a.txt'), 'w').write('x')
+    meta = json.load(open(os.path.join(base, 'plugins', 'demo_tool.json'), encoding='utf-8'))
+    meta['capabilities'] = ['filesystem:write:uploads/**']
+    json.dump(meta, open(os.path.join(base, 'plugins', 'demo_tool.json'), 'w', encoding='utf-8'),
+              ensure_ascii=False, indent=2)
+
+    ok, code, out = run_cli('install_plugin.py', 'uninstall', 'backend', 'auth', '--base', base,
+                            expect_code=1)
+    check("I1 内置插件卸载保护", ok, f"code={code}")
+    ok, code, out = run_cli('install_plugin.py', 'uninstall', 'backend', 'demo_tool', '--base', base)
+    check("I2 uninstall backend 成功", ok, f"code={code}")
+    check("I3 默认卸载删除主文件", not os.path.exists(os.path.join(base, 'plugins', 'demo_tool.py')), '')
+    check("I4 默认卸载保留数据目录",
+          os.path.isdir(os.path.join(base, 'plugins', 'data', 'demo_tool')), '')
+    check("I5 默认卸载保留 write 声明目录", os.path.isdir(os.path.join(base, 'uploads')), '')
+
+    # 重新安装后测 --purge-data 完整清理
+    ok, code, out = run_cli('install_plugin.py', 'backend', os.path.join(work, 'demo_tool_v110.zip'),
+                            '--base', base)
+    check("I6 重装（供 purge 测试）成功", ok, f"code={code}")
+    os.makedirs(os.path.join(base, 'plugins', 'data', 'demo_tool'), exist_ok=True)
+    os.makedirs(os.path.join(base, 'plugins', 'temp', 'demo_tool'), exist_ok=True)
+    os.makedirs(os.path.join(base, 'uploads'), exist_ok=True)
+    open(os.path.join(base, 'plugins', 'data', 'demo_tool', 'f.json'), 'w').write('{}')
+    open(os.path.join(base, 'plugins', 'temp', 'demo_tool', 't'), 'w').write('x')
+    open(os.path.join(base, 'uploads', 'a.txt'), 'w').write('x')
+    meta = json.load(open(os.path.join(base, 'plugins', 'demo_tool.json'), encoding='utf-8'))
+    meta['capabilities'] = ['filesystem:write:uploads/**']
+    json.dump(meta, open(os.path.join(base, 'plugins', 'demo_tool.json'), 'w', encoding='utf-8'),
+              ensure_ascii=False, indent=2)
+
+    ok, code, out = run_cli('install_plugin.py', 'uninstall', 'backend', 'demo_tool', '--purge-data',
+                            '--base', base)
+    check("I7 uninstall --purge-data 成功", ok, f"code={code}")
+    check("I8 purge 清理数据目录", not os.path.exists(os.path.join(base, 'plugins', 'data', 'demo_tool')), '')
+    check("I9 purge 清理临时目录", not os.path.exists(os.path.join(base, 'plugins', 'temp', 'demo_tool')), '')
+    check("I10 purge 清理 write 声明目录", not os.path.exists(os.path.join(base, 'uploads')), '')
+
+    # frontend 卸载
+    ok, code, out = run_cli('install_plugin.py', 'uninstall', 'frontend', 'my_tool', '--base', base)
+    check("I11 uninstall frontend 成功", ok, f"code={code}")
+    check("I12 前端入口 html 删除",
+          not os.path.exists(os.path.join(base, 'templates', 'frontend_tools', 'my_tool.html')), '')
+    tools_after = json.load(open(os.path.join(base, 'data', 'frontend_tools.json'), encoding='utf-8'))
+    check("I13 前端注册清单移除", all(t['name'] != 'my_tool' for t in tools_after), '')
+    ok, code, out = run_cli('install_plugin.py', 'uninstall', 'frontend', 'my_tool', '--base', base,
+                            expect_code=1)
+    check("I14 二次卸载报错", ok, f"code={code}")
+
     print(f'\n==== M6 脚手架 + 手动安装工具回归：共 {len(results)} 项，'
           f'通过 {sum(1 for _, c, _ in results if c)}，'
           f'失败 {sum(1 for _, c, _ in results if not c)} ====')

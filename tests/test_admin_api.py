@@ -248,6 +248,37 @@ def main():
           check_upload_size(NoSeek(), 10) == 0, '')
 
 
+    # 13. purge-data（单插件空间清理，v4.10 M6-Extra）
+    p_dir = os.path.join(_isolated, 'plugins')
+    open(os.path.join(p_dir, 'purge_demo.py'), 'w').write('class P: pass\n')
+    open(os.path.join(p_dir, 'purge_demo.json'), 'w', encoding='utf-8').write(json.dumps(
+        {'name': 'purge_demo', 'capabilities': ['filesystem:write:purge_uploads/**']}))
+    os.makedirs(os.path.join(p_dir, 'data', 'purge_demo'))
+    os.makedirs(os.path.join(p_dir, 'temp', 'purge_demo'))
+    os.makedirs(os.path.join(_isolated, 'purge_uploads'))
+    open(os.path.join(p_dir, 'data', 'purge_demo', 'f.json'), 'w').write('{}')
+    open(os.path.join(p_dir, 'temp', 'purge_demo', 't'), 'w').write('x')
+    open(os.path.join(_isolated, 'purge_uploads', 'a.txt'), 'w').write('x')
+
+    r = client.post('/api/admin/plugins/purge_demo/purge-data', json={'scope': 'temp'})
+    check('purge-data scope=temp 200', r.status_code == 200, f'status={r.status_code}')
+    check('purge-data temp 清理临时目录',
+          not os.path.exists(os.path.join(p_dir, 'temp', 'purge_demo')), '')
+    check('purge-data temp 保留数据目录',
+          os.path.isdir(os.path.join(p_dir, 'data', 'purge_demo')), '')
+    check('purge-data temp 保留 write 声明目录',
+          os.path.isdir(os.path.join(_isolated, 'purge_uploads')), '')
+
+    r = client.post('/api/admin/plugins/purge_demo/purge-data', json={'scope': 'all'})
+    check('purge-data scope=all 200', r.status_code == 200, f'status={r.status_code}')
+    check('purge-data all 清理数据目录',
+          not os.path.exists(os.path.join(p_dir, 'data', 'purge_demo')), '')
+    check('purge-data all 清理 write 声明目录',
+          not os.path.exists(os.path.join(_isolated, 'purge_uploads')), '')
+
+    r = client.post('/api/admin/plugins/not_exists/purge-data', json={'scope': 'all'})
+    check('purge-data 不存在的插件 404', r.status_code == 404, f'status={r.status_code}')
+
 if __name__ == '__main__':
     try:
         main()
