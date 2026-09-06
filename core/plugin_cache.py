@@ -197,6 +197,7 @@ def scan_plugin_metadata(plugin_dir: str) -> list[dict]:
                             'file': filename,
                             'class_name': attr.__name__,
                             'dependencies': temp_inst.dependencies,
+                            'pip_dependencies': getattr(temp_inst, 'pip_dependencies', []) or [],
                             'category': getattr(temp_inst, 'category', 'uncategorized'),
                             'description': getattr(temp_inst, 'description', ''),
                             'version': getattr(temp_inst, 'version', '0.0.0'),

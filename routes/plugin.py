@@ -5,6 +5,7 @@ import re
 import traceback
 
 from flask import Response, jsonify, render_template, request
+from plugins.base_plugin import build_api_info
 
 import global_var
 from core.plugin_loader import load_plugins
@@ -32,6 +33,25 @@ def register(app):
         if not os.path.isdir(static_dir):
             return render_template('404.html', message=f"插件 {plugin_name} 静态资源不存在"), 404
         return send_from_directory(static_dir, filename)
+
+    @app.route('/__plugin_api__/<plugin_name>')
+    def plugin_api_docs(plugin_name):
+        """v4.10 API 文档/调试页（Accessibility）：任何插件（含非裸插件）均可直达。
+
+        仅管理员可见（interceptor 的 ADMIN_GUARD_PREFIXES 守卫，游客跳登录/普通用户 403）；
+        调试调用仍走各 API 自身权限。
+        """
+        plugin = global_var.plugins.get(plugin_name)
+        if plugin is None or not getattr(plugin, 'enabled', False):
+            return render_template('404.html', message=f"插件 {plugin_name} 不存在或未加载"), 404
+        return render_template(
+            'plugin_default.html',
+            plugin_name=plugin.name,
+            plugin_description=getattr(plugin, 'description', ''),
+            plugin_version=getattr(plugin, 'version', ''),
+            plugin_category=getattr(plugin, 'category', ''),
+            apis=build_api_info(plugin)
+        )
 
     @app.route('/plugin/<plugin_name>')
     def plugin_page_dispatcher(plugin_name):

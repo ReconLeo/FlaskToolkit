@@ -79,6 +79,27 @@ def build_plugin_zip(size_bytes=100):
     buf.seek(0)
     return buf
 
+def build_full_plugin_zip(name='demo_pack'):
+    '''构造带完整插件类的 zip（BytesIO）：供 v4.10 预览/确认安装流程测试'''
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, 'w', zipfile.ZIP_STORED) as zf:
+        zf.writestr('plugin.json', json.dumps({
+            "name": name, "version": "1.0.0", "permission": "user",
+            "author": "T", "category": "测试", "description": "预览确认流程测试",
+            "dependencies": [], "pip_dependencies": ["requests"],
+        }, ensure_ascii=False).encode('utf-8'))
+        zf.writestr(name + '.py',
+                    '# -*- coding: utf-8 -*-\n'
+                    'from plugins.base_plugin import BasePlugin\n'
+                    'class DemoPlugin(BasePlugin):\n'
+                    '    name = "' + name + '"\n'
+                    '    version = "1.0.0"\n'
+                    '    permission = "user"\n'
+                    '    def routes(self):\n'
+                    '        return []\n')
+    buf.seek(0)
+    return buf
+
 
 def main():
     client = app.test_client()
@@ -169,6 +190,45 @@ def main():
     # 未落盘（插件文件不应被创建）
     check('413 后插件未落盘',
           not os.path.exists(os.path.join(_isolated, 'plugins', 'big_pack.py')), '')
+
+    # 6.1 v4.10 安装前能力预览 → 确认安装（preview=1 → 预览；confirm=1&preview_id → 安装）
+    good = build_full_plugin_zip('demo_pack')
+    r = client.post('/api/admin/plugins/upload',
+                    data={'file': (good, 'demo_pack.zip', 'application/zip'), 'preview': '1'},
+                    content_type='multipart/form-data')
+    body = r.get_json() or {}
+    check('preview 返回 200 + preview', r.status_code == 200 and body.get('code') == 200
+          and 'preview' in body and 'preview_id' in body,
+          f'status={r.status_code} body={r.get_data(as_text=True)[:140]}')
+    pv_id = body.get('preview_id') or ''
+    check('preview_id 带 preview_ 前缀', pv_id.startswith('preview_'), f'pv_id={pv_id}')
+    pv = body.get('preview', {})
+    check('预览含 dependencies/pip_dependencies 字段',
+          pv.get('dependencies') == [] and pv.get('pip_dependencies') == ['requests'],
+          f"pv deps={pv.get('dependencies')} pip={pv.get('pip_dependencies')}")
+    check('预览含扫描摘要字段', 'scan_summary' in pv and 'capabilities' in pv,
+          f"pv keys={sorted(pv.keys())}")
+    # 预览阶段不应安装
+    check('preview 后插件未落盘',
+          not os.path.exists(os.path.join(_isolated, 'plugins', 'demo_pack.py')), '')
+
+    # confirm 缺 preview_id → 400
+    r = client.post('/api/admin/plugins/upload', data={'confirm': '1'},
+                    content_type='multipart/form-data')
+    check('confirm 缺 preview_id → 400', r.status_code == 400, f'status={r.status_code}')
+
+    # confirm 安装
+    r2 = client.post('/api/admin/plugins/upload',
+                     data={'confirm': '1', 'preview_id': pv_id},
+                     content_type='multipart/form-data')
+    b2 = r2.get_json() or {}
+    check('confirm 安装成功', r2.status_code == 200 and b2.get('code') == 200,
+          f'status={r2.status_code} body={r2.get_data(as_text=True)[:140]}')
+    check('确认安装后插件已落盘',
+          os.path.exists(os.path.join(_isolated, 'plugins', 'demo_pack.py')), '')
+    if pv_id:
+        check('确认安装后预览临时文件已清理',
+              not os.path.exists(os.path.join(global_var.UPLOAD_TEMP_DIR, pv_id)), '')
 
     # 7. check_upload_size 单元测试
     under = io.BytesIO(b'x' * 100)

@@ -5,6 +5,7 @@ import os
 import platform
 import sys
 import time
+import uuid
 
 from flask import jsonify, render_template, request
 
@@ -297,29 +298,85 @@ def register(app):
     @app.route('/api/admin/plugins/upload', methods=['POST'])
     @admin_api
     def upload_new_plugin():
-        """上传新插件包（.zip：plugin.json + 主.py + 可选 templates/static）"""
-        if 'file' not in request.files:
-            return jsonify({"code": 400, "message": "缺少插件包文件"}), 400
+        """上传新插件包（.zip：plugin.json + 主.py + 可选 templates/static）
 
-        file = request.files['file']
-        if not file.filename.endswith('.zip'):
-            return jsonify({"code": 400, "message": "必须上传 .zip 格式的插件包"}), 400
+        v4.10 安装前能力确认（Accessibility）：
+        - form 带 preview=1：仅解析并返回能力预览（插件信息/依赖/capabilities/扫描摘要），不安装；
+        - form 带 confirm=1&preview_id=xxx：按预览文件执行安装；
+        - 无参数：保持旧行为直接安装（兼容旧前端）。
+        """
+        is_preview = request.form.get('preview') == '1'
+        is_confirm = request.form.get('confirm') == '1'
 
-        # 包大小上限校验（超限返回 413）
-        oversize = check_upload_size(file, global_var.PACKAGE_MAX_UPLOAD_SIZE)
-        if oversize:
-            return jsonify({
-                "code": 413,
-                "message": f"插件包大小超过限制 {global_var.PACKAGE_MAX_UPLOAD_SIZE // (1024 * 1024)}MB（实际约 {oversize // (1024 * 1024)}MB）"
-            }), 413
+        if is_confirm:
+            # 确认安装：复用预览阶段保存的临时包
+            preview_id = request.form.get('preview_id', '')
+            temp_path = os.path.join(global_var.UPLOAD_TEMP_DIR, preview_id)
+            if (not preview_id or not preview_id.startswith('preview_')
+                    or not os.path.isfile(temp_path)):
+                return jsonify({"code": 400, "message": "预览文件不存在或已失效，请重新上传"}), 400
+            temp_filename = preview_id
+        else:
+            if 'file' not in request.files:
+                return jsonify({"code": 400, "message": "缺少插件包文件"}), 400
+            file = request.files['file']
+            if not file.filename.endswith('.zip'):
+                return jsonify({"code": 400, "message": "必须上传 .zip 格式的插件包"}), 400
+            # 包大小上限校验（超限返回 413）
+            oversize = check_upload_size(file, global_var.PACKAGE_MAX_UPLOAD_SIZE)
+            if oversize:
+                return jsonify({
+                    "code": 413,
+                    "message": f"插件包大小超过限制 {global_var.PACKAGE_MAX_UPLOAD_SIZE // (1024 * 1024)}MB（实际约 {oversize // (1024 * 1024)}MB）"
+                }), 413
+            temp_filename = secure_filename_cn(file.filename)
+            temp_path = os.path.join(global_var.UPLOAD_TEMP_DIR, temp_filename)
+            file.save(temp_path)
+            if is_preview:
 
-        temp_filename = secure_filename_cn(file.filename)
-        temp_path = os.path.join(global_var.UPLOAD_TEMP_DIR, temp_filename)
-        file.save(temp_path)
+                # 预览阶段：移到独立 preview_ 前缀临时文件，避免与普通上传混淆
+                pv_name = 'preview_' + uuid.uuid4().hex + '.zip'
+                pv_path = os.path.join(global_var.UPLOAD_TEMP_DIR, pv_name)
+                os.replace(temp_path, pv_path)
+                temp_filename, temp_path = pv_name, pv_path
 
         try:
             # 解析描述文件并校验主插件文件
             desc = parse_plugin_pack(temp_path)
+
+            # ==================== v4.10 安装前能力预览（仅解析，不安装） ====================
+            if is_preview:
+                vres = verify_package(temp_path, 'backend')
+                if not vres['ok']:
+                    return jsonify({"code": 400, "message": vres['message']}), 400
+                scan_report, scan_err = _scan_gate(temp_path, '插件安装预览', desc['name'])
+                if scan_err:
+                    return scan_err
+                caps = {}
+                try:
+                    from core.plugin_scanner import read_pack_capabilities
+                    caps = read_pack_capabilities(temp_path) or {}
+                except Exception:
+                    pass
+                cap_res = (scan_report or {}).get('capabilities') or {}
+                preview = {
+                    'name': desc['name'],
+                    'version': str(desc.get('version', '?')),
+                    'title': desc.get('title', desc['name']),
+                    'author': desc.get('author', '佚名'),
+                    'permission': desc.get('permission', 'user'),
+                    'category': desc.get('category', '其他工具'),
+                    'description': desc.get('description', ''),
+                    'dependencies': desc.get('dependencies', []),
+                    'pip_dependencies': desc.get('pip_dependencies', []),
+                    'capabilities': caps,
+                    'cap_ok': bool(cap_res.get('ok', True)),
+                    'cap_missing': cap_res.get('missing', []) or [],
+                    'scan_summary': (scan_report or {}).get('summary', {}),
+                    'scan_scope': (scan_report or {}).get('scope', {}),
+                }
+                return jsonify({"code": 200, "preview": preview, "preview_id": temp_filename})
+
             # 完整性校验（P2-4 方案C：manifest 哈希清单 + 可选签名）
             vres = verify_package(temp_path, 'backend')
             if not vres['ok']:
@@ -352,6 +409,13 @@ def register(app):
             }
             save_plugin_status()
             log_audit('插件安装', plugin_name, 'ok', f"v{desc.get('version', '?')} 来源 {temp_filename}")
+            # 确认安装成功 → 清理预览临时文件
+            if is_confirm:
+                try:
+                    if temp_filename.startswith('preview_') and os.path.isfile(temp_path):
+                        os.remove(temp_path)
+                except Exception:
+                    pass
             resp = {"code": 200, "message": f"插件 {plugin_name} 上传成功，已自动加载"}
             if scan_report is not None:
                 resp['scan'] = scan_report['summary']
@@ -381,7 +445,9 @@ def register(app):
             return jsonify({"code": 500, "message": f"上传失败: {str(e)}"}), 500
         finally:
             try:
-                if os.path.exists(temp_path):
+                # preview/confirm 两段式：preview 文件需保留到 confirm 阶段，
+                # confirm 成功后在业务内显式清理；仅普通上传在此兜底清理
+                if not is_preview and not is_confirm and os.path.exists(temp_path):
                     os.remove(temp_path)
             except Exception:
                 # 临时文件清理失败不影响业务（如运行环境禁止永久删除）

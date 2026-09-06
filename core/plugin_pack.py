@@ -27,13 +27,13 @@ PLUGIN_PACK_DESC_FILE = 'plugin.json'
 # 插件可声明元信息字段（plugin.json 与插件类属性两处均可能出现）
 META_FIELDS = (
     'name', 'version', 'title', 'author', 'permission',
-    'category', 'description', 'dependencies',
+    'category', 'description', 'dependencies', 'pip_dependencies',
     'require_framework_version',
 )
 # 参与“冲突拒绝”比对的字段（name 单独走强制一致校验）
 COMPARE_FIELDS = (
     'version', 'title', 'author', 'permission',
-    'category', 'description', 'dependencies',
+    'category', 'description', 'dependencies', 'pip_dependencies',
     'require_framework_version',
 )
 
@@ -45,7 +45,7 @@ def parse_plugin_pack(zip_path: str) -> dict:
     规则（v4.1）：
     1. plugin.json 必须存在且为合法 JSON，name 非空；
     2. name 三处一致：plugin.json.name == 主 .py 文件名 == 插件类 name（AST 可提取时）；
-    3. 冲突字段拒绝：version/title/author/permission/category/description/dependencies
+    3. 冲突字段拒绝：version/title/author/permission/category/description/dependencies/pip_dependencies
        在 plugin.json 与类属性同时声明且不一致 → 拒绝上传并报告具体冲突字段；
     4. 缺失补全：plugin.json 缺失的字段回退到类属性（version 缺失用类兜底并告警）。
 

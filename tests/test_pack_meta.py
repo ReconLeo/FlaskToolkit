@@ -80,12 +80,25 @@ GOOD_JSON = {
 }
 
 
+PIP_PY = '''
+from plugins.base_plugin import BasePlugin
+
+class UserManagePlugin(BasePlugin):
+    name = "user_manage"
+    version = "1.0.1"
+    title = "用户账号管理"
+    author = "System"
+    category = "系统管理"
+    description = "用户账号管理插件"
+    permission = "admin"
+    dependencies = ["auth"]
+    pip_dependencies = ["requests>=2.28", "cryptography"]
+'''
+
 def make_zip(path, json_obj, py_source, py_name='user_manage.py'):
     with zipfile.ZipFile(path, 'w', zipfile.ZIP_DEFLATED) as zf:
         zf.writestr('plugin.json', json.dumps(json_obj, ensure_ascii=False).encode('utf-8'))
         zf.writestr(py_name, py_source)
-
-
 def expect_ok(label, json_obj, py_source, py_name='user_manage.py'):
     """期望解析成功，返回对齐后的 desc"""
     with TmpBase() as root:
@@ -220,11 +233,35 @@ def test_extract_writes_aligned_meta():
             check('落盘描述已对齐补全', ok, f"landed={landed}")
 
 
+def test_pip_dependencies():
+    """pip_dependencies 字段：plugin.json 透传 / 类兜底 / 冲突拒绝（v4.10）"""
+    with TmpBase() as root:
+        # 1. plugin.json 声明 + 类一致 → 保留
+        d = dict(GOOD_JSON)
+        d['pip_dependencies'] = ["requests>=2.28", "cryptography"]
+        desc = expect_ok('plugin.json 声明 pip_dependencies', d, PIP_PY)
+        if desc:
+            check('pip_dependencies 透传保留',
+                  desc.get('pip_dependencies') == ["requests>=2.28", "cryptography"],
+                  f"pip={desc.get('pip_dependencies')}")
+        # 2. plugin.json 缺 pip_dependencies → 类兜底
+        d2 = dict(GOOD_JSON)
+        desc2 = expect_ok('plugin.json 缺 pip_dependencies 类兜底', d2, PIP_PY)
+        if desc2:
+            check('pip_dependencies 已从类兜底',
+                  desc2.get('pip_dependencies') == ["requests>=2.28", "cryptography"],
+                  f"pip={desc2.get('pip_dependencies')}")
+        # 3. 两处冲突 → 拒绝
+        d3 = dict(GOOD_JSON)
+        d3['pip_dependencies'] = ["conflict_pkg"]
+        expect_reject('pip_dependencies 冲突拒绝', d3, PIP_PY, keyword='pip_dependencies')
+
 if __name__ == '__main__':
     test_alignment()
     test_conflicts()
     test_name_consistency()
     test_extract_writes_aligned_meta()
+    test_pip_dependencies()
 
     passed = sum(1 for _, c, _ in results if c)
     print(f"\n==== 描述一致性 共 {len(results)} 项，通过 {passed}，失败 {len(results) - passed} ====")

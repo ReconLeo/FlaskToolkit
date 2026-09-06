@@ -31,7 +31,10 @@ logger = logging.getLogger('flask.app')
 
 def check_dependencies(plugin_instance, available_plugins: set) -> list[str]:
     """
-    校验插件依赖
+    校验插件依赖（v4.10 语义拆分）：
+    - dependencies：仅限其他插件名；未匹配到插件的旧写法（3.x 曾混写 pip 包）向后兼容按
+      pip 包检测，并告警提示迁移到 pip_dependencies；
+    - pip_dependencies：第三方 Python 包，用 importlib.metadata 检测是否已安装。
     :param plugin_instance: 待校验插件实例
     :param available_plugins: 当前系统中存在的所有插件名集合
     :return: 缺失的依赖列表（插件名或包名）
@@ -41,11 +44,20 @@ def check_dependencies(plugin_instance, available_plugins: set) -> list[str]:
         # 优先判断是否是插件依赖
         if dep in available_plugins:
             continue
-        # 再判断是否是第三方Python包
+        # 向后兼容：dependencies 中非插件项按 pip 包检测（3.x 旧写法）
+        logger.warning(
+            f"插件 {plugin_instance.name} 的 dependencies 中 '{dep}' 未匹配到插件，"
+            f"若为第三方 Python 包请改用 pip_dependencies 声明（v4.10）",
+            extra={'plugin': 'system'})
         try:
             importlib.metadata.distribution(dep)
         except importlib.metadata.PackageNotFoundError:
             missing.append(dep)
+    for pkg in (getattr(plugin_instance, 'pip_dependencies', None) or []):
+        try:
+            importlib.metadata.distribution(pkg)
+        except importlib.metadata.PackageNotFoundError:
+            missing.append(pkg)
     return missing
 
 
@@ -115,6 +127,7 @@ def load_plugins():
             plugin_meta[info['name']] = {
                 "class": plugin_class,
                 "dependencies": info['dependencies'],
+                "pip_dependencies": info.get('pip_dependencies', []) or [],
                 "category": info['category'],
                 "description": info['description'],
                 "version": info['version'],
@@ -214,7 +227,11 @@ def load_plugins():
             # 校验依赖
             missing_deps = check_dependencies(plugin_instance, available_plugin_names)
             if missing_deps:
-                logger.warning(f"插件 {plugin_instance.name} 缺少依赖: {', '.join(missing_deps)}，跳过加载", extra={'plugin': 'system'})
+                _pips = [d for d in missing_deps if d not in available_plugin_names]
+                _hint = f"。pip 包可执行: pip install {' '.join(_pips)}" if _pips else ""
+                logger.warning(
+                    f"插件 {plugin_instance.name} 缺少依赖: {', '.join(missing_deps)}，跳过加载{_hint}",
+                    extra={'plugin': 'system'})
                 continue
 
             # 注册路由
@@ -317,6 +334,7 @@ def load_plugins():
             'category': info.get('category', '其他工具'),
             'permission': info.get('permission', 'user'),
             'dependencies': info.get('dependencies', []),
+            'pip_dependencies': info.get('pip_dependencies', []) or [],
             'require_framework_version': info.get('require_framework_version', ''),
             'type': 'backend',
             'builtin': _name in global_var.BUILTIN_PLUGINS,
@@ -331,6 +349,7 @@ def load_plugins():
             _meta['title'] = getattr(_inst, 'title', _meta['title'])
             _meta['author'] = getattr(_inst, 'author', _meta['author'])
             _meta['permission'] = getattr(_inst, 'permission', _meta['permission'])
+            _meta['pip_dependencies'] = getattr(_inst, 'pip_dependencies', []) or []
         global_var.plugin_catalog.append(_meta)
 
     logger.info(f"加载完成，共加载 {len(loaded_plugins)} 个插件", extra={'plugin': 'system'})

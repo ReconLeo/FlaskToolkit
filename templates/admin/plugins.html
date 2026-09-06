@@ -77,7 +77,7 @@
                 </label>
             </div>
         </div>
-        <div class="form-group">
+        <div class="form-group" id="upload-file-group">
             <label id="upload-file-label">选择插件包 (.zip)</label>
             <input type="file" id="upload-file" accept=".zip" onchange="handleFileSelected('upload')">
             <div class="file-info" id="upload-file-info"></div>
@@ -86,9 +86,18 @@
             </div>
         </div>
         <div class="form-group" style="font-size:13px; color:#7f8c8d;">
-            <p id="upload-tip">上传的 .zip 插件包需包含 plugin.json 和主插件 .py（可附带 templates/static 资源），将自动安装并加载，请确保来源安全。</p>
+            <p id="upload-tip">上传的 .zip 插件包需包含 plugin.json 和主插件 .py（可附带 templates/static 资源）。后端插件包将先展示安装前能力清单，确认后安装。</p>
         </div>
-        <div class="modal-buttons">
+        <!-- v4.10 安装前能力清单确认区 -->
+        <div id="upload-preview" class="hidden" style="border:1px solid #d5dbdb; border-radius:6px; padding:12px; margin-bottom:12px; background:#f8f9fa;">
+            <h4 style="margin:0 0 10px; font-size:14px;">安装前确认（能力清单）</h4>
+            <div id="upload-preview-content" style="font-size:13px; max-height:260px; overflow-y:auto; line-height:1.7;"></div>
+            <div style="margin-top:10px; display:flex; gap:10px;">
+                <button class="btn btn-success" onclick="confirmInstall()">确认安装</button>
+                <button class="btn btn-info" onclick="cancelPreview()">取消</button>
+            </div>
+        </div>
+        <div class="modal-buttons" id="upload-buttons">
             <button class="btn btn-info" onclick="closeUploadModal()">取消</button>
             <button class="btn btn-success" onclick="confirmUpload()">上传安装</button>
         </div>
@@ -123,6 +132,13 @@
     let currentUpdateName = '';
 
     const UPLOAD_MAX_SIZE = 10 * 1024 * 1024; // 与服务端 PACKAGE_MAX_UPLOAD_SIZE 一致（10MB）
+    let currentPreviewId = null;   // v4.10 安装前预览：确认安装时回传的预览文件标识
+
+    function escapeHtml(s) {
+        return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[c]));
+    }
 
     function formatFileSize(bytes) {
         if (bytes >= 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
@@ -148,7 +164,7 @@
         }
     }
 
-    function uploadWithProgress(url, file, onSuccess) {
+    function uploadWithProgress(url, file, onSuccess, extraFields) {
         const isUpdate = url.indexOf('/update') !== -1;
         const progressWrap = document.getElementById(isUpdate ? 'update-progress' : 'upload-progress');
         const barEl = document.getElementById(isUpdate ? 'update-progress-bar' : 'upload-progress-bar');
@@ -177,6 +193,9 @@
         xhr.onerror = () => { barEl.classList.add('error'); showToast('上传失败: 网络错误', 'error'); };
         const formData = new FormData();
         formData.append('file', file);
+        if (extraFields) {
+            Object.keys(extraFields).forEach(k => formData.append(k, extraFields[k]));
+        }
         xhr.send(formData);
     }
 
@@ -239,6 +258,7 @@
                                 ? `<button class="btn btn-warning btn-sm" onclick="togglePlugin('${plugin.name}', false)">禁用</button>`
                                 : `<button class="btn btn-success btn-sm" onclick="togglePlugin('${plugin.name}', true)">启用</button>`)}
                         ${plugin.type !== 'frontend' ? `<button class="btn btn-info btn-sm" onclick="toggleConfig('${plugin.name}')">配置</button>` : ''}
+                        ${plugin.type !== 'frontend' ? `<a class="btn btn-info btn-sm" href="/__plugin_api__/${plugin.name}" target="_blank" title="API 文档与调试（v4.10）">API 文档</a>` : ''}
                         <button class="btn btn-primary btn-sm" onclick="openUpdateModal('${plugin.name}', '${plugin.type || 'backend'}')">更新</button>
                         <button class="btn btn-danger btn-sm" onclick="confirmUninstall('${plugin.name}', '${plugin.type || 'backend'}')">卸载</button>
                     </div>
@@ -423,12 +443,88 @@
             return;
         }
         const uploadUrl = uploadType === 'frontend' ? '/api/admin/frontend/upload' : '/api/admin/plugins/upload';
-        const successMsg = uploadType === 'frontend' ? '前端工具上传安装成功' : '插件上传安装成功';
-        uploadWithProgress(uploadUrl, file, () => {
-            showToast(successMsg, 'success');
-            closeUploadModal();
-            loadPlugins();
-        });
+        if (uploadType === 'backend') {
+            // v4.10 两步安装：先解析返回安装前能力清单，确认后再安装
+            uploadWithProgress(uploadUrl, file, handleUploadPreview, { preview: '1' });
+        } else {
+            uploadWithProgress(uploadUrl, file, () => {
+                showToast('前端工具上传安装成功', 'success');
+                closeUploadModal();
+                loadPlugins();
+            });
+        }
+    }
+
+    // ==================== v4.10 安装前能力预览 ====================
+    function handleUploadPreview(data) {
+        if (data.code !== 200 || !data.preview) {
+            showToast('预览解析失败: ' + (data.message || '未知错误'), 'error');
+            return;
+        }
+        currentPreviewId = data.preview_id;
+        renderUploadPreview(data.preview);
+        document.getElementById('upload-file-group').classList.add('hidden');
+        document.getElementById('upload-buttons').classList.add('hidden');
+        document.getElementById('upload-preview').classList.remove('hidden');
+    }
+
+    function renderUploadPreview(pv) {
+        const capHtml = pv.capabilities && typeof pv.capabilities === 'object'
+            ? Object.entries(pv.capabilities).map(([k, v]) => {
+                const vs = typeof v === 'object' ? JSON.stringify(v) : String(v);
+                return '<div>· <code>' + escapeHtml(k) + '</code>: <code>' + escapeHtml(vs) + '</code></div>';
+              }).join('')
+            : '<div style="color:#7f8c8d;">未声明 capabilities（默认按插件级权限执行）</div>';
+        const depHtml = (pv.dependencies || []).length
+            ? (pv.dependencies || []).map(d => '<code>' + escapeHtml(d) + '</code>').join(', ')
+            : '无';
+        const pipHtml = (pv.pip_dependencies || []).length
+            ? (pv.pip_dependencies || []).map(d => '<code>' + escapeHtml(d) + '</code>').join(', ')
+            : '无';
+        const sum = pv.scan_summary || {};
+        const scope = pv.scan_scope || {};
+        const scanHtml = (sum.high || 0) > 0
+            ? '<span style="color:#e74c3c; font-weight:600;">静态扫描发现 ' + sum.high + ' 项高风险</span>'
+            : '<span style="color:#27ae60;">静态扫描未发现高风险行为</span>';
+        const scopeHtml = (scope.paths_written && scope.paths_written.length) || (scope.network_endpoints && scope.network_endpoints.length)
+            ? '<div style="margin-top:4px; color:#7f8c8d;">写入路径: ' + escapeHtml((scope.paths_written || []).join(', ')) + '<br>网络端点: ' + escapeHtml((scope.network_endpoints || []).join(', ')) + '</div>'
+            : '';
+        const missingHtml = (pv.cap_missing && pv.cap_missing.length)
+            ? '<div style="color:#e67e22;">未声明行为 ' + pv.cap_missing.length + ' 项: ' + escapeHtml(pv.cap_missing.slice(0, 6).join(', ')) + '</div>'
+            : '';
+        document.getElementById('upload-preview-content').innerHTML =
+            '<div><strong>' + escapeHtml(pv.title || pv.name) + '</strong> v' + escapeHtml(pv.version) +
+            ' · 作者 ' + escapeHtml(pv.author) + ' · 权限 ' + escapeHtml(pv.permission) + '</div>' +
+            '<div style="color:#7f8c8d; margin-top:2px;">' + escapeHtml(pv.description || '') + '</div>' +
+            '<hr style="border:none; border-top:1px solid #e5e7eb; margin:8px 0;">' +
+            '<div>依赖插件: ' + depHtml + '</div>' +
+            '<div>pip 依赖: ' + pipHtml + '</div>' +
+            '<div style="margin-top:6px; font-weight:600;">能力声明:</div>' + capHtml + missingHtml +
+            '<hr style="border:none; border-top:1px solid #e5e7eb; margin:8px 0;">' +
+            '<div>' + scanHtml + '</div>' + scopeHtml;
+    }
+
+    function cancelPreview() {
+        currentPreviewId = null;
+        document.getElementById('upload-preview').classList.add('hidden');
+        document.getElementById('upload-file-group').classList.remove('hidden');
+        document.getElementById('upload-buttons').classList.remove('hidden');
+    }
+
+    function confirmInstall() {
+        if (!currentPreviewId) { showToast('预览已失效，请重新上传', 'error'); return; }
+        const fileInput = document.getElementById('upload-file');
+        if (!fileInput.files[0]) { showToast('文件已丢失，请重新上传', 'error'); return; }
+        uploadWithProgress('/api/admin/plugins/upload', fileInput.files[0], (data) => {
+            if (data.code === 200) {
+                showToast('插件上传安装成功', 'success');
+                closeUploadModal();
+                loadPlugins();
+            } else {
+                showToast('安装失败: ' + (data.message || '未知错误'), 'error');
+                cancelPreview();
+            }
+        }, { confirm: '1', preview_id: currentPreviewId });
     }
 
     // ==================== 更新 ====================

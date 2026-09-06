@@ -28,7 +28,8 @@ def register(app):
         #   - 管理后台 /admin/ /api/admin/ /debug/ /api/reload 必须管理员
         #   - 插件页面 /plugin/ 必须登录
         # 注意：插件 API（/api/<plugin>/...）的权限由插件自身的 @permission / require_role 装饰器决定，此处不做强制。
-        ADMIN_GUARD_PREFIXES = ['/admin/', '/api/admin/', '/debug/', '/api/reload']
+        # /__plugin_api__/ 调试页仅管理员可见（v4.10）：普通用户无需看到 API 文档/调试界面
+        ADMIN_GUARD_PREFIXES = ['/admin/', '/api/admin/', '/debug/', '/api/reload', '/__plugin_api__/']
         LOGIN_GUARD_PREFIXES = ['/plugin/']
 
         path = request.path

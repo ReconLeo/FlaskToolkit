@@ -124,7 +124,24 @@ def main():
         # 全局 XHR send 拦截保留（单次注入所在）
         check("D4 全局 XHR send 拦截保留", 'XMLHttpRequest.prototype.send' in js and "setRequestHeader('X-CSRF-Token'" in js, '')
 
-        print(f'\n==== 框架小修复回归（public_page 豁免 + CSRF 单值注入）：共 {len(results)} 项，'
+        # ============ E：v4.10 调试页 /__plugin_api__/ 仅管理员可见 ============
+        # 游客 → 跳登录
+        r = client.get("/__plugin_api__/normal")
+        check("E1 调试页游客跳登录",
+              r.status_code == 302 and '/login' in (r.headers.get('Location') or ''),
+              f"status={r.status_code} loc={r.headers.get('Location')}")
+        # 管理员 → 200（调试页可访问）
+        _ok, _tok, _ = auth.login("admin", "admin123")
+        r = client.get("/__plugin_api__/normal", headers={"X-Token": _tok})
+        check("E2 管理员访问调试页 200", r.status_code == 200, f"status={r.status_code}")
+        # 普通用户 → 403
+        auth.create_user("alice_dbg", "alice123", "Alice", "user")
+        _ok2, _tok2, _ = auth.login("alice_dbg", "alice123")
+        r = client.get("/__plugin_api__/normal", headers={"X-Token": _tok2})
+        check("E3 普通用户访问调试页 403", r.status_code == 403, f"status={r.status_code}")
+        # 标题同步：框架小修复回归（public_page 豁免 + CSRF 单值注入 + 调试页权限）
+
+        print(f'\n==== 框架小修复回归（public_page 豁免 + CSRF 单值注入 + 调试页权限）：共 {len(results)} 项，'
               f'通过 {sum(1 for _, c, _ in results if c)}，'
               f'失败 {sum(1 for _, c, _ in results if not c)} ====')
     finally:

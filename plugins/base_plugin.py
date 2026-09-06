@@ -39,6 +39,35 @@ def permission(level: str = "user"):
     return decorator
 
 
+def build_api_info(plugin) -> list:
+    """构造插件 API 文档信息（v4.10 起含权限层级）。
+
+    默认调试页（无自定义主入口）与 /__plugin_api__/<name> 调试页共用；
+    权限解析：route 声明 permission 优先，否则取 view_func 的 @permission 标记，缺省 "user"。
+    """
+    api_info = []
+    for route in plugin.routes:
+        route_path = route.get('path', '')
+        # 提取路径参数占位符 <name> 或 <int:name>，转为可输入的路径参数
+        path_params = [
+            {'name': m, 'type': 'string', 'required': True}
+            for m in re.findall(r'<(?:[^:>]+:)?(\w+)>', route_path)
+        ]
+        perm = (route.get('permission')
+                or getattr(route.get('view_func'), '_permission', None) or 'user')
+        api_info.append({
+            'name': route.get('name', route_path),
+            'path': f'/api/{plugin.name}{route_path}',
+            'methods': route.get('methods', ['GET']),
+            'params': route.get('params', []),
+            'path_params': path_params,
+            'permission': perm,
+            # params 中的每个字典现在支持以下字段：
+            #   name/type/required/default/description/element_type
+        })
+    return api_info
+
+
 class BasePlugin(ABC):
     # 插件基础属性
     @property
@@ -82,7 +111,17 @@ class BasePlugin(ABC):
 
     @property
     def dependencies(self): 
-        """依赖列表"""
+        """依赖列表（仅限其他插件名，v4.10 起语义收窄；第三方 pip 包请用 pip_dependencies）"""
+        return []
+
+    @property
+    def pip_dependencies(self):
+        """第三方 pip 包依赖列表（v4.10）。
+
+        与 dependencies 语义分离：此处声明 Python 包名（如 ["requests>=2.28", "cryptography"]），
+        加载时用 importlib.metadata 检测是否已安装；缺失仅跳过加载并告警（不自动安装）。
+        兼容说明：dependencies 中未匹配到插件的旧写法仍会按 pip 包检测并提示迁移到本字段。
+        """
         return []
 
     @property
@@ -650,6 +689,8 @@ class BasePlugin(ABC):
         return {'limit_mb': limit, 'usage_mb': usage,
                 'remaining_mb': None if not limit else max(0.0, limit - usage)}
 
+
+
     def render_index(self):
         """主入口 index 模板的数据注入钩子：插件可选覆盖，返回渲染上下文 dict。
         默认无额外数据（模板可自行通过 plugin 对象访问属性/方法）。"""
@@ -667,29 +708,8 @@ class BasePlugin(ABC):
                 context = {}
             return render_template(main_tpl, plugin=self, **context)
 
-        # 无自定义主入口 → 默认调试页
-        api_info = []
-        for route in self.routes:
-            route_path = route.get('path', '')
-            # 提取路径参数占位符 <name> 或 <int:name>，转为可输入的路径参数
-            path_params = [
-                {'name': m, 'type': 'string', 'required': True}
-                for m in re.findall(r'<(?:[^:>]+:)?(\w+)>', route_path)
-            ]
-            api_info.append({
-                'name': route.get('name', route_path),
-                'path': f'/api/{self.name}{route_path}',
-                'methods': route.get('methods', ['GET']),
-                'params': route.get('params', []),
-                'path_params': path_params
-                # params 中的每个字典现在支持以下字段：
-                #   name        - 参数名
-                #   type        - 类型：string/number/int/boolean/array/object/file
-                #   required    - 是否必填（默认 True）
-                #   default     - 默认值（新增）
-                #   description - 描述
-                #   element_type - 数组元素类型（仅 array 类型使用）
-            })
+        # 无自定义主入口 → 默认调试页（v4.10 起与 /__plugin_api__/ 共用 build_api_info）
+        api_info = build_api_info(self)
         return render_template(
             'plugin_default.html',
             plugin_name=self.name,

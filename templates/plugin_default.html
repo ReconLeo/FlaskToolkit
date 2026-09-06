@@ -5,6 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ plugin_name }} - {{ plugin_description }}</title>
     <link rel="stylesheet" href="/static/css/main.css">
+    <style>
+        .perm-badge {
+            display: inline-block; padding: 2px 8px; border-radius: 10px;
+            font-size: 11px; font-weight: 600; margin-left: 8px; vertical-align: 2px;
+        }
+        .perm-public { background: #e8f8f5; color: #1e8449; border: 1px solid #a9dfbf; }
+        .perm-user   { background: #eaf2f8; color: #2471a3; border: 1px solid #aed6f1; }
+        .perm-admin  { background: #fdedec; color: #c0392b; border: 1px solid #f5b7b1; }
+    </style>
 </head>
 <body>
     <!-- 顶部导航栏（与首页一致） -->
