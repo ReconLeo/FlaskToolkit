@@ -1,0 +1,57 @@
+# 统一行尾策略：仓库与工作区均为 LF，杜绝跨平台 CRLF/LF 混用。
+# 背景：README 曾因 `\r\r\n`(双 CR+LF) 行尾污染导致 GitHub 表格无法渲染，
+#       详见仓库 docs 与记忆 wiki/lessons/行尾污染表格不渲染与.gitattributes统一LF。
+# 注意：本文件显式 eol 声明优先级高于 core.autocrlf，改动后如工作区行尾不符，
+#       执行 `git add --renormalize .` 或 `git checkout -- <file>` 刷新。
+
+# 未知类型由 git 自动探测（文本/二进制）
+* text=auto
+
+# ---- 文本类型：强制 LF ----
+*.py     text eol=lf
+*.md     text eol=lf
+*.html   text eol=lf
+*.htm    text eol=lf
+*.css    text eol=lf
+*.js     text eol=lf
+*.mjs    text eol=lf
+*.cjs    text eol=lf
+*.json   text eol=lf
+*.yml    text eol=lf
+*.yaml   text eol=lf
+*.toml   text eol=lf
+*.ini    text eol=lf
+*.cfg    text eol=lf
+*.txt    text eol=lf
+*.sh     text eol=lf
+*.bat    text eol=lf
+*.csv    text eol=lf
+*.tsv    text eol=lf
+
+# 无扩展名文本文件
+LICENSE   text eol=lf
+.gitignore text eol=lf
+
+# ---- 二进制文件：不参与任何行尾转换 ----
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.bmp  binary
+*.webp binary
+*.zip  binary
+*.gz   binary
+*.tar  binary
+*.pdf  binary
+*.woff binary
+*.woff2 binary
+*.ttf  binary
+*.eot  binary
+*.mp3  binary
+*.wav  binary
+*.mp4  binary
+*.exe  binary
+*.dll  binary
+*.db   binary
+*.sqlite binary
