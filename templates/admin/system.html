@@ -39,9 +39,9 @@
         <h3 class="card-title">💾 {{ t('插件空间') }}</h3>
         <div class="card-body">
             <table class="table table-sm" style="font-size:13px;">
-                <thead><tr><th>{{ t('插件') }}</th><th>{{ t('限额') }}</th><th>{{ t('已用') }}</th><th>{{ t('剩余') }}</th></tr></thead>
+                <thead><tr><th>{{ t('插件') }}</th><th>{{ t('限额') }}</th><th>{{ t('已用') }}</th><th>{{ t('剩余') }}</th><th>{{ t('操作') }}</th></tr></thead>
                 <tbody id="quotaBody"></tbody>
-                <tfoot><tr style="font-weight:600;"><td>{{ t('总用量') }}</td><td id="quotaTotalLimit">-</td><td id="quotaTotalUsage">-</td><td id="quotaTotalRemain">-</td></tr></tfoot>
+                <tfoot><tr style="font-weight:600;"><td>{{ t('总用量') }}</td><td id="quotaTotalLimit">-</td><td id="quotaTotalUsage">-</td><td id="quotaTotalRemain">-</td><td></td></tr></tfoot>
             </table>
         </div>
     </div>
@@ -255,7 +255,7 @@
 
     // v4.9.2：插件空间管理（/api/admin/quota）
     function loadQuota() {
-        fetch('/api/admin/quota', {headers: {'X-CSRF-Token': getCsrfToken()}})
+        fetch('/api/admin/quota', {headers: {'X-CSRF-Token': _getCsrfCookie()}})
             .then(function (r) { return r.json(); })
             .then(function (d) {
                 if (d.code !== 200) return;
@@ -263,7 +263,9 @@
                 var rows = (q.plugins || []).map(function (it) {
                     var lim = it.limit_mb ? it.limit_mb + ' MB' : window.T('无限制');
                     var rem = it.remaining_mb === null ? '-' : it.remaining_mb.toFixed(1) + ' MB';
-                    return '<tr><td>' + it.plugin + '</td><td>' + lim + '</td><td>' + it.usage_mb.toFixed(1) + ' MB</td><td>' + rem + '</td></tr>';
+                    var ops = '<button class="btn btn-sm btn-outline-secondary" style="margin-right:4px;" onclick="purgePluginData(\'' + it.plugin + '\',\'temp\')">' + window.T('清理临时') + '</button>' +
+                        '<button class="btn btn-sm btn-outline-danger" onclick="purgePluginData(\'' + it.plugin + '\',\'all\')">' + window.T('清理全部') + '</button>';
+                    return '<tr><td>' + it.plugin + '</td><td>' + lim + '</td><td>' + it.usage_mb.toFixed(1) + ' MB</td><td>' + rem + '</td><td>' + ops + '</td></tr>';
                 }).join('');
                 document.getElementById('quotaBody').innerHTML = rows;
                 var t = q.total || {};
@@ -272,6 +274,27 @@
                 document.getElementById('quotaTotalRemain').textContent = t.remaining_mb === null ? '-' : t.remaining_mb.toFixed(1) + ' MB';
             })
             .catch(function () {});
+    }
+    // M6-Extra：单插件空间清理（POST /api/admin/plugins/<name>/purge-data，scope: temp|all）
+    function purgePluginData(name, scope) {
+        var isAll = scope === 'all';
+        var tip = isAll ? window.T('清理全部数据') : window.T('清理临时数据');
+        if (!confirm(tip + '「' + name + '」？')) return;
+        fetch('/api/admin/plugins/' + encodeURIComponent(name) + '/purge-data', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRF-Token': _getCsrfCookie()},
+            body: JSON.stringify({scope: scope})
+        })
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+                if (d.code === 200) {
+                    showToast((isAll ? window.T('清理全部') : window.T('清理临时')) + '：' + name + ' ' + (d.message || 'OK'), 'success');
+                    loadQuota();
+                } else {
+                    showToast(d.message || window.T('清理失败'), 'error');
+                }
+            })
+            .catch(function (e) { showToast(window.T('清理失败') + '：' + e.message, 'error'); });
     }
     document.addEventListener('DOMContentLoaded', () => { loadQuota(); });
 </script>

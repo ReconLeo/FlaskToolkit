@@ -105,5 +105,11 @@
   "已用": "Used",
   "剩余": "Remaining",
   "总用量": "Total Usage",
-  "无限制": "Unlimited"
+  "无限制": "Unlimited",
+  "操作": "Actions",
+  "清理临时": "Clean Temp",
+  "清理全部": "Purge All",
+  "清理临时数据": "Clean temporary data for",
+  "清理全部数据": "Purge all data for",
+  "清理失败": "Cleanup failed"
 }

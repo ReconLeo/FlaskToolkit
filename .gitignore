@@ -59,6 +59,7 @@ frontend_tools.json  # 前端工具注册清单（运行时配置，install_all/
 
 # ---------- 灵犀会话工作区残留 / 插件默认目录缓存 ----------
 .lingxi/
+.rundata/
 /20*/
 __NEW_PLUGIN_DEFAULT__/
 # 测试运行时产物（test_file_transfer 下载样例 / test_security 备份等，运行自动重建）
