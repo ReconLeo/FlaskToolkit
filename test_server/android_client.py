@@ -166,7 +166,7 @@ def upload(s, base, user, password, size_mb):
         log('登录失败：%s' % err)
         return []
     hdr = {'X-CSRF-Token': csrf_token(s)}
-    url = base.rstrip('/') + '/api/echo-upload'
+    url = base.rstrip('/') + '/api/echo_upload/echo-upload'  # 插件 API 格式 /api/<plugin_name>/<path>
     total = size_mb * 1024 * 1024
     chunk = 1024 * 1024
     written = 0

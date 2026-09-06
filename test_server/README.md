@@ -11,6 +11,7 @@ test_server/
 ├── android_server.py      # （可选）Android 端 Flask 微型服务器，反向链路诊断
 ├── pc_stress.py           # PC 端并发/大文件压测（标准库 urllib + threading）
 ├── pc_collect.py          # PC 端长稳采集（psutil；每 60s 记录进程指标，10min 心跳）
+├── pc_audit_lookup.py     # PC 端审计日志归因比对（--since/--ip/--only-ip 过滤）
 ├── fixtures/
 │   ├── echo_upload/       # 回显上传测试插件源码（plugin.json + echo_upload.py）
 │   └── build_echo_plugin.py  # 构建 echo_upload.zip 的脚本
@@ -63,11 +64,34 @@ python test_server/fixtures/build_echo_plugin.py          # 生成 echo_upload.z
 # 测完卸载：后台卸载 + 清理（purge-data），源码与 zip 均在 test_server/fixtures/ 不入库
 ```
 
-插件路由：`POST /api/echo-upload`（multipart 单 file 字段）→ 落盘到 `plugins/data/echo_upload/` 并返回 `{size, sha256, saved}`；`GET /api/echo-upload/<name>` 回传文件供下载校验哈希一致性。
+插件路由（插件 API 格式 `/api/<plugin_name>/<path>`）：
+  `POST /api/echo_upload/echo-upload`（multipart 单 file 字段）→ 落盘到 `plugins/data/echo_upload/files/` 并返回 `{size, sha256, saved}`；
+  `GET /api/echo_upload/echo-upload/<name>` 回传文件供下载校验哈希一致性。
+
+编写插件踩坑（本次修正）：`BasePlugin.routes` 是 **@property 抽象属性**（需 @property 装饰，非普通方法）；必须实现 `category/description/version` 三个抽象属性；`plugin.json` 与类属性（name/category/version/description）需完全一致，更新包版本号必须递增（1.0.0 → 1.0.1）。
+
+## Android 多机归因复测流程（阶段 4）
+
+1. **PC 侧确认环境**（本次已就绪）：框架反代模式运行中（内部 HTTP 5010 + Nginx 8443，`TRUST_PROXY_HEADERS=true`、`EXTERNAL_SCHEME=https`、`EXTERNAL_PORT=8443`）。两种待测拓扑：
+   - 直连：`http://<PC_IP>:5010`（内部 HTTP，remote_addr 直读）
+   - 反代：`https://<PC_IP>:8443`（Nginx TLS，ProxyFix 归因 X-Forwarded-For）
+2. **Android 侧**（Pydroid 内）分别对两个 base 跑 probe：
+   ```
+   python android_client.py --base http://<PC_IP>:5010 --tag direct
+   python android_client.py --base https://<PC_IP>:8443 --tag proxy
+   ```
+   把输出的两个 `diagnostics/android_probe_*.json` 回传到 PC 的 `test_server/diagnostics/`。
+3. **PC 侧比对**（框架审计日志里登录/敏感动作会记录 `ip` 字段）：
+   ```
+   python test_server/pc_audit_lookup.py --since "<probe 开始时间>" --only-ip
+   python test_server/pc_audit_lookup.py --since "<probe 开始时间>" --ip <Android_IP>
+   ```
+   预期：直连拓扑 audit 的 ip=Android 局域网 IP；反代拓扑同样 ip=Android 局域网 IP（ProxyFix 生效，非 127.0.0.1）。
 
 ## 诊断回传约定
 
 - Android 端产物：`test_server/diagnostics/android_*.json`
+- PC 端归因比对：`python test_server/pc_audit_lookup.py`（读 data/audit.log，无需落盘）
 - PC 端产物：`test_server/diagnostics/longrun_*.jsonl`、`stress_*.json`
 - 框架侧配合材料：`data/audit.log` 相关片段（多机归因比对用）
 - 评估报告由 PC 端汇总落盘 `documents/`

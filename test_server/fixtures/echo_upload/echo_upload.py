@@ -17,7 +17,11 @@ from plugins.base_plugin import BasePlugin
 class EchoUploadPlugin(BasePlugin):
     name = 'echo_upload'
     title = '测试：回显上传（大文件压测载体）'
+    category = '测试'
+    version = '1.0.1'
+    description = '测试专用：回显上传大文件（压测载体），返回 size+sha256；测完请卸载并清理。'
 
+    @property
     def routes(self):
         return [
             {
