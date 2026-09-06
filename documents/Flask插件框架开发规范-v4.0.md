@@ -3,6 +3,22 @@
 > 版本特性与演进史（来龙去脉）见 [Flask插件框架-版本演进记录.md](Flask插件框架-版本演进记录.md)；
 > 下方为各版本变更说明（按时间倒序）。
 
+## 版本：v4.11.0（Reachability：网络可达） | 更新日期：2026年09月06日
+
+### 版本说明（v4.11.0 变更，M1-M5 已完成）
+
+**主题：Reachability（网络可达）**——解决"非固定 IP 每次都要重新发布访问链接"的痛点，让普通用户"够得着"框架（承接 v4.10 Accessibility"用得上"的递进）。
+
+1. **地址中心（M1）**：新增 `core/network.py`（纯标准库）——`get_lan_addresses`（socket.getaddrinfo + ipconfig / hostname -I + UDP 兜底，过滤 127./169.254./0.0.0.0 并去重）、`get_binding_host` / `register_effective_port` / `get_effective_port`（优先级：运行时注册值 > FLASKTOOLKIT_PORT 环境变量 > 用户配置 > 5000）、`is_https_enabled` / `get_scheme`、`get_access_urls`（组合可达地址列表：mDNS 置顶、127 仅本机、0.0.0.0 全部可达、URL 去重）、`get_ip_watch_interval` / `get_mdns_hostname` / `is_mdns_enabled` / `get_mdns_url`。新增 tests/test_network.py 24 项。
+2. **mDNS 服务注册（M2）**：新增 `core/mdns.py`——可选依赖 `zeroconf`（缺失降级提示 `pip install zeroconf`，不影响框架启动，延续 v4.10 pip_dependencies"可选依赖增强"理念）；`SERVICE_TYPE='_flasktoolkit._tcp.local.'`；`start` 幂等（MDNS_ENABLED=False 或缺库返回 False）、`stop`、`available` / `is_active`；ServiceInfo 构造兼容新版（addresses）/ 旧版（address）参数。新增 tests/test_mdns.py 22 项（mock zeroconf 注入 sys.modules）。
+3. **后台网络与访问页（M3）**：新增 `GET /api/admin/network`（返回 access_urls / mdns / ip_watch / lan_addresses）+ `POST /api/admin/network/config`（白名单 HOST / MDNS_ENABLED / MDNS_HOSTNAME / IP_WATCH_INTERVAL，类型校验，写 data/user_config.json + load_user_config 重载 + 审计日志；HOST / MDNS 变更需重启生效）+ `/admin/network` 页面路由（`_looks_like_ip` 校验）；`templates/admin/network.html`——分享入口地址列表（复制 / 二维码）+ 当前网络状态 + 共享开关 + mDNS 开关 + 主机名 + IP 检测间隔 + 防火墙提示（二维码前端内置 qrcodejs 单文件，MIT 离线可用，零后端依赖）；后台导航补『🌐 网络与访问』。tests/test_admin_api.py 44→60。
+4. **启动横幅播报 + IP 变化检测（M4）**：新增 `core/ip_watcher.py`——`check_once`（快照比较，首次不视为变化，变化记录 last_change_ts / last_change_detail 并日志 warning）、`start`（IP_WATCH_INTERVAL 秒，interval<=0 不启动，daemon 线程）、`stop`、`get_status`；`app.py` 启动后 `register_effective_port(port)` 接入真实端口并播报『[共享] 访问地址...』横幅（每个地址一行）+ `ip_watcher.start()`。新增 tests/test_ip_watcher.py 15 项。
+5. **桌面启动器（M5）**：新增 `tools/desktop_launcher.py`（tkinter 标准库，随 Python 分发，面向"有极客精神但不想碰命令行"的普通用户，双击即用）——`prepare_config`（按共享模式写 HOST）/ `generate_access_info`（复用 core/network 纯逻辑）/ `start_server`（subprocess 启动 app.py + CREATE_NO_WINDOW，注入 FLASKTOOLKIT_PORT 环境变量）/ `extract_port_from_output`（正则解析 Running on http://...:port）/ `monitor_output`（后台线程，行/端口/退出回调）/ `run_gui`（访问模式单选 / 端口 / 启动停止 / 地址列表 / 复制 / 打开浏览器 / 日志；二维码需 qrcode + PIL 可选库，缺失仅隐藏二维码区）；CLI `--smoke`（无 GUI 测试模式）/ `--shared` / `--port`；与框架解耦——subprocess 管理、不 import 框架核心（避免初始化副作用）。新增 tests/test_desktop_launcher.py 27 项。
+- **配置项新增**：`MDNS_ENABLED`（默认 false，改需重启生效）、`MDNS_HOSTNAME`（默认 flasktoolkit，服务以 `<name>.local` 可达）、`IP_WATCH_INTERVAL`（默认 30 秒，0=关闭）。
+- **已知局限**：mDNS 需局域网支持（Windows 10+ / macOS / 多数 Linux 已内置响应端）；跨网段不可达；公网环境需自行评估风险（插件仍无沙箱）。
+- **回归**：32 脚本 779 项（v4.10 28 脚本 737 项；新增 network 24 / mdns 22 / ip_watcher 15 / desktop_launcher 27 四脚本与 admin_api 网络用例扩充）。
+
+
 ## 版本：v4.10.0（Accessibility：能力可达性） | 更新日期：2026年09月06日
 
 ### 版本说明（v4.10.0 变更，M1-M6-Extra 已完成）
@@ -104,7 +120,9 @@
 
 | 版本 | 日期 | 主题 | 提交 |
 |------|------|------|------|
-| **v4.9.2** | 2026-09-05 | CI 三问题修复 + 全局总量配额 + 后台插件空间管理 | （待发布） |
+| **v4.11.0** | 2026-09-06 | Reachability：网络可达（地址中心 / mDNS / 网络页 / IP 检测 / 桌面启动器） | （待发布） |
+| **v4.10.0** | 2026-09-06 | Accessibility：能力可达（向导 / 自助注册 / pip 依赖 / API 文档页 / 空间清理） | cf6b114 |
+| **v4.9.2** | 2026-09-05 | CI 三问题修复 + 全局总量配额 + 后台插件空间管理 | fb7aa5b |
 | **v4.9.1** | 2026-09-05 | 配额声明模型：storage:limit 存储空间授权 + 写目录推导 + 上传预检 | 69c9ceb |
 | **v4.9.0** | 2026-09-05 | i18n 可扩展语言框架 + 插件数据配额（防恶意写盘） | b1cf31d |
 | **v4.8.0** | 2026-09-05 | 企业环境优化更新：版本检查推送（F1）+ 双后端更新机制（F4） | a582945 |
@@ -162,6 +180,10 @@ FlaskToolkit/
 │   ├── audit_hook.py           #   运行时审计钩子（sys.addaudithook，10.8）
 │   ├── selfcheck.py           #   启动完整性自检
 │   ├── logging_setup.py       #   日志配置 + 插件日志适配器
+│   ├── network.py           #   网络地址中心（局域网 IP / 绑定 / 端口 / 访问地址，v4.11 M1）
+│   ├── mdns.py              #   mDNS 服务注册（可选依赖 zeroconf，v4.11 M2）
+│   ├── ip_watcher.py        #   IP 变化检测（快照比较 + 后台线程，v4.11 M4）
+
 │   └── utils.py               #   通用工具（端口、路径参数、上传大小校验、跨插件调用等）
 ├── routes/                    # 路由层（register(app) 注入）
 │   ├── interceptor.py         #   全局请求拦截器（系统级兜底鉴权）
@@ -182,8 +204,10 @@ FlaskToolkit/
 │   ├── gen_cert.py             #   HTTPS 自签名证书生成工具（v4.5.0，openssl）
 │   ├── scaffold.py            #   插件脚手架 CLI（backend/frontend 骨架生成，v4.10 M6）
 │   ├── install_plugin.py      #   插件离线安装/卸载 CLI（backend/frontend/list/uninstall，v4.10 M6/M6-Extra）
+│   ├── desktop_launcher.py  #   桌面启动器（tkinter GUI，subprocess 启动服务，v4.11 M5）
+
 │   └── reset.py               #   深度重置工具（服务停止时使用，绕过运行时文件锁定）
-├── tests/                     # 回归测试套件（22 脚本 482 项 + 端到端链路验证）
+├── tests/                     # 回归测试套件（32 脚本 779 项 + 端到端链路验证）
 ├── templates/                 # 页面模板（首页/登录/错误码页 400-500/admin 管理后台/插件页）
 │   ├── admin/                 #   管理后台（dashboard / plugins / logs / stats / system）
 │   ├── frontend_tools/        #   前端工具模板
@@ -213,6 +237,8 @@ pip install -r requirements.txt
 ```bash
 python app.py
 ```
+
+桌面启动器（GUI，普通用户免命令行）：`python tools/desktop_launcher.py` —— 启动/停止服务、选择仅本机或局域网共享、一键复制访问地址（v4.11 M5）。
 
 ### 3.3 运行环境变量
 
@@ -1144,7 +1170,7 @@ python tests/test_data_limit.py            # 32 项（插件数据配额回归 v
 python tests/test_setup.py             # 17 项（首次运行向导 + 强制改密 v4.10，隔离目录）
 python tests/test_register.py             # 25 项（自助注册 + 邀请码 + 审核 v4.10 M5，隔离目录）
 python tests/test_scaffold_tools.py  # 53 项（M6 脚手架 + 离线安装/卸载闭环，subprocess 驱动 CLI，隔离目录）
-# 合计 28 个脚本 737 项
+# 合计 32 个脚本 779 项
 # （AirDrop 插件加载回归 test_airdrop_loader.py 8 项已移交 AirDrop 子项目维护，不入主仓库）
 ```
 
@@ -1195,6 +1221,10 @@ python tools/config.py profile <daily|strict|lan-open>   # 套用安全配置预
 | `LANGUAGE` | zh-CN | 系统显示语言（v4.9.0，可选值由 locales/ 语言包决定，Cookie `lang` 可覆盖） |
 | `PLUGIN_DATA_LIMIT_MB` | 50 | 单插件数据目录配额（MB，0=禁用，v4.9.0 见 10.10） |
 | `PLUGIN_DATA_TOTAL_LIMIT_MB` | 0 | 全部插件数据总量配额（MB，0=无限制，v4.9.2 见 10.11） |
+| `MDNS_ENABLED` | false | mDNS 服务注册开关（v4.11，需重启生效，需 pip install zeroconf） |
+| `MDNS_HOSTNAME` | flasktoolkit | mDNS 主机名（v4.11，服务以 <name>.local 可达） |
+| `IP_WATCH_INTERVAL` | 30 | IP 变化检测间隔（秒，0=关闭，v4.11） |
+
 
 示例：
 

@@ -4,7 +4,7 @@
   <img src="https://github.com/ReconLeo/FlaskToolkit/actions/workflows/ci.yml/badge.svg" alt="CI">
   <img src="https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB?logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/License-MIT-yellow" alt="License">
-  <img src="https://img.shields.io/badge/version-4.10.0-blue" alt="Version">
+  <img src="https://img.shields.io/badge/version-4.11.0-blue" alt="Version">
 </p>
 
 > A Flask-based plugin **framework**: bring scattered Python plugins and pure-frontend tools into one unified runtime —
@@ -30,7 +30,8 @@ Over time it grew into what it is today — a few highlights:
 - **Plugin data quota system**: per-plugin data limit (4.9.0) → declarative `storage:limit` override (4.9.1) → **global total cap + admin storage dashboard** (4.9.2);
 - **i18n**: lightweight JSON language packs (zh-CN + en built-in, extensible by adding `locales/<lang>.json`), unified `t()` across templates/backend/frontend, `LANGUAGE` startup config + per-user cookie switching (4.9.0);
 - **Accessibility (4.10)**: first-run wizard with forced password change (dismissible, re-prompted on each login until changed); invite-code self-registration (admin issues invite links — holders skip review, others land in the pending queue); optional `pip_dependencies` per plugin (missing packages skip that plugin with a warning instead of breaking startup); per-plugin API doc pages with permission labels, reachable from the admin UI; **per-plugin storage cleanup** — temp-only or all data including declared write dirs, from the admin dashboard or the offline CLI;
-- **Ops & tooling**: version check with a `changelog.json` feed + dual-backend updater (git / archive), Factory Reset, backup/restore, startup self-check, package integrity signing, plugin scaffolding + offline install/uninstall CLI (`scaffold.py` / `install_plugin.py`), plus a **737-assertion regression suite and GitHub Actions CI**.
+- **Reachability (4.11)**: stop re-publishing your access link every time your IP changes — a **Network & Access page** in the admin UI lists every reachable address (share links + QR codes, mDNS switch, IP-change detection with a configurable interval); optional **mDNS** (`pip install zeroconf`) keeps the service reachable at a stable `flasktoolkit.local` name; plus a **desktop launcher** (`tools/desktop_launcher.py`) — double-click friendly, starts/stops the server, switches local-only vs LAN-sharing, and copies the access address for you;
+- **Ops & tooling**: version check with a `changelog.json` feed + dual-backend updater (git / archive), Factory Reset, backup/restore, startup self-check, package integrity signing, plugin scaffolding + offline install/uninstall CLI (`scaffold.py` / `install_plugin.py`), plus a **779-assertion regression suite and GitHub Actions CI**.
 
 The full feature specification lives in the [development guide](documents/Flask插件框架开发规范-v4.0.md).
 
@@ -57,6 +58,7 @@ In one sentence: a **plugin framework** — one unified home for your local mini
 
 - Default setup is local-only (`127.0.0.1`); your data stays on your disk and never leaves your machine;
 - Auth is optional: skip it for a guest-mode personal workspace, or install it if you want login protection;
+- No command line? Run `python tools/desktop_launcher.py` for a small GUI that starts/stops the server, picks local-only vs LAN-sharing, and copies your access address (the QR code lives on the admin **Network & Access** page);
 - Start from the official examples, then drop your own scripts in as plugins whenever the need arises;
 - Get into the habit of `python tools/backup.py create` before big changes.
 
@@ -73,6 +75,8 @@ In one sentence: a **plugin framework** — one unified home for your local mini
 ```bash
 pip install -r requirements.txt
 python app.py
+
+Or, if you prefer a GUI: `python tools/desktop_launcher.py` (start / stop the server, pick local-only or LAN-sharing, copy the access address).
 ```
 
 Open `http://127.0.0.1:5000` in your browser (local-only by default; set `FLASKTOOLKIT_HOST=0.0.0.0` for LAN use, see below).
@@ -123,7 +127,7 @@ Detailed specs live in the [Flask Plugin Framework Development Guide](documents/
 
 ## Tests & CI
 
-`tests/` contains **28 scripts / 737 assertions** of regression tests (isolated-directory mode, no pollution of project files); GitHub Actions runs them automatically on Python 3.10 / 3.11 / 3.12, covering permissions, plugin-package / frontend-tool chains, integrity signatures, uninstall manifests, Factory Reset, large-plugin multi-template page routing, file transfer (upload limits / Chinese-name downloads / Range), static security scanning, capability cross-validation, runtime audit hooks, i18n framework, plugin data quota, plugin scaffolding / offline install-uninstall CLI, per-plugin space cleanup, ops tools, etc.
+`tests/` contains **32 scripts / 779 assertions** of regression tests (isolated-directory mode, no pollution of project files); GitHub Actions runs them automatically on Python 3.10 / 3.11 / 3.12, covering permissions, plugin-package / frontend-tool chains, integrity signatures, uninstall manifests, Factory Reset, large-plugin multi-template page routing, file transfer (upload limits / Chinese-name downloads / Range), static security scanning, capability cross-validation, runtime audit hooks, i18n framework, plugin data quota, plugin scaffolding / offline install-uninstall CLI, per-plugin space cleanup, ops tools, etc.
 
 <details>
 <summary>Expand: 25 test scripts</summary>
@@ -155,14 +159,14 @@ python tests/test_audit_hook.py            # runtime audit hooks (v4.4.0): event
 python tests/test_update_checker.py     # update checker (v4.8.0): version compare / feed cache TTL / archive verify chain / zip-slip guard 40
 python tests/test_i18n.py                  # i18n (v4.9.0): language packs / lookup chain / lang resolution / cookie switch / template render 28
 python tests/test_data_limit.py            # plugin data quota (v4.9.0-4.9.2): path judge / usage / storage:limit declaration / write-dir scope / upload pre-check / global total / TTL / disable 32
-# total: 28 scripts / 737 assertions
+# total: 32 scripts / 779 assertions
 ```
 
 </details>
 
 ## Edition Status
 
-- **Community Edition (v4.x)**: feature development continues with a deliberately controlled architectural scale, focused on small-LAN / personal-use scenarios; we maintain and release regularly (28 scripts / 737 assertions regression + CI).
+- **Community Edition (v4.x)**: feature development continues with a deliberately controlled architectural scale, focused on small-LAN / personal-use scenarios; we maintain and release regularly (32 scripts / 779 assertions regression + CI).
 - **Enterprise Edition (v5.x)**: planned to carry the long-term roadmap (refined permission model, process-level sandboxing, stricter CSP, enterprise identity integration, etc.). Due to limited team capacity, we are openly looking for maintainers to take over — see the [Enterprise Edition handover & roadmap](documents/Enterprise-Edition-交接与路线.md).
 
 ## Known Limitations

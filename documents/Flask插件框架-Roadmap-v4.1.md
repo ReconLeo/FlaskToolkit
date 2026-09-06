@@ -52,7 +52,8 @@
 
 | 版本 | 状态 |
 |------|------|
-| **v4.10.0（当前）** | Accessibility 能力可达性：插件第三方依赖独立声明（pip_dependencies，缺失仅跳过加载并告警）+ 安装前能力清单确认（上传两段式 preview/confirm）+ 调试页权限修正（仅管理员）+ 路由 API 文档页增强（权限标注/非裸插件直达）+ 首次运行向导/强制改密 + 邀请码自助注册（持码免审核/无码待审）+ 插件脚手架/离线安装卸载 CLI + 单插件空间清理（purge-data API + 后台卡片『清理临时/清理全部』+ Factory Reset 数据目录补漏）；回归 28 脚本 737 项 |
+| **v4.11.0（当前）** | Reachability 网络可达：地址中心（core/network.py 局域网 IP/绑定/端口三级优先/访问地址组合去重）+ mDNS 服务注册（core/mdns.py 可选依赖 zeroconf，flasktoolkit.local 稳定可达）+ 后台『网络与访问』页（地址列表/复制/二维码/共享开关/mDNS 开关/IP 检测间隔，qrcodejs 离线内置）+ 启动横幅播报访问地址 + IP 变化检测（core/ip_watcher.py 快照比较 + 日志告警）+ 桌面启动器（tools/desktop_launcher.py tkinter GUI：启动/停止/本机·局域网切换/复制地址，subprocess 解耦不 import 框架核心）；回归 32 脚本 779 项 |
+| v4.10.0（已完成） | Accessibility 能力可达性：插件第三方依赖独立声明（pip_dependencies，缺失仅跳过加载并告警）+ 安装前能力清单确认（上传两段式 preview/confirm）+ 调试页权限修正（仅管理员）+ 路由 API 文档页增强（权限标注/非裸插件直达）+ 首次运行向导/强制改密 + 邀请码自助注册（持码免审核/无码待审）+ 插件脚手架/离线安装卸载 CLI + 单插件空间清理（purge-data API + 后台卡片『清理临时/清理全部』+ Factory Reset 数据目录补漏）；回归 28 脚本 737 项 |
 | v4.9.2（已完成） | CI 三问题修复（f-string 嵌套同引号 PEP 701 仅 3.12+ 导致 3.10/3.11 SyntaxError→改单引号嵌套 + ast 3.10 语法体检入 checklist；temp 目录模块级 makedirs + 上传兜底修复 test client 路径；Actions 升 Node 24 checkout/setup-python/upload-artifact v6）+ 全局总量配额（PLUGIN_DATA_TOTAL_LIMIT_MB 默认 0=无限制，quota.total_limit_mb + check_upload 自动接线 + 审计钩子全局维度 enforce/observe）+ 后台插件空间管理（GET /api/admin/quota + system 页插件空间卡片 + loadQuota JS + en.json 6 词条）；回归 25 脚本 612 项 |
 | v4.9.1（已完成） | 配额声明模型：capabilities 新增 storage 域（storage:limit:<size>，插件请求框架授权存储空间，覆盖全局默认）；配额作用目录自动扩展至 filesystem:write 声明路径（AirDrop uploads/ 场景）；上传预检 API（check_upload 413+剩余空间）+ 审计钩子兑底；core/quota.py（含 v4.9.2 全局总量预留与批量接口）；示例：async_file_demo 配额展示 + corp_tools 插件多语言演示；回归 25 脚本 602 项 |
 | v4.9.0（已完成） | i18n 可扩展语言框架（core/i18n.py + locales/ JSON 语言包，中文原文即 key，插件语言包合并，LANGUAGE 配置 + 用户级 Cookie 切换，t() 模板/后端/前端统一，核心模板与错误消息迁移）+ 插件数据配额防恶意写盘（PLUGIN_DATA_LIMIT_MB 默认 50MB/0 禁用，审计钩子写事件强制，data/temp 目录总量 TTL 缓存，enforce 拒绝/observe 记录）；回归 25 脚本 583 项 |

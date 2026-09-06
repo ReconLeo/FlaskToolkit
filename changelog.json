@@ -1,16 +1,16 @@
 {
-  "latest_version": "4.10.0",
+  "latest_version": "4.11.0",
   "published_at": "2026-09-06",
-  "download_url": "https://github.com/ReconLeo/FlaskToolkit/releases/download/v4.10.0/FlaskToolkit-4.10.0-runtime.zip",
-  "sha256": "e381b84745a1c448dc334fc44241191632605b0d0aea9afa219cbe20c567f773",
+  "download_url": "https://github.com/ReconLeo/FlaskToolkit/releases/download/v4.11.0/FlaskToolkit-4.11.0-runtime.zip",
+  "sha256": "d594dad131e2bbf2ec8aeb5d051d06fe8bc5819670b27faaffed11ad386e2b34",
   "changes": [
-    "插件第三方依赖独立声明（M1，pip_dependencies）：dependencies 语义收窄为仅插件依赖，新增 pip_dependencies 独立字段（plugin.json/类属性/AST 提取/描述一致性）；importlib.metadata 检测缺失时仅跳过加载并告警（附 pip install 命令，不自动安装）；3.x 老写法向后兼容按包检测 + 迁移告警",
-    "安装前能力清单确认（M2）：管理后台上传两段式——preview=1 返回能力预览（依赖/pip 依赖/capabilities/静态扫描摘要）+ preview_id，confirm=1&preview_id 才执行安装；兼容旧直接安装；上传弹窗新增预览确认区；修复 finally 兜底清理误删 preview 文件 bug",
-    "路由 API 文档页增强（M3，仅管理员可见）：build_api_info 共享化含 permission 权限标注（route 声明优先，view_func @permission 次之，缺省 user）；/__plugin_api__/<name> 非裸插件直达调试页；调试页权限修正移入 ADMIN_GUARD_PREFIXES（游客 302/普通用户 403/管理员 200）；plugin_default.html 权限三色徽标 + 后台插件行 API 文档按钮",
-    "首次运行向导 + 强制改密（M4）：/setup 向导（LANGUAGE 白名单）+ data/.setup_done 标记 + 未初始化首页重定向；auth 自助改密（change_password 校验旧密码、踢除其他会话保留当前、POST /api/auth/change-password）；登录响应 must_change_pwd 字段（默认密码为 true）+ 后台改密弹窗（可拒绝，未改则每次登录提醒）",
-    "邀请码自助注册（M5）：ALLOW_REGISTER 注册开关（默认关）；一次性邀请码 FTK-XXXXXXXX-XXXX（plugins/data/auth/invite_codes.json，used_by 一次性）；持码免审核、无码进 pending 待管理员审核；login 拦截 pending 403；user_manage 待审列表/通过/拒绝/邀请码生成/复制注册链接/撤销 6 个管理 API；注册页 ?code= 预填 + 登录页注册入口",
-    "插件脚手架 + 离线安装（M6）：tools/scaffold.py 生成 backend（plugin.json+BasePlugin 主 py+templates/static）/frontend（config.json+html+static）骨架；tools/install_plugin.py 不跑框架手动安装（完整性校验/描述一致性/框架版本/静态扫描门禁 → extract_plugin_pack 安全解压 + installed_files 落盘 → pip 缺失提示）；同名拒绝 / --update 升级防降级；list 离线查看；--base 指定框架根",
-    "离线卸载 + 单插件空间清理（M6-Extra）：cleanup_plugin_data（临时 plugins/temp/<name>/；全部数据含 plugins/data/<name>/ + capabilities filesystem:write 声明目录，normcase 安全护栏，离线从描述文件解析）；POST /api/admin/plugins/<name>/purge-data（scope temp/all + 配额缓存失效 + 审计日志）；后台系统管理页插件空间卡片『清理临时/清理全部』按钮；install_plugin.py uninstall backend|frontend <name> [--purge-data]（内置插件受保护，先清数据后删文件）；factory_reset 补非内置插件数据目录清理",
-    "回归测试扩充至 28 脚本 737 项：新增 test_setup 17 项、test_register 25 项、test_scaffold_tools 53 项；test_pack_meta 19→22、test_admin_api 28→44、test_framework_fixes 9→12、test_factory_reset 37→39；修复 error_pages 隔离环境 PLUGIN_CACHE_FILE 串扰"
+    "地址中心（M1）：新增 core/network.py（纯标准库）——get_lan_addresses（socket.getaddrinfo + ipconfig / hostname -I + UDP 兜底，过滤 127./169.254./0.0.0.0 并去重）、get_effective_port 三级优先（运行时注册值 > FLASKTOOLKIT_PORT 环境变量 > 用户配置 > 5000）、get_access_urls 组合可达地址（mDNS 置顶 / 127 仅本机 / 0.0.0.0 全部可达 / 去重）；app.py 启动后 register_effective_port 接入真实端口；tests/test_network.py 24 项",
+    "mDNS 服务注册（M2）：新增 core/mdns.py——可选依赖 zeroconf（缺失降级提示 pip install zeroconf，不影响框架启动），SERVICE_TYPE='_flasktoolkit._tcp.local.'，start 幂等 / stop / available / is_active，ServiceInfo 构造兼容新旧版参数；新增配置项 MDNS_ENABLED / MDNS_HOSTNAME；tests/test_mdns.py 22 项",
+    "后台网络与访问页（M3）：GET/POST /api/admin/network API（白名单 HOST / MDNS_ENABLED / MDNS_HOSTNAME / IP_WATCH_INTERVAL，类型校验 + 写 user_config + 审计日志，HOST/MDNS 改需重启生效）+ /admin/network 页面——分享入口地址列表（复制 / 二维码，qrcodejs 单文件离线内置）+ 共享开关 + mDNS 开关 + 主机名 + IP 检测间隔 + 防火墙提示；后台导航补『🌐 网络与访问』；tests/test_admin_api.py 44→60",
+    "启动横幅播报（M4）：app.py 启动后打印『[共享] 访问地址...』横幅（每个可达地址一行），共享场景对普通用户一目了然",
+    "IP 变化检测（M4）：新增 core/ip_watcher.py——check_once 快照比较（首次不视为变化）+ start / stop / get_status，IP_WATCH_INTERVAL 配置（默认 30 秒，0=关闭），变化时日志告警；tests/test_ip_watcher.py 15 项",
+    "桌面启动器（M5）：新增 tools/desktop_launcher.py——tkinter 标准库 GUI（双击即用）：启动/停止服务、仅本机/局域网共享切换、地址列表复制 / 打开浏览器 / 日志展示，subprocess 启动 app.py 与框架解耦（不 import 框架核心）；CLI --smoke / --shared / --port；二维码需 qrcode+PIL 可选库缺失仅隐藏；tests/test_desktop_launcher.py 27 项",
+    "配置项新增：MDNS_ENABLED（默认 false，改需重启生效）、MDNS_HOSTNAME（默认 flasktoolkit，服务以 <name>.local 可达）、IP_WATCH_INTERVAL（默认 30 秒，0=关闭）；tools/release.py bump 改为读取 global_var 当前版本作替换锚点（修复旧 bug）",
+    "回归扩充至 32 脚本 779 项（v4.10 28 脚本 737 项）；文档：README 双版补 Reachability 特性条目与普通用户 GUI 指引、开发规范 v4.11 段与目录树/配置项表、Roadmap 与版本演进记录更新"
   ]
 }

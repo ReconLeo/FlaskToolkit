@@ -49,7 +49,7 @@ jobs:
           python tools/reset.py list
           python tools/backup.py list
 
-      - name: 运行回归测试套件（23 脚本，测试间自动清理）
+      - name: 运行回归测试套件（32 脚本，测试间自动清理）
         run: |
           set -e
           TESTS=(test_permission test_stage2 test_zip_slip test_pack_meta test_reload_race \
