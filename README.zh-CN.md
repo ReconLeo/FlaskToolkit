@@ -4,7 +4,7 @@
   <img src="https://github.com/ReconLeo/FlaskToolkit/actions/workflows/ci.yml/badge.svg" alt="CI">
   <img src="https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB?logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/License-MIT-yellow" alt="License">
-  <img src="https://img.shields.io/badge/version-4.9.2-blue" alt="Version">
+  <img src="https://img.shields.io/badge/version-4.10.0-blue" alt="Version">
 </p>
 
 > 一个基于 Flask 的插件化**框架**：把散落的 Python 插件与纯前端工具装进统一的运行时，
@@ -29,6 +29,7 @@
 - **统一文件传输**：全局上传大小上限（默认 100MB，route 级可覆盖）+ 保存前流式预检、中文文件名下载不乱码（RFC 5987）、下载统计与 Range 断点续传；
 - **插件数据配额体系**：单插件配额（4.9.0）→ 声明式 storage:limit 覆盖（4.9.1）→ **全局总量配额 + 后台空间管理**（4.9.2）；
 - **国际化**：轻量 JSON 语言包（内置 zh-CN + en 可扩展），模板/后端/前端统一 t()，LANGUAGE 启动语言 + 用户级 Cookie 切换（4.9.0）；
+- **无障碍易用（4.10）**：首次运行向导 + 强制改密（可暂缓，未改则每次登录后台提醒）；邀请码自助注册（管理员发邀请链接，持码免审核，无码进待审队列）；插件可选 pip_dependencies 声明（缺失仅跳过加载并告警，不影响框架启动）；带权限标注的插件 API 文档页，后台直达；**单插件空间清理**——仅临时目录或全部数据（含声明的自定义写目录），后台卡片或离线 CLI 均可操作；
 - **运维与工具链**：版本检查推送 + 双后端更新（git / archive）、Factory Reset、备份/恢复、启动自检、完整性签名、插件脚手架与离线安装/卸载 CLI（scaffold.py / install_plugin.py）与单插件空间清理，以及一套 **737 项回归测试与 GitHub Actions CI**。
 
 完整功能规格见[开发规范](documents/Flask插件框架开发规范-v4.0.md)。

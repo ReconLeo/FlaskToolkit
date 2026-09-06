@@ -4,7 +4,7 @@
   <img src="https://github.com/ReconLeo/FlaskToolkit/actions/workflows/ci.yml/badge.svg" alt="CI">
   <img src="https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB?logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/License-MIT-yellow" alt="License">
-  <img src="https://img.shields.io/badge/version-4.9.2-blue" alt="Version">
+  <img src="https://img.shields.io/badge/version-4.10.0-blue" alt="Version">
 </p>
 
 > A Flask-based plugin **framework**: bring scattered Python plugins and pure-frontend tools into one unified runtime —
@@ -29,6 +29,7 @@ Over time it grew into what it is today — a few highlights:
 - **Unified file transfer**: global upload-size ceiling (100MB, per-route overridable) with pre-save streaming checks, RFC 5987 Chinese-safe downloads, download stats & Range resume;
 - **Plugin data quota system**: per-plugin data limit (4.9.0) → declarative `storage:limit` override (4.9.1) → **global total cap + admin storage dashboard** (4.9.2);
 - **i18n**: lightweight JSON language packs (zh-CN + en built-in, extensible by adding `locales/<lang>.json`), unified `t()` across templates/backend/frontend, `LANGUAGE` startup config + per-user cookie switching (4.9.0);
+- **Accessibility (4.10)**: first-run wizard with forced password change (dismissible, re-prompted on each login until changed); invite-code self-registration (admin issues invite links — holders skip review, others land in the pending queue); optional `pip_dependencies` per plugin (missing packages skip that plugin with a warning instead of breaking startup); per-plugin API doc pages with permission labels, reachable from the admin UI; **per-plugin storage cleanup** — temp-only or all data including declared write dirs, from the admin dashboard or the offline CLI;
 - **Ops & tooling**: version check with a `changelog.json` feed + dual-backend updater (git / archive), Factory Reset, backup/restore, startup self-check, package integrity signing, plugin scaffolding + offline install/uninstall CLI (`scaffold.py` / `install_plugin.py`), plus a **737-assertion regression suite and GitHub Actions CI**.
 
 The full feature specification lives in the [development guide](documents/Flask插件框架开发规范-v4.0.md).

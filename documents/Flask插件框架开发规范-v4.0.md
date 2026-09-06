@@ -3,9 +3,9 @@
 > 版本特性与演进史（来龙去脉）见 [Flask插件框架-版本演进记录.md](Flask插件框架-版本演进记录.md)；
 > 下方为各版本变更说明（按时间倒序）。
 
-## 版本：v4.10.0（Accessibility：能力可达性，开发中） | 更新日期：2026年09月06日
+## 版本：v4.10.0（Accessibility：能力可达性） | 更新日期：2026年09月06日
 
-### 版本说明（v4.10.0 变更，M1-M6 + M6-Extra 已完成，M7 版本收尾待做）
+### 版本说明（v4.10.0 变更，M1-M6-Extra 已完成）
 面向个人用户/局域网用户的**能力可达性**主题更新（计划 6 模块，第一批已落地）：
 1. **插件第三方依赖独立声明（M1，pip_dependencies）**：`dependencies` 语义收窄为**仅插件依赖**；
    新增 `pip_dependencies` 独立字段（plugin.json / 类属性 / AST 提取 / 描述一致性冲突与兜底），
@@ -38,6 +38,7 @@
   `tests/test_framework_fixes.py` 9→12（调试页权限 E1-E3）；`tests/test_error_pages.py` 修复隔离环境
   PLUGIN_CACHE_FILE 串扰 + sys.modules plugins 残留（真实 `.plugin_cache` 曾被污染为 0 插件）；
   `tests/test_permission.py` A3 适配向导守卫。
+8. **版本收尾（M7）**：版本四端点同步 4.10.0（FRAMEWORK_VERSION / SYSTEM_VERSION_LABEL / test_admin_api 断言 / README 双版徽章）；修复 `tools/release.py` bump 命令版本替换锚点 bug（old 误用新版本号致命令永远无法执行，改为读取 global_var 当前版本作锚点）；精简运行包 `RUNTIME_TOP` 补 `tools/`（scaffold/install_plugin 离线 CLI 与运维工具面向使用者，此前 runtime 包不含 tools）；后台插件空间卡片补『清理临时/清理全部』按钮与 purgePluginData（M6-Extra 前端，修复 loadQuota 既有 getCsrfToken 未定义 bug → `_getCsrfCookie()`）；locales/en.json 补 6 词条；回归 28 脚本 737 项；tag v4.10.0 + GitHub Release（含 runtime zip）。
 
 ## 版本：v4.9.2（CI 三问题修复 + 全局总量配额 + 后台插件空间管理） | 更新日期：2026年09月05日
 
@@ -180,7 +181,7 @@ FlaskToolkit/
 │   ├── backup.py              #   手动备份/恢复工具（Factory Reset 前备份关键数据）
 │   ├── gen_cert.py             #   HTTPS 自签名证书生成工具（v4.5.0，openssl）
 │   ├── scaffold.py            #   插件脚手架 CLI（backend/frontend 骨架生成，v4.10 M6）
-│   ├── install_plugin.py      #   插件离线安装 CLI（backend/frontend/list，v4.10 M6）
+│   ├── install_plugin.py      #   插件离线安装/卸载 CLI（backend/frontend/list/uninstall，v4.10 M6/M6-Extra）
 │   └── reset.py               #   深度重置工具（服务停止时使用，绕过运行时文件锁定）
 ├── tests/                     # 回归测试套件（22 脚本 482 项 + 端到端链路验证）
 ├── templates/                 # 页面模板（首页/登录/错误码页 400-500/admin 管理后台/插件页）

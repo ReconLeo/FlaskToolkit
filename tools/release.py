@@ -33,7 +33,8 @@ from tools.update import USER_DATA_PATHS, path_is_user_data
 
 # 精简包顶层白名单
 # locales/ 为框架内置 i18n 语言包（v4.9.0），精简运行包必须包含（否则更新后界面翻译缺失）
-RUNTIME_TOP = ['app.py', 'global_var.py', 'requirements.txt', 'core', 'routes', 'plugins', 'templates', 'static', 'locales']
+# v4.10: 加入 tools（scaffold/install_plugin 离线 CLI、update/backup/reset 运维工具，面向使用者）
+RUNTIME_TOP = ['app.py', 'global_var.py', 'requirements.txt', 'core', 'routes', 'plugins', 'templates', 'static', 'locales', 'tools']
 # 内置插件白名单（用户插件不入精简包；plugins/configs|data|temp 为运行时数据不入包）
 RUNTIME_PLUGIN_FILES = {'__init__.py', 'base_plugin.py', 'auth.py', 'user_manage.py'}
 # templates 下排除的用户内容子目录（插件模板/前端工具模板）
@@ -69,16 +70,29 @@ def replace_first(path, old, new):
 def cmd_bump(args):
     ver = args.version
     vlabel = 'v' + ver
+    # 读取当前版本作为替换锚点（修复 v4.8.0 引入的 bug：old 误用新版本号导致永远无法替换）
+    gv_path = os.path.join(BASE_DIR, 'global_var.py')
+    with io.open(gv_path, encoding='utf-8', newline='') as f:
+        gv = f.read()
+    m = re.search(r'FRAMEWORK_VERSION = "([0-9.]+)"', gv)
+    if not m:
+        log('错误: global_var.py 未找到 FRAMEWORK_VERSION')
+        return 1
+    old_ver = m.group(1)
+    old_label = 'v' + old_ver
+    if old_ver == ver:
+        log(f'版本号已是 {ver}，无需变更')
+        return 0
     # global_var.py：FRAMEWORK_VERSION + SYSTEM_VERSION_LABEL 默认值
-    replace_first(os.path.join(BASE_DIR, 'global_var.py'),
-                  f'FRAMEWORK_VERSION = "{ver}"',
+    replace_first(gv_path,
+                  f'FRAMEWORK_VERSION = "{old_ver}"',
                   f'FRAMEWORK_VERSION = "{ver}"')
-    replace_first(os.path.join(BASE_DIR, 'global_var.py'),
-                  f"'SYSTEM_VERSION_LABEL': {{'default': '{vlabel}'",
+    replace_first(gv_path,
+                  f"'SYSTEM_VERSION_LABEL': {{'default': '{old_label}'",
                   f"'SYSTEM_VERSION_LABEL': {{'default': '{vlabel}'")
     # tests/test_admin_api.py：framework_version 断言
     replace_first(os.path.join(BASE_DIR, 'tests', 'test_admin_api.py'),
-                  f"== '{ver}'", f"== '{ver}'")
+                  f"== '{old_ver}'", f"== '{ver}'")
     # README 双版徽章
     for p in ('README.md', 'README.zh-CN.md'):
         path = os.path.join(BASE_DIR, p)

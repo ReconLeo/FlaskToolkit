@@ -1,14 +1,16 @@
 {
-  "latest_version": "4.9.2",
+  "latest_version": "4.10.0",
   "published_at": "2026-09-06",
-  "download_url": "https://github.com/ReconLeo/FlaskToolkit/releases/download/v4.9.2/FlaskToolkit-4.9.2-runtime.zip",
-  "sha256": "f232d50169a73dc2892a6ab0f50f44476d819fdb587a446dd7c709c69cac92e7",
+  "download_url": "https://github.com/ReconLeo/FlaskToolkit/releases/download/v4.10.0/FlaskToolkit-4.10.0-runtime.zip",
+  "sha256": "e381b84745a1c448dc334fc44241191632605b0d0aea9afa219cbe20c567f773",
   "changes": [
-    "CI 三问题修复：f-string 嵌套同引号（PEP 701 仅 3.12+）改单引号 + ast 3.10 语法体检入 checklist；上传临时目录 UPLOAD_TEMP_DIR 模块级创建 + 上传兜底（修复 test client 路径）；GitHub Actions 升 Node 24（checkout/setup-python/upload-artifact v6）",
-    "全局总量配额：PLUGIN_DATA_TOTAL_LIMIT_MB（默认 0=无限制），quota.total_limit_mb + check_upload 自动接线 + 审计钩子全局维度（单插件限额 + 全局总量双层，enforce/observe）",
-    "后台插件空间管理：GET /api/admin/quota + 系统管理页插件空间卡片（每插件配额/用量/剩余 + 全局总量）",
-    "声明式存储配额（v4.9.1）：capabilities storage:limit 覆盖全局默认 + filesystem:write 声明目录推导 + 上传预检 API（413+剩余空间）",
-    "i18n 可扩展语言框架 + 插件数据配额（v4.9.0）：轻量 JSON 语言包（zh-CN+en 可扩展）+ t() 全端统一 + 单插件数据配额防恶意写盘",
-    "回归测试扩充至 25 脚本 615 项，全量通过"
+    "插件第三方依赖独立声明（M1，pip_dependencies）：dependencies 语义收窄为仅插件依赖，新增 pip_dependencies 独立字段（plugin.json/类属性/AST 提取/描述一致性）；importlib.metadata 检测缺失时仅跳过加载并告警（附 pip install 命令，不自动安装）；3.x 老写法向后兼容按包检测 + 迁移告警",
+    "安装前能力清单确认（M2）：管理后台上传两段式——preview=1 返回能力预览（依赖/pip 依赖/capabilities/静态扫描摘要）+ preview_id，confirm=1&preview_id 才执行安装；兼容旧直接安装；上传弹窗新增预览确认区；修复 finally 兜底清理误删 preview 文件 bug",
+    "路由 API 文档页增强（M3，仅管理员可见）：build_api_info 共享化含 permission 权限标注（route 声明优先，view_func @permission 次之，缺省 user）；/__plugin_api__/<name> 非裸插件直达调试页；调试页权限修正移入 ADMIN_GUARD_PREFIXES（游客 302/普通用户 403/管理员 200）；plugin_default.html 权限三色徽标 + 后台插件行 API 文档按钮",
+    "首次运行向导 + 强制改密（M4）：/setup 向导（LANGUAGE 白名单）+ data/.setup_done 标记 + 未初始化首页重定向；auth 自助改密（change_password 校验旧密码、踢除其他会话保留当前、POST /api/auth/change-password）；登录响应 must_change_pwd 字段（默认密码为 true）+ 后台改密弹窗（可拒绝，未改则每次登录提醒）",
+    "邀请码自助注册（M5）：ALLOW_REGISTER 注册开关（默认关）；一次性邀请码 FTK-XXXXXXXX-XXXX（plugins/data/auth/invite_codes.json，used_by 一次性）；持码免审核、无码进 pending 待管理员审核；login 拦截 pending 403；user_manage 待审列表/通过/拒绝/邀请码生成/复制注册链接/撤销 6 个管理 API；注册页 ?code= 预填 + 登录页注册入口",
+    "插件脚手架 + 离线安装（M6）：tools/scaffold.py 生成 backend（plugin.json+BasePlugin 主 py+templates/static）/frontend（config.json+html+static）骨架；tools/install_plugin.py 不跑框架手动安装（完整性校验/描述一致性/框架版本/静态扫描门禁 → extract_plugin_pack 安全解压 + installed_files 落盘 → pip 缺失提示）；同名拒绝 / --update 升级防降级；list 离线查看；--base 指定框架根",
+    "离线卸载 + 单插件空间清理（M6-Extra）：cleanup_plugin_data（临时 plugins/temp/<name>/；全部数据含 plugins/data/<name>/ + capabilities filesystem:write 声明目录，normcase 安全护栏，离线从描述文件解析）；POST /api/admin/plugins/<name>/purge-data（scope temp/all + 配额缓存失效 + 审计日志）；后台系统管理页插件空间卡片『清理临时/清理全部』按钮；install_plugin.py uninstall backend|frontend <name> [--purge-data]（内置插件受保护，先清数据后删文件）；factory_reset 补非内置插件数据目录清理",
+    "回归测试扩充至 28 脚本 737 项：新增 test_setup 17 项、test_register 25 项、test_scaffold_tools 53 项；test_pack_meta 19→22、test_admin_api 28→44、test_framework_fixes 9→12、test_factory_reset 37→39；修复 error_pages 隔离环境 PLUGIN_CACHE_FILE 串扰"
   ]
 }
