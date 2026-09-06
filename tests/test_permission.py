@@ -15,11 +15,13 @@ D. auth 已安装、普通用户 -> /api/admin/* 403
 E. login/logout 游客可访问（public）
 F. 权限标记解析 _resolve_permission（新 @permission 与旧 require_role）
 """
+import os
 import sys
 
 sys.path.insert(0, _PROJECT_ROOT)
 
 import app as appmod
+import global_var
 from global_var import plugins
 from core.permission import wrap_view_func
 
@@ -44,8 +46,24 @@ r = client.get("/api/auth/user/info")
 # auth 未安装时该路由不存在(plugin未加载)，走404；但说明不会被拦截器拦成401
 check("A2 未安装auth-无401误拦截", r.status_code != 401, f"status={r.status_code}")
 
-r = client.get("/")
-check("A3 未安装auth-首页可访问", r.status_code == 200, f"status={r.status_code}")
+# v4.10 首次运行向导：真实项目 data/ 无 .setup_done 时首页跳转 /setup。
+# 预置向导完成标记（测试结束清理），模拟已初始化环境再断言首页可访问。
+_setup_marker = os.path.join(global_var.BASE_DIR, 'data', '.setup_done')
+_marker_created = False
+if not os.path.exists(_setup_marker):
+    os.makedirs(os.path.dirname(_setup_marker), exist_ok=True)
+    with open(_setup_marker, 'w', encoding='utf-8') as _f:
+        _f.write('test')
+    _marker_created = True
+try:
+    r = client.get("/")
+    check("A3 未安装auth-首页可访问", r.status_code == 200, f"status={r.status_code}")
+finally:
+    if _marker_created:
+        try:
+            os.remove(_setup_marker)
+        except OSError:
+            pass
 
 # ============ 场景 B/C/D：安装 auth 插件 ============
 # 手动加载 auth 插件并初始化（等价于 load_plugins 中启用分支）

@@ -249,6 +249,46 @@ class AuthPlugin(BasePlugin):
                 return True
         return False
 
+    def change_password(self, user_id: int, old_password: str, new_password: str,
+                        keep_token: str = None):
+        """自助修改密码（v4.10）：校验旧密码 → 更新哈希 → 踢掉该用户其他会话。
+
+        返回 (ok, message)。keep_token 指定保留的会话（当前登录 token 不踢）。
+        """
+        if not new_password or len(new_password) < 6:
+            return False, "新密码长度至少 6 位"
+        for user in self.config["users"]:
+            if user["id"] == user_id:
+                if not self._verify_password(old_password, user["password"]):
+                    return False, "原密码不正确"
+                user["password"] = self._hash_password(new_password)
+                self.save_config()
+                # 踢掉该用户除 keep_token 外的全部登录会话
+                expired = [
+                    token for token, session in self.sessions.items()
+                    if session["id"] == user_id and token != keep_token
+                ]
+                for token in expired:
+                    self.sessions.pop(token, None)
+                self._save_sessions()
+                return True, "密码修改成功"
+        return False, "用户不存在"
+
+    def change_password_api(self):
+        """自助修改密码接口（v4.10）：POST {old_password, new_password}，需登录"""
+        data = request.get_json(silent=True) or {}
+        old_pwd = data.get("old_password") or ""
+        new_pwd = data.get("new_password") or ""
+        user = getattr(request, 'user', None)
+        if not user:
+            return self.error_response("未登录", 401)
+        cur_token = (request.headers.get("X-Token")
+                     or request.cookies.get("token"))
+        ok, msg = self.change_password(user["id"], old_pwd, new_pwd, keep_token=cur_token)
+        if not ok:
+            return self.error_response(msg, 400)
+        return self.success_response(data={"message": msg})
+
     def delete_user(self, user_id: int) -> bool:
         """删除用户（user_manage调用）"""
         for index, user in enumerate(self.config["users"]):
@@ -457,6 +497,16 @@ class AuthPlugin(BasePlugin):
                 "view_func": self.get_config_api
             },
             {
+                "path": "/change-password",
+                "name": "修改我的密码",
+                "methods": ["POST"],
+                "params": [
+                    {"name": "old_password", "type": "string", "required": True, "description": "原密码"},
+                    {"name": "new_password", "type": "string", "required": True, "description": "新密码（至少 6 位）"}
+                ],
+                "view_func": self.change_password_api
+            },
+            {
                 "path": "/config",
                 "name": "更新插件配置",
                 "methods": ["POST"],
@@ -482,12 +532,20 @@ class AuthPlugin(BasePlugin):
         if success:
             # 登录成功，清除该维度的失败计数
             self._clear_login_attempts(username)
+            # v4.10 强制改密：密码仍为默认 admin123 时置 true（前端登录后台弹改密窗）
+            # login() 返回的 user_info 不含 password（安全剥离），按 id 反查 config 中的哈希
+            _pwd_hash = ''
+            for _u in self.config.get("users", []):
+                if _u.get("id") == user["id"]:
+                    _pwd_hash = _u.get("password", '')
+                    break
             response = self.success_response(data={
                 "token": token,
                 "id": user["id"],
                 "username": user["username"],
                 "nickname": user["nickname"],
-                "role": user["role"]
+                "role": user["role"],
+                "must_change_pwd": bool(_pwd_hash) and self._verify_password("admin123", _pwd_hash)
             })
             # 会话 token：HttpOnly Cookie（JS 不可读，防 XSS 窃取）
             response.set_cookie(

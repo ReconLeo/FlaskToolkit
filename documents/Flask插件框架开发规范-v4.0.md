@@ -3,6 +3,37 @@
 > 版本特性与演进史（来龙去脉）见 [Flask插件框架-版本演进记录.md](Flask插件框架-版本演进记录.md)；
 > 下方为各版本变更说明（按时间倒序）。
 
+## 版本：v4.10.0（Accessibility：能力可达性，开发中） | 更新日期：2026年09月06日
+
+### 版本说明（v4.10.0 变更，M1-M4 已完成，M5-M7 待做）
+面向个人用户/局域网用户的**能力可达性**主题更新（计划 6 模块，第一批已落地）：
+1. **插件第三方依赖独立声明（M1，pip_dependencies）**：`dependencies` 语义收窄为**仅插件依赖**；
+   新增 `pip_dependencies` 独立字段（plugin.json / 类属性 / AST 提取 / 描述一致性冲突与兜底），
+   用 `importlib.metadata` 检测第三方 Python 包是否已安装；缺失时**仅跳过加载 + 告警**（附 `pip install` 命令，
+   不自动安装）；老写法（3.x 在 dependencies 混写 pip 包）向后兼容按包检测 + 迁移告警提示；
+   catalog / 插件元信息透传新字段。
+2. **安装前能力清单确认（M2）**：管理后台上传接口两段式——`preview=1` 解析插件包返回能力预览
+   （依赖 / pip 依赖 / capabilities 声明 / 静态扫描摘要）+ `preview_id`（`preview_` 前缀 + uuid 落盘），
+   `confirm=1&preview_id` 才执行安装；兼容旧直接安装流程；上传弹窗新增预览确认区（escapeHtml +
+   两步上传）；修复 upload `finally` 兜底清理误删 preview 文件的 bug（仅非预览/非确认时清理）。
+3. **路由 API 文档页增强（M3，仅管理员可见）**：`build_api_info` 提升为共享函数（含 `permission` 权限层级，
+   权限解析：route 声明优先，否则 view_func @permission 标记，缺省 user）；新增 `/__plugin_api__/<name>` 路由，
+   非裸插件也可直达调试页；**调试页权限修正：移入 ADMIN_GUARD_PREFIXES**（游客 302 / 普通用户 403 / 管理员 200，
+   普通用户不应看到调试路由页）；plugin_default.html 权限三色徽标 + 图例；后台插件行新增 API 文档按钮。
+4. **首次运行向导 + 强制改密（M4）**：`data/.setup_done` 向导完成标记（独立于 .initialized，不与自检耦合）；
+   `/setup` GET/POST 路由——POST 写入 `user_config.json` 的 LANGUAGE（白名单 zh-CN/en，非法值容错跳过）+
+   落盘标记后跳转首页；**首页未完成初始化时重定向 /setup**；auth 新增自助改密
+   （`change_password(user_id, old, new, keep_token)` 校验旧密码 + 踢除其他会话保留当前、
+   `POST /api/auth/change-password` 需登录 + CSRF 双提交）；登录响应新增 `must_change_pwd` 字段
+   （密码仍为默认 admin123 时为 true；**注意 login() 返回的 user_info 已剥离 password，须按 id 反查
+   config 哈希**）；前端登录成功存 `ftk_must_pwd` localStorage 标记，后台每次加载弹改密窗
+   （用户可拒绝，拒绝不消除标记，下次登录仍提醒）。
+- **回归测试扩充至 26 脚本 649 项**：新增 `tests/test_setup.py` 17 项（向导 10 + 改密 7，隔离目录全路径 mock）；
+  `tests/test_pack_meta.py` 19→22（pip_dependencies）；`tests/test_admin_api.py` 28→36（能力预览/确认两段式）；
+  `tests/test_framework_fixes.py` 9→12（调试页权限 E1-E3）；`tests/test_error_pages.py` 修复隔离环境
+  PLUGIN_CACHE_FILE 串扰 + sys.modules plugins 残留（真实 `.plugin_cache` 曾被污染为 0 插件）；
+  `tests/test_permission.py` A3 适配向导守卫。
+
 ## 版本：v4.9.2（CI 三问题修复 + 全局总量配额 + 后台插件空间管理） | 更新日期：2026年09月05日
 
 ### 版本说明（v4.9.2 变更）
@@ -1051,12 +1082,12 @@ FLASKTOOLKIT_HOST=0.0.0.0 FLASKTOOLKIT_PORT=8000 python app.py
 | `test_permission.py` | 权限体系（游客/登录/管理员三层 + CSRF） | 20 项 |
 | `test_stage2.py` | 安全加固回归 | 19 项 |
 | `test_zip_slip.py` | 插件包 zip slip 防路径穿越专项（`..`/绝对路径/盘符拒绝 + 正常落位） | 19 项 |
-| `test_pack_meta.py` | 插件包描述一致性（一致/缺失兜底/冲突拒绝/动态 name 不误伤/落盘对齐） | 17 项 |
+| `test_pack_meta.py` | 插件包描述一致性（一致/缺失兜底/冲突拒绝/动态 name 不误伤/落盘对齐）+ pip_dependencies（v4.10） | 22 项 |
 | `test_reload_race.py` | 热加载重载竞态回归（test client，20 轮重载后会话保持，验证 auth 会话原子写） | 1 项 |
 | `test_meta_e2e.py` | 插件包元信息端到端（上传/冲突/已存在/update 刷新/降级拒绝/require 拒绝，隔离目录模式可重复运行） | 10 项 |
 | `test_frontend_zip_slip.py` | 前端工具包安全解压 zip slip 专项（`..`/绝对路径/盘符拒绝 + 正常落位 + clean_static 更新清理 + 卸载资源清理） | 21 项 |
 | `test_frontend_chain.py` | 前端工具上传/更新/卸载端到端（含页面/静态资源渲染、clean_static、413 上传大小限制） | 23 项 |
-| `test_admin_api.py` | 管理端 API 单测（system/info、plugins、stats、logs、factory-reset scope 校验、上传 413/400） | 27 项 |
+| `test_admin_api.py` | 管理端 API 单测（system/info、plugins、stats、logs、factory-reset scope 校验、上传 413/400、空间管理、能力预览两段式 v4.10） | 36 项 |
 | `test_factory_reset.py` | Factory Reset 范围测试（部分/全部删除与保留、内置插件保护、空/非法 scope 无副作用） | 37 项 |
 | `test_error_pages.py` | 统一错误码页面渲染（404/405 真实触发 + 400/401/403/500 模板，双环境无 auth/带 auth） | 12 项 |
 | `test_package_sign.py` | 插件包完整性校验与签名专项（篡改/加料/缺失检测、签名验证、strict/warn/off 模式、路由集成） | 22 项 |
@@ -1064,15 +1095,15 @@ FLASKTOOLKIT_HOST=0.0.0.0 FLASKTOOLKIT_PORT=8000 python app.py
 | `test_frontend_permission.py` | 前端工具访问控制（三层权限 + 改权限 API 鉴权/边界 + 静态资源一致 + update 保留 permission） | 25 项 |
 | `test_tools_ops.py` | 开发运维工具回归（backup 创建/恢复、reset 范围、config 设置/非法值/unset） | 19 项 |
 | `test_page_router.py` | 大插件多模板（页面路由 page=True：主入口自动检测、dict/Response 分发、路径参数注入、正斜杠模板名、旧式 page() 兼容）+ 纯 API 无 name 插件调试页回归 | 21 项 |
-| `test_framework_fixes.py` | 框架小修复（v4.2.1）：public_page 豁免（公开页面免登录 200 / 普通插件页面守卫 302）+ plugin_common.js CSRF 单值注入静态断言 | 9 项 |
+| `test_framework_fixes.py` | 框架小修复（v4.2.1）：public_page 豁免（公开页面免登录 200 / 普通插件页面守卫 302）+ plugin_common.js CSRF 单值注入静态断言 + 调试页权限（v4.10） | 12 项 |
 | `test_file_transfer.py` | 文件传输强化（v4.2.2）：全局 413 / 插件级 max_upload_size 预检 / route 级 max_upload 覆盖 / 中文名下载 / 下载统计 / Range / on_ready 顺序 | 12 项 |
-| `test_security.py` | 系统安全回归（v4.3.0）：安全响应头注入与开关 / 指纹头移除 / Cookie HttpOnly+SameSite+Secure 联动 / 会话空闲超时 / 登录失败锁定三档（ip_username/username/off）+ 通用 429 + 成功重置 | 30 项 |
+| `test_security.py` | 系统安全回归（v4.3.0）：安全响应头注入与开关 / 指纹头移除 / Cookie HttpOnly+SameSite+Secure 联动 / 会话空闲超时 / 登录失败锁定三档（ip_username/username/off）+ 通用 429 + 成功重置 + 解封（v4.5.1） | 45 项 |
 | `test_plugin_scan.py` | 插件静态扫描回归（v4.3.1）：扫描器单元（危险导入/调用/混淆/范围提取/别名归因）/ 插件包扫描 / 前端 HTML 扫描 / enforce 门禁集成（拒绝 400 + 附报告 + 未落盘 + 真实项目未污染）/ 配置预设三套 | 35 项 |
 | `test_capabilities.py` | 插件能力声明回归（v4.3.2）：解析器（合法/非法/未知域/裸 * 拒绝）/ 匹配语义（路径前缀递归/URL host·path·端口/子域通配/tcp/env）/ 交叉校验（隐式豁免/跨插件越界/建议声明/unused）/ 运行时授权 API（fail-closed/process 细粒度）/ 安装链路集成（enforce 拒绝与放行/响应附摘要/loader 注册）/ base_plugin data API + hello_plugin 示例端到端 / **storage 域解析与目录推导（v4.9.1）** | 57 项 |
-| `test_audit_hook.py` | 运行时审计钩子回归（v4.4.0）：事件映射（open 读写/删除族/sqlite/socket）/ 栈定位（plugins 帧/框架放行/嵌套归因）/ observe 聚合（按插件/建议声明/事件样本）/ enforce 阻断（异常传播/授权放行/自属豁免/fail-closed）/ 隔离集成（真实钩子+栈归因端到端/stats 按插件分组/重载清零/审计落盘/未污染） | 36 项 |
-| `test_update_checker.py` | 版本检查推送（v4.8.0）：版本比较（parse_version/is_newer）/ 用户数据路径判定 / zip slip 防护 / archive 校验链（sha256 必选 + 签名可选）/ 数据源缓存 TTL / 数据源结构校验 | 40 项 |
+| `test_audit_hook.py` | 运行时审计钩子回归（v4.4.0）：事件映射（open 读写/删除族/sqlite/socket）/ 栈定位（plugins 帧/框架放行/嵌套归因）/ observe 聚合（按插件/建议声明/事件样本）/ enforce 阻断（异常传播/授权放行/自属豁免/fail-closed）/ 隔离集成（真实钩子+栈归因端到端/stats 按插件分组/重载清零/审计落盘/未污染） | 38 项 |
+| `test_update_checker.py` | 版本检查推送（v4.8.0）：版本比较（parse_version/is_newer）/ 用户数据路径判定（v4.9.2 补 users/locales）/ zip slip 防护 / archive 校验链（sha256 必选 + 签名可选）/ 数据源缓存 TTL / 数据源结构校验 | 43 项 |
 | `test_i18n.py` | i18n（v4.9.0）：语言包加载 / 查找链（插件合并与覆盖）/ 语言解析优先级 / 切换路由 / 模板渲染（中英） / 缺省回退 / 参数插值 | 28 项 |
-| `test_data_limit.py` | 插件数据配额（v4.9.0-4.9.1）：路径判定（data/temp/边界）/ 用量统计 / enforce 超限拒绝 / observe 记录 / TTL 缓存刷新 / 0 禁用 / **storage:limit 覆盖全局 / write 声明目录推导（uploads/ 场景）/ check_upload 预检 / 全局总量预留** | 32 项 |
+| `test_data_limit.py` | 插件数据配额（v4.9.0-4.9.2）：路径判定（data/temp/边界）/ 用量统计 / enforce 超限拒绝 / observe 记录 / TTL 缓存刷新 / 0 禁用 / **storage:limit 覆盖全局 / write 声明目录推导（uploads/ 场景）/ check_upload 预检 / 全局总量配额** | 32 项 |
 
 
 ```bash
@@ -1080,12 +1111,12 @@ cd FlaskToolkit   # 在项目根目录执行
 python tests/test_permission.py       # 20 项（权限体系）
 python tests/test_stage2.py           # 19 项（安全加固回归）
 python tests/test_zip_slip.py         # 19 项
-python tests/test_pack_meta.py        # 17 项
+python tests/test_pack_meta.py        # 22 项
 python tests/test_reload_race.py      # 1 项
 python tests/test_meta_e2e.py         # 10 项（隔离目录模式）
 python tests/test_frontend_zip_slip.py# 21 项
 python tests/test_frontend_chain.py   # 23 项（前端工具链路，隔离目录）
-python tests/test_admin_api.py        # 21 项（管理端 API，隔离目录）
+python tests/test_admin_api.py        # 36 项（管理端 API，隔离目录）
 python tests/test_factory_reset.py    # 37 项（Factory Reset 范围，隔离目录）
 python tests/test_error_pages.py      # 12 项（错误码页面，隔离目录）
 python tests/test_package_sign.py     # 22 项（完整性校验/签名，隔离目录）
@@ -1093,16 +1124,17 @@ python tests/test_plugin_cleanup.py    # 23 项（插件卸载 installed_files �
 python tests/test_frontend_permission.py # 25 项（前端工具访问控制，隔离目录）
 python tests/test_tools_ops.py         # 19 项（backup/reset/config 运维工具，隔离目录）
 python tests/test_page_router.py       # 21 项（大插件多模板页面路由 + 纯 API 无 name 插件调试页回归，隔离目录）
-python tests/test_framework_fixes.py    # 9 项（public_page 豁免 + CSRF 单值注入，隔离目录）
+python tests/test_framework_fixes.py    # 12 项（public_page 豁免 + CSRF 单值注入 + 调试页权限，隔离目录）
 python tests/test_file_transfer.py       # 12 项（文件传输强化，隔离目录）
-python tests/test_security.py            # 30 项（系统安全回归 v4.3.0，隔离目录）
+python tests/test_security.py            # 45 项（系统安全回归 v4.3.0 + 解封，隔离目录）
 python tests/test_plugin_scan.py           # 35 项（插件静态扫描回归 v4.3.1，隔离目录）
 python tests/test_capabilities.py          # 57 项（插件能力声明回归 v4.3.2 + storage 域，隔离目录）
-python tests/test_audit_hook.py            # 36 项（运行时审计钩子回归 v4.4.0，隔离目录）
-python tests/test_update_checker.py     # 40 项（版本检查推送回归 v4.8.0，隔离目录）
+python tests/test_audit_hook.py            # 38 项（运行时审计钩子回归 v4.4.0，隔离目录）
+python tests/test_update_checker.py     # 43 项（版本检查推送回归 v4.8.0，隔离目录）
 python tests/test_i18n.py                  # 28 项（i18n 回归 v4.9.0，隔离目录）
-python tests/test_data_limit.py            # 28 项（插件数据配额回归 v4.9.0-4.9.1，隔离目录）
-# 合计 25 个脚本 615 项
+python tests/test_data_limit.py            # 32 项（插件数据配额回归 v4.9.0-4.9.2，隔离目录）
+python tests/test_setup.py             # 17 项（首次运行向导 + 强制改密 v4.10，隔离目录）
+# 合计 26 个脚本 649 项
 ```
 
 说明：`test_meta_e2e.py` 与 `test_frontend_chain.py` / `test_admin_api.py` / `test_factory_reset.py` / `test_error_pages.py` / `test_package_sign.py` 均通过 mock 基础目录 + `sys.path` 指向临时插件目录运行，不污染真实项目，可重复执行；`test_reload_race.py` 使用 Flask test client，在测试开头手动调用 `load_plugins()` 初始化（`load_plugins` 仅在 `app.py` 的 `main` 段自动调用）。

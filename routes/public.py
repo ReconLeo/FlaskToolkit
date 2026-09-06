@@ -2,6 +2,7 @@
 """公开路由：首页、登录/登出、403 页、favicon、错误处理器（游客可访问）"""
 import logging
 import os
+import time
 import urllib.parse
 
 from flask import jsonify, make_response, redirect, render_template, request, send_from_directory
@@ -13,10 +14,52 @@ def _tr():
     """当前请求语言的翻译器（错误消息用）。"""
     return i18n.make_translator(i18n.get_lang())
 
+
+def _setup_done_file() -> str:
+    '''首次运行向导完成标记（v4.10）：data/.setup_done，存在即视为已初始化。'''
+    return os.path.join(global_var.BASE_DIR, 'data', '.setup_done')
+
+
+def _is_setup_done() -> bool:
+    return os.path.exists(_setup_done_file())
+
 logger = logging.getLogger('flask.app')
 
 
 def register(app):
+    @app.route('/setup', methods=['GET', 'POST'])
+    def setup_page():
+        '''v4.10 首次运行向导：未完成初始化时访问首页跳转至此。'''
+        done_file = _setup_done_file()
+        if request.method == 'POST':
+            lang = (request.form.get('lang') or '').strip()
+            if lang in ('zh-CN', 'en'):
+                try:
+                    import json as _json
+                    cfg_file = global_var.USER_CONFIG_FILE
+                    data = {}
+                    if os.path.isfile(cfg_file):
+                        with open(cfg_file, encoding='utf-8') as _f:
+                            data = _json.load(_f)
+                    if not isinstance(data, dict):
+                        data = {}
+                    data['LANGUAGE'] = lang
+                    with open(cfg_file, 'w', encoding='utf-8') as _f:
+                        _json.dump(data, _f, ensure_ascii=False, indent=2)
+                    from global_var import load_user_config
+                    load_user_config()
+                except Exception:
+                    pass
+            try:
+                os.makedirs(os.path.dirname(done_file), exist_ok=True)
+                with open(done_file, 'w', encoding='utf-8') as _f:
+                    _f.write(time.strftime('%Y-%m-%d %H:%M:%S'))
+            except Exception:
+                pass
+            return redirect('/')
+        if os.path.exists(done_file):
+            return redirect('/')
+        return render_template('setup.html', FRAMEWORK_VERSION=global_var.FRAMEWORK_VERSION)
     @app.route('/login')
     def login_page():
         """全局登录页面"""
@@ -53,6 +96,9 @@ def register(app):
 
     @app.route('/')
     def index():
+        # v4.10 首次运行向导：未完成初始化时跳转 /setup
+        if not _is_setup_done():
+            return redirect('/setup')
         logger.info("访问首页", extra={'plugin': 'system'})
         # 合并后端插件（内存注册表 plugin_catalog，含禁用/未加载项）和前端工具
         all_tools = [dict(t) for t in global_var.plugin_catalog]

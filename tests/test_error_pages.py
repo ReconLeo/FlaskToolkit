@@ -58,9 +58,17 @@ def build_env(with_auth=False):
             json.dump({}, f)
 
     sys.path.insert(0, root)  # 让 import 'plugins.*' 从本隔离目录解析
+    # 清理 plugins 模块缓存：前一个隔离环境可能已把 'plugins' 包/子模块
+    # 缓存在 sys.modules（指向旧 root），不清理会导致新环境 import 到旧文件
+    for _m in [m for m in list(sys.modules) if m == 'plugins' or m.startswith('plugins.')]:
+        del sys.modules[_m]
+    # 插件发现缓存文件也必须隔离（模块级常量，不随 BASE_DIR patch 联动），
+    # 否则隔离环境 load_plugins 会读写真实 .plugin_cache，造成测试间缓存串扰
     saved = {}
     for attr, val in (('BASE_DIR', root), ('UPLOAD_TEMP_DIR', os.path.join(root, 'temp')),
-                      ('STATS_FILE', os.path.join(root, 'data', 'stats.json'))):
+                      ('STATS_FILE', os.path.join(root, 'data', 'stats.json')),
+                      ('PLUGIN_CACHE_DIR', os.path.join(root, '.plugin_cache')),
+                      ('PLUGIN_CACHE_FILE', os.path.join(root, '.plugin_cache', 'plugin_discovery_cache.json'))):
         saved[attr] = getattr(global_var, attr, None)
         setattr(global_var, attr, val)
     return root, saved

@@ -95,6 +95,12 @@
                 if (xhr.status === 200 && res.code === 200 && res.data && res.data.token) {
                     // 会话 token 已由后端写入 HttpOnly Cookie，前端仅清理残留
                     try { localStorage.removeItem('token'); } catch (e) { /* ignore */ }
+                    // v4.10 强制改密：密码仍为默认 admin123 时置标志，后台加载时弹改密窗
+                    try {
+                        if (res.data.must_change_pwd) {
+                            localStorage.setItem('ftk_must_pwd', '1');
+                        }
+                    } catch (e) { /* ignore */ }
                     showSuccess();
                 } else if (xhr.status === 429) {
                     // 登录失败锁定：展示后端通用信息 + 按钮冷却防重试

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>欢迎使用 {{ system_name }}</title>
+    <link rel="stylesheet" href="/static/css/main.css">
+</head>
+<body>
+    <div class="auth-page">
+        <div class="auth-card" style="max-width:520px;">
+            <div style="text-align:center; margin-bottom:18px;">
+                <div style="font-size:44px; line-height:1;">🚀</div>
+                <h2 class="auth-title" style="margin-top:10px;">欢迎使用 FlaskToolkit</h2>
+                <div style="font-size:13px; color:#888; margin-top:2px;">Flask 插件化全栈工具集 · v{{ FRAMEWORK_VERSION }}</div>
+            </div>
+
+            <div style="font-size:14px; color:#555; line-height:1.8; margin-bottom:20px;">
+                <p style="margin:0 0 8px;">这是首次运行，请先完成基础设置：</p>
+                <ol style="margin:0; padding-left:20px;">
+                    <li>选择界面语言（可稍后在顶部导航切换）；</li>
+                    <li>点击「开始使用」完成初始化；</li>
+                    <li>使用默认账号 <b>admin / admin123</b> 登录，首次登录后建议立即修改默认密码。</li>
+                </ol>
+            </div>
+
+            <form method="POST" action="/setup" id="setupForm">
+                <div class="form-item">
+                    <label>界面语言</label>
+                    <div class="input-wrap">
+                        <select name="lang" id="lang" style="width:100%; padding:10px; font-size:14px; border:1px solid #ddd; border-radius:6px;">
+                            <option value="zh-CN" selected>简体中文</option>
+                            <option value="en">English</option>
+                        </select>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width:100%; padding:11px; font-size:16px;">开始使用</button>
+            </form>
+            <div class="auth-tip" style="margin-top:14px; text-align:center;">完成初始化后即可访问首页；未初始化时所有页面将自动跳转回此向导。</div>
+        </div>
+    </div>
+</body>
+</html>
