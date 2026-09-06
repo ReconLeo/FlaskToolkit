@@ -94,6 +94,9 @@ def probe(s, base, user, password):
         ('后台 network', 'GET', '/api/admin/network', None),
         ('后台 audit', 'GET', '/api/admin/audit', None),
         ('后台网络页 HTML', 'GET', '/admin/network', None),
+        # 审计触发（归因比对）：禁用/启用 echo_upload 产生 audit 事件，记录 remote_addr
+        ('插件禁用 echo_upload', 'POST', '/api/admin/plugins/echo_upload/disable', None),
+        ('插件启用 echo_upload', 'POST', '/api/admin/plugins/echo_upload/enable', None),
     ]
     hdr = {'X-CSRF-Token': csrf_token(s)}
     for label, method, path, extra in logged_steps:
@@ -160,27 +163,28 @@ def stress(s, base, user, password, concurrency, rounds):
 
 
 def upload(s, base, user, password, size_mb):
-    """大文件上传：向 echo-upload 插件上传 size_mb MB 随机文件，校验返回 sha256。"""
+    """大文件上传：向 echo-upload 插件上传 size_mb MB 文件，校验返回 sha256。
+
+    实现：确定性数据分块写入临时文件（避免大内存占用），再以 file-like 流式上传
+    （requests 的 files 不支持生成器，会 TypeError）。
+    """
+    import tempfile
     err = api_login(s, base, user, password)
     if err:
         log('登录失败：%s' % err)
         return []
     hdr = {'X-CSRF-Token': csrf_token(s)}
     url = base.rstrip('/') + '/api/echo_upload/echo-upload'  # 插件 API 格式 /api/<plugin_name>/<path>
-    total = size_mb * 1024 * 1024
-    chunk = 1024 * 1024
-    written = 0
-    def gen():
-        nonlocal written
-        blk = os.urandom(chunk)
-        while written < total:
-            take = min(chunk, total - written)
-            written += take
-            yield blk[:take]
+    tmp = os.path.join(tempfile.gettempdir(), 'ft_big_%dmb.bin' % size_mb)
+    blk = bytes([0x5a]) * (1024 * 1024)
     t0 = time.time()
     try:
-        r = s.post(url, files={'file': ('big_%dmb.bin' % size_mb, gen())},
-                   headers=hdr, timeout=600)
+        with open(tmp, 'wb') as f:
+            for _ in range(size_mb):
+                f.write(blk)
+        with open(tmp, 'rb') as f:
+            r = s.post(url, files={'file': ('big_%dmb.bin' % size_mb, f)},
+                       headers=hdr, timeout=900)
         ms = (time.time() - t0) * 1000
         try:
             body = r.json()
@@ -192,6 +196,12 @@ def upload(s, base, user, password, size_mb):
     except Exception as e:
         log('上传异常：%s' % e)
         return [{'mode': 'upload', 'size_mb': size_mb, 'error': '%s: %s' % (type(e).__name__, e)}]
+    finally:
+        if os.path.isfile(tmp):
+            try:
+                os.remove(tmp)
+            except Exception:
+                pass
 
 
 def main():

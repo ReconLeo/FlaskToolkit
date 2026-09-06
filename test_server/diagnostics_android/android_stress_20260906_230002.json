@@ -1,0 +1,25 @@
+{
+ "mode": "stress",
+ "base": "https://10.17.17.245:8443",
+ "tag": "",
+ "client_time": "20260906_230002",
+ "results": [
+  {
+   "mode": "stress",
+   "concurrency": 50,
+   "rounds": 3,
+   "total": 150,
+   "ok": 150,
+   "errors": 0,
+   "statuses": {
+    "200": 150
+   },
+   "p50_ms": 1108.2,
+   "p90_ms": 1732.4,
+   "p95_ms": 1858.0,
+   "p99_ms": 2332.3,
+   "max_ms": 2335.0,
+   "sample_errors": []
+  }
+ ]
+}

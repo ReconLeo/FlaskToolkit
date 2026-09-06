@@ -341,7 +341,10 @@ if __name__ == '__main__':
         pass
 
     try:
-        app.run(host=host, port=port, debug=debug_mode, use_reloader=False, ssl_context=ssl_context)
+        # 压力测试脚手架：FT_THREADED=1 临时开启线程模式（默认单线程，测试后行为不变）
+        _threaded = os.environ.get('FT_THREADED') == '1'
+        app.run(host=host, port=port, debug=debug_mode, use_reloader=False,
+                threaded=_threaded, ssl_context=ssl_context)
     except KeyboardInterrupt:
         # 捕获Ctrl+C，主动调用停止逻辑
         on_server_shutdown()

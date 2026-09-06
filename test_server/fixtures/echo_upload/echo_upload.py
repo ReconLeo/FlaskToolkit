@@ -18,7 +18,7 @@ class EchoUploadPlugin(BasePlugin):
     name = 'echo_upload'
     title = '测试：回显上传（大文件压测载体）'
     category = '测试'
-    version = '1.0.1'
+    version = '1.0.2'
     description = '测试专用：回显上传大文件（压测载体），返回 size+sha256；测完请卸载并清理。'
 
     @property
@@ -33,6 +33,9 @@ class EchoUploadPlugin(BasePlugin):
                     {'name': 'keep', 'type': 'string', 'required': False,
                      'description': 'keep=0 仅流式读取返回哈希，不落盘'}
                 ],
+                # route 级上传上限（MB）：突破全局 MAX_CONTENT_LENGTH=100MB 兜底，
+                # 验证大文件路由能力（AirDrop GB 级路由同机制，v4.12 permission.py 注入）
+                'max_upload': 110,
                 'view_func': self.upload_api,
                 'permission': 'user',
             },

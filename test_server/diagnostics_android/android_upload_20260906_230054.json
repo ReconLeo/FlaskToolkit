@@ -1,0 +1,13 @@
+{
+ "mode": "upload",
+ "base": "https://10.17.17.245:8443",
+ "tag": "",
+ "client_time": "20260906_230054",
+ "results": [
+  {
+   "mode": "upload",
+   "size_mb": 100,
+   "error": "TypeError: a bytes-like object is required, not 'generator'"
+  }
+ ]
+}

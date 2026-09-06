@@ -337,5 +337,15 @@ def is_secure_cookie_mode() -> bool:
         return True
     if v is False:
         return False
-    # 自动：https 直连（SSL 证书生效）或反代外部 https（EXTERNAL_SCHEME=https）时开启
-    return get_scheme() == 'https'
+    # 自动：跟随**当前请求实际协议**（ProxyFix 后 request.scheme 已反映外部协议，
+    # 反代 https 场景为 https、内部 HTTP 直连为 http）。v4.12.1 修复（F10）：
+    # 不再受 EXTERNAL_SCHEME 全局联动——内部 http 直连时关闭 Secure，
+    # 否则 Secure cookie 被 http 客户端（浏览器/requests）丢弃导致登录态失效。
+    try:
+        from flask import request
+        if request.scheme == 'https':
+            return True
+        return False
+    except RuntimeError:
+        # 无请求上下文（启动横幅/CLI）：回退全局协议推导
+        return get_scheme() == 'https'

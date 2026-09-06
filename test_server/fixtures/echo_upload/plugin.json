@@ -1,7 +1,7 @@
 {
   "name": "echo_upload",
   "title": "测试：回显上传（大文件压测载体）",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "author": "FlaskToolkit Test",
   "category": "测试",
   "description": "测试专用：回显上传大文件（压测载体），返回 size+sha256；测完请卸载并清理。",
