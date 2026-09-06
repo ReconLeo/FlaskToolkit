@@ -252,7 +252,52 @@ python app.py
 FLASKTOOLKIT_HOST=0.0.0.0 FLASKTOOLKIT_PORT=8000 python app.py
 ```
 
+### 3.4 反向代理部署（Nginx TLS 终止，v4.12）
+
+适用场景：**TLS 由 Nginx 等反向代理终止**（框架内部仍为 HTTP），用户通过 `https://` 访问。
+
+配置（`python tools/config.py set <KEY> <VALUE>`）：
+
+```bash
+python tools/config.py set TRUST_PROXY_HEADERS true   # 信任 X-Forwarded-Proto/For/Host（恢复客户端 IP 归因与 request.scheme）
+python tools/config.py set EXTERNAL_SCHEME https     # 分享链接/二维码/横幅/桌面启动器显示 https://
+python tools/config.py set EXTERNAL_PORT 8443        # 外部端口（Nginx 监听端口；分享地址/二维码用它，0=内部端口）
+python tools/config.py set EXTERNAL_HOST your.domain  # 外部域名（可选；不设则自动用本机 IP/主机名，需与证书 SAN 一致）
+python tools/config.py set SESSION_COOKIE_SECURE true # 会话与 CSRF Cookie 加 Secure（HTTPS 必需，防中间人嗅探）
+```
+
+Nginx 配置要点：
+
+```nginx
+server {
+    listen 443 ssl;
+    server_name flasktoolkit.local;           # 与证书 SAN 一致
+    ssl_certificate     data/certs/cert.pem;  # 自签名证书（tools/gen_cert.py 生成，SAN 需含实际访问域名/IP）
+    ssl_certificate_key data/certs/key.pem;
+
+    client_max_body_size 100m;                # 关键：默认 1MB 会挡住框架 100MB 上传上限
+
+    location / {
+        proxy_pass http://127.0.0.1:5010;     # 框架内部 HTTP 端口
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 300s;              # 大文件上传/下载保持连接
+        proxy_send_timeout 300s;
+    }
+}
+```
+
+注意事项：
+
+- **仅可信代理后方可开启 `TRUST_PROXY_HEADERS`**——伪造的 X-Forwarded-For 可绕过审计 IP 归因与登录锁定维度（ip_username 防分布式爆破依赖真实客户端 IP）。
+- 框架与 Nginx 间为内网 HTTP，`SESSION_COOKIE_SECURE=true` 后浏览器 Cookie 仅经 https 传输，内网明文段不承载 Cookie。
+- 框架无 WebSocket/SSE 功能，无需额外长连接配置；子路径挂载（如 `location /ft/`）暂不支持，请使用根路径反代。
+- 直连自签名 HTTPS（无代理）时无需上述配置：仅需 `SSL_CERT_FILE` / `SSL_KEY_FILE`（见 3.3），并建议 `SESSION_COOKIE_SECURE=true`。
+
 ---
+
 
 ## 四、权限模型（v4.0 核心）
 
@@ -1224,6 +1269,8 @@ python tools/config.py profile <daily|strict|lan-open>   # 套用安全配置预
 | `MDNS_ENABLED` | false | mDNS 服务注册开关（v4.11，需重启生效，需 pip install zeroconf） |
 | `MDNS_HOSTNAME` | flasktoolkit | mDNS 主机名（v4.11，服务以 <name>.local 可达） |
 | `IP_WATCH_INTERVAL` | 30 | IP 变化检测间隔（秒，0=关闭，v4.11） |
+| `TRUST_PROXY_HEADERS` | false | 反向代理头信任（v4.12，TLS 在 Nginx 等代理终止时开启；信任 X-Forwarded-Proto/For/Host，恢复客户端 IP 归因；仅可信代理后方可开启） |
+| `EXTERNAL_SCHEME` | （空） | 外部访问协议（v4.12，空=按 SSL_CERT_FILE 自动判断；反向代理 TLS 终止场景设 https，使分享链接/二维码/横幅/桌面启动器显示 https） |
 
 
 示例：
