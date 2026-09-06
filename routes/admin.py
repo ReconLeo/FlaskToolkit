@@ -612,6 +612,114 @@ def register(app):
         }
         return jsonify({"code": 200, "data": info})
 
+    # ---------- 网络与访问（v4.11 Reachability） ----------
+
+    @app.route('/api/admin/network', methods=['GET'])
+    @admin_api
+    def get_network_info():
+        """获取网络与访问信息：绑定地址/可达地址/mDNS 状态/配置（v4.11 M3）"""
+        from core import network as net_mod
+        from core import mdns as mdns_mod
+        ucfg = global_var.get_user_config()
+        mdns_on = bool(ucfg.get('MDNS_ENABLED'))
+        info = {
+            'hostname': net_mod.get_hostname(),
+            'binding_host': net_mod.get_binding_host(),
+            'effective_port': net_mod.get_effective_port(),
+            'scheme': net_mod.get_scheme(),
+            'lan_addresses': net_mod.get_lan_addresses(),
+            'access_urls': net_mod.get_access_urls(),
+            'ip_watch_interval': int(ucfg.get('IP_WATCH_INTERVAL') or 30),
+            'ip_watch': ip_watcher_status(),
+            'mdns': {
+                'enabled': mdns_on,
+                'hostname': net_mod.get_mdns_hostname(),
+                'url': net_mod.get_mdns_url() if mdns_on else None,
+                'available': mdns_mod.available(),
+                'active': mdns_mod.is_active(),
+                'error': None if mdns_mod.available() else 'mDNS 需要可选依赖 zeroconf，请执行 pip install zeroconf 后重启启用',
+            },
+        }
+        return jsonify({'code': 200, 'data': info})
+
+    @app.route('/api/admin/network/config', methods=['POST'])
+    @admin_api
+    def update_network_config():
+        """更新网络配置（v4.11）：HOST（0.0.0.0=共享局域网）/ MDNS_ENABLED / MDNS_HOSTNAME / IP_WATCH_INTERVAL
+
+        写 data/user_config.json（同 tools/config.py 模式）；HOST/MDNS_ENABLED 需重启生效。"""
+        import json
+        from core import network as net_mod
+        body = request.get_json(silent=True) or {}
+        allowed = {'HOST', 'MDNS_ENABLED', 'MDNS_HOSTNAME', 'IP_WATCH_INTERVAL'}
+        updates = {k: v for k, v in body.items() if k in allowed}
+        if not updates:
+            return jsonify({'code': 400, 'message': '无可更新配置项'}), 400
+
+        # 类型与取值校验
+        if 'HOST' in updates:
+            host = str(updates['HOST']).strip()
+            if host not in ('0.0.0.0', '127.0.0.1', '::') and not _looks_like_ip(host):
+                return jsonify({'code': 400, 'message': f'HOST 需为 IP 地址或 0.0.0.0：{host}'}), 400
+            updates['HOST'] = host
+        if 'MDNS_ENABLED' in updates:
+            updates['MDNS_ENABLED'] = bool(updates['MDNS_ENABLED'])
+        if 'MDNS_HOSTNAME' in updates:
+            name = str(updates['MDNS_HOSTNAME']).strip().replace('.local', '').lower()
+            import re as _re
+            if not _re.fullmatch(r'[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?', name or '_'):
+                return jsonify({'code': 400, 'message': 'mDNS 主机名需为字母数字与短横线（如 mybox）'}), 400
+            updates['MDNS_HOSTNAME'] = name
+        if 'IP_WATCH_INTERVAL' in updates:
+            try:
+                interval = int(updates['IP_WATCH_INTERVAL'])
+            except (TypeError, ValueError):
+                return jsonify({'code': 400, 'message': 'IP_WATCH_INTERVAL 需为整数秒'}), 400
+            if interval < 0 or interval > 3600:
+                return jsonify({'code': 400, 'message': 'IP_WATCH_INTERVAL 范围 0-3600 秒'}), 400
+            updates['IP_WATCH_INTERVAL'] = interval
+
+        # 写 user_config.json 并重载（沿用 tools/config.py 的 _load_file/_save_file 模式）
+        try:
+            cfg_path = global_var.USER_CONFIG_FILE
+            data = {}
+            if os.path.exists(cfg_path):
+                with open(cfg_path, encoding='utf-8') as f:
+                    loaded = json.load(f)
+                    data = loaded if isinstance(loaded, dict) else {}
+            data.update(updates)
+            os.makedirs(os.path.dirname(cfg_path), exist_ok=True)
+            with open(cfg_path, 'w', encoding='utf-8') as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+            global_var.load_user_config()
+        except Exception as e:
+            return jsonify({'code': 500, 'message': f'配置写入失败: {e}'}), 500
+
+        restart_keys = [k for k in updates if k in ('HOST', 'MDNS_ENABLED', 'MDNS_HOSTNAME')]
+        detail = ', '.join(f'{k}={updates[k]}' for k in updates)
+        log_audit('网络配置', ', '.join(updates.keys()), 'ok', detail)
+        return jsonify({
+            'code': 200,
+            'message': '配置已保存' + ('，重启后生效' if restart_keys else ''),
+            'updated': list(updates.keys()),
+            'restart_required': bool(restart_keys),
+        })
+
+    def ip_watcher_status() -> dict:
+        """IP 变化检测状态（v4.11 M4；import 放函数内避免模块级耦合）。"""
+        try:
+            from core import ip_watcher
+            return ip_watcher.get_status()
+        except Exception:
+            return {'enabled': False, 'interval': 0, 'last_change_ts': None, 'last_change_detail': None}
+
+    def _looks_like_ip(host: str) -> bool:
+        """粗略校验 IPv4/IPv6 地址形态（HOST 配置用）。"""
+        if ':' in host:
+            return True  # IPv6 形态
+        parts = host.split('.')
+        return len(parts) == 4 and all(p.isdigit() and 0 <= int(p) <= 255 for p in parts)
+
     # ---------- 版本更新检查接口（v4.8.0，F1） ----------
     @app.route('/api/admin/update/check', methods=['POST'])
     @admin_api
@@ -689,6 +797,12 @@ def register(app):
     def admin_system():
         """管理后台：系统管理（Factory Reset / 系统信息）"""
         return _admin_page('admin/system.html', 'system')
+
+    @app.route('/admin/network')
+    @admin_api
+    def admin_network():
+        """管理后台：网络与访问（v4.11 Reachability，共享入口）"""
+        return _admin_page('admin/network.html', 'network')
 
     @app.route('/debug/plugin-list')
     def debug_plugin_list():

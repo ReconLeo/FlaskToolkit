@@ -1,0 +1,245 @@
+{% extends 'admin/base.html' %}
+
+{% block content %}
+<style>
+    .net-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 18px 20px; margin-bottom: 16px; }
+    .net-card h3 { margin: 0 0 10px; font-size: 15px; }
+    .net-hint { color: #6b7280; font-size: 12.5px; line-height: 1.7; }
+    .url-row { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px dashed #eee; flex-wrap: wrap; }
+    .url-row:last-child { border-bottom: none; }
+    .url-row .url { font-family: Consolas, Monaco, monospace; font-size: 13.5px; word-break: break-all; flex: 1; min-width: 180px; }
+    .url-row .badge { font-size: 11px; padding: 2px 8px; border-radius: 10px; }
+    .badge-mdns { background: #dbeafe; color: #1d4ed8; }
+    .badge-lan { background: #dcfce7; color: #15803d; }
+    .badge-local { background: #f3f4f6; color: #374151; }
+    .btn-mini { font-size: 12px; padding: 3px 10px; border-radius: 6px; cursor: pointer; border: 1px solid #d1d5db; background: #fff; }
+    .btn-mini:hover { background: #f3f4f6; }
+    .btn-mini.primary { background: #2563eb; color: #fff; border-color: #2563eb; }
+    .btn-mini.primary:hover { background: #1d4ed8; }
+    .btn-mini.success { background: #16a34a; color: #fff; border-color: #16a34a; }
+    .btn-mini.success:hover { background: #15803d; }
+    .qr-box { display: flex; gap: 20px; align-items: center; margin-top: 10px; flex-wrap: wrap; }
+    .qr-canvas { border: 1px solid #e5e7eb; border-radius: 8px; padding: 8px; background: #fff; }
+    .kv { display: grid; grid-template-columns: 96px 1fr; gap: 6px 12px; font-size: 13px; }
+    .kv .k { color: #6b7280; }
+    .kv .v { font-family: Consolas, Monaco, monospace; }
+    .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px dashed #eee; gap: 12px; }
+    .toggle-row:last-child { border-bottom: none; }
+    .switch { position: relative; width: 44px; height: 22px; flex-shrink: 0; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; cursor: pointer; inset: 0; background: #d1d5db; border-radius: 22px; transition: .2s; }
+    .slider:before { content: ""; position: absolute; width: 16px; height: 16px; left: 3px; top: 3px; background: #fff; border-radius: 50%; transition: .2s; }
+    .switch input:checked + .slider { background: #16a34a; }
+    .switch input:checked + .slider:before { transform: translateX(22px); }
+    .inline-input { border: 1px solid #d1d5db; border-radius: 6px; padding: 5px 10px; font-size: 13px; width: 220px; }
+    .notice-warn { background: #fffbeb; border: 1px solid #fde68a; color: #92400e; border-radius: 8px; padding: 10px 14px; font-size: 12.5px; line-height: 1.7; margin-top: 10px; }
+</style>
+
+<div class="card">
+    <h3 class="card-title">🌐 {{ t('网络与访问') }}</h3>
+    <div class="notice-warn" id="ipChangeTip" style="display:none; margin:0 20px;"></div>
+    <div class="card-body">
+        <div class="net-hint">{{ t('把二维码给朋友扫一下，或把链接发给他，就能访问你的服务。电脑 IP 变化后，推荐开启 mDNS 主机名，链接保持不变。') }}</div>
+
+        <div class="net-card">
+            <h3>🔗 {{ t('分享入口') }}</h3>
+            <div id="urlList" class="net-hint">{{ t('加载中...') }}</div>
+            <div class="qr-box">
+                <div class="qr-canvas" id="qrBox"></div>
+                <div class="net-hint">
+                    <div id="qrUrlText"></div>
+                    <div style="margin-top:6px;"><button class="btn-mini" onclick="copyText(qrUrl)">{{ t('复制此链接') }}</button></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="net-card">
+            <h3>🖥️ {{ t('当前网络状态') }}</h3>
+            <div class="kv" id="netStatus"><div class="k">{{ t('加载中...') }}</div></div>
+        </div>
+
+        <div class="net-card">
+            <h3>⚙️ {{ t('局域网共享设置') }}</h3>
+            <div class="toggle-row">
+                <div>
+                    <div><strong>{{ t('共享给局域网设备') }}</strong></div>
+                    <div class="net-hint">{{ t('绑定 0.0.0.0 后，同一局域网的其他设备才能访问（当前仅本机可访问）') }}</div>
+                </div>
+                <label class="switch"><input type="checkbox" id="shareChk" onchange="setShare(this.checked)"><span class="slider"></span></label>
+            </div>
+            <div class="toggle-row">
+                <div>
+                    <div><strong>mDNS 主机名（{{ t('IP 变了链接不变') }}）</strong></div>
+                    <div class="net-hint">{{ t('开启后可用 http://<主机名>.local:端口 访问，例如 flasktoolkit.local') }}</div>
+                    <div id="mdnsErr" class="notice-warn" style="display:none;"></div>
+                </div>
+                <label class="switch"><input type="checkbox" id="mdnsChk" onchange="setMdns(this.checked)"><span class="slider"></span></label>
+            </div>
+            <div class="toggle-row">
+                <div>
+                    <div><strong>mDNS {{ t('主机名') }}</strong></div>
+                    <div class="net-hint">{{ t('局域网内的访问主机名（保存后需重启生效）') }}</div>
+                </div>
+                <div>
+                    <input class="inline-input" id="mdnsName" placeholder="flasktoolkit">
+                    <button class="btn-mini primary" onclick="saveMdnsName()">{{ t('保存') }}</button>
+                </div>
+            </div>
+            <div class="toggle-row">
+                <div>
+                    <div><strong>{{ t('IP 变化检测') }}</strong></div>
+                    <div class="net-hint">{{ t('检测到本机 IP 变化时提示重新分享链接（秒，0=关闭）') }}</div>
+                </div>
+                <div>
+                    <input class="inline-input" id="ipWatch" type="number" min="0" max="3600" style="width:90px;">
+                    <button class="btn-mini primary" onclick="saveIpWatch()">{{ t('保存') }}</button>
+                </div>
+            </div>
+            <div class="notice-warn">
+                🛡️ {{ t('Windows 防火墙提示：首次被局域网访问时，请在防火墙弹窗中允许 Python 访问专用网络；mDNS 还需放行 UDP 5353 端口。公网环境请勿开启局域网共享与 mDNS。') }}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/qrcode.min.js"></script>
+<script>
+    var qrUrl = '';
+    var qrCodeInst = null;
+
+    function copyText(text) {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(function () {
+                showToast('已复制：' + text, 'success');
+            });
+        } else {
+            showToast('复制失败：' + text, 'error');
+        }
+    }
+
+    function renderUrls(urls) {
+        var change = document.getElementById('ipChangeTip');
+        if (change && window.__ipChange) {
+            change.style.display = 'block';
+            change.textContent = window.__ipChange;
+        } else if (change) {
+            change.style.display = 'none';
+        }
+        var box = document.getElementById('urlList');
+        if (!urls || !urls.length) {
+            box.innerHTML = '（暂无可用地址）';
+            return;
+        }
+        var html = '';
+        urls.forEach(function (it) {
+            var badge = it.kind === 'mdns' ? 'badge-mdns' : (it.kind === 'lan' ? 'badge-lan' : 'badge-local');
+            var label = it.kind === 'mdns' ? 'mDNS' : (it.kind === 'lan' ? window.T('局域网') : window.T('本机'));
+            html += '<div class="url-row"><span class="badge ' + badge + '">' + label + '</span>' +
+                '<span class="url">' + it.url + '</span>' +
+                '<button class="btn-mini" onclick="copyText(\'' + it.url + '\')">' + window.T('复制') + '</button>' +
+                '<button class="btn-mini" onclick="showQr(\'' + it.url + '\')">QR</button></div>';
+        });
+        box.innerHTML = html;
+        // 默认二维码取首个地址
+        showQr(urls[0].url);
+    }
+
+    function showQr(url) {
+        qrUrl = url;
+        document.getElementById('qrUrlText').textContent = url;
+        var box = document.getElementById('qrBox');
+        box.innerHTML = '';
+        if (window.QRCode) {
+            qrCodeInst = new QRCode(box, { text: url, width: 168, height: 168, correctLevel: QRCode.CorrectLevel.M });
+        } else {
+            box.innerHTML = '<span class="net-hint">QR 组件缺失</span>';
+        }
+    }
+
+    function renderStatus(d) {
+        var html = '';
+        function row(k, v) { html += '<div class="k">' + k + '</div><div class="v">' + (v == null || v === '' ? '-' : v) + '</div>'; }
+        row(window.T('主机名'), d.hostname);
+        row(window.T('绑定地址'), d.binding_host + (d.binding_host === '0.0.0.0' ? '（' + window.T('已共享局域网') + '）' : '（' + window.T('仅本机') + '）'));
+        row(window.T('端口'), d.effective_port);
+        row(window.T('协议'), d.scheme === 'https' ? 'HTTPS' : 'HTTP');
+        row(window.T('局域网 IP'), (d.lan_addresses || []).join(' , ') || '-');
+        row(window.T('IP 变化检测'), d.ip_watch && d.ip_watch.enabled ? (d.ip_watch.interval + ' ' + window.T('秒')) : window.T('关闭'));
+        document.getElementById('netStatus').innerHTML = html;
+        document.getElementById('shareChk').checked = (d.binding_host === '0.0.0.0' || d.binding_host === '::');
+        document.getElementById('mdnsChk').checked = d.mdns.enabled;
+        document.getElementById('mdnsName').value = d.mdns.hostname || '';
+        document.getElementById('ipWatch').value = (d.ip_watch && typeof d.ip_watch.interval !== 'undefined') ? d.ip_watch.interval : 30;
+        // IP 变化提示（近 10 分钟内发生过变化）
+        window.__ipChange = '';
+        if (d.ip_watch && d.ip_watch.last_change_ts && d.ip_watch.last_change_detail) {
+            var ageSec = (Date.now() / 1000) - d.ip_watch.last_change_ts;
+            if (ageSec < 600) {
+                var det = d.ip_watch.last_change_detail;
+                window.__ipChange = '⚠️ ' + window.T('检测到 IP 变化') + ': ' + (det.old || []).join(',') + ' → ' + (det.new || []).join(',') + '。' + window.T('请重新分享访问链接');
+            }
+        }
+        var err = document.getElementById('mdnsErr');
+        if (d.mdns.enabled && !d.mdns.available) {
+            err.style.display = 'block';
+            err.textContent = '⚠️ ' + (d.mdns.error || '');
+        } else {
+            err.style.display = 'none';
+        }
+    }
+
+    function loadNetwork() {
+        fetch('/api/admin/network', { headers: { 'X-CSRF-Token': _getCsrfCookie() } })
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+                if (d.code !== 200) return;
+                var data = d.data || {};
+                renderUrls(data.access_urls || []);
+                renderStatus(data);
+            })
+            .catch(function (e) { showToast('加载失败：' + e.message, 'error'); });
+    }
+
+    function postConfig(payload, successMsg) {
+        fetch('/api/admin/network/config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': _getCsrfCookie() },
+            body: JSON.stringify(payload)
+        })
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+                if (d.code === 200) {
+                    showToast((successMsg || '配置已保存') + (d.restart_required ? '，' + window.T('重启后生效') : ''), 'success');
+                    loadNetwork();
+                } else {
+                    showToast(d.message || '保存失败', 'error');
+                }
+            })
+            .catch(function (e) { showToast('保存异常：' + e.message, 'error'); });
+    }
+
+    function setShare(on) {
+        postConfig({ HOST: on ? '0.0.0.0' : '127.0.0.1' }, on ? window.T('已开启局域网共享') : window.T('已恢复仅本机访问'));
+    }
+
+    function setMdns(on) {
+        postConfig({ MDNS_ENABLED: on }, on ? window.T('已开启 mDNS') : window.T('已关闭 mDNS'));
+    }
+
+    function saveMdnsName() {
+        var name = document.getElementById('mdnsName').value.trim();
+        if (!name) { showToast(window.T('请输入主机名'), 'error'); return; }
+        postConfig({ MDNS_HOSTNAME: name }, window.T('主机名已保存'));
+    }
+
+    function saveIpWatch() {
+        var v = parseInt(document.getElementById('ipWatch').value, 10);
+        if (isNaN(v) || v < 0 || v > 3600) { showToast('IP_WATCH 范围 0-3600', 'error'); return; }
+        postConfig({ IP_WATCH_INTERVAL: v }, window.T('检测间隔已保存'));
+    }
+
+    document.addEventListener('DOMContentLoaded', function () { loadNetwork(); });
+</script>
+{% endblock %}

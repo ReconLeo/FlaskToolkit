@@ -257,6 +257,25 @@ if __name__ == '__main__':
     import global_var
     global_var.app = app
 
+    # v4.11 Reachability：注册实际端口 + 播报可达地址 + 启动 IP 变化检测
+    from core import network as _net
+    _net.register_effective_port(port)
+    try:
+        _urls = _net.get_access_urls()
+        if _urls:
+            print('  [共享] 访问地址（IP 变化可在后台『网络与访问』页重新获取/开启 mDNS 固定链接）', flush=True)
+            for _u in _urls:
+                print(f'    - {_u["url"]}  ({_u["label"]})', flush=True)
+        else:
+            print('  [共享] 未检测到可达地址（后台『网络与访问』页可查看与配置）', flush=True)
+    except Exception:
+        pass
+    try:
+        from core import ip_watcher
+        ip_watcher.start()
+    except Exception:
+        pass
+
     try:
         app.run(host=host, port=port, debug=debug_mode, use_reloader=False, ssl_context=ssl_context)
     except KeyboardInterrupt:

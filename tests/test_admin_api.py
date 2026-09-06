@@ -48,7 +48,8 @@ for attr, val in (('BASE_DIR', _isolated), ('UPLOAD_TEMP_DIR', os.path.join(_iso
                   ('LOG_DIR', os.path.join(_isolated, 'logs')),
                   ('PLUGIN_CONFIGS_DIR', os.path.join(_isolated, 'plugins', 'configs')),
                   ('FRONTEND_CONFIG_FILE', os.path.join(_isolated, 'frontend_tools.json')),
-                  ('FRONTEND_TEMPLATE_DIR', os.path.join(_isolated, 'templates', 'frontend_tools'))):
+                  ('FRONTEND_TEMPLATE_DIR', os.path.join(_isolated, 'templates', 'frontend_tools')),
+                  ('USER_CONFIG_FILE', os.path.join(_isolated, 'user_config.json'))):
     _SAVED[attr] = getattr(global_var, attr, None)
     setattr(global_var, attr, val)
 
@@ -109,7 +110,7 @@ def main():
     data = r.get_json().get('data', {}) if r.status_code == 200 else {}
     check('system/info 返回 200', r.status_code == 200, f'status={r.status_code}')
     check('system/info framework_version=4.2.2',
-          data.get('framework_version') == '4.10.0', f"{data.get('framework_version')}")
+          data.get('framework_version') == '4.11.0', f"{data.get('framework_version')}")
     check('system/info builtin_plugins 含 auth/user_manage',
           set(data.get('builtin_plugins', [])) == {'auth', 'user_manage'},
           f"{data.get('builtin_plugins')}")
@@ -278,6 +279,43 @@ def main():
 
     r = client.post('/api/admin/plugins/not_exists/purge-data', json={'scope': 'all'})
     check('purge-data 不存在的插件 404', r.status_code == 404, f'status={r.status_code}')
+
+    # 14. network（网络与访问，v4.11 Reachability M3）
+    r = client.get('/api/admin/network')
+    check('network GET 200', r.status_code == 200, f'status={r.status_code}')
+    n = r.get_json().get('data', {})
+    check('network 返回 access_urls 列表', isinstance(n.get('access_urls'), list), str(n.get('access_urls'))[:80])
+    check('network 返回 mdns 状态', isinstance(n.get('mdns'), dict) and 'available' in n.get('mdns', {}), '')
+    check('network 返回绑定地址', n.get('binding_host') in ('127.0.0.1', '0.0.0.0'), str(n.get('binding_host')))
+
+    # 写 user_config.json 隔离（USER_CONFIG_FILE 已 mock 到隔离目录）
+    r = client.post('/api/admin/network/config', json={'HOST': '0.0.0.0'})
+    check('network config HOST 200', r.status_code == 200 and r.get_json().get('code') == 200, f'{r.status_code}')
+    check('network config 提示重启', r.get_json().get('restart_required') is True, '')
+    check('network config 写入生效',
+          global_var.get_user_config().get('HOST') == '0.0.0.0',
+          str(global_var.get_user_config().get('HOST')))
+
+    r = client.post('/api/admin/network/config', json={'MDNS_ENABLED': True, 'MDNS_HOSTNAME': 'mybox'})
+    check('network config mDNS 200', r.status_code == 200, f'{r.status_code}')
+    check('network config mDNS 生效',
+          global_var.get_user_config().get('MDNS_ENABLED') is True
+          and global_var.get_user_config().get('MDNS_HOSTNAME') == 'mybox', '')
+
+    r = client.post('/api/admin/network/config', json={'IP_WATCH_INTERVAL': 60})
+    check('network config IP_WATCH 200', r.status_code == 200 and not r.get_json().get('restart_required'), '')
+    check('network config IP_WATCH 生效', global_var.get_user_config().get('IP_WATCH_INTERVAL') == 60, '')
+
+    r = client.post('/api/admin/network/config', json={'HOST': 'not-an-ip'})
+    check('network config 非法 HOST 400', r.status_code == 400, f'{r.status_code}')
+    r = client.post('/api/admin/network/config', json={'MDNS_HOSTNAME': 'bad name!'})
+    check('network config 非法主机名 400', r.status_code == 400, f'{r.status_code}')
+    r = client.post('/api/admin/network/config', json={'IP_WATCH_INTERVAL': 99999})
+    check('network config 非法间隔 400', r.status_code == 400, f'{r.status_code}')
+    r = client.post('/api/admin/network/config', json={})
+    check('network config 空更新 400', r.status_code == 400, f'{r.status_code}')
+    r = client.post('/api/admin/network/config', json={'UNKNOWN_KEY': 1})
+    check('network config 未知键 400', r.status_code == 400, f'{r.status_code}')
 
 if __name__ == '__main__':
     try:
