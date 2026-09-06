@@ -81,3 +81,6 @@ test_server/diagnostics/
 test_server/certs/
 test_server/fixtures/echo_upload.zip
 test_server/diagnostics_android/
+plugins/echo_upload.py
+plugins/echo_upload.json
+plugins/data/echo_upload/
