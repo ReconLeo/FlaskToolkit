@@ -80,3 +80,4 @@ releases/
 test_server/diagnostics/
 test_server/certs/
 test_server/fixtures/echo_upload.zip
+test_server/diagnostics_android/
