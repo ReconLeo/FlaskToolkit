@@ -28,7 +28,7 @@
    （密码仍为默认 admin123 时为 true；**注意 login() 返回的 user_info 已剥离 password，须按 id 反查
    config 哈希**）；前端登录成功存 `ftk_must_pwd` localStorage 标记，后台每次加载弹改密窗
    （用户可拒绝，拒绝不消除标记，下次登录仍提醒）。
-- **回归测试扩充至 26 脚本 649 项**：新增 `tests/test_setup.py` 17 项（向导 10 + 改密 7，隔离目录全路径 mock）；`tests/test_airdrop_loader.py` 8 项为条件运行（airdrop 插件不入库，本地存在时 +8 项，CI 跳过）。
+- **回归测试扩充至 27 脚本 674 项**：新增 `tests/test_setup.py` 17 项（向导 10 + 改密 7，隔离目录全路径 mock）与 `tests/test_register.py` 25 项（自助注册 + 邀请码 + 审核，隔离目录）；`tests/test_airdrop_loader.py` 8 项为条件运行（airdrop 插件不入库，本地存在时 +8 项，CI 跳过）。
   `tests/test_pack_meta.py` 19→22（pip_dependencies）；`tests/test_admin_api.py` 28→36（能力预览/确认两段式）；
   `tests/test_framework_fixes.py` 9→12（调试页权限 E1-E3）；`tests/test_error_pages.py` 修复隔离环境
   PLUGIN_CACHE_FILE 串扰 + sys.modules plugins 残留（真实 `.plugin_cache` 曾被污染为 0 插件）；
@@ -1135,7 +1135,8 @@ python tests/test_i18n.py                  # 28 项（i18n 回归 v4.9.0，隔�
 python tests/test_data_limit.py            # 32 项（插件数据配额回归 v4.9.0-4.9.2，隔离目录）
 python tests/test_setup.py             # 17 项（首次运行向导 + 强制改密 v4.10，隔离目录）
 python tests/test_airdrop_loader.py # 8 项（AirDrop 插件加载回归：routes @property 修复，隔离目录；airdrop.py 不入库，CI 跳过）
-# 合计 26 个脚本 649 项（CI 口径；本地含 airdrop 插件时 27 脚本 657 项）
+python tests/test_register.py             # 25 项（自助注册 + 邀请码 + 审核 v4.10 M5，隔离目录）
+# 合计 27 个脚本 674 项（CI 口径；本地含 airdrop 插件时 28 脚本 682 项）
 ```
 
 说明：`test_meta_e2e.py` 与 `test_frontend_chain.py` / `test_admin_api.py` / `test_factory_reset.py` / `test_error_pages.py` / `test_package_sign.py` 均通过 mock 基础目录 + `sys.path` 指向临时插件目录运行，不污染真实项目，可重复执行；`test_reload_race.py` 使用 Flask test client，在测试开头手动调用 `load_plugins()` 初始化（`load_plugins` 仅在 `app.py` 的 `main` 段自动调用）。

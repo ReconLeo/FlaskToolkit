@@ -23,6 +23,7 @@ class AuthPlugin(BasePlugin):
     # 配置默认值
     default_config = {
         "SESSION_EXPIRE": 7 * 24 * 60 * 60,  # 默认7天有效期
+        "ALLOW_REGISTER": False,             # v4.10 M5 自助注册开关（默认关；开启后无邀请码需审核）
         "users": []
     }
     
@@ -79,6 +80,8 @@ class AuthPlugin(BasePlugin):
                 user["nickname"] = user["username"]
             if "create_time" not in user:
                 user["create_time"] = int(time.time())
+            if "status" not in user:
+                user["status"] = "active"  # v4.10 M5：active/pending（老数据默认 active）
         
         self.save_config()
         self.logger.info("鉴权插件加载完成，默认账户：admin/admin123")
@@ -160,10 +163,12 @@ class AuthPlugin(BasePlugin):
         return session
 
     def login(self, username: str, password: str) -> tuple[bool, str, dict]:
-        """登录校验，返回(是否成功, token, 用户信息)"""
+        """登录校验，返回(是否成功, token, 用户信息)；pending（待审核）用户禁止登录（v4.10 M5）"""
         for user in self.config["users"]:
             if user["username"] == username:
                 if self._verify_password(password, user["password"]):
+                    if user.get("status", "active") == "pending":
+                        return False, "", {}
                     # 惰性迁移：旧版 XOR 密码在登录成功后自动升级为 PBKDF2 哈希
                     if not user["password"].startswith("pbkdf2_sha256$"):
                         user["password"] = self._hash_password(password)
@@ -214,6 +219,7 @@ class AuthPlugin(BasePlugin):
             "password": self._hash_password(password),
             "nickname": nickname if nickname else username,
             "role": role,
+            "status": "active",  # v4.10 M5：管理员创建的用户直接可用
             "create_time": int(time.time())
         }
         self.config["users"].append(new_user)
@@ -288,6 +294,161 @@ class AuthPlugin(BasePlugin):
         if not ok:
             return self.error_response(msg, 400)
         return self.success_response(data={"message": msg})
+
+    # ------------------------------
+    # 邀请码自助注册（v4.10 M5）
+    # ------------------------------
+    def _invite_codes_file(self) -> str:
+        """邀请码存储文件：插件自属数据目录 plugins/data/auth/invite_codes.json"""
+        return self.get_data_path("invite_codes.json")
+
+    def _load_invite_codes(self) -> dict:
+        try:
+            if os.path.exists(self._invite_codes_file()):
+                with open(self._invite_codes_file(), encoding='utf-8') as f:
+                    data = json.load(f)
+                if isinstance(data, dict):
+                    return data
+        except Exception:
+            pass
+        return {}
+
+    def _save_invite_codes(self, codes: dict) -> None:
+        try:
+            path = self._invite_codes_file()
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            tmp = path + '.tmp'
+            with open(tmp, 'w', encoding='utf-8') as f:
+                json.dump(codes, f, ensure_ascii=False, indent=2)
+            os.replace(tmp, path)
+        except Exception as e:
+            self.logger.error(f"邀请码保存失败: {str(e)}")
+
+    def create_invite_code(self, note: str = '') -> dict:
+        """生成一次性邀请码（FTK-XXXX-XXXX），供管理员发给受邀用户。"""
+        codes = self._load_invite_codes()
+        while True:
+            code = 'FTK-' + secrets.token_hex(4).upper() + '-' + secrets.token_hex(2).upper()[:4]
+            if code not in codes:
+                break
+        codes[code] = {"created_at": int(time.time()), "used_by": None, "note": note}
+        self._save_invite_codes(codes)
+        return {"code": code, "created_at": codes[code]["created_at"], "used_by": None, "note": note}
+
+    def list_invite_codes(self) -> List[Dict]:
+        """邀请码列表（含使用状态）"""
+        codes = self._load_invite_codes()
+        return [
+            {"code": k, "created_at": v.get("created_at", 0), "used_by": v.get("used_by"),
+             "note": v.get("note", "")}
+            for k, v in codes.items()
+        ]
+
+    def revoke_invite_code(self, code: str) -> bool:
+        """撤销（删除）邀请码"""
+        codes = self._load_invite_codes()
+        if code in codes:
+            del codes[code]
+            self._save_invite_codes(codes)
+            return True
+        return False
+
+    def _consume_invite_code(self, code: str, username: str) -> bool:
+        """校验并消费邀请码（一次性）：有效且未使用时标记 used_by 返回 True。"""
+        codes = self._load_invite_codes()
+        entry = codes.get(code)
+        if entry is None or entry.get("used_by"):
+            return False
+        entry["used_by"] = username
+        self._save_invite_codes(codes)
+        return True
+
+    # ------------------------------
+    # 用户审核（v4.10 M5）：status pending/active
+    # ------------------------------
+    def is_pending(self, username: str) -> bool:
+        """账号是否处于待审核状态（缺省视为 active）"""
+        for user in self.config["users"]:
+            if user["username"] == username:
+                return user.get("status", "active") == "pending"
+        return False
+
+    def pending_users(self) -> List[Dict]:
+        """待审核用户列表（剥离密码）"""
+        return [
+            {k: v for k, v in user.items() if k != "password"}
+            for user in self.config["users"]
+            if user.get("status", "active") == "pending"
+        ]
+
+    def approve_user(self, user_id: int) -> bool:
+        """审核通过：pending → active"""
+        for user in self.config["users"]:
+            if user["id"] == user_id:
+                if user.get("status", "active") == "active":
+                    return False
+                user["status"] = "active"
+                self.save_config()
+                return True
+        return False
+
+    def reject_user(self, user_id: int) -> bool:
+        """拒绝注册申请：删除 pending 用户（仅允许拒绝待审核账号）"""
+        for index, user in enumerate(self.config["users"]):
+            if user["id"] == user_id:
+                if user.get("status", "active") != "pending":
+                    return False
+                del self.config["users"][index]
+                self.save_config()
+                return True
+        return False
+
+    def register(self, username: str, password: str, nickname: str = None,
+                 invite_code: str = None) -> tuple:
+        """自助注册（v4.10 M5）：开关关闭直接拒绝；提供有效邀请码免审核 active，
+        否则进入 pending 待管理员审核。返回 (ok, message, user)。"""
+        if not self.config.get("ALLOW_REGISTER"):
+            return False, "未开放自助注册", None
+        if not username or not password:
+            return False, "用户名和密码不能为空", None
+        if len(password) < 6:
+            return False, "密码长度至少 6 位", None
+        for user in self.config["users"]:
+            if user["username"] == username:
+                return False, "用户名已存在", None
+        status = "pending"
+        if invite_code:
+            if not self._consume_invite_code(invite_code, username):
+                return False, "邀请码无效或已被使用", None
+            status = "active"
+        max_id = max([u["id"] for u in self.config["users"]], default=0) + 1
+        new_user = {
+            "id": max_id,
+            "username": username,
+            "password": self._hash_password(password),
+            "nickname": nickname if nickname else username,
+            "role": "user",
+            "status": status,
+            "create_time": int(time.time())
+        }
+        self.config["users"].append(new_user)
+        self.save_config()
+        msg = "注册成功" if status == "active" else "注册成功，等待管理员审核"
+        return True, msg, {k: v for k, v in new_user.items() if k != "password"}
+
+    @permission_required("public")
+    def register_api(self):
+        """自助注册接口（v4.10 M5）：POST {username, password, nickname?, invite_code?}"""
+        data = request.get_json(silent=True) or {}
+        username = (data.get("username") or '').strip()
+        password = data.get("password") or ''
+        nickname = (data.get("nickname") or '').strip() or None
+        invite_code = (data.get("invite_code") or '').strip() or None
+        ok, msg, user = self.register(username, password, nickname, invite_code)
+        if not ok:
+            code = 403 if msg == "未开放自助注册" else 400
+            return self.error_response(msg, code)
+        return self.success_response(data={"user": user}, message=msg)
 
     def delete_user(self, user_id: int) -> bool:
         """删除用户（user_manage调用）"""
@@ -479,6 +640,18 @@ class AuthPlugin(BasePlugin):
                 "view_func": self.login_api
             },
             {
+                "path": "/register",
+                "name": "用户注册",
+                "methods": ["POST"],
+                "params": [
+                    {"name": "username", "type": "string", "required": True, "description": "用户名"},
+                    {"name": "password", "type": "string", "required": True, "description": "密码（至少 6 位）"},
+                    {"name": "nickname", "type": "string", "required": False, "description": "昵称"},
+                    {"name": "invite_code", "type": "string", "required": False, "description": "邀请码（有码免审核）"}
+                ],
+                "view_func": self.register_api
+            },
+            {
                 "path": "/logout",
                 "name": "用户登出",
                 "methods": ["POST", "GET"],
@@ -511,7 +684,8 @@ class AuthPlugin(BasePlugin):
                 "name": "更新插件配置",
                 "methods": ["POST"],
                 "params": [
-                    {"name": "SESSION_EXPIRE", "type": "int", "required": False, "description": "会话有效期(秒)"}
+                    {"name": "SESSION_EXPIRE", "type": "int", "required": False, "description": "会话有效期(秒)"},
+                    {"name": "ALLOW_REGISTER", "type": "boolean", "required": False, "description": "开放自助注册（默认关）"}
                 ],
                 "view_func": self.update_config_api
             }
@@ -524,6 +698,9 @@ class AuthPlugin(BasePlugin):
         password = data.get("password")
         if not username or not password:
             return self.error_response("用户名和密码不能为空", 400)
+        # v4.10 M5：待审核账号友好提示（pending 用户禁止登录）
+        if self.is_pending(username or ''):
+            return self.error_response("账号待管理员审核，请稍后再试", 403)
         # 登录失败锁定检查（v4.3.0）：锁定期间返回通用错误信息，不泄露锁定细节
         locked, _ = self._check_login_locked(username)
         if locked:
@@ -610,7 +787,8 @@ class AuthPlugin(BasePlugin):
     def get_config_api(self):
         """获取插件配置接口"""
         config = {
-            "SESSION_EXPIRE": self.config["SESSION_EXPIRE"]
+            "SESSION_EXPIRE": self.config["SESSION_EXPIRE"],
+            "ALLOW_REGISTER": self.config.get("ALLOW_REGISTER", False)
         }
         return self.success_response(data=config)
 
@@ -622,9 +800,13 @@ class AuthPlugin(BasePlugin):
         if "SESSION_EXPIRE" in update_data:
             self.config["SESSION_EXPIRE"] = update_data["SESSION_EXPIRE"]
             self.SESSION_EXPIRE = update_data["SESSION_EXPIRE"]
-        
+
+        if "ALLOW_REGISTER" in update_data:
+            self.config["ALLOW_REGISTER"] = bool(update_data["ALLOW_REGISTER"])
+
         self.save_config()
         self.logger.info(f"插件配置已更新: {update_data}")
         return self.success_response(data={
-            "SESSION_EXPIRE": self.SESSION_EXPIRE
+            "SESSION_EXPIRE": self.SESSION_EXPIRE,
+            "ALLOW_REGISTER": self.config.get("ALLOW_REGISTER", False)
         }, message="配置更新成功")

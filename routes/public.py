@@ -68,7 +68,18 @@ def register(app):
         if token and 'auth' in global_var.plugins and global_var.plugins['auth'].verify_token(token):
             redirect_url = request.args.get('redirect', '/')
             return redirect(urllib.parse.unquote_plus(redirect_url))
-        return render_template('login.html')
+        # v4.10 M5：注册开关（auth 插件 config）传前端控制"注册账号"入口显示
+        allow_register = False
+        if 'auth' in global_var.plugins:
+            _auth_cfg = getattr(global_var.plugins['auth'], 'config', None) or {}
+            allow_register = bool(_auth_cfg.get('ALLOW_REGISTER', False))
+        return render_template('login.html', allow_register=allow_register)
+
+    @app.route('/register')
+    def register_page():
+        """v4.10 M5 自助注册页：邀请码经 URL params 自动填充（/register?code=xxx）"""
+        invite_code = request.args.get('code', '')
+        return render_template('register.html', invite_code=invite_code)
 
     @app.route('/lang/<code>')
     def switch_lang(code):

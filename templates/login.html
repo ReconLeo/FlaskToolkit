@@ -35,6 +35,11 @@
                 <button class="btn btn-primary" id="loginBtn" style="width:100%; padding:11px; font-size:16px;">{{ t('登录') }}</button>
                 <div class="auth-error" id="errorTip"></div>
                 <div class="auth-tip">默认账号：admin / admin123</div>
+                {% if allow_register %}
+                <div class="auth-tip" style="margin-top:6px;">
+                    {{ t('还没有账号？') }} <a href="/register" style="color:#409eff; text-decoration:none;">{{ t('注册') }}</a>
+                </div>
+                {% endif %}
             </div>
 
             <!-- 登录成功提示区（默认隐藏） -->

@@ -159,6 +159,17 @@
         .status-normal {
             color: #27ae60;
         }
+        .status-pending {
+            color: #e67e22;
+            font-weight: bold;
+        }
+        .section-title {
+            margin-bottom: 10px;
+        }
+        .section-title h3 {
+            margin: 0;
+            font-size: 15px;
+        }
         .btn-unlock {
             background: #f39c12;
             color: #fff;
@@ -336,6 +347,52 @@
             <button class="btn" id="prevBtn" onclick="changePage(currentPage - 1)" disabled>上一页</button>
             <span class="pagination-info" id="paginationInfo">第 1 页 / 共 0 页</span>
             <button class="btn" id="nextBtn" onclick="changePage(currentPage + 1)" disabled>下一页</button>
+        </div>
+
+        <!-- v4.10 M5 自助注册：待审核用户 -->
+        <div class="table-container" style="margin-top:24px;">
+            <div class="section-title">
+                <h3>📋 待审核用户（自助注册无邀请码进入此列表）</h3>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>用户名</th>
+                        <th>昵称</th>
+                        <th>注册时间</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="pendingTableBody">
+                    <tr><td colspan="5" class="loading">加载中...</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- v4.10 M5 自助注册：邀请码管理 -->
+        <div class="table-container" style="margin-top:24px;">
+            <div class="section-title" style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
+                <h3>🔑 邀请码管理</h3>
+                <label style="font-size:13px; display:flex; align-items:center; gap:5px; cursor:pointer;">
+                    <input type="checkbox" id="allowRegisterToggle" onchange="toggleAllowRegister()">
+                    开放自助注册（默认关，开启后无邀请码注册需审核）
+                </label>
+                <button class="btn btn-success" onclick="createInviteCode()">+ 生成邀请码</button>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>邀请码</th>
+                        <th>备注</th>
+                        <th>状态</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="inviteCodeTableBody">
+                    <tr><td colspan="4" class="loading">加载中...</td></tr>
+                </tbody>
+            </table>
         </div>
     </div>
 
@@ -542,7 +599,7 @@
                                 ${user.role === 'admin' ? '管理员' : '普通用户'}
                             </span>
                         </td>
-                        <td>${user.locked ? '<span class="status-locked">已锁定</span>' : '<span class="status-normal">正常</span>'}</td>
+                        <td>${user.status === 'pending' ? '<span class="status-pending">待审核</span>' : (user.locked ? '<span class="status-locked">已锁定</span>' : '<span class="status-normal">正常</span>')}</td>
                         <td>
                             <div class="action-buttons">
                                 <button class="btn action-btn btn-primary" onclick="openEditModal(${JSON.stringify(user).replace(/"/g, '&quot;')})">编辑</button>
@@ -841,7 +898,226 @@
         // 已登录时直接加载（不再因 HttpOnly token 读不到而死循环刷新）。
         window.onload = function() {
             loadUserList();
+            loadPendingUsers();
+            loadInviteCodes();
+            loadRegisterSettings();
         };
+
+        // ===== v4.10 M5 自助注册：待审核用户 + 邀请码管理 =====
+        function loadPendingUsers() {
+            const tbody = document.getElementById('pendingTableBody');
+            const xhr = new XMLHttpRequest();
+            xhr.open('GET', '/api/user_manage/pending-users', true);
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState === 4) {
+                    if (xhr.status === 200) {
+                        try {
+                            const res = JSON.parse(xhr.responseText);
+                            const list = (res.data && res.data.list) || [];
+                            if (list.length === 0) {
+                                tbody.innerHTML = '<tr><td colspan="5" class="empty-state">暂无待审核用户</td></tr>';
+                            } else {
+                                tbody.innerHTML = list.map(u => `
+                                    <tr>
+                                        <td>${u.id}</td>
+                                        <td>${u.username}</td>
+                                        <td>${u.nickname || u.username}</td>
+                                        <td>${new Date((u.create_time || 0) * 1000).toLocaleString()}</td>
+                                        <td>
+                                            <div class="action-buttons">
+                                                <button class="btn action-btn btn-success" onclick="approveUser(${u.id}, '${u.username}')">通过</button>
+                                                <button class="btn action-btn btn-danger" onclick="rejectUser(${u.id}, '${u.username}')">拒绝</button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                `).join('');
+                            }
+                        } catch (e) {
+                            tbody.innerHTML = '<tr><td colspan="5" class="empty-state">加载失败</td></tr>';
+                        }
+                    }
+                }
+            };
+            xhr.send();
+        }
+
+        function approveUser(userId, username) {
+            if (!confirm('确定通过用户「' + username + '」的注册申请？')) return;
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', '/api/user_manage/user/approve');
+            xhr.setRequestHeader('Content-Type', 'application/json');
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState === 4) {
+                    const resp = JSON.parse(xhr.responseText);
+                    if (resp.code === 200) {
+                        showToast('已通过审核：' + username, 'success');
+                        loadPendingUsers();
+                        loadUserList();
+                    } else {
+                        showToast(resp.message || '操作失败', 'error');
+                    }
+                }
+            };
+            xhr.send(JSON.stringify({ user_id: userId }));
+        }
+
+        function rejectUser(userId, username) {
+            if (!confirm('确定拒绝用户「' + username + '」的注册申请？将删除该账号。')) return;
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', '/api/user_manage/user/reject');
+            xhr.setRequestHeader('Content-Type', 'application/json');
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState === 4) {
+                    const resp = JSON.parse(xhr.responseText);
+                    if (resp.code === 200) {
+                        showToast('已拒绝：' + username, 'success');
+                        loadPendingUsers();
+                        loadUserList();
+                    } else {
+                        showToast(resp.message || '操作失败', 'error');
+                    }
+                }
+            };
+            xhr.send(JSON.stringify({ user_id: userId }));
+        }
+
+        function loadInviteCodes() {
+            const tbody = document.getElementById('inviteCodeTableBody');
+            const xhr = new XMLHttpRequest();
+            xhr.open('GET', '/api/user_manage/invite-codes', true);
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState === 4) {
+                    if (xhr.status === 200) {
+                        try {
+                            const res = JSON.parse(xhr.responseText);
+                            const list = (res.data && res.data.list) || [];
+                            if (list.length === 0) {
+                                tbody.innerHTML = '<tr><td colspan="4" class="empty-state">暂无邀请码，点击"生成邀请码"创建</td></tr>';
+                            } else {
+                                tbody.innerHTML = list.map(c => `
+                                    <tr>
+                                        <td><code>${c.code}</code></td>
+                                        <td>${c.note || '-'}</td>
+                                        <td>${c.used_by ? '<span class="status-normal">已使用（' + c.used_by + '）</span>' : '<span class="status-pending">未使用</span>'}</td>
+                                        <td>
+                                            <div class="action-buttons">
+                                                <button class="btn action-btn btn-primary" onclick="copyRegisterUrl('${c.register_url}')">复制注册链接</button>
+                                                ${c.used_by ? '' : `<button class="btn action-btn btn-danger" onclick="revokeInviteCode('${c.code}')">撤销</button>`}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                `).join('');
+                            }
+                        } catch (e) {
+                            tbody.innerHTML = '<tr><td colspan="4" class="empty-state">加载失败</td></tr>';
+                        }
+                    }
+                }
+            };
+            xhr.send();
+        }
+
+        function createInviteCode() {
+            const note = prompt('请输入邀请码备注（发给谁，可选）：', '');
+            if (note === null) return;
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', '/api/user_manage/invite-code');
+            xhr.setRequestHeader('Content-Type', 'application/json');
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState === 4) {
+                    const resp = JSON.parse(xhr.responseText);
+                    if (resp.code === 200) {
+                        showToast('邀请码生成成功', 'success');
+                        loadInviteCodes();
+                    } else {
+                        showToast(resp.message || '生成失败', 'error');
+                    }
+                }
+            };
+            xhr.send(JSON.stringify({ note: note || '' }));
+        }
+
+        function revokeInviteCode(code) {
+            if (!confirm('确定撤销邀请码 ' + code + '？撤销后该码立即失效。')) return;
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', '/api/user_manage/invite-code/revoke');
+            xhr.setRequestHeader('Content-Type', 'application/json');
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState === 4) {
+                    const resp = JSON.parse(xhr.responseText);
+                    if (resp.code === 200) {
+                        showToast('邀请码已撤销', 'success');
+                        loadInviteCodes();
+                    } else {
+                        showToast(resp.message || '撤销失败', 'error');
+                    }
+                }
+            };
+            xhr.send(JSON.stringify({ code: code }));
+        }
+
+        function copyRegisterUrl(url) {
+            const full = window.location.origin + url;
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(full).then(function () {
+                    showToast('注册链接已复制', 'success');
+                }, function () {
+                    fallbackCopy(full);
+                });
+            } else {
+                fallbackCopy(full);
+            }
+        }
+
+        function fallbackCopy(text) {
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            document.body.appendChild(ta);
+            ta.select();
+            try {
+                document.execCommand('copy');
+                showToast('注册链接已复制', 'success');
+            } catch (e) {
+                showToast('复制失败，请手动复制：' + text, 'error');
+            }
+            document.body.removeChild(ta);
+        }
+
+        function loadRegisterSettings() {
+            const xhr = new XMLHttpRequest();
+            xhr.open('GET', '/api/auth/config', true);
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState === 4 && xhr.status === 200) {
+                    try {
+                        const res = JSON.parse(xhr.responseText);
+                        const el = document.getElementById('allowRegisterToggle');
+                        if (el && res.data && res.data.ALLOW_REGISTER !== undefined) {
+                            el.checked = !!res.data.ALLOW_REGISTER;
+                        }
+                    } catch (e) { /* ignore */ }
+                }
+            };
+            xhr.send();
+        }
+
+        function toggleAllowRegister() {
+            const el = document.getElementById('allowRegisterToggle');
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', '/api/auth/config');
+            xhr.setRequestHeader('Content-Type', 'application/json');
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState === 4) {
+                    const resp = JSON.parse(xhr.responseText);
+                    if (resp.code === 200) {
+                        showToast(el.checked ? '已开放自助注册' : '已关闭自助注册', 'success');
+                    } else {
+                        showToast(resp.message || '设置失败', 'error');
+                        el.checked = !el.checked;
+                    }
+                }
+            };
+            xhr.send(JSON.stringify({ ALLOW_REGISTER: el.checked }));
+        }
     </script>
 </body>
 </html>

@@ -78,6 +78,54 @@ class UserManagePlugin(BasePlugin):
                     {'name': 'username', 'type': 'string', 'required': True, 'description': '被锁定用户名（清除其全部维度锁定记录）'}
                 ],
                 'view_func': self.unlock_user
+            },
+            {
+                'path': '/pending-users',
+                'name': '待审核用户列表（自助注册）',
+                'methods': ['GET'],
+                'view_func': self.pending_users
+            },
+            {
+                'path': '/user/approve',
+                'name': '审核通过用户（pending → active）',
+                'methods': ['POST'],
+                'params': [
+                    {'name': 'user_id', 'type': 'number', 'required': True, 'description': '用户ID'}
+                ],
+                'view_func': self.approve_user
+            },
+            {
+                'path': '/user/reject',
+                'name': '拒绝注册申请（删除 pending 用户）',
+                'methods': ['POST'],
+                'params': [
+                    {'name': 'user_id', 'type': 'number', 'required': True, 'description': '用户ID'}
+                ],
+                'view_func': self.reject_user
+            },
+            {
+                'path': '/invite-code',
+                'name': '生成一次性邀请码',
+                'methods': ['POST'],
+                'params': [
+                    {'name': 'note', 'type': 'string', 'required': False, 'description': '备注（发给谁）'}
+                ],
+                'view_func': self.create_invite_code
+            },
+            {
+                'path': '/invite-codes',
+                'name': '邀请码列表',
+                'methods': ['GET'],
+                'view_func': self.list_invite_codes
+            },
+            {
+                'path': '/invite-code/revoke',
+                'name': '撤销邀请码',
+                'methods': ['POST'],
+                'params': [
+                    {'name': 'code', 'type': 'string', 'required': True, 'description': '邀请码'}
+                ],
+                'view_func': self.revoke_invite_code
             }
         ]
 
@@ -220,3 +268,51 @@ class UserManagePlugin(BasePlugin):
         if not removed:
             return self.success_response(None, "该用户当前无锁定记录（未锁定或已过期）")
         return self.success_response(None, f"用户 {username} 已解封")
+
+    # ------------------------------
+    # 自助注册审核 / 邀请码管理（v4.10 M5）
+    # ------------------------------
+    @BasePlugin.require_role(["admin"])
+    def pending_users(self):
+        """待审核用户列表（自助注册无邀请码进入待审）"""
+        return self.success_response(data={"list": self.auth_plugin.pending_users()})
+
+    @BasePlugin.require_role(["admin"])
+    def approve_user(self):
+        """审核通过：pending → active"""
+        data = request.validated_data
+        if self.auth_plugin.approve_user(int(data["user_id"])):
+            return self.success_response(message="已通过审核")
+        return self.error_response("用户不存在或非待审核状态", 400)
+
+    @BasePlugin.require_role(["admin"])
+    def reject_user(self):
+        """拒绝注册申请：删除 pending 用户"""
+        data = request.validated_data
+        if self.auth_plugin.reject_user(int(data["user_id"])):
+            return self.success_response(message="已拒绝该注册申请")
+        return self.error_response("用户不存在或非待审核状态", 400)
+
+    @BasePlugin.require_role(["admin"])
+    def create_invite_code(self):
+        """生成一次性邀请码（附注册链接 /register?code=xxx 带参自动填充）"""
+        data = request.validated_data
+        info = self.auth_plugin.create_invite_code(note=data.get("note") or "")
+        info["register_url"] = f"/register?code={info['code']}"
+        return self.success_response(data=info, message="邀请码生成成功")
+
+    @BasePlugin.require_role(["admin"])
+    def list_invite_codes(self):
+        """邀请码列表（含使用状态与注册链接）"""
+        codes = self.auth_plugin.list_invite_codes()
+        for c in codes:
+            c["register_url"] = f"/register?code={c['code']}"
+        return self.success_response(data={"list": codes})
+
+    @BasePlugin.require_role(["admin"])
+    def revoke_invite_code(self):
+        """撤销邀请码"""
+        data = request.validated_data
+        if self.auth_plugin.revoke_invite_code(data["code"]):
+            return self.success_response(message="邀请码已撤销")
+        return self.error_response("邀请码不存在", 400)

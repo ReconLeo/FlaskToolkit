@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ system_name }} · {{ t('用户注册') }}</title>
+    <link rel="stylesheet" href="/static/css/main.css">
+</head>
+<body>
+    <div class="auth-page">
+        <div class="auth-card">
+            <h2 class="auth-title">📝 {{ t('用户注册') }}</h2>
+            <div id="registerForm">
+                <div class="form-item">
+                    <label>{{ t('用户名') }}</label>
+                    <div class="input-wrap">
+                        <input type="text" id="username" placeholder="{{ t('用户名') }}" autocomplete="username">
+                    </div>
+                </div>
+                <div class="form-item">
+                    <label>{{ t('昵称') }}（{{ t('可选') }}）</label>
+                    <div class="input-wrap">
+                        <input type="text" id="nickname" placeholder="{{ t('昵称') }}" autocomplete="nickname">
+                    </div>
+                </div>
+                <div class="form-item">
+                    <label>{{ t('密码') }}</label>
+                    <div class="input-wrap">
+                        <input type="password" id="password" placeholder="{{ t('密码（至少 6 位）') }}" autocomplete="new-password">
+                        <button type="button" id="pwdToggle" class="pwd-toggle" tabindex="-1">{{ t('显示') }}</button>
+                    </div>
+                </div>
+                <div class="form-item">
+                    <label>{{ t('邀请码') }}（{{ t('有邀请码免审核，可选') }}）</label>
+                    <div class="input-wrap">
+                        <input type="text" id="inviteCode" placeholder="FTK-XXXX-XXXX" value="{{ invite_code }}">
+                    </div>
+                </div>
+                <button class="btn btn-primary" id="registerBtn" style="width:100%; padding:11px; font-size:16px;">{{ t('注册') }}</button>
+                <div class="auth-error" id="errorTip"></div>
+                <div class="auth-tip">
+                    <a href="/login" style="color:#409eff; text-decoration:none;">← {{ t('返回登录') }}</a>
+                </div>
+            </div>
+
+            <!-- 注册成功提示区（默认隐藏） -->
+            <div id="successArea" class="auth-success" style="display:none;">
+                <div class="status-icon">✓</div>
+                <div class="status-title" id="successTitle">{{ t('注册成功') }}</div>
+                <div class="status-tip" id="successTip"></div>
+                <a href="/login" class="btn btn-primary" style="width:auto; padding:8px 20px; margin-top:14px;">{{ t('去登录') }}</a>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/main.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var pwdToggle = document.getElementById('pwdToggle');
+            if (pwdToggle) {
+                pwdToggle.addEventListener('click', function () {
+                    var p = document.getElementById('password');
+                    p.type = p.type === 'password' ? 'text' : 'password';
+                    pwdToggle.textContent = p.type === 'password' ? '显示' : '隐藏';
+                });
+            }
+            document.getElementById('registerBtn').addEventListener('click', function () {
+                var username = document.getElementById('username').value.trim();
+                var nickname = document.getElementById('nickname').value.trim();
+                var password = document.getElementById('password').value;
+                var inviteCode = document.getElementById('inviteCode').value.trim();
+                var errEl = document.getElementById('errorTip');
+                errEl.style.display = 'none';
+                if (!username || !password) {
+                    errEl.textContent = '请填写用户名和密码'; errEl.style.display = 'block'; return;
+                }
+                if (password.length < 6) {
+                    errEl.textContent = '密码长度至少 6 位'; errEl.style.display = 'block'; return;
+                }
+                var xhr = new XMLHttpRequest();
+                xhr.open('POST', '/api/auth/register');
+                xhr.setRequestHeader('Content-Type', 'application/json');
+                xhr.onreadystatechange = function () {
+                    if (xhr.readyState === 4) {
+                        var res = null;
+                        try { res = JSON.parse(xhr.responseText); } catch (e) { /* ignore */ }
+                        if (xhr.status === 200 && res && res.code === 200) {
+                            document.getElementById('registerForm').style.display = 'none';
+                            document.getElementById('successArea').style.display = 'block';
+                            document.getElementById('successTip').textContent = res.message || '注册成功';
+                        } else {
+                            errEl.textContent = (res && res.message) || '注册失败，请重试';
+                            errEl.style.display = 'block';
+                        }
+                    }
+                };
+                xhr.send(JSON.stringify({
+                    username: username, nickname: nickname,
+                    password: password, invite_code: inviteCode
+                }));
+            });
+        });
+    </script>
+</body>
+</html>
