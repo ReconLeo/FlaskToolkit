@@ -1,0 +1,13 @@
+{
+  "__name__": "English",
+  "框架 Root 域（framework:core）演示：只读框架版本/核心路径清单、读写框架核心配置 data/user_config.json，并对照展示普通 filesystem:write 写核心路径被拒绝、须声明 framework:core（Root 权限）。": "Root domain (framework:core) demo: read framework version / core path manifest, read & write the framework core config data/user_config.json, and contrast how a plain filesystem:write to a core path is rejected unless framework:core (Root) is declared.",
+  "框架 Root 域演示（root_demo）": "Root Domain Demo (root_demo)",
+  "Root 概览（framework:core）": "Root overview (framework:core)",
+  "Root 读被拒：{reason}": "Root read rejected: {reason}",
+  "已读取框架核心配置": "Framework core config read",
+  "data 须为非空键值对象": "data must be a non-empty key-value object",
+  "Root 写被拒：{reason}": "Root write rejected: {reason}",
+  "写入框架核心配置失败": "Failed to write framework core config",
+  "已写入框架核心配置（重启后生效）": "Framework core config written (takes effect after restart)",
+  "普通写核心被拒对照": "Contrast: plain write to core rejected"
+}

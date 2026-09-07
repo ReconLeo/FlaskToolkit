@@ -4,7 +4,7 @@
   <img src="https://github.com/ReconLeo/FlaskToolkit/actions/workflows/ci.yml/badge.svg" alt="CI">
   <img src="https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB?logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/License-MIT-yellow" alt="License">
-  <img src="https://img.shields.io/badge/version-4.15.0-blue" alt="Version">
+  <img src="https://img.shields.io/badge/version-4.15.1-blue" alt="Version">
 </p>
 
 > A Flask-based plugin **framework**: bring scattered Python plugins and pure-frontend tools into one unified runtime —
@@ -35,7 +35,8 @@ Over time it grew into what it is today — a few highlights:
 - **Mobile & Tablet (4.13)**: the whole UI (public pages *and* the admin console) is now phone/tablet-friendly — responsive CSS is kept **separate** from the original styles (`mobile.css` / `admin-mobile.css` / per-plugin `*_mobile.css`), with safe-area insets for notched screens, 44px touch targets, **auto-wrapped scrollable tables**, a hamburger menu on the home navbar, full-screen modals & top-banner toasts on narrow screens — and all five example plugins ship their own mobile styles too;
 - **Statistics (4.14)**: the admin **dashboard** now answers "what is actually going on" at a glance — a runtime badge row (uptime / scheme / addresses / IP-change), **cold-plugin hints** (installed but never called) and a **recent-activity card**; the **Stats page** gains a **14-day request trend** (pure-SVG bar chart, no JS deps), an **error Top list**, and an **access profile** — per-user (logged-in identities, including the admin) and per-IP visitor breakdowns with device classification (bot / tablet / mobile / desktop), plus per-plugin API call tracking for pinpointing individual tools, all backed by a configurable 30-day retention (`STATS_RETENTION_DAYS`);
 - **Root domain & marketplace groundwork (4.15)**: plugins can now declare a **`framework` capability domain** with three tiers — `read` / `manage` / `core` (`core` ≈ Linux **root**, implies `manage` + `read`) for touching the framework's own core files; the **`framework:core`** permission grants explicit semantics for *modifying/deleting* framework internals, surfaces as a loud **⚠️ Root** badge in the admin UI, and every allowed core-path write is stamped with a **root-access audit event** (MIT license — the framework takes no liability). Parallel to that, a **programmatic plugin-management service layer** (`core/plugin_admin.py`) backs the admin routes and paves the way for a **third-party plugin market**; plugins can declare **`repo` / `update_feed`** in `plugin.json` so in-app **per-plugin update checks** (`core/plugin_updates.py`, RSA-signature-verified feeds, silent 3s timeout) reach each plugin's own release channel. The startup **self-check** also gained a **timezone / `tzdata` probe** — APScheduler 3.11 uses `zoneinfo`, which needs `tzdata` on Windows, so a fresh environment now fails loudly at self-check with an actionable hint instead of crashing at scheduler startup;
-- **Ops & tooling**: version check with a `changelog.json` feed + dual-backend updater (git / archive), Factory Reset, backup/restore, startup self-check, package integrity signing, plugin scaffolding + offline install/uninstall CLI (`scaffold.py` / `install_plugin.py`), plus a **35-script / 914-assertion regression suite and GitHub Actions CI**.
+- **Framework manifest (4.15.1)**: the "framework core file vs. user data" classification is no longer hardcoded per module — a single manifest `core/framework_manifest.py` now drives startup self-check, the updater, backup, Factory Reset, and the Root-domain path check from one source. A new `root_demo` example plugin demonstrates the `framework:core` **Root** grant end-to-end: read/write the framework core config `data/user_config.json` (audited `root-access`), plus the contrast of a plain `filesystem:write` being rejected on core paths;
+- **Ops & tooling**: version check with a `changelog.json` feed + dual-backend updater (git / archive), Factory Reset, backup/restore, startup self-check, package integrity signing, plugin scaffolding + offline install/uninstall CLI (`scaffold.py` / `install_plugin.py`), plus a **37-script / 987-assertion regression suite and GitHub Actions CI**.
 
 The full feature specification lives in the [development guide](documents/Flask插件框架开发规范-v4.0.md).
 
@@ -114,6 +115,7 @@ The [`examples/`](examples/README.md) directory ships with a set of one-click in
 | `dependent_demo` | Backend plugin | Dependency declaration, cross-plugin calls |
 | `multitool_demo` | Backend plugin | Large plugin multi-template: page routes, helper .py, static assets |
 | `corp_tools` | Backend plugin | Enterprise-intranet kit: scheduled health probing + network-whitelist capabilities, permission-filtered navigation, notice board |
+| `root_demo` | Backend plugin | **Root domain** (`framework:core`): read/write framework core config `data/user_config.json`, contrast plain `filesystem:write` rejected on core paths |
 | `dashboard_demo` | Frontend tool | Admin permission, calls backend APIs, ECharts, static assets |
 
 See [examples/README.md](examples/README.md).
@@ -131,7 +133,7 @@ Detailed specs live in the [Flask Plugin Framework Development Guide](documents/
 
 ## Tests & CI
 
-`tests/` contains **35 scripts / 914 assertions** of regression tests (isolated-directory mode, no pollution of project files); GitHub Actions runs them automatically on Python 3.10 / 3.11 / 3.12, covering permissions, plugin-package / frontend-tool chains, integrity signatures, uninstall manifests, Factory Reset, large-plugin multi-template page routing, file transfer (upload limits / Chinese-name downloads / Range), static security scanning, capability cross-validation, runtime audit hooks, i18n framework, plugin data quota, plugin scaffolding / offline install-uninstall CLI, per-plugin space cleanup, ops tools, etc.
+`tests/` contains **37 scripts / 987 assertions** of regression tests (isolated-directory mode, no pollution of project files); GitHub Actions runs them automatically on Python 3.10 / 3.11 / 3.12, covering permissions, plugin-package / frontend-tool chains, integrity signatures, uninstall manifests, Factory Reset, large-plugin multi-template page routing, file transfer (upload limits / Chinese-name downloads / Range), static security scanning, capability cross-validation, runtime audit hooks, i18n framework, plugin data quota, plugin scaffolding / offline install-uninstall CLI, per-plugin space cleanup, ops tools, etc.
 
 <details>
 <summary>Expand: 32 test scripts</summary>
@@ -158,7 +160,10 @@ python tests/test_framework_fixes.py       # framework small fixes: public_page 
 python tests/test_file_transfer.py         # file transfer: global 413 / plugin & route upload limits / Chinese-name downloads / download stats / Range / on_ready order 12
 python tests/test_security.py              # system security: headers / cookie hardening / idle timeout / login lockout & manual unlock 45
 python tests/test_plugin_scan.py           # plugin static scanning (v4.3.1): risky imports/calls/obfuscation/network+file touchpoints 35
-python tests/test_capabilities.py          # plugin capability declarations (v4.3.2): parse/match/cross-check/runtime authorization 57
+python tests/test_capabilities.py          # plugin capability declarations (v4.3.2): parse/match/cross-check/runtime authorization 70
+python tests/test_root_domain.py            # Root domain & marketplace groundwork (v4.15): framework tiers / plugin-admin service layer / per-plugin update feed
+python tests/test_framework_manifest.py     # framework directory manifest (v4.15.1): single-source core/user-data lists + Root-domain path check 54
+python tests/test_root_demo.py              # example plugin root_demo (v4.15.1): framework:core Root read/write + contrast rejection 19
 python tests/test_audit_hook.py            # runtime audit hooks (v4.4.0): event mapping/stack attribution/observe/enforce 38
 python tests/test_update_checker.py     # update checker (v4.8.0): version compare / feed cache TTL / archive verify chain / zip-slip guard 43
 python tests/test_i18n.py                  # i18n (v4.9.0): language packs / lookup chain / lang resolution / cookie switch / template render 28
@@ -170,14 +175,14 @@ python tests/test_network.py              # network & access (v4.11) + 308 redir
 python tests/test_mdns.py                 # mDNS service registration (v4.11, optional zeroconf) 22
 python tests/test_ip_watcher.py           # IP-change detection (v4.11) 15
 python tests/test_desktop_launcher.py     # desktop launcher (v4.11) + HTTPS checkbox (v4.12) 36
-# total: 35 scripts / 914 assertions
+# total: 37 scripts / 987 assertions
 ```
 
 </details>
 
 ## Edition Status
 
-- **Community Edition (v4.x)**: feature development continues with a deliberately controlled architectural scale, focused on small-LAN / personal-use scenarios; we maintain and release regularly (35 scripts / 914 assertions regression + CI).
+- **Community Edition (v4.x)**: feature development continues with a deliberately controlled architectural scale, focused on small-LAN / personal-use scenarios; we maintain and release regularly (37 scripts / 987 assertions regression + CI).
 - **Enterprise Edition (v5.x)**: planned to carry the long-term roadmap (refined permission model, process-level sandboxing, stricter CSP, enterprise identity integration, etc.). Due to limited team capacity, we are openly looking for maintainers to take over — see the [Enterprise Edition handover & roadmap](documents/Enterprise-Edition-交接与路线.md).
 
 ## Known Limitations

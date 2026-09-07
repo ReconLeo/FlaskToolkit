@@ -1,16 +1,13 @@
 {
-  "latest_version": "4.15.0",
+  "latest_version": "4.15.1",
   "published_at": "2026-09-07",
-  "download_url": "https://github.com/ReconLeo/FlaskToolkit/releases/download/v4.15.0/FlaskToolkit-4.15.0-runtime.zip",
-  "sha256": "90c1ccf4db1c3606a6023a75945316abfb2a380f97b4b4f0c598f38505073f64",
+  "download_url": "https://github.com/ReconLeo/FlaskToolkit/releases/download/v4.15.1/FlaskToolkit-4.15.1-runtime.zip",
+  "sha256": "a991e76da165e887cae2fb05cbb09aa0bbef12607b5e0ed674a44db4976e3643",
   "changes": [
-    "Root 权限域（framework 能力域，core/capabilities.py）：三档 read/manage/core（core≈Linux root，隐含 manage/read，级别 3>2>1）；is_framework_core_path 判定框架核心路径（core/routes/templates 框架部分/app.py/global_var.py/data/user_config.json/plugins/status.json，豁免模板/插件数据目录）；filesystem:write 命中核心路径→errors 拒绝并提示改用 framework:core；cross_validate 中 framework:core 隐式覆盖核心路径写；check_filesystem 运行时核心写仅 framework:core 放行；新增 check_framework",
-    "Root 审计与栈归因（core/audit_hook.py）：allowed 核心路径写追加 root-access 审计事件；公共栈归因 locate_caller_plugin()（服务层权限判定防伪造）；加载 framework:core 插件打印醒目横幅；前端 Root/Manage/Framework 徽章 + ⚠️ Root 红/manage 橙/read 蓝三色警示条",
-    "程序化插件管理服务层（core/plugin_admin.py 新 288 行）：require_manage（框架自身放行/插件须 framework:manage）/scan_gate/enable/disable/uninstall/purge_data/install_from_package/update_from_package；routes/admin 六个管理接口改薄壳调用服务层，为第三方插件市场铺路",
-    "插件级更新源（core/plugin_updates.py 新）：plugin.json 声明 repo/update_feed，应用内 check-updates 触达各插件独立发布渠道——feed JSON {latest_version,published_at,download_url,sha256,changes[,signature]}、data/cache/plugin_updates.json 缓存（UPDATE_CHECK_INTERVAL 小时）、3s 超时静默、UPDATE_PUBLIC_KEY_PEM 强制 RSA 验签、版本比较；plugin_pack META_FIELDS 加 repo/update_feed（不进 COMPARE_FIELDS）；后台插件页检查更新按钮/更新徽章（⬆ vX 可更新）",
-    "既有 bug 修复：routes/admin.py preview 分支 from core.plugin_scanner import read_pack_capabilities（函数实为 core.capabilities）→ ImportError 被 except 吞 → preview.capabilities 自 v4.10 恒空；改顶层已导入函数",
-    "启动自检增强（core/selfcheck.py）：global_var 新增 TIMEZONE 常量，app.py BackgroundScheduler 改用它——APScheduler 3.11 弃 pytz 改 zoneinfo，Windows 缺 tzdata 时顶层创建 scheduler 抛 ZoneInfoNotFoundError 启动即崩，selfcheck 新增 zoneinfo 时区探测在自检阶段致命报错并提示 pip install tzdata（而非静默通过、启动才崩）；CORE_FILES 补登记 core/plugin_admin.py、core/plugin_updates.py；requirements.txt 新增 tzdata==2026.3（Windows 全新 Python 环境可复现）",
-    "测试：新增 tests/test_root_domain.py 18 项（framework 域三档/核心路径判定/root 写放行与拒绝/服务层 require_manage/市场写 core 拒绝/更新源）+ tests/test_selfcheck.py 14 项（CORE_FILES 完整性/时区探测/完整自检）；test_capabilities 扩展 G 段 framework 域 13 项；修复 test_admin_api 版本期望；全量回归 35 脚本 914 项 0 失败",
-    "文档：README 双版补 Root 域与市场骨架特性条目（35 脚本 / 914 项回归）、开发规范 v4.15 段（framework 能力域表 + repo/update_feed 字段表 + 5.6.8 小节 + MIT 免责声明）、Roadmap v4.15 当前行 + v4.16 规划行（事件总线 + 插件依赖）、版本演进记录 3.20、SECURITY.md framework:core 风险与回归口径同步"
+    "框架目录清单统一（core/framework_manifest.py 新，单一事实来源）：把“哪些是框架核心文件、哪些是用户数据”的判定从各模块硬编码收敛到一处——CORE_FILES(35)/CORE_DIRS(6)/USER_DATA_PATHS(10)/ROOT_RUNTIME_FILES/备份派生 BACKUP_ITEMS + 判定函数 is_user_data_path(=旧 update.path_is_user_data)/is_core_file/is_framework_core_path(=旧 capabilities 私有逻辑)；纯常量+纯函数，模块级不 import global_var，BASE_DIR 自推导",
+    "各模块改读统一清单（删硬编码）：core/selfcheck.py(CORE_FILES/CORE_DIRS import manifest 并登记 core/framework_manifest.py)、tools/update.py(USER_DATA_PATHS/path_is_user_data import manifest，重新导出兼容 release.py)、tools/backup.py(BACKUP_ITEMS 读 manifest 派生)、core/factory_reset.py(RESET_STATS_FILE/RESET_SESSIONS_FILE/RESET_LEGACY_SESSIONS_FILE/RESET_AUTH_CONFIG_FILE/RESET_TEMP_DIRS 读 manifest)、core/capabilities.py(is_framework_core_path 委托 manifest)——后续新增框架文件只需在 manifest 登记一处，自检/升级/备份/重置/Root 判定全自动跟随",
+    "示例插件 root_demo（examples/plugins/root_demo，官方 Root 域演示）：plugin.json 声明 framework:core + filesystem:read:data/、permission=admin、require_framework_version=4.15.0；后端 root_demo.py 加载时 check_framework(root_demo,core) 确认 Root 并打印横幅，GET /overview（框架版本/Root 级别/核心文件清单/用户配置）、GET /config（读 data/user_config.json，Root 读）、POST /config（patch data/user_config.json，Root 写，经 check_filesystem 校验→framework:core 放行，审计钩子记 root-access）、GET /demo-reject（对照：仅 filesystem:write 的临时插件写 app.py→framework-core-not-declared）；页面 root_demo.html + 插件语言包 locales/en.json（后端消息 t()）；更新 examples/manifest.json + README",
+    "测试：新增 tests/test_framework_manifest.py 54 项（清单一致性 selfcheck/update/backup 复用同一对象 + CORE_FILES/CORE_DIRS 完整性 + Root 域路径判定边界 + is_user_data_path 语义 + BACKUP_ITEMS 派生）、tests/test_root_demo.py 19 项（plugin.json 声明一致 + Root 授权/写核心放行/读核心/对照拒绝/自属豁免/模块可加载）；适配 test_capabilities 委托后回归；全量回归 37 脚本 987 项 0 失败",
+    "文档：README 双版补 v4.15.1 特性（框架目录清单统一 + root_demo 示例）与回归数（37 脚本 987 项）、examples/manifest.json + README、开发规范 v4.15.1 段（manifest 设计 + root_demo 详解 + 测试表）+ 版本表 + Roadmap"
   ]
 }

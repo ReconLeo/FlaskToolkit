@@ -12,6 +12,7 @@
 | `dependent_demo`（插件依赖与跨插件调用） | 后端插件 | `/plugin/dependent_demo` | `dependencies` 依赖声明（缺失依赖拒绝加载）、`call_plugin_method` 跨插件调用 auth |
 | `multitool_demo`（大插件多模板） | 后端插件 | `/plugin/multitool_demo` | 大插件三要素：多模板（主入口 index + 页面路由 page=True 子页）、辅助 .py（multitool_utils 纯函数模块）、静态资源（css/js 经 `/plugin-static/` 访问）、`render_index` 数据钩子 |
 | `corp_tools`（企业内网工具箱） | 后端插件 | `/plugin/corp_tools` | 企业内网综合场景：服务健康检查（定时探测 + `network:http` capabilities 白名单）、内部工具导航（按权限过滤）、公告板（异步落盘）、多模板 + 静态资源 + 配置读写系统性组合、**插件多语言（自带 locales/en.json 语言包合并 + 模板/后端/前端 t()）** |
+| `root_demo`（框架 Root 域） | 后端插件 | `/plugin/root_demo` | **Root 权限域（`framework:core` capability，v4.15.0）**：只读框架版本/核心路径清单/框架核心配置、Root 写 `data/user_config.json`（审计 root-access）、对照普通 `filesystem:write` 写核心被拒 |
 | `dashboard_demo`（Dashboard 管理面板） | 前端工具包 | `/frontend/dashboard_demo` | admin 权限前端工具、调用后端 admin API、ECharts 图表、zip 静态资源上传与访问 |
 
 ## 快速开始
@@ -166,7 +167,20 @@ def get_links(self):
 
 `plugin.json` 声明 `capabilities: ["scheduler", "network:http:http://127.0.0.1:5000/*", ...]`——安装时与静态扫描范围交叉校验，运行时审计钩子按此授权。
 
-### 7. dashboard_demo —— 前端工具包完整形态
+### 7. root_demo —— 框架 Root 域（Root 权限域演示）
+
+演示 v4.15.0 引入的 Root 权限域（framework 能力域 `framework:core`，≈ Linux root）：
+
+- **`framework:core` capability**：`plugin.json` 声明 `"framework:core"`，获得对框架核心（`app.py` / `global_var.py` / `core/` / `routes/` / `static/` / 框架模板 / `data/user_config.json` / `plugins/status.json` 等，见 `core/framework_manifest.py` 统一清单）的读写权限；Root 三档 core 隐含 manage、read，加载时经 `capabilities.check_framework('root_demo','core')` 确认并打印醒目横幅；
+- **Root 读**：`GET /api/root_demo/overview` 展示框架版本 / 授权级别 / 核心文件清单 / 用户配置；`GET /api/root_demo/config` 读取框架核心配置 `data/user_config.json`（`filesystem:read:data/`）；
+- **Root 写**：`POST /api/root_demo/config` patch `data/user_config.json`（经 `capabilities.check_filesystem` 校验 → `framework:core` 放行，审计钩子自动追加 `root-access` 事件）；
+- **对照拒绝**：`GET /api/root_demo/demo-reject` 注册一个仅 `filesystem:write` 的临时插件写 `app.py`，展示 `framework-core-not-declared` 拒绝。
+
+> 安全提示：`framework:core` 是最高风险权限（可读写框架代码与全局状态），示例仅用于教学，生产切勿授予非信任插件。
+
+`plugin.json` 声明 `capabilities: ["framework:core", "filesystem:read:data/"]`——安装时与静态扫描范围交叉校验，运行时审计钩子按此授权。
+
+### 8. dashboard_demo —— 前端工具包完整形态
 
 区别于纯前端工具（如内置的密码生成器），本示例展示：
 
@@ -188,7 +202,8 @@ examples/
 │   ├── async_file_demo/
 │   ├── dependent_demo/
 │   ├── multitool_demo/        #   大插件：多模板 + 辅助 .py + static/ 静态资源
-│   └── corp_tools/            #   企业内网综合示例：定时探测 + 权限过滤 + 公告板
+│   ├── corp_tools/            #   企业内网综合示例：定时探测 + 权限过滤 + 公告板
+│   └── root_demo/             #   框架 Root 域：framework:core 读写框架核心配置
 └── frontend_tools/            # 前端工具包示例
     └── dashboard_demo/        #   config.json + <name>.html + static/
 ```

@@ -27,16 +27,11 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import global_var
 
-BACKUP_ROOT = os.path.join(global_var.BASE_DIR, 'backups')
+# 备份项清单 v4.15.1 起统一由 core/framework_manifest.py 派生（从用户数据清单 + 运行文件派生），
+# 避免此处与升级/重置/自检多处硬编码漂移。
+from core.framework_manifest import BACKUP_ITEMS
 
-# (源相对项目根, 备份内相对路径)
-BACKUP_ITEMS = [
-    ('plugins/configs', 'plugins/configs'),
-    ('plugins/status.json', 'plugins/status.json'),
-    ('plugins/data', 'plugins/data'),
-    ('data', 'data'),  # 含 stats/audit/user_config/frontend_tools.json 等全部运行数据
-    ('logs', 'logs'),
-]
+BACKUP_ROOT = os.path.join(global_var.BASE_DIR, 'backups')
 
 
 def _resolve(name_or_path: str) -> str:

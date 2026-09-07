@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ plugin.title }} - Root 域演示</title>
+    <!-- 标准鉴权公共逻辑：HttpOnly token Cookie 自动携带 + CSRF 双提交注入 + 401/403 统一处理 -->
+    <script src="/static/js/plugin_common.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: Arial, sans-serif; }
+        body { background-color: #f5f7fa; padding: 24px; }
+        .container { max-width: 900px; margin: 0 auto; }
+        .card { background: white; border-radius: 8px; padding: 20px 24px; margin-bottom: 16px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .page-title { font-size: 22px; color: #2c3e50; margin-bottom: 6px; }
+        .page-subtitle { color: #7f8c8d; font-size: 14px; margin-bottom: 16px; }
+        .badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 12px;
+                 color: white; margin-left: 8px; }
+        .badge-root { background: #c0392b; }      /* Root 红 */
+        .badge-admin { background: #e67e22; }     /* manage 橙 */
+        .badge-info { background: #3498db; }      /* read 蓝 */
+        .warn { background: #fdf2e9; border-left: 4px solid #c0392b; padding: 10px 14px;
+                border-radius: 4px; font-size: 13px; color: #922b21; margin-top: 12px; }
+        button { border: none; border-radius: 6px; padding: 8px 16px; cursor: pointer;
+                 font-size: 14px; color: white; margin: 4px 8px 4px 0; }
+        .btn-green { background: #27ae60; }
+        .btn-info { background: #3498db; }
+        .btn-warn { background: #e67e22; }
+        pre { background: #f8f9fa; border: 1px solid #e1e4e8; border-radius: 6px; padding: 12px;
+              font-size: 13px; overflow-x: auto; margin-top: 8px; max-height: 320px; overflow-y: auto; }
+        label { display: block; margin: 10px 0 4px; color: #555; font-size: 14px; }
+        textarea { width: 100%; padding: 8px 10px; border: 1px solid #ddd; border-radius: 6px;
+                   font-family: monospace; font-size: 13px; min-height: 90px; }
+        .meta { color: #95a5a6; font-size: 13px; }
+        code { background: #f0f0f0; padding: 1px 5px; border-radius: 4px; font-size: 13px; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="card">
+        <div class="page-title">{{ plugin.title }}
+            <span class="badge badge-root">⚠️ Root</span>
+        </div>
+        <div class="page-subtitle">{{ plugin.description }}</div>
+        <div class="meta">版本 {{ plugin.version }} · 需要框架 v4.15.0+ · capability：<code>framework:core</code></div>
+        <div class="warn">安全提示：framework:core 是最高风险权限（≈ Linux root，可读写框架代码与全局状态）。
+            本示例仅用于教学，生产环境切勿授予非信任插件。</div>
+    </div>
+
+    <div class="card">
+        <div style="font-size:16px;font-weight:bold;margin-bottom:10px;">Root 概览（framework:core 读）</div>
+        <button class="btn-info" onclick="loadOverview()">加载 Root 概览</button>
+        <pre id="overviewResult">点击加载框架版本 / 授权级别 / 核心文件清单。</pre>
+    </div>
+
+    <div class="card">
+        <div style="font-size:16px;font-weight:bold;margin-bottom:10px;">读写框架核心配置（Root）</div>
+        <button class="btn-green" onclick="readConfig()">读取 data/user_config.json</button>
+        <label>要合并写入的键值（JSON 对象，如 {"PORT": 5010}）</label>
+        <textarea id="cfgInput">{
+  "PORT": 5010
+}</textarea>
+        <div style="margin-top:10px;">
+            <button class="btn-warn" onclick="writeConfig()">写入框架核心配置（Root 写）</button>
+        </div>
+        <pre id="configResult"></pre>
+    </div>
+
+    <div class="card">
+        <div style="font-size:16px;font-weight:bold;margin-bottom:10px;">对照：普通插件写核心被拒</div>
+        <p class="meta" style="margin-bottom:8px;">仅声明 <code>filesystem:write</code>（无 <code>framework:core</code>）的插件写 <code>app.py</code>：</p>
+        <button class="btn-warn" onclick="demoReject()">触发对照校验</button>
+        <pre id="rejectResult"></pre>
+    </div>
+</div>
+
+<script>
+    // 全局 fetch 已被 plugin_common.js 拦截：自动注入 X-CSRF-Token、401 跳登录
+    async function callApi(url, options) {
+        const resp = await fetch(url, options);
+        const data = await resp.json();
+        return `HTTP ${resp.status}\n` + JSON.stringify(data, null, 2);
+    }
+
+    async function loadOverview() {
+        const el = document.getElementById('overviewResult');
+        el.textContent = '请求中...';
+        try { el.textContent = await callApi('/api/root_demo/overview'); }
+        catch (e) { el.textContent = '请求失败: ' + e.message; }
+    }
+
+    async function readConfig() {
+        const el = document.getElementById('configResult');
+        try { el.textContent = await callApi('/api/root_demo/config'); }
+        catch (e) { el.textContent = '请求失败: ' + e.message; }
+    }
+
+    async function writeConfig() {
+        const el = document.getElementById('configResult');
+        let payload;
+        try {
+            payload = { data: JSON.parse(document.getElementById('cfgInput').value) };
+        } catch (e) {
+            el.textContent = 'JSON 解析失败: ' + e.message;
+            return;
+        }
+        el.textContent = '写入中...';
+        try {
+            el.textContent = await callApi('/api/root_demo/config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+        } catch (e) { el.textContent = '请求失败: ' + e.message; }
+    }
+
+    async function demoReject() {
+        const el = document.getElementById('rejectResult');
+        try { el.textContent = await callApi('/api/root_demo/demo-reject'); }
+        catch (e) { el.textContent = '请求失败: ' + e.message; }
+    }
+</script>
+</body>
+</html>

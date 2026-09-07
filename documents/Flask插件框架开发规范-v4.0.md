@@ -3,7 +3,17 @@
 > 版本特性与演进史（来龙去脉）见 [Flask插件框架-版本演进记录.md](Flask插件框架-版本演进记录.md)；
 > 下方为各版本变更说明（按时间倒序）。
 
-## 版本：v4.15.0（Root 域与市场骨架：框架核心权限 + 插件级更新源） | 更新日期：2026年09月07日
+## 版本：v4.15.1（框架目录清单统一 + Root 演示示例 root_demo） | 更新日期：2026年09月07日
+
+### 版本说明（v4.15.1 变更）
+
+**主题：不再"各处硬编码核心/用户数据清单"——统一框架目录清单（framework_manifest）一次驱动自检/升级/备份/重置/Root 判定；新增 root_demo 示例插件端到端演示 framework:core（Root）能力。**
+
+1. **框架目录清单统一（core/framework_manifest.py，新，单一事实来源）**：把"哪些是框架核心文件、哪些是用户数据"的判定从各模块硬编码收敛到一处。常量与函数：`CORE_FILES`（35 个核心文件，缺失致命）、`CORE_DIRS`（6 个核心目录）、`USER_DATA_PATHS`（10 条用户数据路径）、`ROOT_RUNTIME_FILES`（frontend_tools.json/.version/plugins/status.json）、`TEMPLATE_CONTENT_EXCLUDE` / `PLUGIN_DATA_EXCLUDE_PREFIXES` / `FRAMEWORK_ROOT_FILES` / `FRAMEWORK_CORE_PATHS`（Root 域豁免与管辖规则）、`BACKUP_ITEMS`（备份范围派生）；判定函数 `is_user_data_path`（=旧 tools/update.py path_is_user_data）、`is_core_file`、`is_framework_core_path`（=旧 capabilities 私有逻辑）。模块为纯常量+纯函数，模块级不 import global_var（避免副作用），BASE_DIR 自推导。
+2. **各模块改读统一清单（删硬编码）**：core/selfcheck.py（CORE_FILES/CORE_DIRS 改 import manifest，并登记新增 core/framework_manifest.py）、tools/update.py（USER_DATA_PATHS/path_is_user_data 改 import manifest，重新导出兼容 release.py）、tools/backup.py（BACKUP_ITEMS 改读 manifest 派生）、core/factory_reset.py（RESET_STATS_FILE/RESET_SESSIONS_FILE/RESET_LEGACY_SESSIONS_FILE/RESET_AUTH_CONFIG_FILE/RESET_TEMP_DIRS 读 manifest）、core/capabilities.py（is_framework_core_path 委托 manifest）。**后续新增框架文件只需在 manifest 登记一处**，自检/升级/备份/重置/Root 判定全自动跟随。
+3. **示例插件 root_demo（examples/plugins/root_demo，官方 Root 域演示）**：`plugin.json` 声明 `framework:core` + `filesystem:read:data/`、permission=admin、require_framework_version=4.15.0。后端 `root_demo.py`：加载时 `capabilities.check_framework('root_demo','core')` 确认 Root 并打印横幅；`GET /overview`（框架版本/Root 级别/核心文件清单/用户配置）、`GET /config`（读 data/user_config.json，Root 读）、`POST /config`（patch data/user_config.json，Root 写，经 check_filesystem 校验→framework:core 放行，审计钩子记 root-access）、`GET /demo-reject`（对照：仅 filesystem:write 的临时插件写 app.py → framework-core-not-declared）。页面 templates/root_demo.html + 插件语言包 locales/en.json（后端消息 t()）。更新 examples/manifest.json 与 examples/README.md（示例表新增 root_demo 行 + 详解章节 + 目录树）。
+4. **测试**：新增 tests/test_framework_manifest.py（54 项：清单一致性 selfcheck/update/backup 复用同一对象 + CORE_FILES/CORE_DIRS 完整性 + Root 域边界 + is_user_data_path 语义 + BACKUP_ITEMS 派生）、tests/test_root_demo.py（19 项：plugin.json 声明一致 + Root 授权/写核心放行/读核心/对照拒绝/自属豁免/模块可加载）；适配 test_capabilities 委托后的 G 段回归。全量回归 **37 脚本 987 项 0 失败**。
+5. **文档**：README 双版补 v4.15.1 特性（框架目录清单统一 + root_demo 示例）与回归数（37 脚本 987 项）、examples/manifest.json + README、开发规范本段。
 
 ### 版本说明（v4.15.0 变更）
 
@@ -205,6 +215,7 @@
 
 | 版本 | 日期 | 主题 | 提交 |
 |------|------|------|------|
+| **v4.15.1** | 2026-09-07 | 框架目录清单统一（core/framework_manifest.py 单一清单驱动自检/升级/备份/重置/Root 判定，删除各处硬编码）+ 示例插件 root_demo（framework:core Root 读写演示 + 对照拒绝） |（本提交）|
 | **v4.15.0** | 2026-09-07 | Root 域与市场骨架（framework 能力域三档 read/manage/core / 程序化插件管理服务层 / 插件级更新源 repo·update_feed·RSA 验签 / 前端 Root·更新徽章 / selfcheck 时区探测 + CORE_FILES 补全 / requirements tzdata） | ef36a40 |
 | **v4.14.0** | 2026-09-07 | Statistics：数据统计洞察（时间桶 + 访问画像双维数据模型 / dashboard 总览化 / 14 天趋势 + 错误 Top + 画像卡 / 跳转端口 POST body 消费修复） | b2f56a3 |
 | **v4.13.0** | 2026-09-07 | Mobile & Tablet：移动端与平板适配（mobile.css / admin-mobile.css / mobile.js 四件套 + 示例插件移动端样式，与原有 CSS 分开创建） | ad2bf59 |
@@ -286,7 +297,7 @@ FlaskToolkit/
 │   ├── base_plugin.py         #   插件基类 + @permission 装饰器 + 生命周期钩子
 │   ├── auth.py                #   可选鉴权插件（PBKDF2 / HttpOnly Cookie + CSRF）
 │   └── user_manage.py         #   内置用户管理插件（BUILTIN，受 Factory Reset 保护）
-├── examples/                  # 官方示例插件/工具包（7 个）+ install_all.py 一键安装
+├── examples/                  # 官方示例插件/工具包（8 个）+ install_all.py 一键安装
 ├── tools/                     # 开发运维命令行工具（python tools/xxx.py）
 │   ├── config.py              #   配置管理 CLI（show/set/unset/reset/check/env/profile 预设）
 │   ├── scan.py                #   插件静态扫描 CLI（.py / .zip / 目录，--json）
@@ -298,7 +309,7 @@ FlaskToolkit/
 │   ├── desktop_launcher.py  #   桌面启动器（tkinter GUI，subprocess 启动服务，v4.11 M5；HTTPS 复选框 + 证书自动生成，v4.12）
 
 │   └── reset.py               #   深度重置工具（服务停止时使用，绕过运行时文件锁定）
-├── tests/                     # 回归测试套件（35 脚本 914 项 + 端到端链路验证）
+├── tests/                     # 回归测试套件（37 脚本 987 项 + 端到端链路验证）
 ├── templates/                 # 页面模板（首页/登录/错误码页 400-500/admin 管理后台/插件页）
 │   ├── admin/                 #   管理后台（dashboard / plugins / logs / stats / system）
 │   ├── frontend_tools/        #   前端工具模板
@@ -695,7 +706,7 @@ UserManage/
 后端插件可声明 `require_framework_version`（`plugin.json` 或插件类属性，非强制），用于声明插件所需的最低框架版本，以支撑框架持续迭代：
 
 - **未声明**：不检查，任意框架版本可用。
-- **声明了**：上传/更新时与 `global_var.FRAMEWORK_VERSION`（当前 `4.15.0`）做点分版本比较（`compare_versions`，修复了前端工具原先字符串比较的缺陷）；插件要求高于框架版本 → 拒绝安装并报告。
+- **声明了**：上传/更新时与 `global_var.FRAMEWORK_VERSION`（当前 `4.15.1`）做点分版本比较（`compare_versions`，修复了前端工具原先字符串比较的缺陷）；插件要求高于框架版本 → 拒绝安装并报告。
 - **运行时双重校验**：`load_plugins` 加载时同样校验（防止手工放置插件绕过上传校验），不满足则跳过加载并报错。
 - 参与描述一致性对齐（冲突拒绝/缺失补全），见 5.6.3。
 
@@ -1330,7 +1341,9 @@ FLASKTOOLKIT_HOST=0.0.0.0 FLASKTOOLKIT_PORT=8000 python app.py
 | `test_file_transfer.py` | 文件传输强化（v4.2.2）：全局 413 / 插件级 max_upload_size 预检 / route 级 max_upload 覆盖 / 中文名下载 / 下载统计 / Range / on_ready 顺序 | 12 项 |
 | `test_security.py` | 系统安全回归（v4.3.0）：安全响应头注入与开关 / 指纹头移除 / Cookie HttpOnly+SameSite+Secure 联动 / 会话空闲超时 / 登录失败锁定三档（ip_username/username/off）+ 通用 429 + 成功重置 + 解封（v4.5.1） | 45 项 |
 | `test_plugin_scan.py` | 插件静态扫描回归（v4.3.1）：扫描器单元（危险导入/调用/混淆/范围提取/别名归因）/ 插件包扫描 / 前端 HTML 扫描 / enforce 门禁集成（拒绝 400 + 附报告 + 未落盘 + 真实项目未污染）/ 配置预设三套 | 35 项 |
-| `test_capabilities.py` | 插件能力声明回归（v4.3.2）：解析器（合法/非法/未知域/裸 * 拒绝）/ 匹配语义（路径前缀递归/URL host·path·端口/子域通配/tcp/env）/ 交叉校验（隐式豁免/跨插件越界/建议声明/unused）/ 运行时授权 API（fail-closed/process 细粒度）/ 安装链路集成（enforce 拒绝与放行/响应附摘要/loader 注册）/ base_plugin data API + hello_plugin 示例端到端 / **storage 域解析与目录推导（v4.9.1）** | 57 项 |
+| `test_capabilities.py` | 插件能力声明回归（v4.3.2）：解析器（合法/非法/未知域/裸 * 拒绝）/ 匹配语义（路径前缀递归/URL host·path·端口/子域通配/tcp/env）/ 交叉校验（隐式豁免/跨插件越界/建议声明/unused）/ 运行时授权 API（fail-closed/process 细粒度）/ 安装链路集成（enforce 拒绝与放行/响应附摘要/loader 注册）/ base_plugin data API + hello_plugin 示例端到端 / **storage 域解析与目录推导（v4.9.1）** + **framework 域三档（v4.15）** | 70 项 |
+| `test_framework_manifest.py` | 框架目录清单统一（v4.15.1）：selfcheck/update/backup 复用同一对象 + CORE_FILES/CORE_DIRS 完整性 + Root 域路径判定边界（含插件内容/自属目录豁免）+ is_user_data_path 语义 + BACKUP_ITEMS 派生 | 54 项 |
+| `test_root_demo.py` | 示例插件 root_demo（v4.15.1）：plugin.json 声明一致 + framework:core 授权/写核心放行/读核心/对照拒绝/自属豁免/模块可加载 | 19 项 |
 | `test_audit_hook.py` | 运行时审计钩子回归（v4.4.0）：事件映射（open 读写/删除族/sqlite/socket）/ 栈定位（plugins 帧/框架放行/嵌套归因）/ observe 聚合（按插件/建议声明/事件样本）/ enforce 阻断（异常传播/授权放行/自属豁免/fail-closed）/ 隔离集成（真实钩子+栈归因端到端/stats 按插件分组/重载清零/审计落盘/未污染） | 38 项 |
 | `test_update_checker.py` | 版本检查推送（v4.8.0）：版本比较（parse_version/is_newer）/ 用户数据路径判定（v4.9.2 补 users/locales）/ zip slip 防护 / archive 校验链（sha256 必选 + 签名可选）/ 数据源缓存 TTL / 数据源结构校验 | 43 项 |
 | `test_i18n.py` | i18n（v4.9.0）：语言包加载 / 查找链（插件合并与覆盖）/ 语言解析优先级 / 切换路由 / 模板渲染（中英） / 缺省回退 / 参数插值 | 28 项 |
@@ -1366,7 +1379,7 @@ python tests/test_framework_fixes.py    # 12 项（public_page 豁免 + CSRF 单
 python tests/test_file_transfer.py       # 12 项（文件传输强化，隔离目录）
 python tests/test_security.py            # 45 项（系统安全回归 v4.3.0 + 解封，隔离目录）
 python tests/test_plugin_scan.py           # 35 项（插件静态扫描回归 v4.3.1，隔离目录）
-python tests/test_capabilities.py          # 57 项（插件能力声明回归 v4.3.2 + storage 域，隔离目录）
+python tests/test_capabilities.py          # 70 项（插件能力声明回归 v4.3.2 + storage/framework 域，隔离目录）
 python tests/test_audit_hook.py            # 38 项（运行时审计钩子回归 v4.4.0，隔离目录）
 python tests/test_update_checker.py     # 43 项（版本检查推送回归 v4.8.0，隔离目录）
 python tests/test_i18n.py                  # 28 项（i18n 回归 v4.9.0，隔离目录）
@@ -1378,7 +1391,7 @@ python tests/test_desktop_launcher.py   # 36 项（桌面启动器 v4.11 + HTTPS
 python tests/test_setup.py             # 17 项（首次运行向导 + 强制改密 v4.10，隔离目录）
 python tests/test_register.py             # 25 项（自助注册 + 邀请码 + 审核 v4.10 M5，隔离目录）
 python tests/test_scaffold_tools.py  # 53 项（M6 脚手架 + 离线安装/卸载闭环，subprocess 驱动 CLI，隔离目录）
-# 合计 35 个脚本 914 项（2026-09-07 本地全量实测复核）
+# 合计 37 个脚本 987 项（2026-09-07 本地全量实测复核）
 # （AirDrop 插件加载回归 test_airdrop_loader.py 8 项已移交 AirDrop 子项目维护，不入主仓库）
 ```
 

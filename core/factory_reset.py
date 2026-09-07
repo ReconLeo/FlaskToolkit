@@ -20,6 +20,15 @@ import shutil
 
 import global_var
 
+# 重置目标路径统一由 core/framework_manifest.py 单一清单提供（用户数据语义），避免此处硬编码。
+from core.framework_manifest import (
+    RESET_STATS_FILE,
+    RESET_SESSIONS_FILE,
+    RESET_LEGACY_SESSIONS_FILE,
+    RESET_AUTH_CONFIG_FILE,
+    RESET_TEMP_DIRS,
+)
+
 logger = logging.getLogger('flask.app')
 
 ALL_SCOPES = ('plugins', 'frontend_tools', 'stats_logs', 'sessions', 'temp')
@@ -113,7 +122,7 @@ def reset_frontend_tools(results: dict):
 
 def reset_stats_logs(results: dict):
     """清除调用统计与日志"""
-    stats_path = os.path.join(global_var.BASE_DIR, 'data', 'stats.json')
+    stats_path = os.path.join(global_var.BASE_DIR, RESET_STATS_FILE)
     _write_text(stats_path, json.dumps(
         {'call_stats': {}, 'frontend_access_stats': {},
          'daily_stats': {}, 'access_profile': {'by_ip': {}, 'by_user': {},
@@ -137,10 +146,10 @@ def reset_stats_logs(results: dict):
 
 def reset_sessions(results: dict):
     """清除登录会话（v4.5.0：auth 会话迁移至插件自属目录 plugins/data/auth/）"""
-    sessions_file = os.path.join(global_var.BASE_DIR, 'plugins', 'data', 'auth', 'sessions.json')
+    sessions_file = os.path.join(global_var.BASE_DIR, RESET_SESSIONS_FILE)
     _write_text(sessions_file, '{}', results, '登录会话')
     # 兼容清理旧版会话文件（auth 加载时会自动迁移，重置时一并清理避免残留）
-    legacy_file = os.path.join(global_var.BASE_DIR, 'plugins', 'data', 'sessions.json')
+    legacy_file = os.path.join(global_var.BASE_DIR, RESET_LEGACY_SESSIONS_FILE)
     if os.path.exists(legacy_file):
         _safe_remove(legacy_file, results, '旧版会话文件')
 
@@ -149,12 +158,12 @@ def reset_temp(results: dict):
     """清除运行产生的临时文件（.plugin_cache、__pycache__、temp/、plugins/temp/）"""
     base = global_var.BASE_DIR
 
-    cache_dir = os.path.join(base, '.plugin_cache')
+    cache_dir = os.path.join(base, RESET_TEMP_DIRS[0])
     if os.path.isdir(cache_dir):
         for fn in os.listdir(cache_dir):
             _safe_remove(os.path.join(cache_dir, fn), results, f'缓存 {fn}')
 
-    tmp_dir = os.path.join(base, 'temp')
+    tmp_dir = os.path.join(base, RESET_TEMP_DIRS[1])
     if os.path.isdir(tmp_dir):
         for fn in os.listdir(tmp_dir):
             _safe_remove(os.path.join(tmp_dir, fn), results, f'临时 {fn}')
@@ -169,7 +178,7 @@ def reset_temp(results: dict):
 
 def reset_builtin_config(results: dict):
     """重置内置插件配置：auth 恢复默认（users 清空，加载时自动重建 admin/admin123）"""
-    auth_cfg = os.path.join(global_var.BASE_DIR, 'plugins', 'configs', 'auth.json')
+    auth_cfg = os.path.join(global_var.BASE_DIR, RESET_AUTH_CONFIG_FILE)
     try:
         with open(auth_cfg, 'r', encoding='utf-8') as f:
             cfg = json.load(f)

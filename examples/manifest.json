@@ -69,6 +69,18 @@
         "内部工具导航（按 public/user/admin 权限过滤）",
         "公告板（异步落盘 + 多模板页面）"
       ]
+    },
+    {
+      "name": "root_demo",
+      "title": "示例：框架 Root 域",
+      "path": "plugins/root_demo",
+      "type": "backend",
+      "focus": [
+        "framework:core capability（Root 权限域，读写框架核心）",
+        "Root 读：框架版本/核心路径清单/框架核心配置",
+        "Root 写：patch data/user_config.json（审计 root-access）",
+        "对照：普通 filesystem:write 写核心被拒"
+      ]
     }
   ],
   "frontend_tools": [

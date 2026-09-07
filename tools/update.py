@@ -33,20 +33,10 @@ import zipfile
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # 用户数据路径清单（相对项目根，与 .gitignore 语义对齐；archive 后端解压时显式跳过，git 后端靠 gitignore 保留）
-# 说明：locales/ 整体为框架内置 i18n 语言包（v4.9.0），不入本清单——更新/发布时随框架正常覆盖携带；
-#       users/ 为 AI 助手本地数据（.gitignore 已忽略，非项目内容），发布包与框架备份均不携带。
-USER_DATA_PATHS = [
-    'data',
-    'plugins/configs',
-    'plugins/data',
-    'plugins/temp',
-    'logs',
-    '.plugin_cache',
-    'workspace',
-    'temp',
-    'backups',
-    'users',
-]
+# v4.15.1 起统一由 core/framework_manifest.py 单一清单提供（本处重新导出，兼容 release.py 引用）。
+sys.path.insert(0, BASE_DIR)
+from core.framework_manifest import USER_DATA_PATHS, path_is_user_data
+
 # 更新下载包存放目录（在 USER_DATA_PATHS 覆盖的 temp/ 下）
 DOWNLOAD_DIR = os.path.join('temp', 'update_downloads')
 # 框架文件备份目录（在 USER_DATA_PATHS 覆盖的 backups/ 下）
@@ -94,20 +84,6 @@ def parse_version(v):
 def is_newer(latest, current):
     return parse_version(latest) > parse_version(current)
 
-
-def path_is_user_data(rel: str) -> bool:
-    """判断包内相对路径是否属于用户数据路径（应跳过/保留）"""
-    rel = rel.replace('\\', '/').lstrip('/')
-    if not rel:
-        return False
-    top = rel.split('/')[0]
-    for ud in USER_DATA_PATHS:
-        if rel == ud or rel.startswith(ud + '/'):
-            return True
-    # 根目录/plugins 散落的运行时文件（与 .gitignore 对齐）
-    if rel in ('frontend_tools.json', '.version', 'plugins/status.json'):
-        return True
-    return False
 
 
 def check_zip_slip(names):

@@ -1,0 +1,14 @@
+{
+  "name": "root_demo",
+  "title": "示例：框架 Root 域",
+  "version": "1.0.0",
+  "author": "FlaskToolkit Examples",
+  "category": "示例",
+  "description": "框架 Root 域（framework:core）演示：只读框架版本/核心路径清单、读写框架核心配置 data/user_config.json，并对照展示普通 filesystem:write 写核心路径被拒绝、须声明 framework:core（Root 权限）。",
+  "permission": "admin",
+  "require_framework_version": "4.15.0",
+  "capabilities": [
+    "framework:core",
+    "filesystem:read:data/"
+  ]
+}

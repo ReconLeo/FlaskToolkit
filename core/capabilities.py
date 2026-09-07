@@ -98,30 +98,10 @@ def is_framework_core_path(path, base_dir=None):
 
     插件自属目录（plugins/data|temp|configs）与插件内容目录
     （templates/plugins/、templates/frontend_tools/）不在此列（分别为隐式豁免与插件资产）。
-    相对/绝对路径均可判定（绝对路径先归一到 BASE_DIR 相对）。"""
-    p = _rel_to_base(path, base_dir or global_var.BASE_DIR)
-    if not p or p == '.':
-        return False
-    p = _norm_path(p).strip('/')
-    top = p.split('/')[0]
-    if p in ('app.py', 'global_var.py', 'requirements.txt', 'changelog.json',
-             'README.md', 'README.zh-CN.md', 'SECURITY.md'):
-        return True
-    if top in ('core', 'routes', 'static'):
-        return True
-    if top == 'templates':
-        # 框架模板为 Root 管辖；插件/前端工具内容目录豁免
-        return not (p.startswith('templates/plugins/') or p.startswith('templates/frontend_tools/'))
-    if p in ('data/user_config.json', 'data/frontend_tools.json', 'plugins/status.json'):
-        return True
-    if p == 'plugins' or p.startswith('plugins/'):
-        # plugins/ 下除自属豁免目录外均为受管核心（内置基类/鉴权 + 各插件主文件与描述文件）
-        if p.startswith('plugins/data/') or p.startswith('plugins/temp/'):
-            return False
-        if p.startswith('plugins/configs/'):
-            return False
-        return True
-    return False
+    相对/绝对路径均可判定（绝对路径先归一到 BASE_DIR 相对）。
+    v4.15.1 起判定逻辑迁移至 core/framework_manifest.py 统一清单，本处委托复用，避免核心路径判定多处硬编码漂移。"""
+    from core.framework_manifest import is_framework_core_path as _impl
+    return _impl(path, base_dir=base_dir or global_var.BASE_DIR)
 
 
 def is_implicit_grant(plugin_name, path, base_dir=None):
