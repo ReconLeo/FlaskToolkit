@@ -103,5 +103,25 @@ check("admin base en 渲染 200", r.status_code == 200)
 check("admin base 注入 window.T", 'window.T' in html)
 check("admin base 注入翻译表", 'window.__I18N' in html)
 
+# ---------- 6. 框架模板 t()/T() 中文 key 全覆盖 en.json（v4.15.2 防漏） ----------
+import re
+_en = json.load(open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'locales', 'en.json'), encoding='utf-8'))
+_tpl_re = re.compile(r"(?:\bt\(|window\.T\(|(?<![.\w])T\()\s*['\"]([^'\"]+)['\"]\s*(?:,|\))")
+_cjk = re.compile(r'[\u4e00-\u9fff]')
+_tpl_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'templates')
+_missing = set()
+for _dp, _ds, _fns in os.walk(_tpl_dir):
+    if 'plugins' in _dp.split(os.sep) or 'frontend_tools' in _dp.split(os.sep):
+        continue
+    for _fn in _fns:
+        if not _fn.endswith('.html'):
+            continue
+        _text = open(os.path.join(_dp, _fn), encoding='utf-8').read()
+        for _m in _tpl_re.finditer(_text):
+            _k = _m.group(1)
+            if _cjk.search(_k) and _k not in _en:
+                _missing.add((_k, _fn))
+check("框架模板 t()/T() 中文 key 全覆盖 en.json", not _missing, )
+
 print(f"\n==== i18n 测试 共 {_PASS + _FAIL} 项，通过 {_PASS}，失败 {_FAIL} ====")
 sys.exit(0 if _FAIL == 0 else 1)

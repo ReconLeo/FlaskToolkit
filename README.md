@@ -4,7 +4,7 @@
   <img src="https://github.com/ReconLeo/FlaskToolkit/actions/workflows/ci.yml/badge.svg" alt="CI">
   <img src="https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB?logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/License-MIT-yellow" alt="License">
-  <img src="https://img.shields.io/badge/version-4.15.1-blue" alt="Version">
+  <img src="https://img.shields.io/badge/version-4.15.2-blue" alt="Version">
 </p>
 
 > A Flask-based plugin **framework**: bring scattered Python plugins and pure-frontend tools into one unified runtime —
@@ -36,7 +36,7 @@ Over time it grew into what it is today — a few highlights:
 - **Statistics (4.14)**: the admin **dashboard** now answers "what is actually going on" at a glance — a runtime badge row (uptime / scheme / addresses / IP-change), **cold-plugin hints** (installed but never called) and a **recent-activity card**; the **Stats page** gains a **14-day request trend** (pure-SVG bar chart, no JS deps), an **error Top list**, and an **access profile** — per-user (logged-in identities, including the admin) and per-IP visitor breakdowns with device classification (bot / tablet / mobile / desktop), plus per-plugin API call tracking for pinpointing individual tools, all backed by a configurable 30-day retention (`STATS_RETENTION_DAYS`);
 - **Root domain & marketplace groundwork (4.15)**: plugins can now declare a **`framework` capability domain** with three tiers — `read` / `manage` / `core` (`core` ≈ Linux **root**, implies `manage` + `read`) for touching the framework's own core files; the **`framework:core`** permission grants explicit semantics for *modifying/deleting* framework internals, surfaces as a loud **⚠️ Root** badge in the admin UI, and every allowed core-path write is stamped with a **root-access audit event** (MIT license — the framework takes no liability). Parallel to that, a **programmatic plugin-management service layer** (`core/plugin_admin.py`) backs the admin routes and paves the way for a **third-party plugin market**; plugins can declare **`repo` / `update_feed`** in `plugin.json` so in-app **per-plugin update checks** (`core/plugin_updates.py`, RSA-signature-verified feeds, silent 3s timeout) reach each plugin's own release channel. The startup **self-check** also gained a **timezone / `tzdata` probe** — APScheduler 3.11 uses `zoneinfo`, which needs `tzdata` on Windows, so a fresh environment now fails loudly at self-check with an actionable hint instead of crashing at scheduler startup;
 - **Framework manifest (4.15.1)**: the "framework core file vs. user data" classification is no longer hardcoded per module — a single manifest `core/framework_manifest.py` now drives startup self-check, the updater, backup, Factory Reset, and the Root-domain path check from one source. A new `root_demo` example plugin demonstrates the `framework:core` **Root** grant end-to-end: read/write the framework core config `data/user_config.json` (audited `root-access`), plus the contrast of a plain `filesystem:write` being rejected on core paths;
-- **Ops & tooling**: version check with a `changelog.json` feed + dual-backend updater (git / archive), Factory Reset, backup/restore, startup self-check, package integrity signing, plugin scaffolding + offline install/uninstall CLI (`scaffold.py` / `install_plugin.py`), plus a **37-script / 987-assertion regression suite and GitHub Actions CI**.
+- **Ops & tooling**: version check with a `changelog.json` feed + dual-backend updater (git / archive), Factory Reset, backup/restore, startup self-check, package integrity signing, plugin scaffolding + offline install/uninstall CLI (`scaffold.py` / `install_plugin.py`), plus a **37-script / 988-assertion regression suite and GitHub Actions CI**.
 
 The full feature specification lives in the [development guide](documents/Flask插件框架开发规范-v4.0.md).
 
@@ -133,7 +133,7 @@ Detailed specs live in the [Flask Plugin Framework Development Guide](documents/
 
 ## Tests & CI
 
-`tests/` contains **37 scripts / 987 assertions** of regression tests (isolated-directory mode, no pollution of project files); GitHub Actions runs them automatically on Python 3.10 / 3.11 / 3.12, covering permissions, plugin-package / frontend-tool chains, integrity signatures, uninstall manifests, Factory Reset, large-plugin multi-template page routing, file transfer (upload limits / Chinese-name downloads / Range), static security scanning, capability cross-validation, runtime audit hooks, i18n framework, plugin data quota, plugin scaffolding / offline install-uninstall CLI, per-plugin space cleanup, ops tools, etc.
+`tests/` contains **37 scripts / 988 assertions** of regression tests (isolated-directory mode, no pollution of project files); GitHub Actions runs them automatically on Python 3.10 / 3.11 / 3.12, covering permissions, plugin-package / frontend-tool chains, integrity signatures, uninstall manifests, Factory Reset, large-plugin multi-template page routing, file transfer (upload limits / Chinese-name downloads / Range), static security scanning, capability cross-validation, runtime audit hooks, i18n framework, plugin data quota, plugin scaffolding / offline install-uninstall CLI, per-plugin space cleanup, ops tools, etc.
 
 <details>
 <summary>Expand: 32 test scripts</summary>
@@ -175,14 +175,14 @@ python tests/test_network.py              # network & access (v4.11) + 308 redir
 python tests/test_mdns.py                 # mDNS service registration (v4.11, optional zeroconf) 22
 python tests/test_ip_watcher.py           # IP-change detection (v4.11) 15
 python tests/test_desktop_launcher.py     # desktop launcher (v4.11) + HTTPS checkbox (v4.12) 36
-# total: 37 scripts / 987 assertions
+# total: 37 scripts / 988 assertions
 ```
 
 </details>
 
 ## Edition Status
 
-- **Community Edition (v4.x)**: feature development continues with a deliberately controlled architectural scale, focused on small-LAN / personal-use scenarios; we maintain and release regularly (37 scripts / 987 assertions regression + CI).
+- **Community Edition (v4.x)**: feature development continues with a deliberately controlled architectural scale, focused on small-LAN / personal-use scenarios; we maintain and release regularly (37 scripts / 988 assertions regression + CI).
 - **Enterprise Edition (v5.x)**: planned to carry the long-term roadmap (refined permission model, process-level sandboxing, stricter CSP, enterprise identity integration, etc.). Due to limited team capacity, we are openly looking for maintainers to take over — see the [Enterprise Edition handover & roadmap](documents/Enterprise-Edition-交接与路线.md).
 
 ## Known Limitations

@@ -1,102 +1,102 @@
 {% extends 'admin/base.html' %}
-{% block title %}统计 · {{ system_name }} 管理后台{% endblock %}
+{% block title %}{{ t('统计') }} · {{ system_name }} {{ t('管理后台') }}{% endblock %}
 {% block content %}
 <div class="page-header">
     <div>
-        <h1 class="page-title">📈 统计详情</h1>
-        <p class="page-subtitle">API 调用与前端工具访问明细（数据来源 data/stats.json）</p>
+        <h1 class="page-title">📈 {{ t('统计详情') }}</h1>
+        <p class="page-subtitle">{{ t('API 调用与前端工具访问明细（数据来源 data/stats.json）') }}</p>
     </div>
-    <button class="btn btn-primary" onclick="loadStats()">🔄 刷新</button>
+    <button class="btn btn-primary" onclick="loadStats()">🔄 {{ t('刷新') }}</button>
 </div>
 
 <div class="stats-grid">
     <div class="stat-card c-blue">
         <span class="stat-value" id="stPlugins">-</span>
-        <span class="stat-label">后端插件（已加载）</span>
+        <span class="stat-label">{{ t('后端插件（已加载）') }}</span>
     </div>
     <div class="stat-card c-green">
         <span class="stat-value" id="stFrontend">-</span>
-        <span class="stat-label">前端工具</span>
+        <span class="stat-label">{{ t('前端工具') }}</span>
     </div>
     <div class="stat-card c-orange">
         <span class="stat-value" id="stApiCalls">-</span>
-        <span class="stat-label">API 累计调用</span>
+        <span class="stat-label">{{ t('API 累计调用') }}</span>
     </div>
     <div class="stat-card c-teal">
         <span class="stat-value" id="stFrontendAccess">-</span>
-        <span class="stat-label">前端页面访问</span>
+        <span class="stat-label">{{ t('前端页面访问') }}</span>
     </div>
     <div class="stat-card c-red" id="auditCard" style="display:none;">
         <span class="stat-value" id="stAuditViolations">-</span>
-        <span class="stat-label">运行期未授权行为</span>
+        <span class="stat-label">{{ t('运行期未授权行为') }}</span>
     </div>
 </div>
 
 <div class="card">
-    <div class="card-title">📈 最近 14 天调用趋势（含错误）</div>
-    <div id="trendBox" class="loading" style="padding:8px 0;">加载中...</div>
+    <div class="card-title">📈 {{ t('最近 14 天调用趋势（含错误）') }}</div>
+    <div id="trendBox" class="loading" style="padding:8px 0;">{{ t('加载中...') }}</div>
 </div>
 
 <div class="card">
-    <div class="card-title">⚠️ 错误最多的接口（4xx/5xx，最近 {{ stats_retention_days|default(30) }} 天 Top 20）</div>
+    <div class="card-title">⚠️ {{ t('错误最多的接口（4xx/5xx，最近 {days} 天 Top 20）', days=stats_retention_days|default(30)) }}</div>
     <div class="table-wrap">
         <table class="data-table">
-            <thead><tr><th style="width:50px;">#</th><th>接口</th><th style="width:90px;">总调用</th><th style="width:80px;">4xx</th><th style="width:80px;">5xx</th></tr></thead>
-            <tbody id="errorTopBody"><tr><td colspan="5" class="empty-state">暂无错误记录</td></tr></tbody>
+            <thead><tr><th style="width:50px;">#</th><th>{{ t('接口') }}</th><th style="width:90px;">{{ t('总调用') }}</th><th style="width:80px;">4xx</th><th style="width:80px;">5xx</th></tr></thead>
+            <tbody id="errorTopBody"><tr><td colspan="5" class="empty-state">{{ t('暂无错误记录') }}</td></tr></tbody>
         </table>
     </div>
 </div>
 
 <div class="card">
-    <div class="card-title">🖥️ 访问画像（v4.14：登录用户记身份，游客记 IP）</div>
+    <div class="card-title">🖥️ {{ t('访问画像（v4.14：登录用户记身份，游客记 IP）') }}</div>
     <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:16px; padding:4px 2px;">
         <div>
-            <div style="font-weight:600; margin-bottom:6px; color:#34495e;">👤 用户 Top 10</div>
-            <div id="profileUsers" style="font-size:13px; line-height:2;"><span class="loading">加载中...</span></div>
+            <div style="font-weight:600; margin-bottom:6px; color:#34495e;">👤 {{ t('用户 Top 10') }}</div>
+            <div id="profileUsers" style="font-size:13px; line-height:2;"><span class="loading">{{ t('加载中...') }}</span></div>
         </div>
         <div>
-            <div style="font-weight:600; margin-bottom:6px; color:#34495e;">🌐 来源 IP Top 10</div>
-            <div id="profileIps" style="font-size:13px; line-height:2;"><span class="loading">加载中...</span></div>
+            <div style="font-weight:600; margin-bottom:6px; color:#34495e;">🌐 {{ t('来源 IP Top 10') }}</div>
+            <div id="profileIps" style="font-size:13px; line-height:2;"><span class="loading">{{ t('加载中...') }}</span></div>
         </div>
         <div>
-            <div style="font-weight:600; margin-bottom:6px; color:#34495e;">📱 设备分布</div>
-            <div id="profileDevices" style="font-size:13px; line-height:2.2;"><span class="loading">加载中...</span></div>
+            <div style="font-weight:600; margin-bottom:6px; color:#34495e;">📱 {{ t('设备分布') }}</div>
+            <div id="profileDevices" style="font-size:13px; line-height:2.2;"><span class="loading">{{ t('加载中...') }}</span></div>
         </div>
     </div>
 </div>
 
 <div class="card">
-    <div class="card-title">🔌 API 调用明细（Top 100）
-        <input type="text" id="apiFilter" placeholder="搜索插件名/路径..." style="max-width:240px; margin-left:auto; font-size:13px;"
+    <div class="card-title">🔌 {{ t('API 调用明细（Top 100）') }}
+        <input type="text" id="apiFilter" placeholder="{{ t('搜索插件名/路径...') }}" style="max-width:240px; margin-left:auto; font-size:13px;"
                oninput="renderTables()">
     </div>
     <div class="table-wrap">
         <table class="data-table">
-            <thead><tr><th style="width:50px;">#</th><th>插件</th><th>接口路径</th><th style="width:120px;">调用次数</th></tr></thead>
-            <tbody id="apiDetailBody"><tr><td colspan="4" class="loading">加载中...</td></tr></tbody>
+            <thead><tr><th style="width:50px;">#</th><th>{{ t('插件') }}</th><th>{{ t('接口路径') }}</th><th style="width:120px;">{{ t('调用次数') }}</th></tr></thead>
+            <tbody id="apiDetailBody"><tr><td colspan="4" class="loading">{{ t('加载中...') }}</td></tr></tbody>
         </table>
     </div>
 </div>
 
 <div class="card">
-    <div class="card-title">🌐 前端工具访问明细（Top 100）</div>
+    <div class="card-title">🌐 {{ t('前端工具访问明细（Top 100）') }}</div>
     <div class="table-wrap">
         <table class="data-table">
-            <thead><tr><th style="width:50px;">#</th><th>工具名</th><th style="width:120px;">访问次数</th></tr></thead>
-            <tbody id="frontendDetailBody"><tr><td colspan="3" class="loading">加载中...</td></tr></tbody>
+            <thead><tr><th style="width:50px;">#</th><th>{{ t('工具名') }}</th><th style="width:120px;">{{ t('访问次数') }}</th></tr></thead>
+            <tbody id="frontendDetailBody"><tr><td colspan="3" class="loading">{{ t('加载中...') }}</td></tr></tbody>
         </table>
     </div>
 </div>
 
 <div class="card">
-    <div class="card-title">🛡️ 运行期未授权行为（v4.4.0，按插件聚合；建议声明点击复制）
-        <input type="text" id="auditFilter" placeholder="搜索插件/建议声明..." style="max-width:240px; margin-left:auto; font-size:13px;"
+    <div class="card-title">🛡️ {{ t('运行期未授权行为（v4.4.0，按插件聚合；建议声明点击复制）') }}
+        <input type="text" id="auditFilter" placeholder="{{ t('搜索插件/建议声明...') }}" style="max-width:240px; margin-left:auto; font-size:13px;"
                oninput="renderAuditTable()">
     </div>
     <div class="table-wrap">
         <table class="data-table">
-            <thead><tr><th style="width:50px;">#</th><th>插件</th><th>建议声明（补到 plugin.json 的 capabilities）</th><th style="width:80px;">次数</th><th>最近事件样本</th></tr></thead>
-            <tbody id="auditDetailBody"><tr><td colspan="5" class="empty-state">暂无未授权行为（observe 模式未检出或未安装钩子）</td></tr></tbody>
+            <thead><tr><th style="width:50px;">#</th><th>{{ t('插件') }}</th><th>{{ t('建议声明（补到 plugin.json 的 capabilities）') }}</th><th style="width:80px;">{{ t('次数') }}</th><th>{{ t('最近事件样本') }}</th></tr></thead>
+            <tbody id="auditDetailBody"><tr><td colspan="5" class="empty-state">{{ t('暂无未授权行为（observe 模式未检出或未安装钩子）') }}</td></tr></tbody>
         </table>
     </div>
 </div>
@@ -168,7 +168,7 @@
     // v4.14：最近 14 天调用趋势（纯 SVG 柱状，无外部依赖）
     function renderTrendSvg(series) {
         const box = document.getElementById('trendBox');
-        if (!series.length) { box.innerHTML = '<span style="color:#95a5a6;">暂无数据</span>'; return; }
+        if (!series.length) { box.innerHTML = '<span style="color:#95a5a6;">' + window.T('暂无数据') + '</span>'; return; }
         const W = 700, H = 170, padL = 34, padB = 22, padT = 8;
         const maxV = Math.max(1, ...series.map(s => s.count));
         const n = series.length;
@@ -190,10 +190,11 @@
                 labels += `<text x="${x + bw / 2}" y="${H - 6}" font-size="9" text-anchor="middle" fill="#7f8c8d">${s.date}</text>`;
             }
         });
-        const title = `总 ${fmt(series.reduce((a, s) => a + s.count, 0))} 次调用`;
+        const total = series.reduce((a, s) => a + s.count, 0);
+        const title = window.T('总 {n} 次调用').replace('{n}', fmt(total));
         box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" style="width:100%; height:auto;" preserveAspectRatio="xMidYMid meet">` +
             `<line x1="${padL}" y1="${padT + chartH}" x2="${W - 4}" y2="${padT + chartH}" stroke="#bdc3c7" stroke-width="1"/>` +
-            `<text x="${padL}" y="${padT + 2}" font-size="11" fill="#34495e" font-weight="600">${title}（蓝=正常 红=错误叠加）</text>` +
+            `<text x="${padL}" y="${padT + 2}" font-size="11" fill="#34495e" font-weight="600">${title}（${window.T('蓝=正常 红=错误叠加')}）</text>` +
             bars + labels + `</svg>`;
     }
 
@@ -201,7 +202,7 @@
     function renderErrorTop(rows) {
         const body = document.getElementById('errorTopBody');
         if (!rows.length) {
-            body.innerHTML = '<tr><td colspan="5" class="empty-state">暂无错误记录（过去 30 天内无 4xx/5xx）</td></tr>';
+            body.innerHTML = '<tr><td colspan="5" class="empty-state">' + window.T('暂无错误记录（过去 30 天内无 4xx/5xx）') + '</td></tr>';
             return;
         }
         body.innerHTML = rows.map((r, i) =>
@@ -214,7 +215,7 @@
     // v4.14：访问画像（用户 / IP / 设备）
     function renderProfile(p) {
         if (!p || !p.enabled) {
-            const msg = '访问画像未开启（ACCESS_PROFILE_ENABLED=false），仅展示调用统计。';
+            const msg = window.T('访问画像未开启（ACCESS_PROFILE_ENABLED=false），仅展示调用统计。');
             document.getElementById('profileUsers').textContent = msg;
             document.getElementById('profileIps').textContent = msg;
             document.getElementById('profileDevices').textContent = msg;
@@ -223,18 +224,19 @@
         const users = (p.users_top || []).slice(0, 10);
         const ips = (p.ips_top || []).slice(0, 10);
         const dev = p.devices || {};
-        const devNames = [['mobile', '📱 手机'], ['tablet', '📟 平板'], ['desktop', '🖥 桌面'], ['bot', '🤖 爬虫/脚本']];
+        const devNames = [['mobile', '📱 ' + window.T('手机')], ['tablet', '📟 ' + window.T('平板')],
+                          ['desktop', '🖥 ' + window.T('桌面')], ['bot', '🤖 ' + window.T('爬虫/脚本')]];
         const maxDev = Math.max(1, ...devNames.map(d => dev[d[0]] || 0));
         document.getElementById('profileUsers').innerHTML = users.length
             ? users.map(u => `<div style="display:flex; justify-content:space-between; border-bottom:1px dashed #ecf0f1;">` +
                 `<span>👤 ${esc(u.username)}</span><b>${fmt(u.count)}</b></div>`).join('')
-            : '<span style="color:#95a5a6;">暂无登录用户访问</span>';
+            : '<span style="color:#95a5a6;">' + window.T('暂无登录用户访问') + '</span>';
         document.getElementById('profileIps').innerHTML = ips.length
             ? ips.map(u => `<div style="display:flex; justify-content:space-between; border-bottom:1px dashed #ecf0f1;">` +
                 `<span style="font-family:monospace; font-size:12px;">${esc(u.ip)}` +
                 (u.users && u.users.length ? ` <span style="color:#95a5a6; font-size:11px;">(${u.users.join('/')})</span>` : '') +
                 `</span><b>${fmt(u.count)}</b></div>`).join('')
-            : '<span style="color:#95a5a6;">暂无来源 IP</span>';
+            : '<span style="color:#95a5a6;">' + window.T('暂无来源 IP') + '</span>';
         document.getElementById('profileDevices').innerHTML = devNames.map(d => {
             const v = dev[d[0]] || 0;
             const w = Math.max(2, v / maxDev * 100);
@@ -253,7 +255,7 @@
 
         const apiBody = document.getElementById('apiDetailBody');
         if (filtered.length === 0) {
-            apiBody.innerHTML = '<tr><td colspan="4" class="empty-state">暂无 API 调用记录</td></tr>';
+            apiBody.innerHTML = '<tr><td colspan="4" class="empty-state">' + window.T('暂无 API 调用记录') + '</td></tr>';
         } else {
             apiBody.innerHTML = filtered.map((r, i) =>
                 `<tr><td>${i + 1}</td><td><span class="badge badge-blue">${esc(r.plugin)}</span></td>
@@ -264,7 +266,7 @@
 
         const fBody = document.getElementById('frontendDetailBody');
         if (frontendDetails.length === 0) {
-            fBody.innerHTML = '<tr><td colspan="3" class="empty-state">暂无前端工具访问记录</td></tr>';
+            fBody.innerHTML = '<tr><td colspan="3" class="empty-state">' + window.T('暂无前端工具访问记录') + '</td></tr>';
         } else {
             fBody.innerHTML = frontendDetails.map((r, i) =>
                 `<tr><td>${i + 1}</td><td><span class="badge badge-purple">${esc(r.name)}</span></td>
@@ -277,7 +279,7 @@
 
     function copyCapability(text) {
         navigator.clipboard && navigator.clipboard.writeText(text)
-            .then(() => { if (window.showToast) showToast('已复制建议声明：' + text); })
+            .then(() => { if (window.showToast) showToast(window.T('已复制建议声明') + '：' + text); })
             .catch(() => {});
     }
 
@@ -287,12 +289,12 @@
             r.plugin.toLowerCase().includes(kw) || r.capability.toLowerCase().includes(kw)) : auditRows;
         const body = document.getElementById('auditDetailBody');
         if (filtered.length === 0) {
-            body.innerHTML = '<tr><td colspan="5" class="empty-state">暂无未授权行为（observe 模式未检出或未安装钩子）</td></tr>';
+            body.innerHTML = '<tr><td colspan="5" class="empty-state">' + window.T('暂无未授权行为（observe 模式未检出或未安装钩子）') + '</td></tr>';
             return;
         }
         body.innerHTML = filtered.map((r, i) =>
             `<tr><td>${i + 1}</td><td><span class="badge badge-red">${esc(r.plugin)}</span></td>
-             <td><code style="cursor:pointer;" onclick="copyCapability('${esc(r.capability)}')" title="点击复制">${esc(r.capability)}</code></td>
+             <td><code style="cursor:pointer;" onclick="copyCapability('${esc(r.capability)}')" title="${window.T('点击复制')}">${esc(r.capability)}</code></td>
              <td><b>${fmt(r.count)}</b></td>
              <td style="font-family:monospace; font-size:12px; color:#888;">${esc(r.example)}</td></tr>`
         ).join('');

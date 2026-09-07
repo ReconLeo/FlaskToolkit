@@ -1,25 +1,25 @@
 {% extends 'admin/base.html' %}
-{% block title %}仪表盘 · {{ system_name }} 管理后台{% endblock %}
+{% block title %}{{ t('仪表盘') }} · {{ system_name }} {{ t('管理后台') }}{% endblock %}
 {% block content %}
 <div class="page-header">
     <div>
-        <h1 class="page-title">📊 系统仪表盘</h1>
-        <p class="page-subtitle">{{ system_name }} 运行状态总览</p>
+        <h1 class="page-title">📊 {{ t('系统仪表盘') }}</h1>
+        <p class="page-subtitle">{{ system_name }} {{ t('运行状态总览') }}</p>
     </div>
-    <button class="btn btn-info" onclick="refreshAll()">🔄 刷新</button>
+    <button class="btn btn-info" onclick="refreshAll()">🔄 {{ t('刷新') }}</button>
 </div>
 
 <!-- v4.14 状态徽章行（服务运行总览） -->
 <div style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:16px;">
-    <span class="badge badge-blue" id="bdUptime" style="padding:8px 14px; font-size:13px;">⏱ 运行时长: -</span>
-    <span class="badge badge-green" id="bdScheme" style="padding:8px 14px; font-size:13px;">🔒 协议: -</span>
-    <span class="badge badge-orange" id="bdAddresses" style="padding:8px 14px; font-size:13px;">🌐 可达地址: -</span>
-    <span class="badge badge-warning" id="bdIpChange" style="padding:8px 14px; font-size:13px; display:none;">⚠ IP 变化</span>
+    <span class="badge badge-blue" id="bdUptime" style="padding:8px 14px; font-size:13px;">⏱ {{ t('运行时长') }}: -</span>
+    <span class="badge badge-green" id="bdScheme" style="padding:8px 14px; font-size:13px;">🔒 {{ t('协议') }}: -</span>
+    <span class="badge badge-orange" id="bdAddresses" style="padding:8px 14px; font-size:13px;">🌐 {{ t('可达地址') }}: -</span>
+    <span class="badge badge-warning" id="bdIpChange" style="padding:8px 14px; font-size:13px; display:none;">⚠ {{ t('IP 变化') }}</span>
 </div>
 <div id="coldTip" style="display:none; margin-bottom:16px;">
     <div class="notice-warn" style="background:#fff8e1; border:1px solid #ffe082; color:#8d6e63; border-radius:8px; padding:10px 14px; font-size:13px;">
-        📌 <strong>冷门插件提示</strong>：<span id="coldPlugins"></span>
-        <span style="color:#a1887f;">（已启用但从未被调用，可考虑在<a href="/admin/plugins" style="color:#5d4037;">插件管理</a>中禁用或卸载）</span>
+        📌 <strong>{{ t('冷门插件提示') }}</strong>：<span id="coldPlugins"></span>
+        <span style="color:#a1887f;">（{{ t('已启用但从未被调用，可考虑在') }}<a href="/admin/plugins" style="color:#5d4037;">{{ t('插件管理') }}</a>{{ t('中禁用或卸载') }}）</span>
     </div>
 </div>
 
@@ -27,23 +27,23 @@
 <div class="stats-grid">
     <div class="stat-card c-blue">
         <span class="stat-value" id="stPlugins">-</span>
-        <span class="stat-label">后端插件（已加载）</span>
+        <span class="stat-label">{{ t('后端插件（已加载）') }}</span>
     </div>
     <div class="stat-card c-purple">
         <span class="stat-value" id="stCatalog">-</span>
-        <span class="stat-label">插件目录（含禁用）</span>
+        <span class="stat-label">{{ t('插件目录（含禁用）') }}</span>
     </div>
     <div class="stat-card c-green">
         <span class="stat-value" id="stFrontend">-</span>
-        <span class="stat-label">前端工具</span>
+        <span class="stat-label">{{ t('前端工具') }}</span>
     </div>
     <div class="stat-card c-orange">
         <span class="stat-value" id="stApiCalls">-</span>
-        <span class="stat-label">API 累计调用</span>
+        <span class="stat-label">{{ t('API 累计调用') }}</span>
     </div>
     <div class="stat-card c-teal">
         <span class="stat-value" id="stFrontendAccess">-</span>
-        <span class="stat-label">前端页面访问</span>
+        <span class="stat-label">{{ t('前端页面访问') }}</span>
     </div>
 </div>
 
@@ -52,31 +52,31 @@
     <div class="card">
         <h3 class="card-title">🔄 {{ t('版本更新') }}</h3>
         <div id="updateBox" style="font-size:14px; line-height:1.9; color:#2c3e50;">
-            <span class="loading">检查中...</span>
+            <span class="loading">{{ t('检查中...') }}</span>
         </div>
         <div style="margin-top:12px;">
-            <button class="btn btn-info btn-sm" onclick="checkUpdate(true)">🔄 手动检查</button>
+            <button class="btn btn-info btn-sm" onclick="checkUpdate(true)">🔄 {{ t('手动检查') }}</button>
         </div>
     </div>
 
     <!-- v4.14 最近动态（审计日志最近 8 条） -->
     <div class="card">
-        <h3 class="card-title">🕒 最近动态</h3>
+        <h3 class="card-title">🕒 {{ t('最近动态') }}</h3>
         <div id="recentAudit" style="font-size:13px; line-height:1.9; color:#2c3e50;">
-            <span class="loading">加载中...</span>
+            <span class="loading">{{ t('加载中...') }}</span>
         </div>
         <div style="margin-top:10px;">
-            <a href="/admin/logs" class="btn btn-info btn-sm">📄 查看全部日志</a>
+            <a href="/admin/logs" class="btn btn-info btn-sm">📄 {{ t('查看全部日志') }}</a>
         </div>
     </div>
 
     <!-- 系统信息 -->
     <div class="card">
-        <h3 class="card-title">🖥️ 系统信息</h3>
+        <h3 class="card-title">🖥️ {{ t('系统信息') }}</h3>
         <div class="table-wrap">
             <table class="data-table">
                 <tbody id="sysInfoBody">
-                    <tr><td colspan="2" class="loading">加载中...</td></tr>
+                    <tr><td colspan="2" class="loading">{{ t('加载中...') }}</td></tr>
                 </tbody>
             </table>
         </div>
@@ -84,17 +84,17 @@
 
     <!-- 快捷入口 -->
     <div class="card">
-        <h3 class="card-title">🧭 快捷入口</h3>
+        <h3 class="card-title">🧭 {{ t('快捷入口') }}</h3>
         <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:12px;">
-            <a href="/admin/plugins" class="btn btn-primary" style="justify-content:center; padding:18px 0;">🔌 插件管理</a>
-            <a href="/admin/logs" class="btn btn-info" style="justify-content:center; padding:18px 0;">📄 日志查看</a>
-            <a href="/admin/stats" class="btn btn-success" style="justify-content:center; padding:18px 0;">📈 统计详情</a>
-            <a href="/admin/network" class="btn btn-info" style="justify-content:center; padding:18px 0; background:#16a085; border-color:#16a085;">🌐 网络与访问</a>
-            <a href="/admin/system" class="btn btn-warning" style="justify-content:center; padding:18px 0;">⚙️ 系统管理</a>
-            <a href="/" class="btn btn-info" style="justify-content:center; padding:18px 0;">🏠 返回首页</a>
+            <a href="/admin/plugins" class="btn btn-primary" style="justify-content:center; padding:18px 0;">🔌 {{ t('插件管理') }}</a>
+            <a href="/admin/logs" class="btn btn-info" style="justify-content:center; padding:18px 0;">📄 {{ t('日志查看') }}</a>
+            <a href="/admin/stats" class="btn btn-success" style="justify-content:center; padding:18px 0;">📈 {{ t('统计详情') }}</a>
+            <a href="/admin/network" class="btn btn-info" style="justify-content:center; padding:18px 0; background:#16a085; border-color:#16a085;">🌐 {{ t('网络与访问') }}</a>
+            <a href="/admin/system" class="btn btn-warning" style="justify-content:center; padding:18px 0;">⚙️ {{ t('系统管理') }}</a>
+            <a href="/" class="btn btn-info" style="justify-content:center; padding:18px 0;">🏠 {{ t('返回首页') }}</a>
         </div>
-        <h3 class="card-title" style="margin-top:24px;">📌 内置插件</h3>
-        <div id="builtinList" class="loading">加载中...</div>
+        <h3 class="card-title" style="margin-top:24px;">📌 {{ t('内置插件') }}</h3>
+        <div id="builtinList" class="loading">{{ t('加载中...') }}</div>
     </div>
 </div>
 {% endblock %}
@@ -115,25 +115,25 @@
         })
             .then(r => r.json())
             .then(res => {
-                if (res.code !== 200) { box.innerHTML = `<span style="color:#c0392b;">window.T('检查失败') + '：' + (res.message || window.T('未知错误'))</span>`; return; }
+                if (res.code !== 200) { box.innerHTML = `<span style="color:#c0392b;">${window.T('检查失败')}：${res.message || window.T('未知错误')}</span>`; return; }
                 const d = res.data || {};
-                if (!d.checked) { box.innerHTML = `<span style="color:#7f8c8d;">${d.message || "暂无结果"}</span>`; return; }
-                let html = `<p><strong>当前版本</strong>：<span class="badge badge-blue">v${d.current_version}</span></p>`;
+                if (!d.checked) { box.innerHTML = `<span style="color:#7f8c8d;">${d.message || window.T('暂无结果')}</span>`; return; }
+                let html = `<p><strong>${window.T('当前版本')}</strong>：<span class="badge badge-blue">v${d.current_version}</span></p>`;
                 if (d.has_update) {
-                    html += `<p><strong>${window.T('最新版本')}</strong>：<span class="badge badge-orange">v${d.latest_version}</span> <span style="color:#e74c3c; font-weight:600;">（' + window.T('有新版本') + '）</span></p>`;
-                    html += `<p style="font-size:12px; color:#7f8c8d;">发布于 ${d.published_at || "-"}</p>`;
+                    html += `<p><strong>${window.T('最新版本')}</strong>：<span class="badge badge-orange">v${d.latest_version}</span> <span style="color:#e74c3c; font-weight:600;">（${window.T('有新版本')}）</span></p>`;
+                    html += `<p style="font-size:12px; color:#7f8c8d;">${window.T('发布于')} ${d.published_at || "-"}</p>`;
                     if (d.changes && d.changes.length) {
                         html += `<ul style="margin:6px 0 0 18px; font-size:12px; color:#34495e;">` +
                             d.changes.map(c => `<li>${c}</li>`).join("") + `</ul>`;
                     }
-                    if (d.download_url) { html += `<p style="margin-top:8px;"><a href="${d.download_url}" target="_blank" rel="noopener" style="color:#2980b9;">下载更新包</a> · <a href="https://github.com/ReconLeo/FlaskToolkit/blob/main/documents/%E6%9B%B4%E6%96%B0%E6%9C%BA%E5%88%B6%E8%AE%BE%E8%AE%A1-v4.8.0.md" target="_blank" rel="noopener" style="color:#2980b9;">更新说明</a></p>`; }
-                    html += `<p style="margin-top:6px; font-size:12px; color:#95a5a6;">升级操作请运行 <code>python tools/update.py --check</code>（详见设计文档 / tools/update.py --help）</p>`;
+                    if (d.download_url) { html += `<p style="margin-top:8px;"><a href="${d.download_url}" target="_blank" rel="noopener" style="color:#2980b9;">${window.T('下载更新包')}</a> · <a href="https://github.com/ReconLeo/FlaskToolkit/blob/main/documents/%E6%9B%B4%E6%96%B0%E6%9C%BA%E5%88%B6%E8%AE%BE%E8%AE%A1-v4.8.0.md" target="_blank" rel="noopener" style="color:#2980b9;">${window.T('更新说明')}</a></p>`; }
+                    html += `<p style="margin-top:6px; font-size:12px; color:#95a5a6;">${window.T('升级操作请运行')} <code>python tools/update.py --check</code>（${window.T('详见设计文档')} / tools/update.py --help）</p>`;
                 } else {
-                    html += `<p><strong>${window.T('最新版本')}</strong>：<span class="badge badge-green">v${d.latest_version}</span> <span style="color:#27ae60;">window.T('已是最新')</span></p>`;
+                    html += `<p><strong>${window.T('最新版本')}</strong>：<span class="badge badge-green">v${d.latest_version}</span> <span style="color:#27ae60;">${window.T('已是最新')}</span></p>`;
                 }
                 box.innerHTML = html;
             })
-            .catch(e => { box.innerHTML = `<span style="color:#c0392b;">window.T('检查异常') + '：' + e.message</span>`; });
+            .catch(e => { box.innerHTML = `<span style="color:#c0392b;">${window.T('检查异常')}：${e.message}</span>`; });
     }
 
     function loadStats() {
@@ -163,11 +163,11 @@
 
     // v4.14：状态徽章行（运行时长 / 协议 / 可达地址 / IP 变化）
     function fmtUptime(sec) {
-        if (!sec) return '刚刚启动';
+        if (!sec) return window.T('刚刚启动');
         const d = Math.floor(sec / 86400), h = Math.floor(sec % 86400 / 3600), m = Math.floor(sec % 3600 / 60);
-        if (d > 0) return d + ' 天 ' + h + ' 小时';
-        if (h > 0) return h + ' 小时 ' + m + ' 分';
-        return m + ' 分钟';
+        if (d > 0) return d + ' ' + window.T('天') + ' ' + h + ' ' + window.T('小时');
+        if (h > 0) return h + ' ' + window.T('小时') + ' ' + m + ' ' + window.T('分');
+        return m + ' ' + window.T('分钟');
     }
 
     function loadBadges() {
@@ -176,7 +176,7 @@
             .then(r => r.json()).then(res => {
                 if (res.code !== 200) return;
                 const d = res.data;
-                document.getElementById('bdUptime').textContent = '⏱ 运行时长: ' + fmtUptime(d.uptime_seconds);
+                document.getElementById('bdUptime').textContent = '⏱ ' + window.T('运行时长') + ': ' + fmtUptime(d.uptime_seconds);
             }).catch(() => {});
         // 网络与访问（协议/可达地址/IP 变化）
         fetch('/api/admin/network', { credentials: 'include' })
@@ -188,11 +188,11 @@
                 bdS.textContent = (scheme === 'https' ? '🔒 HTTPS' : '🔓 HTTP');
                 bdS.className = 'badge ' + (scheme === 'https' ? 'badge-green' : 'badge-orange') + ' bd-badge';
                 const urls = (d.access_urls || []);
-                document.getElementById('bdAddresses').textContent = '🌐 可达地址: ' + urls.length + ' 个';
+                document.getElementById('bdAddresses').textContent = '🌐 ' + window.T('可达地址') + ': ' + urls.length + ' ' + window.T('个');
                 const iw = d.ip_watch || {};
                 const tip = document.getElementById('bdIpChange');
                 if (iw.last_change_detail) {
-                    tip.textContent = '⚠ IP 变化: ' + iw.last_change_detail;
+                    tip.textContent = '⚠ ' + window.T('IP 变化') + ': ' + iw.last_change_detail;
                     tip.style.display = '';
                 } else {
                     tip.style.display = 'none';
@@ -206,7 +206,7 @@
             .then(r => r.json()).then(res => {
                 const box = document.getElementById('recentAudit');
                 if (res.code !== 200 || !res.data || res.data.length === 0) {
-                    box.innerHTML = '<span style="color:#95a5a6;">暂无管理操作记录</span>';
+                    box.innerHTML = '<span style="color:#95a5a6;">' + window.T('暂无管理操作记录') + '</span>';
                     return;
                 }
                 box.innerHTML = res.data.map(a => {
@@ -222,7 +222,7 @@
                         `</div>`;
                 }).join('');
             }).catch(() => {
-                document.getElementById('recentAudit').innerHTML = '<span style="color:#95a5a6;">加载失败</span>';
+                document.getElementById('recentAudit').innerHTML = '<span style="color:#95a5a6;">' + window.T('加载失败') + '</span>';
             });
     }
 
@@ -238,13 +238,13 @@
                 if (res.code !== 200) return;
                 const d = res.data;
                 const rows = [
-                    ['框架版本', '<span class="badge badge-blue">v' + d.framework_version + '</span>'],
-                    ['Python 版本', d.python_version],
-                    ['运行平台', d.platform],
-                    ['绑定地址', d.host + (d.debug ? '（调试模式）' : '')],
-                    ['项目目录', '<code style="font-size:12px; word-break:break-all;">' + d.base_dir + '</code>'],
-                    ['插件目录（含禁用）', fmt(d.total_plugins_catalog) + ' 项'],
-                    ['前端工具', fmt(d.total_frontend_tools) + ' ' + window.T('项')],
+                    [window.T('框架版本'), '<span class="badge badge-blue">v' + d.framework_version + '</span>'],
+                    [window.T('Python 版本'), d.python_version],
+                    [window.T('运行平台'), d.platform],
+                    [window.T('绑定地址'), d.host + (d.debug ? window.T('（调试模式）') : '')],
+                    [window.T('项目目录'), '<code style="font-size:12px; word-break:break-all;">' + d.base_dir + '</code>'],
+                    [window.T('插件目录（含禁用）'), fmt(d.total_plugins_catalog) + ' ' + window.T('项')],
+                    [window.T('前端工具'), fmt(d.total_frontend_tools) + ' ' + window.T('项')],
                 ];
                 document.getElementById('sysInfoBody').innerHTML = rows.map(r =>
                     `<tr><td style="width:130px; color:#7f8c8d; font-weight:600;">${r[0]}</td><td>${r[1]}</td></tr>`
@@ -252,14 +252,14 @@
                 // 内置插件
                 const builtins = (d.builtin_plugins || []).map(name =>
                     `<span class="badge badge-orange" style="margin-right:6px;">${name}</span>`
-                ).join(' ') || '无';
+                ).join(' ') || window.T('无');
                 document.getElementById('builtinList').innerHTML = builtins;
                 document.getElementById('builtinList').classList.remove('loading');
             }).catch(() => {});
     }
 
     function refreshAll() {
-        document.getElementById('sysInfoBody').innerHTML = '<tr><td colspan="2" class="loading">加载中...</td></tr>';
+        document.getElementById('sysInfoBody').innerHTML = '<tr><td colspan="2" class="loading">' + window.T('加载中...') + '</td></tr>';
         loadStats();
         loadSysInfo();
         loadBadges();

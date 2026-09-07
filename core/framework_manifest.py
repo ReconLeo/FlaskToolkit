@@ -52,7 +52,9 @@ CORE_FILES = [
 
 # ============================ 框架核心目录 ============================
 # 缺失视为致命（原 core/selfcheck.py CORE_DIRS）
-CORE_DIRS = ['routes', 'core', 'plugins', 'templates', 'documents', 'tools']
+# 说明：documents/ 仅为开发文档（开发规范/交接文档/设计文档），不在精简运行包内（RUNTIME_TOP 不含），
+#       缺失不影响框架运行——故不属于框架核心目录，不列入本清单（v4.15.1 小修）。
+CORE_DIRS = ['routes', 'core', 'plugins', 'templates', 'tools']
 
 
 # ============================ 用户数据路径 ============================

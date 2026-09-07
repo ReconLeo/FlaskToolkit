@@ -3,6 +3,17 @@
 > 版本特性与演进史（来龙去脉）见 [Flask插件框架-版本演进记录.md](Flask插件框架-版本演进记录.md)；
 > 下方为各版本变更说明（按时间倒序）。
 
+## 版本：v4.15.2（框架目录清单校正 + Statistics 模板翻译补全） | 更新日期：2026年09月07日
+
+### 版本说明（v4.15.2 小修复）
+
+**主题：小修复——校正框架目录清单声明 + 补全 v4.14 Statistics 模板翻译。**
+
+1. **框架目录清单校正（core/framework_manifest.py）**：`documents/` 仅为开发文档（开发规范/交接文档/设计文档），不在精简运行包（RUNTIME_TOP）内、无运行时代码引用，缺失不影响框架运行——从 `CORE_DIRS` 移除，不再作为致命核心目录。逐一核查其余声明均正确：`CORE_DIRS`（routes/core/plugins/templates/tools 均为运行时必需）、`CORE_FILES`（35 个均为运行时必需且缺一不可）、`USER_DATA_PATHS`（10 条用户数据路径，升级/备份保留语义）、`ROOT_RUNTIME_FILES`、Root 域豁免与管辖规则。
+2. **Statistics 模板翻译补全（v4.14 遗留）**：`templates/admin/dashboard.html`、`templates/admin/stats.html` 存在大量硬编码中文未走 i18n（英文界面下残留中文）。v4.15.2 全部包裹为 `{{ t('...') }}`（服务端）/ `window.T('...')`（客户端），并把新增词条补入 `locales/en.json`（124 + 协议 共 125 词条，en 总量 114→239）；同步补全其他模板（network/register/login/base）已包裹但缺失的英文词条。
+3. **测试**：`test_i18n` 新增"框架模板 t()/T() 中文 key 全覆盖 en.json"断言（28→29 项），防未来再漏；全量回归 **37 脚本 988 项 0 失败**。
+4. **文档**：README 双版计数（37 脚本 988 项）、开发规范本段 + 版本表。
+
 ## 版本：v4.15.1（框架目录清单统一 + Root 演示示例 root_demo） | 更新日期：2026年09月07日
 
 ### 版本说明（v4.15.1 变更）
@@ -215,6 +226,7 @@
 
 | 版本 | 日期 | 主题 | 提交 |
 |------|------|------|------|
+| **v4.15.2** | 2026-09-07 | 小修复：框架目录清单校正（documents 非运行时核心目录，移出 CORE_DIRS）+ v4.14 Statistics 模板翻译补全（dashboard/stats 硬编码中文包裹 t()/T() + en.json 补 125 词条）+ test_i18n 覆盖断言（28→29 项） |（本提交）|
 | **v4.15.1** | 2026-09-07 | 框架目录清单统一（core/framework_manifest.py 单一清单驱动自检/升级/备份/重置/Root 判定，删除各处硬编码）+ 示例插件 root_demo（framework:core Root 读写演示 + 对照拒绝） |（本提交）|
 | **v4.15.0** | 2026-09-07 | Root 域与市场骨架（framework 能力域三档 read/manage/core / 程序化插件管理服务层 / 插件级更新源 repo·update_feed·RSA 验签 / 前端 Root·更新徽章 / selfcheck 时区探测 + CORE_FILES 补全 / requirements tzdata） | ef36a40 |
 | **v4.14.0** | 2026-09-07 | Statistics：数据统计洞察（时间桶 + 访问画像双维数据模型 / dashboard 总览化 / 14 天趋势 + 错误 Top + 画像卡 / 跳转端口 POST body 消费修复） | b2f56a3 |
@@ -309,7 +321,7 @@ FlaskToolkit/
 │   ├── desktop_launcher.py  #   桌面启动器（tkinter GUI，subprocess 启动服务，v4.11 M5；HTTPS 复选框 + 证书自动生成，v4.12）
 
 │   └── reset.py               #   深度重置工具（服务停止时使用，绕过运行时文件锁定）
-├── tests/                     # 回归测试套件（37 脚本 987 项 + 端到端链路验证）
+├── tests/                     # 回归测试套件（37 脚本 988 项 + 端到端链路验证）
 ├── templates/                 # 页面模板（首页/登录/错误码页 400-500/admin 管理后台/插件页）
 │   ├── admin/                 #   管理后台（dashboard / plugins / logs / stats / system）
 │   ├── frontend_tools/        #   前端工具模板
@@ -1391,7 +1403,7 @@ python tests/test_desktop_launcher.py   # 36 项（桌面启动器 v4.11 + HTTPS
 python tests/test_setup.py             # 17 项（首次运行向导 + 强制改密 v4.10，隔离目录）
 python tests/test_register.py             # 25 项（自助注册 + 邀请码 + 审核 v4.10 M5，隔离目录）
 python tests/test_scaffold_tools.py  # 53 项（M6 脚手架 + 离线安装/卸载闭环，subprocess 驱动 CLI，隔离目录）
-# 合计 37 个脚本 987 项（2026-09-07 本地全量实测复核）
+# 合计 37 个脚本 988 项（2026-09-07 本地全量实测复核）
 # （AirDrop 插件加载回归 test_airdrop_loader.py 8 项已移交 AirDrop 子项目维护，不入主仓库）
 ```
 

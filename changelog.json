@@ -1,13 +1,12 @@
 {
-  "latest_version": "4.15.1",
+  "latest_version": "4.15.2",
   "published_at": "2026-09-07",
-  "download_url": "https://github.com/ReconLeo/FlaskToolkit/releases/download/v4.15.1/FlaskToolkit-4.15.1-runtime.zip",
-  "sha256": "a991e76da165e887cae2fb05cbb09aa0bbef12607b5e0ed674a44db4976e3643",
+  "download_url": "https://github.com/ReconLeo/FlaskToolkit/releases/download/v4.15.2/FlaskToolkit-4.15.2-runtime.zip",
+  "sha256": "b6393ee4b7792686423504109d1f17768be827984fc6744c84d5a1e81bbac3a9",
   "changes": [
-    "框架目录清单统一（core/framework_manifest.py 新，单一事实来源）：把“哪些是框架核心文件、哪些是用户数据”的判定从各模块硬编码收敛到一处——CORE_FILES(35)/CORE_DIRS(6)/USER_DATA_PATHS(10)/ROOT_RUNTIME_FILES/备份派生 BACKUP_ITEMS + 判定函数 is_user_data_path(=旧 update.path_is_user_data)/is_core_file/is_framework_core_path(=旧 capabilities 私有逻辑)；纯常量+纯函数，模块级不 import global_var，BASE_DIR 自推导",
-    "各模块改读统一清单（删硬编码）：core/selfcheck.py(CORE_FILES/CORE_DIRS import manifest 并登记 core/framework_manifest.py)、tools/update.py(USER_DATA_PATHS/path_is_user_data import manifest，重新导出兼容 release.py)、tools/backup.py(BACKUP_ITEMS 读 manifest 派生)、core/factory_reset.py(RESET_STATS_FILE/RESET_SESSIONS_FILE/RESET_LEGACY_SESSIONS_FILE/RESET_AUTH_CONFIG_FILE/RESET_TEMP_DIRS 读 manifest)、core/capabilities.py(is_framework_core_path 委托 manifest)——后续新增框架文件只需在 manifest 登记一处，自检/升级/备份/重置/Root 判定全自动跟随",
-    "示例插件 root_demo（examples/plugins/root_demo，官方 Root 域演示）：plugin.json 声明 framework:core + filesystem:read:data/、permission=admin、require_framework_version=4.15.0；后端 root_demo.py 加载时 check_framework(root_demo,core) 确认 Root 并打印横幅，GET /overview（框架版本/Root 级别/核心文件清单/用户配置）、GET /config（读 data/user_config.json，Root 读）、POST /config（patch data/user_config.json，Root 写，经 check_filesystem 校验→framework:core 放行，审计钩子记 root-access）、GET /demo-reject（对照：仅 filesystem:write 的临时插件写 app.py→framework-core-not-declared）；页面 root_demo.html + 插件语言包 locales/en.json（后端消息 t()）；更新 examples/manifest.json + README",
-    "测试：新增 tests/test_framework_manifest.py 54 项（清单一致性 selfcheck/update/backup 复用同一对象 + CORE_FILES/CORE_DIRS 完整性 + Root 域路径判定边界 + is_user_data_path 语义 + BACKUP_ITEMS 派生）、tests/test_root_demo.py 19 项（plugin.json 声明一致 + Root 授权/写核心放行/读核心/对照拒绝/自属豁免/模块可加载）；适配 test_capabilities 委托后回归；全量回归 37 脚本 987 项 0 失败",
-    "文档：README 双版补 v4.15.1 特性（框架目录清单统一 + root_demo 示例）与回归数（37 脚本 987 项）、examples/manifest.json + README、开发规范 v4.15.1 段（manifest 设计 + root_demo 详解 + 测试表）+ 版本表 + Roadmap"
+    "框架目录清单校正（core/framework_manifest.py）：documents/ 仅为开发文档，不在精简运行包（RUNTIME_TOP）内、无运行时代码引用，缺失不影响框架运行——从 CORE_DIRS 移除，不再作为致命核心目录；逐一核查其余声明均正确（CORE_DIRS 五目录 / CORE_FILES 35 文件均为运行时必需，USER_DATA_PATHS 10 条用户数据语义，ROOT_RUNTIME_FILES，Root 域豁免与管辖规则）。",
+    "Statistics 模板翻译补全（v4.14 遗留）：templates/admin/dashboard.html、templates/admin/stats.html 存在大量硬编码中文未走 i18n（英文界面残留中文）。v4.15.2 全部包裹为 t()（服务端）/ window.T()（客户端），并把新增词条补入 locales/en.json（125 词条，en 总量 114 到 239）；同步补全其他模板（network/register/login/base）已包裹但缺失的英文词条。",
+    "测试：test_i18n 新增框架模板 t()/T() 中文 key 全覆盖 en.json 断言（28 到 29 项），防未来再漏；全量回归 37 脚本 988 项 0 失败。",
+    "文档：README 双版计数（37 脚本 988 项）、开发规范 v4.15.2 段 + 版本表。"
   ]
 }
