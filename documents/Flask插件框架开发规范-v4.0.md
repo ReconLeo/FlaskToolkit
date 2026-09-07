@@ -173,7 +173,7 @@
 
 | 版本 | 日期 | 主题 | 提交 |
 |------|------|------|------|
-| **v4.13.0** | 2026-09-07 | Mobile & Tablet：移动端与平板适配（mobile.css / admin-mobile.css / mobile.js 四件套 + 示例插件移动端样式，与原有 CSS 分开创建） | TBD |
+| **v4.13.0** | 2026-09-07 | Mobile & Tablet：移动端与平板适配（mobile.css / admin-mobile.css / mobile.js 四件套 + 示例插件移动端样式，与原有 CSS 分开创建） | ad2bf59 |
 | **v4.12.2** | 2026-09-07 | 安全修复：上传临时文件防线（F6 失败分支清理 + preview TTL 30min + F12 preview_id 路径穿越封堵） | 84c17ed |
 | **v4.12.1** | 2026-09-06 | Secure 修复：登录回归 F10（Cookie Secure 判定跟随请求实际协议）+ 压力/多机归因评估落地（test_server 脚手架 + 评估报告） | 786ae5d |
 | **v4.12.0** | 2026-09-06 | Secure：安全传输（HTTP→HTTPS 跳转 / Cookie Secure 自动 / 反代支持 / 桌面启动器 HTTPS） | 2b3762c |
