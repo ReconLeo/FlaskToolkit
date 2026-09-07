@@ -29,6 +29,8 @@ META_FIELDS = (
     'name', 'version', 'title', 'author', 'permission',
     'category', 'description', 'dependencies', 'pip_dependencies',
     'require_framework_version',
+    # v4.15 市场铺路：repo=主页/仓库，update_feed=插件更新源 URL（http(s)）
+    'repo', 'update_feed',
 )
 # 参与“冲突拒绝”比对的字段（name 单独走强制一致校验）
 COMPARE_FIELDS = (

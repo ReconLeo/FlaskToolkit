@@ -1,16 +1,16 @@
 {
-  "latest_version": "4.14.0",
+  "latest_version": "4.15.0",
   "published_at": "2026-09-07",
-  "download_url": "https://github.com/ReconLeo/FlaskToolkit/releases/download/v4.14.0/FlaskToolkit-4.14.0-runtime.zip",
-  "sha256": "9de19bf2a623b28db0caea1c69c1c32a8c5664931678e8cbf80828e514c97909",
+  "download_url": "https://github.com/ReconLeo/FlaskToolkit/releases/download/v4.15.0/FlaskToolkit-4.15.0-runtime.zip",
+  "sha256": "90c1ccf4db1c3606a6023a75945316abfb2a380f97b4b4f0c598f38505073f64",
   "changes": [
-    "统计数据模型（core/stats.py 重写）：daily_stats 时间桶按天聚合（plugin:path / frontend:<tool> 的 count/ok/4xx/5xx/ms_sum/ms_n，key 与 call_stats 一致）+ access_profile 访问画像双维（by_ip 追溯主键：count/last_seen/devices 四类/by_user 关联；by_user 登录用户含管理员，游客仅记 IP）+ summary 总览；30 天 TTL 清理（STATS_RETENTION_DAYS 最小 7）；classify_device 纯 UA 关键字分类（bot/tablet/mobile/desktop）无新依赖",
-    "after_request 埋点（routes/interceptor.py）：before_request 记 _ft_stats_t0 + 新增 global_stats_recorder——/api/<plugin>/（排除 /api/admin/）写桶+画像、/frontend/<tool> 写桶+画像、/plugin/ 页面仅画像（record_page_view）；职责分离防双计数（累计计数仍由原埋点维护），401/403/404 计入 4xx 桶；ACCESS_PROFILE_ENABLED 开关",
-    "dashboard 总览化（templates/admin/dashboard.html）：运行徽章行（运行时长 / 协议 / 访问地址数 / IP 变化，/api/admin/system/info 新增 uptime_seconds）+ 冷门插件提示条（api_calls==0 且 enabled 非内置）+ 最近动态卡（/api/admin/audit?lines=8）；补上缺失的『🌐 网络与访问』页入口",
-    "统计页增强（templates/admin/stats.html）：14 天请求趋势（纯 SVG 柱状图 viewBox 700×170，蓝=正常红=错误叠加，无前端依赖）+ 错误 Top 表（4xx/5xx TOP20）+ 访问画像卡（用户 Top10 / IP Top10 / 设备分布条形）；/api/admin/stats 扩展 daily_series/error_top/access_profile/cold_plugins/stats_retention_days",
-    "Factory Reset 同步：reset_stats_logs 清空 daily_stats/access_profile（内存 + 落盘）；global_var CONFIG_ITEMS 新增 STATS_RETENTION_DAYS（int 30 最小 7）/ ACCESS_PROFILE_ENABLED（bool true）；app.py 记录 global_var.START_TIME",
-    "框架漏洞修复（测试 J3 暴露）：core/network.py start_http_redirect 的 _jump 不消费请求体——单线程 HTTPServer 下 POST/PUT 带 body 请求在客户端发送阶段被 RST（WinError 10053），按 Content-Length 消费 body 修复，直连 HTTPS 跳转端口真实场景连接中止根治",
-    "测试：新增 tests/test_stats.py 55 项（设备分类/时间桶聚合/画像/TTL/趋势序列/错误 Top/开关关闭/旧接口兼容）；test_audit_hook E12『真实项目未污染』改为审计日志痕迹检查（框架常驻运行时真实 audit.log 存在性检查误报）；全量回归 33 脚本 869 项 0 失败",
-    "文档：README 双版补 Statistics 特性条目（33 脚本 / 869 项回归）、开发规范 v4.14 段与版本表、Roadmap v4.14 当前行、版本演进记录 3.19、SECURITY.md 回归口径同步"
+    "Root 权限域（framework 能力域，core/capabilities.py）：三档 read/manage/core（core≈Linux root，隐含 manage/read，级别 3>2>1）；is_framework_core_path 判定框架核心路径（core/routes/templates 框架部分/app.py/global_var.py/data/user_config.json/plugins/status.json，豁免模板/插件数据目录）；filesystem:write 命中核心路径→errors 拒绝并提示改用 framework:core；cross_validate 中 framework:core 隐式覆盖核心路径写；check_filesystem 运行时核心写仅 framework:core 放行；新增 check_framework",
+    "Root 审计与栈归因（core/audit_hook.py）：allowed 核心路径写追加 root-access 审计事件；公共栈归因 locate_caller_plugin()（服务层权限判定防伪造）；加载 framework:core 插件打印醒目横幅；前端 Root/Manage/Framework 徽章 + ⚠️ Root 红/manage 橙/read 蓝三色警示条",
+    "程序化插件管理服务层（core/plugin_admin.py 新 288 行）：require_manage（框架自身放行/插件须 framework:manage）/scan_gate/enable/disable/uninstall/purge_data/install_from_package/update_from_package；routes/admin 六个管理接口改薄壳调用服务层，为第三方插件市场铺路",
+    "插件级更新源（core/plugin_updates.py 新）：plugin.json 声明 repo/update_feed，应用内 check-updates 触达各插件独立发布渠道——feed JSON {latest_version,published_at,download_url,sha256,changes[,signature]}、data/cache/plugin_updates.json 缓存（UPDATE_CHECK_INTERVAL 小时）、3s 超时静默、UPDATE_PUBLIC_KEY_PEM 强制 RSA 验签、版本比较；plugin_pack META_FIELDS 加 repo/update_feed（不进 COMPARE_FIELDS）；后台插件页检查更新按钮/更新徽章（⬆ vX 可更新）",
+    "既有 bug 修复：routes/admin.py preview 分支 from core.plugin_scanner import read_pack_capabilities（函数实为 core.capabilities）→ ImportError 被 except 吞 → preview.capabilities 自 v4.10 恒空；改顶层已导入函数",
+    "启动自检增强（core/selfcheck.py）：global_var 新增 TIMEZONE 常量，app.py BackgroundScheduler 改用它——APScheduler 3.11 弃 pytz 改 zoneinfo，Windows 缺 tzdata 时顶层创建 scheduler 抛 ZoneInfoNotFoundError 启动即崩，selfcheck 新增 zoneinfo 时区探测在自检阶段致命报错并提示 pip install tzdata（而非静默通过、启动才崩）；CORE_FILES 补登记 core/plugin_admin.py、core/plugin_updates.py；requirements.txt 新增 tzdata==2026.3（Windows 全新 Python 环境可复现）",
+    "测试：新增 tests/test_root_domain.py 18 项（framework 域三档/核心路径判定/root 写放行与拒绝/服务层 require_manage/市场写 core 拒绝/更新源）+ tests/test_selfcheck.py 14 项（CORE_FILES 完整性/时区探测/完整自检）；test_capabilities 扩展 G 段 framework 域 13 项；修复 test_admin_api 版本期望；全量回归 35 脚本 914 项 0 失败",
+    "文档：README 双版补 Root 域与市场骨架特性条目（35 脚本 / 914 项回归）、开发规范 v4.15 段（framework 能力域表 + repo/update_feed 字段表 + 5.6.8 小节 + MIT 免责声明）、Roadmap v4.15 当前行 + v4.16 规划行（事件总线 + 插件依赖）、版本演进记录 3.20、SECURITY.md framework:core 风险与回归口径同步"
   ]
 }

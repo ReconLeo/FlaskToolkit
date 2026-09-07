@@ -34,7 +34,7 @@ global_var.app = app  # 同步回全局状态，供 core 模块引用
 CORS(app, supports_credentials=True)
 
 # 定时任务调度器：创建后注入 global_var（core/plugin_loader 引用同一对象）
-scheduler = BackgroundScheduler(timezone="Asia/Shanghai")
+scheduler = BackgroundScheduler(timezone=global_var.TIMEZONE)
 global_var.scheduler = scheduler
  
 PluginLogAdapter = setup_logging(app)

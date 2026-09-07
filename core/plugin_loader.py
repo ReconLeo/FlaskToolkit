@@ -19,7 +19,7 @@ from core.logging_setup import PluginLogAdapter
 from core.permission import wrap_page_func, wrap_view_func
 from core.plugin_cache import (is_cache_valid, load_plugin_cache, save_plugin_cache, scan_plugin_metadata)
 from core.capabilities import (clear_capabilities, load_capabilities_from_desc,
-                              register_capabilities)
+                              parse_capabilities, register_capabilities)
 from core.audit_hook import clear_violations
 from core.plugin_pack import check_framework_version
 from core.plugin_status import load_plugin_status
@@ -195,6 +195,16 @@ def load_plugins():
                 os.path.join(global_var.BASE_DIR, 'plugins', f'{plugin_name}.json'))
             register_capabilities(plugin_instance.name, caps)
 
+            # v4.15：Root 权限加载横幅（framework:core 插件醒目告警）
+            if caps:
+                if any(c['domain'] == 'framework' and c['sub'] == 'core'
+                       for c in parse_capabilities(caps).get('valid', [])):
+                    logger.warning(
+                        f"!! 插件 {plugin_name} 声明了 Root 权限（framework:core）——可读写框架核心文件"
+                        "与全局状态，破坏由使用者自行承担（MIT）",
+                        extra={'plugin': 'system'},
+                    )
+
             # 注入logger
             plugin_instance.logger = PluginLogAdapter(logger, {'plugin': plugin_instance.name})
 
@@ -336,6 +346,10 @@ def load_plugins():
             'dependencies': info.get('dependencies', []),
             'pip_dependencies': info.get('pip_dependencies', []) or [],
             'require_framework_version': info.get('require_framework_version', ''),
+            'repo': info.get('repo', ''),
+            'update_feed': info.get('update_feed', ''),
+            'capabilities': load_capabilities_from_desc(
+                os.path.join(global_var.BASE_DIR, 'plugins', f'{_name}.json')) or [],
             'type': 'backend',
             'builtin': _name in global_var.BUILTIN_PLUGINS,
             'enabled': global_var.plugin_status.get(_name, {}).get('enabled', True),

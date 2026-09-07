@@ -359,11 +359,23 @@ def _handler(event, args):
             return
         if domain == 'filesystem:write':
             _check_data_quota(plugin, target)
+            # v4.15：Root 授权（framework:core）的框架核心写事件单独审计分类
+            # （非 root 插件写核心路径已在上面 _deny 分支返回，能走到这里必是 framework:core）
+            if caps_mod.is_framework_core_path(target):
+                with _PENDING_LOCK:
+                    _PENDING.append(('root-access', plugin, 'ok',
+                                     f'framework:core 写框架核心: {target}'))
     finally:
         _local.in_hook = False
 
 
 # ------------------------------ 审计落盘（后台线程，hook 外） ------------------------------
+
+def locate_caller_plugin():
+    """公共栈归因（v4.15）：返回当前调用栈归属的插件名；框架自身/未知来源返回 None。
+    供服务层（core/plugin_admin.py）权限判定使用——调用方无法伪造（栈帧实据）。"""
+    return _locate_plugin()
+
 
 def flush_now():
     """将待落盘审计记录立即写入 JSONL（后台线程与测试/关停共用）"""

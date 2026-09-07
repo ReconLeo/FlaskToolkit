@@ -6,3 +6,4 @@ Flask-Cors==6.0.5
 # APScheduler 4.x 为破坏性大版本（BackgroundScheduler 等 API 变更），锁定 3.x
 APScheduler==3.11.3
 watchdog==6.0.0
+tzdata==2026.3

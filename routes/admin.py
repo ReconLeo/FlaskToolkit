@@ -24,6 +24,9 @@ from core.audit import log_audit
 from core.utils import check_upload_size, secure_filename_cn
 from core.plugin_scanner import scan_plugin_zip, should_block
 from core.capabilities import cross_validate, read_pack_capabilities
+from core.plugin_admin import (PluginAdminPermissionError, disable, enable,
+                               install_from_package, purge_data, uninstall,
+                               update_from_package)
 
 
 # v4.12.2 安全修复（F6）：上传临时文件清理辅助 + 预览文件 TTL 防护
@@ -88,6 +91,16 @@ def register(app):
 
         return jsonify({"code": 200, "data": all_plugins})
 
+    @app.route('/api/admin/plugins/check-updates', methods=['POST'])
+    @admin_api
+    def plugin_check_updates():
+        """插件级更新检查（v4.15 市场铺路）：批量拉取声明了 update_feed 的插件更新源。
+        body {"force": true} 强制拉取（跳过缓存 TTL）。单插件失败静默（error 字段）。"""
+        from core.plugin_updates import check_all_plugin_updates
+        body = request.get_json(silent=True) or {}
+        results = check_all_plugin_updates(force=bool(body.get('force')))
+        return jsonify({"code": 200, "data": results})
+
     @app.route('/api/admin/quota', methods=['GET'])
     @admin_api
     def get_all_quota():
@@ -106,123 +119,63 @@ def register(app):
     @app.route('/api/admin/plugins/<plugin_name>/enable', methods=['POST'])
     @admin_api
     def enable_plugin(plugin_name):
-        """启用插件"""
-        global_var.plugin_status[plugin_name] = global_var.plugin_status.get(plugin_name, {})
-        global_var.plugin_status[plugin_name]['enabled'] = True
-        save_plugin_status()
-        log_audit('插件启用', plugin_name, 'ok')
-
-        # 增量更新缓存中的状态快照
-        cache = load_plugin_cache()
-        if cache:
-            cache['status_snapshot'] = global_var.plugin_status
-            _, cache['status_hash'] = load_plugin_status()
-            save_cache_internal(cache)
-
-        load_plugins()
-        return jsonify({"code": 200, "message": f"插件 {plugin_name} 已启用"})
+        """启用插件（v4.15 服务层：core/plugin_admin.enable）"""
+        try:
+            ok, msg = enable(plugin_name)
+        except PluginAdminPermissionError as e:
+            return jsonify({"code": 403, "message": str(e)}), 403
+        if not ok:
+            return jsonify({"code": 404, "message": msg}), 404
+        return jsonify({"code": 200, "message": msg})
 
     @app.route('/api/admin/plugins/<plugin_name>/disable', methods=['POST'])
     @admin_api
     def disable_plugin(plugin_name):
-        """禁用插件"""
-        if plugin_name not in global_var.plugins:
-            return jsonify({"code": 404, "message": "插件不存在"}), 404
-
-        global_var.plugin_status[plugin_name] = global_var.plugin_status.get(plugin_name, {})
-        global_var.plugin_status[plugin_name]['enabled'] = False
-        save_plugin_status()
-        log_audit('插件禁用', plugin_name, 'ok')
-
-        # 增量更新缓存中的状态快照
-        cache = load_plugin_cache()
-        if cache:
-            cache['status_snapshot'] = global_var.plugin_status
-            _, cache['status_hash'] = load_plugin_status()
-            save_cache_internal(cache)
-
-        load_plugins()
-        return jsonify({"code": 200, "message": f"插件 {plugin_name} 已禁用"})
+        """禁用插件（v4.15 服务层：core/plugin_admin.disable）"""
+        try:
+            ok, msg = disable(plugin_name)
+        except PluginAdminPermissionError as e:
+            return jsonify({"code": 403, "message": str(e)}), 403
+        if not ok:
+            return jsonify({"code": 404, "message": msg}), 404
+        return jsonify({"code": 200, "message": msg})
 
     @app.route('/api/admin/plugins/<plugin_name>/uninstall', methods=['POST'])
     @admin_api
     def uninstall_plugin(plugin_name):
-        """卸载插件（删除文件）"""
+        """卸载插件（v4.15 服务层：core/plugin_admin.uninstall）"""
         plugin_file = os.path.join(global_var.BASE_DIR, 'plugins', f'{plugin_name}.py')
         if not os.path.exists(plugin_file):
             return jsonify({"code": 404, "message": "插件文件不存在"}), 404
-
         try:
-            # 调用插件卸载钩子（若已加载），钩子异常不影响卸载流程
-            _inst = global_var.plugins.get(plugin_name)
-            if _inst is not None:
-                try:
-                    _inst.on_unload()
-                    _inst.on_uninstall()
-                except Exception as _he:
-                    logger.warning(f"插件 {plugin_name} 卸载钩子执行异常: {_he}", extra={'plugin': 'system'})
-
-            os.remove(plugin_file)
-
-            # 清理插件包附带资源（模板/静态目录）
-            cleanup_plugin_resources(plugin_name)
-
-            # 删除配置文件
-            config_file = os.path.join(global_var.PLUGIN_CONFIGS_DIR, f'{plugin_name}.json')
-            if os.path.exists(config_file):
-                os.remove(config_file)
-
-            # 删除状态
-            global_var.plugin_status.pop(plugin_name, None)
-            save_plugin_status()
-            log_audit('插件卸载', plugin_name, 'ok')
-
-            # 增量更新缓存（移除已卸载插件的条目）
-            cache = load_plugin_cache()
-            if cache:
-                cache['discovered_plugins'] = [
-                    info for info in cache['discovered_plugins']
-                    if info['name'] != plugin_name
-                ]
-                cache['fingerprints'].pop(plugin_name, None)
-                cache['status_snapshot'] = global_var.plugin_status
-                _, cache['status_hash'] = load_plugin_status()
-                cache['dir_fingerprint'] = compute_directory_fingerprint(
-                    os.path.join(global_var.BASE_DIR, 'plugins')
-                )
-                cache['timestamp'] = time.time()
-                save_cache_internal(cache)
-
-            load_plugins()
-            return jsonify({"code": 200, "message": f"插件 {plugin_name} 已卸载"})
-        except Exception as e:
-            return jsonify({"code": 500, "message": f"卸载失败: {str(e)}"}), 500
+            ok, msg = uninstall(plugin_name)
+        except PluginAdminPermissionError as e:
+            return jsonify({"code": 403, "message": str(e)}), 403
+        if not ok:
+            return jsonify({"code": 500, "message": msg}), 500
+        return jsonify({"code": 200, "message": msg})
 
     @app.route('/api/admin/plugins/<plugin_name>/purge-data', methods=['POST'])
     @admin_api
     def purge_plugin_data(plugin_name):
-        """清理单插件空间（v4.10 M6-Extra）：body {"scope": "temp"}（默认，临时目录）或 {"scope": "all"}（全部数据）
-        - temp：plugins/temp/<name>/
-        - all：plugins/data/<name>/ + plugins/temp/<name>/ + capabilities filesystem:write 声明目录
-        不删除插件代码/模板/配置。"""
+        """清理单插件空间（v4.15 服务层：core/plugin_admin.purge_data）
+        body {"scope": "temp"}（默认，临时目录）| {"scope": "all"}（全部数据）"""
         plugin_file = os.path.join(global_var.BASE_DIR, 'plugins', f'{plugin_name}.py')
         if not os.path.exists(plugin_file):
             return jsonify({"code": 404, "message": "插件文件不存在"}), 404
         body = request.get_json(silent=True) or {}
-        include_data = body.get('scope') == 'all'
-        removed = cleanup_plugin_data(plugin_name, include_data=include_data)
-        invalidate_quota_cache(plugin_name)
-        log_audit('插件数据清理', plugin_name, 'ok', f"scope={'all' if include_data else 'temp'}")
-        return jsonify({
-            "code": 200,
-            "message": f"已清理 {len(removed)} 项空间（{'全部数据' if include_data else '临时目录'}）",
-            "cleaned": [os.path.relpath(p, global_var.BASE_DIR).replace(os.sep, '/') for p in removed],
-        })
+        try:
+            ok, data = purge_data(plugin_name, body.get('scope', 'temp'))
+        except PluginAdminPermissionError as e:
+            return jsonify({"code": 403, "message": str(e)}), 403
+        if not ok:
+            return jsonify({"code": 404, "message": data}), 404
+        return jsonify({"code": 200, **data})
 
     @app.route('/api/admin/plugins/<plugin_name>/update', methods=['POST'])
     @admin_api
     def update_plugin(plugin_name):
-        """更新插件包（.zip：plugin.json + 主.py + 可选 templates/static）"""
+        """更新插件包（v4.15 服务层：core/plugin_admin.update_from_package）"""
         if 'file' not in request.files:
             return jsonify({"code": 400, "message": "缺少插件包文件"}), 400
 
@@ -244,66 +197,20 @@ def register(app):
         os.makedirs(global_var.UPLOAD_TEMP_DIR, exist_ok=True)
         file.save(temp_path)
         try:
-            desc = parse_plugin_pack(temp_path)
-            # 完整性校验（P2-4）
-            vres = verify_package(temp_path, 'backend')
-            if not vres['ok']:
-                return jsonify({"code": 400, "message": vres['message']}), 400
-            if vres.get('warn_only'):
-                logger.warning(vres['message'], extra={'plugin': 'system'})
-            # 校验包内插件名与目标一致
-            if desc['name'] != plugin_name:
-                return jsonify({
-                    "code": 400,
-                    "message": f"更新包插件名与当前插件不一致（包内: {desc['name']}，目标: {plugin_name}）"
-                }), 400
-            # 静态扫描门禁（v4.3.1）：更新同样过扫描
-            scan_report, scan_err = _scan_gate(temp_path, '插件更新', desc['name'])
-            if scan_err:
-                return scan_err
-
-            # 版本校验：新版本必须高于当前版本
-            current_version = next(
-                (p.get('version') for p in global_var.plugin_catalog if p.get('name') == plugin_name),
-                None
-            )
-            new_version = desc.get('version')
-            if current_version and new_version and compare_versions(str(new_version), str(current_version)) <= 0:
-                return jsonify({
-                    "code": 400,
-                    "message": f"更新包版本必须高于当前版本（当前: {current_version}，更新包: {new_version}）"
-                }), 400
-
-            # 安全解压覆盖（含模板/静态资源）；meta_override 落盘对齐后的描述
-            extract_plugin_pack(temp_path, plugin_name, meta_override=desc)
-            load_plugins()
-            logger.info(f"插件包 {plugin_name} 已更新至 v{new_version or '?'}", extra={'plugin': 'system'})
-            # 溯源：追加版本历史
-            _now = time.strftime('%Y-%m-%d %H:%M:%S')
-            _prev = global_var.plugin_status.get(plugin_name, {})
-            _hist = list(_prev.get('history', []))
-            _hist.append({'version': str(new_version or '?'), 'time': _now, 'source': temp_filename})
-            global_var.plugin_status[plugin_name] = {
-                'enabled': _prev.get('enabled', True),
-                'version': str(new_version or '?'),
-                'source': temp_filename,
-                'install_time': _prev.get('install_time', _now),
-                'history': _hist,
-            }
-            save_plugin_status()
-            log_audit('插件更新', plugin_name, 'ok', f"v{current_version}→v{new_version} 来源 {temp_filename}")
-            resp = {"code": 200, "message": f"插件 {plugin_name} 已更新"}
-            if scan_report is not None:
-                resp['scan'] = scan_report['summary']
-                if scan_report['scope']['paths_written'] or scan_report['scope']['network_endpoints']:
-                    resp['scan_scope'] = scan_report['scope']
-                _cr = scan_report.get('capabilities')
-                if _cr:
-                    resp['capabilities'] = {k: _cr[k] for k in
-                                            ('declared', 'missing', 'suggested') if _cr.get(k) is not None}
+            ok, msg, extra = update_from_package(temp_path, plugin_name,
+                                                 source_label=temp_filename)
+            if not ok:
+                if 'scan_report' in extra:
+                    return jsonify({"code": 400, "message": msg,
+                                    "scan_report": extra['scan_report']}), 400
+                return jsonify({"code": 400, "message": msg}), 400
+            resp = {"code": 200, "message": msg}
+            resp.update(extra)
             return jsonify(resp)
         except ValueError as e:
             return jsonify({"code": 400, "message": str(e)}), 400
+        except PluginAdminPermissionError as e:
+            return jsonify({"code": 403, "message": str(e)}), 403
         except Exception as e:
             logger.error(f"更新插件包失败: {str(e)}", extra={'plugin': 'system'})
             return jsonify({"code": 500, "message": f"更新失败: {str(e)}"}), 500
@@ -412,11 +319,24 @@ def register(app):
                     return scan_err
                 caps = {}
                 try:
-                    from core.plugin_scanner import read_pack_capabilities
+                    # 注意：read_pack_capabilities 定义于 core.capabilities（v4.15 修复
+                    # 误从 plugin_scanner 导入的既有 bug——ImportError 曾致 preview.capabilities 恒为空）
                     caps = read_pack_capabilities(temp_path) or {}
                 except Exception:
                     pass
                 cap_res = (scan_report or {}).get('capabilities') or {}
+                # v4.15：framework 域最高等级（core/manage/read/None）供安装警示条
+                framework_level = None
+                if caps:
+                    _fw_order = {'read': 1, 'manage': 2, 'core': 3}
+                    try:
+                        from core.capabilities import parse_capabilities as _parse_caps
+                        for _c in _parse_caps(caps).get('valid', []):
+                            if _c['domain'] == 'framework':
+                                if framework_level is None or _fw_order.get(_c['sub'], 0) > _fw_order.get(framework_level, 0):
+                                    framework_level = _c['sub']
+                    except Exception:
+                        pass
                 preview = {
                     'name': desc['name'],
                     'version': str(desc.get('version', '?')),
@@ -428,6 +348,7 @@ def register(app):
                     'dependencies': desc.get('dependencies', []),
                     'pip_dependencies': desc.get('pip_dependencies', []),
                     'capabilities': caps,
+                    'framework_level': framework_level,
                     'cap_ok': bool(cap_res.get('ok', True)),
                     'cap_missing': cap_res.get('missing', []) or [],
                     'scan_summary': (scan_report or {}).get('summary', {}),
@@ -435,38 +356,13 @@ def register(app):
                 }
                 return jsonify({"code": 200, "preview": preview, "preview_id": temp_filename})
 
-            # 完整性校验（P2-4 方案C：manifest 哈希清单 + 可选签名）
-            vres = verify_package(temp_path, 'backend')
-            if not vres['ok']:
-                return jsonify({"code": 400, "message": vres['message']}), 400
-            if vres.get('warn_only'):
-                logger.warning(vres['message'], extra={'plugin': 'system'})
-            # 静态扫描门禁（v4.3.1）：enforce 高风险拒绝 / report 附摘要
-            scan_report, scan_err = _scan_gate(temp_path, '插件安装', desc['name'])
-            if scan_err:
-                return scan_err
-            plugin_name = desc['name']
-            plugin_file = os.path.join(global_var.BASE_DIR, 'plugins', f'{plugin_name}.py')
-
-            if os.path.exists(plugin_file):
-                return jsonify({"code": 400, "message": f"插件 {plugin_name} 已存在，如需更新请使用更新功能"}), 400
-
-            # 安全解压到对应位置（含模板/静态资源）；meta_override 落盘对齐后的描述
-            extract_plugin_pack(temp_path, plugin_name, meta_override=desc)
-            # 自动重载插件
-            load_plugins()
-            logger.info(f"新插件包 {plugin_name} v{desc.get('version', '?')} 已上传并加载", extra={'plugin': 'system'})
-            # 溯源：记录来源/安装时间/版本历史（与启用状态共存于 status.json）
-            _now = time.strftime('%Y-%m-%d %H:%M:%S')
-            global_var.plugin_status[plugin_name] = {
-                'enabled': True,
-                'version': str(desc.get('version', '?')),
-                'source': temp_filename,
-                'install_time': _now,
-                'history': [{'version': str(desc.get('version', '?')), 'time': _now, 'source': temp_filename}],
-            }
-            save_plugin_status()
-            log_audit('插件安装', plugin_name, 'ok', f"v{desc.get('version', '?')} 来源 {temp_filename}")
+            # v4.15 服务层安装（完整门禁：完整性校验 + 静态扫描 + capabilities 交叉校验）
+            ok, msg, extra = install_from_package(temp_path, source_label=temp_filename)
+            if not ok:
+                if 'scan_report' in extra:
+                    return jsonify({"code": 400, "message": msg,
+                                    "scan_report": extra['scan_report']}), 400
+                return jsonify({"code": 400, "message": msg}), 400
             # 确认安装成功 → 清理预览临时文件
             if is_confirm:
                 try:
@@ -474,15 +370,8 @@ def register(app):
                         os.remove(temp_path)
                 except Exception:
                     pass
-            resp = {"code": 200, "message": f"插件 {plugin_name} 上传成功，已自动加载"}
-            if scan_report is not None:
-                resp['scan'] = scan_report['summary']
-                if scan_report['scope']['paths_written'] or scan_report['scope']['network_endpoints']:
-                    resp['scan_scope'] = scan_report['scope']
-                _cr = scan_report.get('capabilities')
-                if _cr:
-                    resp['capabilities'] = {k: _cr[k] for k in
-                                            ('declared', 'missing', 'suggested') if _cr.get(k) is not None}
+            resp = {"code": 200, "message": msg + "，已自动加载"}
+            resp.update(extra)
             return jsonify(resp)
         except ValueError as e:
             # v4.12.2 安全修复（F6）：校验失败同样清理临时文件（含 preview/confirm 失败残留）

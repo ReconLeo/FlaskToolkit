@@ -40,6 +40,8 @@ CORE_FILES = [
     'core/plugin_cache.py', 'core/plugin_status.py',
     # v4.9.0 i18n + v4.9.1 配额声明
     'core/i18n.py', 'core/quota.py',
+    # v4.15.0 Root 权限域 + 插件级更新源（routes/admin 顶层引用，缺失则 admin 路由 import 崩）
+    'core/plugin_admin.py', 'core/plugin_updates.py',
     'plugins/__init__.py', 'plugins/base_plugin.py',
     'plugins/auth.py', 'plugins/user_manage.py',
 ]
@@ -52,6 +54,12 @@ REQUIRED_DEPS = ['flask', 'flask_cors', 'apscheduler', 'watchdog']
 
 # 首次启动标记文件
 MARKER_FILE = os.path.join(global_var.BASE_DIR, 'data', '.initialized')
+
+# 时区数据自检：APScheduler 3.11 起改用标准库 zoneinfo（不再依赖 pytz），
+# Windows 平台 zoneinfo 需 tzdata 包提供 IANA 时区库；缺失时 app.py 创建
+# BackgroundScheduler(timezone=TIMEZONE) 会在 import 阶段抛 ZoneInfoNotFoundError 使启动崩溃。
+# 故此处用与 app.py 相同的 TIMEZONE 主动探测，缺失即在自检阶段致命报错（而非启动后才崩）。
+_TZ_PROBE = getattr(global_var, 'TIMEZONE', 'Asia/Shanghai')
 
 
 def is_first_run() -> bool:
@@ -73,6 +81,15 @@ def _severity_check() -> list:
             importlib.import_module(dep)
         except ImportError:
             issues.append(f"依赖缺失: {dep}（请执行 pip install -r requirements.txt）")
+    # v4.15.0：时区数据可用性探测（Windows 需 tzdata；缺失时启动创建 scheduler 即崩，故在自检阶段捕获）
+    try:
+        from zoneinfo import ZoneInfo
+        ZoneInfo(_TZ_PROBE)
+    except Exception as e:
+        issues.append(
+            f"时区数据不可用: 无法解析时区 {_TZ_PROBE!r}（{e}）。"
+            "Windows 平台请 pip install tzdata（requirements.txt 已包含 tzdata==2026.3）"
+        )
     return issues
 
 

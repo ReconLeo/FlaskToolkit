@@ -352,6 +352,91 @@ check("F5 数据落在隔离目录自属路径",
 check("F6 真实项目 hello_plugin 数据未污染",
       not os.path.isfile(os.path.join(REAL_BASE, 'plugins', 'data', 'hello_plugin', 'visits.json')))
 
+# ============ G. v4.15 framework 域与核心路径收紧 ============
+
+# G1 framework 三档解析合法
+_fw = C.parse_capabilities(['framework:read', 'framework:manage', 'framework:core'])
+check("G1 framework 三档 valid",
+      [c['raw'] for c in _fw['valid']] == ['framework:read', 'framework:manage', 'framework:core']
+      and not _fw['errors'], f"{_fw}")
+
+# G2 framework 非法项拒绝（未知 sub / 带参数 / 无 sub）
+_fw2 = C.parse_capabilities(['framework:root', 'framework:core:x', 'framework'])
+check("G2 framework 非法项 errors=3", len(_fw2['errors']) == 3 and not _fw2['valid'],
+      f"valid={_fw2['valid']} errors={_fw2['errors']}")
+
+# G3 core 隐含 manage/read（运行时授权）
+C.register_capabilities('root_demo', ['framework:core'])
+check("G3 core 隐含 manage/read",
+      C.check_framework('root_demo', 'core')[0]
+      and C.check_framework('root_demo', 'manage')[0]
+      and C.check_framework('root_demo', 'read')[0],
+      '')
+C.register_capabilities('mgr_demo', ['framework:manage'])
+check("G4 manage 不含 core，含 read",
+      C.check_framework('mgr_demo', 'manage')[0]
+      and C.check_framework('mgr_demo', 'read')[0]
+      and not C.check_framework('mgr_demo', 'core')[0],
+      '')
+
+# G5 filesystem:write 核心路径收紧（拒绝并提示 framework:core）
+_fw3 = C.parse_capabilities(['filesystem:write:core/network.py',
+                             'filesystem:write:data/user_config.json',
+                             'filesystem:write:plugins/other.py',
+                             'filesystem:write:app.py'])
+check("G5 filesystem:write 核心路径收紧=4",
+      len(_fw3['errors']) == 4 and not _fw3['valid']
+      and all('framework:core' in e['reason'] for e in _fw3['errors']),
+      f"errors={[e['reason'] for e in _fw3['errors']]}")
+
+# G6 filesystem:read 核心路径不收紧（只读允许）；自属/插件内容目录不受限
+_fw4 = C.parse_capabilities(['filesystem:read:core/', 'filesystem:write:plugins/data/myp/'])
+check("G6 读核心允许 + 自属目录写不受限",
+      len(_fw4['valid']) == 2 and not _fw4['errors'], f"{_fw4}")
+
+# G7 cross_validate：framework:core 隐式覆盖核心路径写（扫描事实不 missing）
+_scan = {'scope': {'paths_written': ['core/network.py'], 'paths_read': [],
+                   'network_endpoints': []}, 'findings': [], 'summary': {'high': 0}}
+_cv = C.cross_validate('root_demo', _scan, ['framework:core'])
+check("G7 framework:core 覆盖核心写 → ok",
+      _cv['ok'] and not _cv['missing'], f"missing={_cv['missing']}")
+_cv2 = C.cross_validate('no_root', _scan, [])
+check("G8 无 root 声明写核心 → missing",
+      not _cv2['ok'] and any('core/network.py' in m for m in _cv2['missing']),
+      f"missing={_cv2['missing']}")
+
+# G9 运行时 check_filesystem：声明 core 写核心放行 / 未声明拒绝 / manage 不覆盖
+C.register_capabilities('mgr_only', ['framework:manage'])
+check("G9 core 声明写核心放行", C.check_filesystem('root_demo', 'core/network.py', 'w') == (True, 'declared:framework:core'), '')
+check("G10 manage 写核心拒绝", C.check_filesystem('mgr_only', 'core/network.py', 'w')[0] is False, '')
+check("G11 未注册写核心拒绝", C.check_filesystem('ghost', 'core/network.py', 'w')[0] is False, '')
+check("G12 core 写自属 data 仍隐式豁免",
+      C.check_filesystem('root_demo', 'plugins/data/root_demo/x.json', 'w') == (True, 'implicit-grant'), '')
+
+# G13 is_framework_core_path 边界：插件内容目录/自属目录非核心
+for _p, _exp in [('templates/plugins/x/a.html', False),
+                 ('templates/frontend_tools/x/', False),
+                 ('plugins/data/x/y', False),
+                 ('plugins/configs/x.json', False),
+                 ('data/stats.json', False),
+                 ('core/network.py', True),
+                 ('templates/admin/dashboard.html', True),
+                 ('static/css/main.css', True),
+                 ('plugins/status.json', True)]:
+    pass
+check("G13 核心路径边界判定",
+      C.is_framework_core_path('templates/plugins/x/a.html') is False
+      and C.is_framework_core_path('templates/frontend_tools/x/') is False
+      and C.is_framework_core_path('plugins/data/x/y') is False
+      and C.is_framework_core_path('plugins/configs/x.json') is False
+      and C.is_framework_core_path('data/stats.json') is False
+      and C.is_framework_core_path('core/network.py') is True
+      and C.is_framework_core_path('templates/admin/dashboard.html') is True
+      and C.is_framework_core_path('static/css/main.css') is True
+      and C.is_framework_core_path('plugins/status.json') is True
+      and C.is_framework_core_path('plugins/other.py') is True,
+      '')
+
 # ============ 汇总 ============
 n_pass = sum(1 for _, c, _ in results if c)
 n_fail = len(results) - n_pass

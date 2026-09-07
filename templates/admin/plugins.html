@@ -21,6 +21,7 @@
         <a class="btn btn-info" href="/admin/system">⚙️ 系统管理</a>
         <button class="btn btn-danger" onclick="openResetModal()">♻️ 恢复出厂设置</button>
         <button class="btn btn-primary" onclick="loadPlugins()">🔄 刷新</button>
+        <button class="btn btn-info" onclick="checkPluginUpdates(true)">⬆ 检查插件更新</button>
     </div>
 </div>
 
@@ -133,6 +134,7 @@
 
     const UPLOAD_MAX_SIZE = 10 * 1024 * 1024; // 与服务端 PACKAGE_MAX_UPLOAD_SIZE 一致（10MB）
     let currentPreviewId = null;   // v4.10 安装前预览：确认安装时回传的预览文件标识
+    let pluginUpdates = {};        // v4.15 插件级更新源：checkPluginUpdates 结果缓存（name → result）
 
     function escapeHtml(s) {
         return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
@@ -200,6 +202,64 @@
     }
 
     // ==================== 插件列表 ====================
+    // ==================== v4.15 Root 徽章 / 插件更新源 ====================
+    function pluginFrameworkBadge(plugin) {
+        const caps = plugin.capabilities || [];
+        const raw = Array.isArray(caps) ? caps : Object.keys(caps);
+        if (raw.some(c => String(c).startsWith('framework:core'))) {
+            return '<span class="badge badge-red" style="margin-left:8px;" title="声明 Root 权限：可读写框架核心文件与全局状态">⚠️ Root</span>';
+        }
+        if (raw.some(c => String(c).startsWith('framework:manage'))) {
+            return '<span class="badge badge-orange" style="margin-left:8px;" title="声明插件管理权限：可程序化安装/更新/卸载插件">Manage</span>';
+        }
+        if (raw.some(c => String(c).startsWith('framework:read'))) {
+            return '<span class="badge badge-blue" style="margin-left:8px;" title="声明只读框架数据权限">Framework</span>';
+        }
+        return '';
+    }
+
+    function pluginUpdateBadge(plugin) {
+        const up = pluginUpdates[plugin.name];
+        if (up && up.available) {
+            return '<span class="badge badge-green" style="margin-left:8px;" title="' + escapeHtml((up.changes || '').slice(0, 120)) + '">⬆ v' + escapeHtml(up.latest_version) + ' 可更新</span>';
+        }
+        if (up && up.error && plugin.update_feed) {
+            return '<span class="badge badge-red" style="margin-left:8px;" title="' + escapeHtml(up.error) + '">更新源错误</span>';
+        }
+        return '';
+    }
+
+    async function checkPluginUpdates(force) {
+        try {
+            const resp = await fetch('/api/admin/plugins/check-updates', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ force: !!force })
+            });
+            const data = await resp.json();
+            if (data.code === 200) {
+                pluginUpdates = {};
+                (data.data || []).forEach(u => { pluginUpdates[u.name] = u; });
+                const avail = (data.data || []).filter(u => u.available);
+                if (avail.length) {
+                    showToast(avail.length + ' 个插件有可用更新', 'success');
+                } else if (!force) {
+                    showToast('插件更新检查完成（缓存结果）', 'success');
+                } else {
+                    showToast('所有已声明更新源的插件均为最新', 'success');
+                }
+                loadPlugins();
+            } else {
+                showToast('检查失败: ' + (data.message || '未知错误'), 'error');
+            }
+        } catch (e) {
+            showToast('检查失败: ' + e.message, 'error');
+        }
+    }
+
+    // 页面加载时静默检查一次（缓存 TTL 内不触发网络）
+    setTimeout(() => { checkPluginUpdates(false); }, 500);
+
     async function loadPlugins() {
         const container = document.getElementById('plugin-list');
         container.innerHTML = '<div class="loading">加载中...</div>';
@@ -233,6 +293,8 @@
                             ${plugin.type === 'frontend' ? '<span class="badge badge-blue" style="margin-left:8px;">前端工具</span>' : ''}
                             ${plugin.enabled ? '<span class="badge badge-green" style="margin-left:8px;">已启用</span>' : '<span class="badge badge-red" style="margin-left:8px;">已禁用</span>'}
                             ${plugin.loaded ? '<span class="badge badge-purple" style="margin-left:8px;">已加载</span>' : ''}
+                            ${pluginFrameworkBadge(plugin)}
+                            ${pluginUpdateBadge(plugin)}
                         </h3>
                         <div style="font-size:13px; color:#7f8c8d;">
                             标识符：${plugin.name} ｜ 分类：${plugin.category || '-'} ｜ 作者：${plugin.author || '-'} ｜
@@ -492,7 +554,17 @@
         const missingHtml = (pv.cap_missing && pv.cap_missing.length)
             ? '<div style="color:#e67e22;">未声明行为 ' + pv.cap_missing.length + ' 项: ' + escapeHtml(pv.cap_missing.slice(0, 6).join(', ')) + '</div>'
             : '';
+        // v4.15：framework 域高危警示条（core=红色强警示 / manage=橙色 / read=蓝色提示）
+        let fwHtml = '';
+        if (pv.framework_level === 'core') {
+            fwHtml = '<div style="background:#fdecea; border:1px solid #e74c3c; color:#c0392b; border-radius:6px; padding:8px 10px; margin-bottom:8px; font-weight:600;">⚠️ 本插件声明 <code>framework:core</code>（Root 权限）：可读写框架核心文件与全局状态，等同于授予管理员级系统权限。请确认来源可信，其造成的任何破坏由使用者自行承担（MIT 协议）。</div>';
+        } else if (pv.framework_level === 'manage') {
+            fwHtml = '<div style="background:#fef9e7; border:1px solid #e67e22; color:#b9770e; border-radius:6px; padding:8px 10px; margin-bottom:8px;">⚠️ 本插件声明 <code>framework:manage</code>：可程序化安装/更新/卸载其他插件（市场/管理类插件）。</div>';
+        } else if (pv.framework_level === 'read') {
+            fwHtml = '<div style="background:#eaf4fd; border:1px solid #3498db; color:#21618c; border-radius:6px; padding:8px 10px; margin-bottom:8px;">ℹ️ 本插件声明 <code>framework:read</code>：可读取框架级数据（配置/系统信息/插件元数据）。</div>';
+        }
         document.getElementById('upload-preview-content').innerHTML =
+            fwHtml +
             '<div><strong>' + escapeHtml(pv.title || pv.name) + '</strong> v' + escapeHtml(pv.version) +
             ' · 作者 ' + escapeHtml(pv.author) + ' · 权限 ' + escapeHtml(pv.permission) + '</div>' +
             '<div style="color:#7f8c8d; margin-top:2px;">' + escapeHtml(pv.description || '') + '</div>' +

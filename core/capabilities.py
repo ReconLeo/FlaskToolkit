@@ -25,6 +25,9 @@
     database:sqlite:<path>       / database:mysql:<host:port/db> / database:postgres:...
     device:serial:<port>         / device:print
     env:read:<pattern>           环境变量名前缀/通配
+    framework:read               只读框架级数据（配置/系统信息/插件元数据）
+    framework:manage             程序化插件管理（安装/更新/卸载/启停其他插件）
+    framework:core               读写框架核心文件与全局状态（Root，最高风险）
 """
 import json
 import os
@@ -36,7 +39,11 @@ import global_var  # 模块级导入（v4.4.0）：避免判定过程中延迟�
 # ------------------------------ 能力目录 ------------------------------
 
 KNOWN_DOMAINS = {'filesystem', 'network', 'webhook', 'process', 'scheduler',
-                 'database', 'device', 'env', 'storage'}
+                 'database', 'device', 'env', 'storage', 'framework'}
+
+# framework 域（v4.15）：Root 三档。core 隐含 manage、read；manage 隐含 read
+FRAMEWORK_SUBS = ('read', 'manage', 'core')
+_FRAMEWORK_LEVEL = {'read': 1, 'manage': 2, 'core': 3}
 
 # storage 域（v4.9.1）：存储空间授权声明 storage:limit:<size>
 # size 支持纯数字（MB）或带单位（mb/m/gb/g，大小写不敏感），须 > 0
@@ -84,6 +91,37 @@ def _rel_to_base(path, base_dir):
     if p.startswith(b + '/'):
         return p[len(b) + 1:]
     return p
+
+
+def is_framework_core_path(path, base_dir=None):
+    """路径是否命中框架核心（framework:core Root 域管辖范围）：框架代码/模板/静态/配置。
+
+    插件自属目录（plugins/data|temp|configs）与插件内容目录
+    （templates/plugins/、templates/frontend_tools/）不在此列（分别为隐式豁免与插件资产）。
+    相对/绝对路径均可判定（绝对路径先归一到 BASE_DIR 相对）。"""
+    p = _rel_to_base(path, base_dir or global_var.BASE_DIR)
+    if not p or p == '.':
+        return False
+    p = _norm_path(p).strip('/')
+    top = p.split('/')[0]
+    if p in ('app.py', 'global_var.py', 'requirements.txt', 'changelog.json',
+             'README.md', 'README.zh-CN.md', 'SECURITY.md'):
+        return True
+    if top in ('core', 'routes', 'static'):
+        return True
+    if top == 'templates':
+        # 框架模板为 Root 管辖；插件/前端工具内容目录豁免
+        return not (p.startswith('templates/plugins/') or p.startswith('templates/frontend_tools/'))
+    if p in ('data/user_config.json', 'data/frontend_tools.json', 'plugins/status.json'):
+        return True
+    if p == 'plugins' or p.startswith('plugins/'):
+        # plugins/ 下除自属豁免目录外均为受管核心（内置基类/鉴权 + 各插件主文件与描述文件）
+        if p.startswith('plugins/data/') or p.startswith('plugins/temp/'):
+            return False
+        if p.startswith('plugins/configs/'):
+            return False
+        return True
+    return False
 
 
 def is_implicit_grant(plugin_name, path, base_dir=None):
@@ -205,6 +243,13 @@ def parse_capabilities(caps):
         if dom == 'filesystem':
             ok = sub in ('read', 'write') and bool(param)
             reason = '须为 filesystem:read|write:<路径>'
+            if ok and sub == 'write' and is_framework_core_path(param):
+                # v4.15 收紧：写框架核心一律走 framework:core（Root），防 filesystem 域绕过
+                ok, reason = False, (f'路径 {param} 命中框架核心，写框架核心须声明 '
+                                     'framework:core（Root 权限）')
+        elif dom == 'framework':
+            ok = sub in FRAMEWORK_SUBS and not param
+            reason = f'须为 framework:{ "|".join(FRAMEWORK_SUBS) }（无参数）'
         elif dom == 'network':
             ok = sub in ('http', 'tcp', 'udp', 'server') and bool(param)
             reason = '须为 network:http|tcp|udp|server:<端点>'
@@ -290,6 +335,13 @@ def _has_fs_grant(valid, kind, path):
                for c in valid)
 
 
+def _has_framework(valid, level):
+    """valid 声明集中是否存在达到 level 的 framework 授权（core 隐含 manage/read）"""
+    need = _FRAMEWORK_LEVEL.get(level, 99)
+    return any(c['domain'] == 'framework'
+               and _FRAMEWORK_LEVEL.get(c['sub'], 0) >= need for c in valid)
+
+
 def cross_validate(plugin_name, scan_report, capabilities, base_dir=None):
     """安装链路交叉校验：扫描事实（scope/findings）× 声明白名单 → mismatch 清单。
 
@@ -320,6 +372,9 @@ def cross_validate(plugin_name, scan_report, capabilities, base_dir=None):
         for p in scope.get(key, []):
             if is_implicit_grant(plugin_name, p, base):
                 res['implicit_granted'].append(f'{kind}:{p}')
+                continue
+            # v4.15：framework:core 隐式覆盖框架核心路径的写（Root 授权，无需 filesystem 声明）
+            if kind == 'write' and is_framework_core_path(p, base) and _has_framework(valid, 'core'):
                 continue
             hit = [c for c in valid if c['domain'] == 'filesystem' and c['sub'] == kind
                    and match_path_decl(c['param'], p)]
@@ -434,15 +489,35 @@ def load_capabilities_from_desc(desc_path):
         return None
 
 
+def check_framework(plugin_name, level):
+    """运行时 framework 域授权判定（v4.15）：level ∈ read/manage/core；core 隐含 manage、read。
+    供服务层接口（插件管理）与审计联动使用；未注册/未声明 → 拒绝（fail-closed）。"""
+    caps = _REGISTRY.get(str(plugin_name))
+    if not caps:
+        return False, 'no-capability-set'
+    need = _FRAMEWORK_LEVEL.get(level, 99)
+    for c in caps['valid']:
+        if c['domain'] == 'framework' and _FRAMEWORK_LEVEL.get(c['sub'], 0) >= need:
+            return True, f'declared:{c["raw"]}'
+    return False, 'not-declared'
+
+
 def check_filesystem(plugin_name, path, mode='r', base_dir=None):
     """运行时授权判定（阶段三审计钩子契约）：返回 (allowed, reason)。
-    先判自属路径隐式豁免，再查声明白名单；未注册/未声明 → 拒绝（fail-closed）。"""
+    先判自属路径隐式豁免，再查声明白名单；未注册/未声明 → 拒绝（fail-closed）。
+    v4.15：framework:core 声明对框架核心路径的写为隐式授权（Root）。"""
     if is_implicit_grant(plugin_name, path, base_dir):
         return True, 'implicit-grant'
     caps = _REGISTRY.get(str(plugin_name))
     if not caps:
         return False, 'no-capability-set'
     kind = 'write' if any(c in (mode or 'r') for c in 'wax+') else 'read'
+    if kind == 'write' and is_framework_core_path(path, base_dir):
+        # 核心路径写仅 Root 授权（framework:core）；普通 filesystem 声明不覆盖
+        for c in caps['valid']:
+            if c['domain'] == 'framework' and c['sub'] == 'core':
+                return True, 'declared:framework:core'
+        return False, 'framework-core-not-declared'
     for c in caps['valid']:
         if c['domain'] == 'filesystem' and c['sub'] == kind and match_path_decl(c['param'], path):
             return True, f'declared:{c["raw"]}'
