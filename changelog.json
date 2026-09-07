@@ -1,12 +1,12 @@
 {
-  "latest_version": "4.12.2",
+  "latest_version": "4.13.0",
   "published_at": "2026-09-07",
-  "download_url": "https://github.com/ReconLeo/FlaskToolkit/releases/download/v4.12.2/FlaskToolkit-4.12.2-runtime.zip",
-  "sha256": "c7af39085faebc7d05444f16724c0c1a1d1c4550f01f58fc58c2217b316eeacd",
+  "download_url": "https://github.com/ReconLeo/FlaskToolkit/releases/download/v4.13.0/FlaskToolkit-4.13.0-runtime.zip",
+  "sha256": "a6616e67f56d7ed795be84ae612dd342c949fb81c58e33c173ec3fb3525e8f37",
   "changes": [
-    "安全修复：上传临时文件防线（F6）——preview/confirm 失败分支统一清理临时包（except 分支 _safe_remove_temp），堵死反复失败上传导致 temp 无限累积写盘",
-    "安全修复：preview 文件 TTL 防护——超过 30 分钟未确认安装的 preview_ 临时包在每次上传入口顺带清理",
-    "安全修复：preview_id 路径穿越封堵（F12，P1）——严格 uuid 格式校验 ^preview_[0-9a-f]{32}\\.zip$，preview_../../ 类请求直接 400",
-    "测试固化：test_admin_api 62→69 项（失败上传无残留/伪造 preview_id/穿越 400/过期 preview TTL 清理）；评估测试残留（12 个无效 zip + echo_upload 插件 313MB）已清理"
+    "前端页面移动端适配（Mobile & Tablet）：公开页面与后台管理页响应式翻修——新增 static/css/mobile.css 与 admin-mobile.css（与原有样式分开创建，不修改原 CSS），支持刘海屏安全区（viewport-fit=cover + env(safe-area-inset)）、44px 触摸目标、480px/768px 响应式断点、stats-grid 窄屏单列、模态框窄屏全屏化、toast 顶部通栏",
+    "JS 增强层（static/js/mobile.js，IIFE 四件套）：表格自动包裹 .table-scroll 滚动容器（防重复：已包裹/嵌套表格/已在容器内跳过）、首页导航 ☰ 汉堡菜单（点击外部关闭）、窄屏模态框 .mobile-full 全屏类、窄屏 body.mobile-narrow 通栏类；媒体查询变化自动重应用 + MutationObserver 兜底动态渲染的表格/弹窗",
+    "模板注入（幂等）：14 个框架模板（含 admin/base.html）统一追加 viewport-fit=cover、mobile.css/admin-mobile.css link 与 mobile.js script；五个示例插件各自新增独立移动端 CSS（corp_tools/multitool_demo/hello_plugin/async_file_demo/dashboard_demo），11 个示例模板引入",
+    "验证：浏览器端到端（首页/登录/后台 dashboard/统计页/系统管理页）确认资源注入与表格包裹 100% 生效、无 JS 错误；全量回归 32 脚本 869 项 0 失败"
   ]
 }

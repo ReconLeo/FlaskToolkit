@@ -1,0 +1,84 @@
+/* ============================================================
+   FlaskToolkit v4.13.0 — Mobile & Tablet 适配（后台管理页）
+   后台样式位于 templates/admin/base.html 内联 <style>，本文件独立覆盖，
+   不修改原内联样式。引入：templates/admin/base.html </head> 前追加
+   <link rel="stylesheet" href="/static/css/admin-mobile.css">
+   依赖：static/js/mobile.js
+   ============================================================ */
+
+/* ---------- 触摸目标 ---------- */
+@media (max-width: 768px) {
+    .nav-menu a, .btn, .modal .modal-content button {
+        min-height: 44px;
+        box-sizing: border-box;
+    }
+    .btn { display: inline-flex; align-items: center; justify-content: center; }
+}
+
+/* ---------- 导航（窄屏：菜单换行 + 横向滚动保持，间距加大） ---------- */
+@media (max-width: 768px) {
+    .navbar { padding: 8px 12px; }
+    .navbar-left { flex-wrap: wrap; }
+    .nav-menu { order: 3; width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .nav-menu a { padding: 10px 12px; white-space: nowrap; }
+    .navbar-right { margin-left: auto; }
+}
+
+/* ---------- 主区域与卡片 ---------- */
+@media (max-width: 768px) {
+    .main { padding: 12px; }
+    .card, .panel { padding: 14px; }
+    .page-title { font-size: 20px; }
+}
+
+/* ---------- 统计栅格 ---------- */
+@media (max-width: 480px) {
+    .stats-grid { grid-template-columns: 1fr !important; } /* 覆盖 base 768px 两列 */
+}
+
+/* ---------- 表格（配合 mobile.js 自动包裹 .table-scroll） ---------- */
+.table-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    max-width: 100%;
+}
+.table-scroll table { min-width: 100%; }
+.table-scroll th, .table-scroll td { white-space: nowrap; }
+
+/* ---------- 模态框：窄屏全宽化（配合 mobile.js 加 .mobile-full） ---------- */
+.modal-content.mobile-full {
+    width: 100%;
+    max-width: none;
+    border-radius: 0;
+    min-height: 100vh;
+    margin: 0;
+    box-sizing: border-box;
+    padding: 18px 16px calc(18px + env(safe-area-inset-bottom, 0px));
+}
+
+/* ---------- toast：窄屏顶部通栏（配合 mobile.js 的 body.mobile-narrow） ---------- */
+body.mobile-narrow .toast {
+    top: 8px;
+    right: 8px;
+    left: 8px;
+    width: auto;
+    max-width: none;
+    font-size: 14px;
+    border-radius: 8px;
+    z-index: 10000;
+}
+
+/* ---------- 二维码 / 地址卡（network 页） ---------- */
+@media (max-width: 480px) {
+    .qrcode-area canvas { max-width: 100%; height: auto !important; }
+    .addr-card { word-break: break-all; }
+}
+
+/* ---------- 登录强制改密弹窗（base 内嵌） ---------- */
+@media (max-width: 480px) {
+    .modal-content[style*="max-width:420px"] {
+        max-width: calc(100% - 24px) !important;
+        margin: 12px auto;
+        border-radius: 10px;
+    }
+}

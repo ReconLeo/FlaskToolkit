@@ -3,6 +3,19 @@
 > 版本特性与演进史（来龙去脉）见 [Flask插件框架-版本演进记录.md](Flask插件框架-版本演进记录.md)；
 > 下方为各版本变更说明（按时间倒序）。
 
+## 版本：v4.13.0（Mobile & Tablet：移动端与平板适配） | 更新日期：2026年09月07日
+
+### 版本说明（v4.13.0 变更）
+
+**主题：框架前端页面与示例插件 CSS 移动端翻修**——针对 Mobile / Tablets 设备的显示适配问题，优化用户在移动设备上的体验。核心原则：**新增 CSS 与原有 CSS 分开创建，不修改原样式**。
+
+1. **公开页面移动端适配（static/css/mobile.css）**：新增独立样式表，与 main.css / error.css 分开维护。包含：刘海屏安全区（viewport-fit=cover + env(safe-area-inset) 变量）、触摸目标 ≥44px、表格自动包裹滚动容器（.table-scroll）、首页导航汉堡菜单（.nav-toggle）、480px / 768px 响应式断点。
+2. **后台管理页移动端适配（static/css/admin-mobile.css）**：stats-grid 窄屏单列、模态框窄屏全屏化（.mobile-full）、toast 窄屏顶部通栏（body.mobile-narrow）、导航汉堡入口。
+3. **JS 增强层（static/js/mobile.js，IIFE 四件套）**：① wrapTables——表格自动包裹 .table-scroll 滚动容器（防重复：已包裹 / 嵌套表格 / 已在容器内跳过）；② setupBurger——首页导航注入 ☰ 汉堡按钮（点击切换 nav-open，点击外部关闭）；③ setupModalFull——≤480px 模态框加 .mobile-full 全屏类；④ setupToast——≤768px body 加 .mobile-narrow 通栏类。媒体查询变化自动重应用 + MutationObserver 兜底动态渲染的表格 / 弹窗。
+4. **模板注入（幂等）**：14 个框架模板（含 admin/base.html）统一追加 viewport-fit=cover、mobile.css / admin-mobile.css link 与 mobile.js script；示例插件 11 个模板引入各自 *_mobile.css。
+5. **示例插件移动端样式**：五个示例插件各自新增独立移动端 CSS——corp_tools（corp_mobile.css）、multitool_demo（demo_mobile.css）、hello_plugin（hello_mobile.css）、async_file_demo（async_mobile.css）、dashboard_demo 前端工具（dashboard_mobile.css）。
+6. **验证**：浏览器端到端（首页 / 登录 / 后台 dashboard / 统计页 / 系统管理页）确认资源注入与表格包裹 100% 生效、无 JS 错误；全量回归 32 脚本 0 失败（869 项口径）。
+
 ## 版本：v4.12.2（安全修复：上传临时文件防线） | 更新日期：2026年09月07日
 
 ### 版本说明（v4.12.2 变更）
@@ -160,6 +173,7 @@
 
 | 版本 | 日期 | 主题 | 提交 |
 |------|------|------|------|
+| **v4.13.0** | 2026-09-07 | Mobile & Tablet：移动端与平板适配（mobile.css / admin-mobile.css / mobile.js 四件套 + 示例插件移动端样式，与原有 CSS 分开创建） | TBD |
 | **v4.12.2** | 2026-09-07 | 安全修复：上传临时文件防线（F6 失败分支清理 + preview TTL 30min + F12 preview_id 路径穿越封堵） | 84c17ed |
 | **v4.12.1** | 2026-09-06 | Secure 修复：登录回归 F10（Cookie Secure 判定跟随请求实际协议）+ 压力/多机归因评估落地（test_server 脚手架 + 评估报告） | 786ae5d |
 | **v4.12.0** | 2026-09-06 | Secure：安全传输（HTTP→HTTPS 跳转 / Cookie Secure 自动 / 反代支持 / 桌面启动器 HTTPS） | 2b3762c |

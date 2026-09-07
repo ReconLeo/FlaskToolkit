@@ -2,7 +2,7 @@
 <html lang="{{ lang }}">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>{% block title %}{{ system_name }} · {{ t('管理后台') }}{% endblock %}</title>
     <style>
         * {
@@ -336,6 +336,7 @@
         }
     </style>
     {% block head %}{% endblock %}
+    <link rel="stylesheet" href="/static/css/admin-mobile.css">
 </head>
 <body>
     <nav class="navbar">
@@ -497,5 +498,6 @@
         document.addEventListener('DOMContentLoaded', checkMustChangePwd);
     </script>
     {% block scripts %}{% endblock %}
+    <script src="/static/js/mobile.js"></script>
 </body>
 </html>

@@ -52,7 +52,9 @@
 
 | 版本 | 状态 |
 |------|------|
-| **v4.12.2（当前）** | 安全修复：上传临时文件防线——F6 失败分支统一清理（preview/confirm 失败残留）+ preview 文件 TTL 30min 防写盘累积 + F12 preview_id 路径穿越封堵（严格 uuid 格式校验）+ test_admin_api 62→69 项 |
+| **v4.13.0（当前）** | Mobile & Tablet 移动端与平板适配：公开页面 + 后台管理页响应式翻修（static/css/mobile.css + admin-mobile.css 与原有样式分开创建，支持刘海屏安全区 viewport-fit=cover + 44px 触摸目标 + 480/768 断点）+ JS 增强层（static/js/mobile.js 四件套：表格自动包裹 .table-scroll / 首页汉堡菜单 / 窄屏模态框全屏 / toast 顶部通栏，MutationObserver 兜底）+ 14 框架模板幂等注入（viewport-fit + link/script）+ 五个示例插件各自 *_mobile.css（11 模板引入）；浏览器端到端验证通过，回归 32 脚本 869 项 |
+| v4.14（规划中） | 后端框架层访问 UA 检测：按统计 IP 访问与设备类型（可精确追溯单个插件 API），统计页展出 |
+| v4.12.2（已完成） | 安全修复：上传临时文件防线——F6 失败分支统一清理（preview/confirm 失败残留）+ preview 文件 TTL 30min 防写盘累积 + F12 preview_id 路径穿越封堵（严格 uuid 格式校验）+ test_admin_api 62→69 项 |
 | v4.12.1（已完成） | Secure 修复：P1 登录回归 F10（is_secure_cookie_mode 跟随 request.scheme，http 直连不再被 EXTERNAL_SCHEME 联动丢 Secure cookie）+ 压力与多机归因评估（阶段3/4：并发/大文件/12h 长稳/多机 IP 归因 R6 闭环；test_server 脚手架入库；发现 F6 临时文件残留/F7 threaded 假死/F9 请求体上限语义/F11 Nginx 上限） |
 | v4.12.0（已完成） | Secure 安全传输：框架自身 HTTP→HTTPS 自动跳转（core/network.start_http_redirect 308 保留 POST，主端口+1 跳转端口）+ SESSION_COOKIE_SECURE 自动配置（None=自动：HTTPS/反代自动 true、纯 HTTP 自动 false，可显式强制）+ config.py SSL 配对提示与 HTTPS 状态检查 + 桌面启动器 HTTPS 复选框与证书自动生成（ensure_https_cert + --https）+ 反代支持归档（TRUST_PROXY_HEADERS ProxyFix / EXTERNAL_SCHEME / EXTERNAL_HOST / EXTERNAL_PORT / validate_ssl_cert / mDNS 提示插值）；回归 32 脚本 807 项 |
 | v4.11.0（已完成） | Reachability 网络可达：地址中心（core/network.py 局域网 IP/绑定/端口三级优先/访问地址组合去重）+ mDNS 服务注册（core/mdns.py 可选依赖 zeroconf，flasktoolkit.local 稳定可达）+ 后台『网络与访问』页（地址列表/复制/二维码/共享开关/mDNS 开关/IP 检测间隔，qrcodejs 离线内置）+ 启动横幅播报访问地址 + IP 变化检测（core/ip_watcher.py 快照比较 + 日志告警）+ 桌面启动器（tools/desktop_launcher.py tkinter GUI：启动/停止/本机·局域网切换/复制地址，subprocess 解耦不 import 框架核心）；回归 32 脚本 779 项 |

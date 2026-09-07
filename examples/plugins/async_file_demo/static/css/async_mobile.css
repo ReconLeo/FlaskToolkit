@@ -1,0 +1,8 @@
+/* async_file_demo 移动端适配（v4.13.0，与原内联样式分开维护） */
+@media (max-width: 768px) {
+    body { padding: 12px; }
+    .card { padding: 16px; }
+    .page-title { font-size: 19px; }
+    .drop-zone { padding: 20px; }
+    button { min-height: 44px; width: 100%; font-size: 15px; }
+}

@@ -1,0 +1,18 @@
+/* corp_tools 移动端适配（v4.13.0，与 corp.css 分开维护） */
+@media (max-width: 768px) {
+    body { padding: 12px; }
+    .corp-overview { flex-wrap: wrap; gap: 12px; }
+    .corp-cards { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+    .corp-card { padding: 14px; }
+    .corp-form input, .corp-form textarea, .corp-form select {
+        font-size: 16px; min-height: 44px; box-sizing: border-box;
+    }
+    .corp-form button { align-self: stretch; min-height: 44px; font-size: 15px; }
+    .corp-links-group a { padding: 10px 14px; margin: 4px 6px 4px 0; }
+    .corp-notice .notice-del { min-height: 36px; padding: 6px 12px; }
+    .corp-header h1 { font-size: 22px; }
+}
+@media (max-width: 480px) {
+    .corp-health { grid-template-columns: 1fr; }
+    .corp-stat-num { font-size: 22px; }
+}

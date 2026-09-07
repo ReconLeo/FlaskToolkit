@@ -1,0 +1,13 @@
+/* dashboard_demo 移动端适配（v4.13.0，与 dashboard.css 分开维护） */
+@media (max-width: 768px) {
+    body { padding: 12px; }
+    .page-header { padding: 16px; }
+    .card { padding: 16px; }
+    .stat-card { min-width: calc(50% - 8px); }
+}
+@media (max-width: 480px) {
+    .cards { gap: 10px; }
+    .stat-card { min-width: 100%; }
+    button { min-height: 44px; width: 100%; font-size: 15px; }
+    .page-title { font-size: 19px; }
+}

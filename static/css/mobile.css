@@ -1,0 +1,115 @@
+/* ============================================================
+   FlaskToolkit v4.13.0 — Mobile & Tablet 适配（公开页面）
+   与 static/css/main.css / error.css 分开维护，不修改原样式。
+   引入：公开模板（首页/登录/注册/setup/插件调试/错误页）</head> 前追加
+   <link rel="stylesheet" href="/static/css/mobile.css">
+   依赖：static/js/mobile.js（表格包裹 / 汉堡菜单 / 模态框 / toast 定位）
+   ============================================================ */
+
+/* ---------- 基础：安全区 + 防 iOS 聚焦缩放 ---------- */
+html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+}
+body {
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-left: env(safe-area-inset-left, 0px);
+    --safe-right: env(safe-area-inset-right, 0px);
+    padding-top: var(--safe-top);
+    padding-bottom: var(--safe-bottom);
+}
+
+/* 触摸目标 ≥44px（移动端常用） */
+@media (max-width: 768px) {
+    .btn, .auth-btn, .pwd-toggle, .nav-menu a, .toolbar select,
+    .toolbar input, .search-box input, .history-panel summary {
+        min-height: 44px;
+        box-sizing: border-box;
+    }
+    .btn { display: inline-flex; align-items: center; justify-content: center; }
+    .toolbar select, .toolbar input, .search-box input {
+        font-size: 16px; /* 防 iOS 聚焦自动缩放 */
+    }
+}
+
+/* ---------- 表格横向滚动（配合 mobile.js 自动包裹 .table-scroll） ---------- */
+.table-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    max-width: 100%;
+}
+.table-scroll table { min-width: 100%; }
+.history-table th, .history-table td { white-space: nowrap; }
+
+/* ---------- 汉堡菜单（配合 mobile.js：窄屏自动注入 .nav-toggle） ---------- */
+.nav-toggle {
+    display: none;
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    color: #fff;
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+    min-width: 44px;
+    min-height: 44px;
+}
+@media (max-width: 640px) {
+    .nav-toggle { display: inline-flex; align-items: center; justify-content: center; }
+    .navbar .container { flex-wrap: wrap; }
+    .navbar-right {
+        flex-basis: 100%;
+        display: none;               /* 默认折叠，.nav-open 展开 */
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+        padding: 10px 0;
+        border-top: 1px solid rgba(255, 255, 255, 0.15);
+        margin-top: 8px;
+    }
+    .navbar.nav-open .navbar-right { display: flex; }
+    .navbar-right .user-info { justify-content: flex-start; }
+    .navbar-right .auth-btn { text-align: center; }
+}
+
+/* ---------- 首页：工具条与卡片 ---------- */
+@media (max-width: 480px) {
+    .container { padding: 0 12px; }
+    .toolbar-count { width: 100%; text-align: left; }
+    .tool-card { padding: 16px; }
+    .tool-title { font-size: 16px; }
+    .tool-description { min-height: 0; font-size: 13px; }
+    .category-title { font-size: 19px; }
+    .empty-state { padding: 40px 12px; }
+    .page-header h1 { font-size: 20px; }
+}
+
+/* ---------- 登录 / 注册 / setup：窄屏卡片全宽 ---------- */
+@media (max-width: 480px) {
+    .auth-card { padding: 22px 18px; }
+    .auth-title { font-size: 20px; }
+    .form-item { margin-bottom: 14px; }
+    .input-wrap input { font-size: 16px; }
+}
+
+/* ---------- 裸插件调试页（plugin_default） ---------- */
+@media (max-width: 768px) {
+    .api-path { word-break: break-all; }
+    .request-url { word-break: break-all; }
+    .result { font-size: 12px; padding: 10px; }
+    .result-toolbar { flex-wrap: wrap; }
+    .param-input textarea { min-height: 48px; }
+    .history-path { max-width: 160px; }
+}
+
+/* ---------- 错误页（error.css 配套） ---------- */
+@media (max-width: 480px) {
+    .error-wrap { padding: 24px 16px; }
+}
+
+/* ---------- 平板（481-768px）细节 ---------- */
+@media (min-width: 481px) and (max-width: 768px) {
+    .tools-grid { grid-template-columns: repeat(2, 1fr); }
+}

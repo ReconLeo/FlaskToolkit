@@ -39,6 +39,7 @@ Kaleido 同样开源（自托管题库系统）：[github.com/ReconLeo/Kaleido](
 | 补丁覆盖 | 2026-09-06 | tools 运维工具适配 v4.9 结构 + v4.9.2 覆盖发布 | `73c6a9f` `ee3e23d` `612c565` |
 | **v4.10.0** | 2026-09-06 | Accessibility 能力可达性：pip 依赖独立声明 + 能力清单确认 + 调试页权限修正/API 文档增强 + 首次运行向导/强制改密 + 邀请码自助注册 + 脚手架/离线安装卸载 + 单插件空间清理 | `e26b25e`（M4）`2ecb8b7`（M5）`941ea66`（airdrop 移交）`32aa2ce`（M6）`9d3aaf4`（M6-Extra）`699fae0`（前端清理），tag `v4.10.0` |
 | **v4.11.0** | 2026-09-06 | Reachability 网络可达：地址中心（core/network.py）+ mDNS 服务注册（core/mdns.py 可选 zeroconf）+ 后台网络与访问页（二维码/共享/mDNS/IP 检测）+ 启动横幅播报 + IP 变化检测（core/ip_watcher.py）+ 桌面启动器（tools/desktop_launcher.py） | `e16e67b`（M1-M5）`4a76811`（文档），tag `v4.11.0` |
+| **v4.13.0** | 2026-09-07 | Mobile & Tablet 移动端与平板适配：公开页面 + 后台管理页响应式翻修（mobile.css / admin-mobile.css 与原有样式分开创建）+ JS 增强层四件套（mobile.js：表格自动包裹/汉堡菜单/模态框全屏/toast 通栏）+ 14 框架模板幂等注入 + 五个示例插件各自 *_mobile.css | TBD，tag `v4.13.0` |
 | **v4.12.2** | 2026-09-07 | 安全修复：上传临时文件防线——F6 失败分支统一清理（preview/confirm 失败残留）+ preview 文件 TTL 30min 防写盘累积 + F12 preview_id 路径穿越封堵（严格 uuid 格式校验）+ test_admin_api 62→69 项 | `84c17ed`，tag `v4.12.2` |
 | **v4.12.1** | 2026-09-06 | Secure 修复：P1 登录回归 F10（is_secure_cookie_mode 跟随 request.scheme）+ 压力与多机归因评估落地（test_server 脚手架 + 评估报告，R6 归因闭环） | `f8cfd21`（feat）`786ae5d`（docs），tag `v4.12.1` |
 | **v4.12.0** | 2026-09-06 | Secure 安全传输：HTTP→HTTPS 自动跳转（308 保留 POST）+ SESSION_COOKIE_SECURE 自动配置（None=自动）+ config.py SSL 配对提示/HTTPS 状态检查 + 桌面启动器 HTTPS 复选框与证书自动生成 + 反代支持归档（TRUST_PROXY_HEADERS / EXTERNAL_SCHEME / EXTERNAL_HOST / EXTERNAL_PORT） | `919cb0b` `d0ccec7`（阶段1-2）`2b3762c`（feat）`fbbc60a`（docs），tag `v4.12.0` |
@@ -179,6 +180,17 @@ P1 安全强化至此全部完成，形成纵深防御：**静态扫描 → 能�
 - **M4 桌面启动器 HTTPS**：`ensure_https_cert` 缺证书自动 subprocess 调 gen_cert.py 生成；GUI HTTPS 复选框（按现有配置预选）+ CLI `--https`；分享链接/横幅随 scheme 显示 https。
 - **反代支持归档**：`TRUST_PROXY_HEADERS`（ProxyFix 信任 X-Forwarded-Proto/For/Host，恢复客户端 IP 归因）+ `EXTERNAL_SCHEME`/`EXTERNAL_HOST`/`EXTERNAL_PORT`（外部入口，分享地址/二维码/横幅置顶输出）+ `app.validate_ssl_cert`（PEM 可读/配对/有效期校验，启动失败友好退出）；mDNS 提示随 scheme 插值。
 - **回归**：v4.11 收尾时 32 脚本 779 项；2026-09-06 全量实测复核 **32 脚本 869 项**（network 41 / mdns 22 / ip_watcher 15 / desktop_launcher 36 / admin_api 62——版本说明中的 779/807 系增量估算，以实测为准）；runtime 83 文件（sha256 `da9711c1...`），changelog 5 条。
+
+### 3.18 v4.13.0（2026-09-07，tag `v4.13.0`）
+
+**Mobile & Tablet（移动端与平板适配）**——对框架前端页面与示例插件 CSS 的一次翻修，针对 Mobile / Tablets 设备的显示适配问题。核心原则：**新增 CSS 与原有 CSS 分开创建**（不修改原样式，便于回退与独立演进）。
+
+- **公开页面移动端适配（static/css/mobile.css）**：与 main.css / error.css 分开维护。刘海屏安全区（viewport-fit=cover + env(safe-area-inset) 变量）、触摸目标 ≥44px、表格自动包裹滚动容器（.table-scroll）、首页导航汉堡菜单（.nav-toggle）、480px / 768px 响应式断点。
+- **后台管理页移动端适配（static/css/admin-mobile.css）**：stats-grid 窄屏单列、模态框窄屏全屏化（.mobile-full）、toast 窄屏顶部通栏（body.mobile-narrow）、导航汉堡入口。
+- **JS 增强层（static/js/mobile.js，IIFE 四件套）**：① wrapTables——表格自动包裹 .table-scroll 滚动容器（防重复：已包裹 / 嵌套表格 / 已在容器内跳过）；② setupBurger——首页导航注入 ☰ 汉堡按钮（点击切换 nav-open，点击外部关闭）；③ setupModalFull——≤480px 模态框加 .mobile-full 全屏类；④ setupToast——≤768px body 加 .mobile-narrow 通栏类。媒体查询变化自动重应用 + MutationObserver 兜底动态渲染的表格 / 弹窗。
+- **模板注入（幂等）**：14 个框架模板（含 admin/base.html）统一追加 viewport-fit=cover、mobile.css / admin-mobile.css link 与 mobile.js script；示例插件 11 个模板引入各自 *_mobile.css。
+- **示例插件移动端样式**：五个示例插件各自新增独立移动端 CSS——corp_tools（corp_mobile.css）、multitool_demo（demo_mobile.css）、hello_plugin（hello_mobile.css）、async_file_demo（async_mobile.css）、dashboard_demo 前端工具（dashboard_mobile.css）。
+- **验证**：浏览器端到端（首页 / 登录 / 后台 dashboard / 统计页 / 系统管理页）确认资源注入与表格包裹 100% 生效、无 JS 错误；全量回归 **32 脚本 869 项 0 失败**。
 
 ## 4. 发布实践沉淀
 

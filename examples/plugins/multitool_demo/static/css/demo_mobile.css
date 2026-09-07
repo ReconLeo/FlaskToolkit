@@ -1,0 +1,8 @@
+/* multitool_demo 移动端适配（v4.13.0，与 demo.css 分开维护） */
+@media (max-width: 768px) {
+    .ftk-card { margin: 12px auto; padding: 16px; }
+    .ftk-card h1 { font-size: 18px; }
+    .ftk-card textarea { font-size: 16px; }
+    .ftk-card button { min-height: 44px; padding: 10px 20px; font-size: 15px; }
+    .ftk-list { line-height: 1.8; }
+}

@@ -4,7 +4,7 @@
   <img src="https://github.com/ReconLeo/FlaskToolkit/actions/workflows/ci.yml/badge.svg" alt="CI">
   <img src="https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB?logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/License-MIT-yellow" alt="License">
-  <img src="https://img.shields.io/badge/version-4.12.2-blue" alt="Version">
+  <img src="https://img.shields.io/badge/version-4.13.0-blue" alt="Version">
 </p>
 
 > A Flask-based plugin **framework**: bring scattered Python plugins and pure-frontend tools into one unified runtime —
@@ -32,6 +32,7 @@ Over time it grew into what it is today — a few highlights:
 - **Accessibility (4.10)**: first-run wizard with forced password change (dismissible, re-prompted on each login until changed); invite-code self-registration (admin issues invite links — holders skip review, others land in the pending queue); optional `pip_dependencies` per plugin (missing packages skip that plugin with a warning instead of breaking startup); per-plugin API doc pages with permission labels, reachable from the admin UI; **per-plugin storage cleanup** — temp-only or all data including declared write dirs, from the admin dashboard or the offline CLI;
 - **Secure (4.12)**: the framework now does the **HTTP→HTTPS redirect** itself (308, keeps POST method & body) whenever self-signed HTTPS mode is on — an extra plain-HTTP entry port (main port + 1) bounces visitors to the HTTPS address, so stale `http://` links never die; **SESSION_COOKIE_SECURE is auto-configured** (turned on automatically under HTTPS / reverse proxy, off on plain-HTTP LAN so browsers do not drop cookies, still forceable via config); `config.py` gained SSL pairing hints and an HTTPS status check; the desktop launcher gained an **HTTPS checkbox** with automatic self-signed cert generation (`--https`);
 - **Reachability (4.11)**: stop re-publishing your access link every time your IP changes — a **Network & Access page** in the admin UI lists every reachable address (share links + QR codes, mDNS switch, IP-change detection with a configurable interval); optional **mDNS** (`pip install zeroconf`) keeps the service reachable at a stable `flasktoolkit.local` name; plus a **desktop launcher** (`tools/desktop_launcher.py`) — double-click friendly, starts/stops the server, switches local-only vs LAN-sharing, and copies the access address for you;
+- **Mobile & Tablet (4.13)**: the whole UI (public pages *and* the admin console) is now phone/tablet-friendly — responsive CSS is kept **separate** from the original styles (`mobile.css` / `admin-mobile.css` / per-plugin `*_mobile.css`), with safe-area insets for notched screens, 44px touch targets, **auto-wrapped scrollable tables**, a hamburger menu on the home navbar, full-screen modals & top-banner toasts on narrow screens — and all five example plugins ship their own mobile styles too;
 - **Ops & tooling**: version check with a `changelog.json` feed + dual-backend updater (git / archive), Factory Reset, backup/restore, startup self-check, package integrity signing, plugin scaffolding + offline install/uninstall CLI (`scaffold.py` / `install_plugin.py`), plus a **869-assertion regression suite and GitHub Actions CI**.
 
 The full feature specification lives in the [development guide](documents/Flask插件框架开发规范-v4.0.md).
