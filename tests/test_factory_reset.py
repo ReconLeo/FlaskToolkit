@@ -182,7 +182,12 @@ def test_stats_logs_scope():
         global_var.call_stats['x'] = 5
         factory_reset('stats_logs')
         stats = json.load(open(os.path.join(root, 'data', 'stats.json'), encoding='utf-8'))
-        check('stats_logs scope 统计重置', stats == {'call_stats': {}, 'frontend_access_stats': {}},
+        # v4.14：stats.json 新增 daily_stats 时间桶与 access_profile 访问画像
+        check('stats_logs scope 统计重置', stats == {
+            'call_stats': {}, 'frontend_access_stats': {},
+            'daily_stats': {},
+            'access_profile': {'by_ip': {}, 'by_user': {},
+                               'summary': {'total_visits': 0, 'first_seen': 0, 'last_seen': 0}}},
               f'keys={list(stats.keys())}')
         check('stats_logs scope 内存统计清空', global_var.call_stats == {}, f'{global_var.call_stats}')
         check('stats_logs scope 日志目录清空',

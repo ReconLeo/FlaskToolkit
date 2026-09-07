@@ -298,6 +298,19 @@ def start_http_redirect(host, https_port):
 
     class _RedirectHandler(BaseHTTPRequestHandler):
         def _jump(self):
+            # 消费请求体：单线程 HTTPServer 若不读 body，POST/PUT 等带体请求会在
+            # 客户端发送 body 阶段被 RST（WinError 10053），且残留体污染下一请求行
+            cl = self.headers.get('Content-Length')
+            if cl:
+                try:
+                    remain = int(cl)
+                except (TypeError, ValueError):
+                    remain = 0
+                while remain > 0:
+                    chunk = self.rfile.read(min(remain, 65536))
+                    if not chunk:
+                        break
+                    remain -= len(chunk)
             raw_host = (self.headers.get('Host', '') or host).strip()
             host_part = raw_host.rsplit(':', 1)[0] if ':' in raw_host else raw_host
             host_part = host_part.strip('[]')

@@ -551,9 +551,17 @@ def register(app):
     @app.route('/api/admin/stats', methods=['GET'])
     @admin_api
     def get_stats():
-        """获取调用统计"""
+        """获取调用统计（v4.14：含时间桶趋势 / 错误 Top / 访问画像 / 冷门插件提示）"""
+        from core.stats import get_access_profile_view, get_daily_series, get_error_top
         total_api_calls = sum(global_var.call_stats.values())
         total_frontend_access = sum(global_var.frontend_access_stats.values())
+
+        # v4.14：冷门插件提示——已启用且从未被调用的非内置插件
+        cold_plugins = [
+            {'name': m.get('title', m.get('name', '')), 'page_url': m.get('page_url', '')}
+            for m in global_var.plugin_catalog
+            if m.get('enabled') and not m.get('builtin') and m.get('api_calls', 0) == 0
+        ]
 
         return jsonify({
             "code": 200,
@@ -566,7 +574,12 @@ def register(app):
                 "total_calls": total_api_calls + total_frontend_access,
                 "api_call_details": global_var.call_stats,
                 "frontend_access_details": global_var.frontend_access_stats,
-                "audit_violations": get_audit_violations()
+                "audit_violations": get_audit_violations(),
+                "daily_series": get_daily_series(14),
+                "error_top": get_error_top(20),
+                "access_profile": get_access_profile_view(),
+                "cold_plugins": cold_plugins,
+                "stats_retention_days": getattr(global_var, 'STATS_RETENTION_DAYS', 30),
             }
         })
 
@@ -625,7 +638,10 @@ def register(app):
         """获取系统信息（框架/Python/平台/目录/统计概览），供管理后台展示"""
         total_api_calls = sum(global_var.call_stats.values())
         total_frontend_access = sum(global_var.frontend_access_stats.values())
+        import time as _t
+        _st = getattr(global_var, 'START_TIME', None)
         info = {
+            "uptime_seconds": int(_t.time() - _st) if _st else 0,
             "framework_version": global_var.FRAMEWORK_VERSION,
             "system_name": global_var.get_user_config().get("SYSTEM_NAME") or global_var.PROJECT_NAME,
             "system_version": global_var.get_user_config().get("SYSTEM_VERSION_LABEL") or ("v" + global_var.FRAMEWORK_VERSION),

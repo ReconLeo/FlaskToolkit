@@ -9,6 +9,20 @@
     <button class="btn btn-info" onclick="refreshAll()">🔄 刷新</button>
 </div>
 
+<!-- v4.14 状态徽章行（服务运行总览） -->
+<div style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:16px;">
+    <span class="badge badge-blue" id="bdUptime" style="padding:8px 14px; font-size:13px;">⏱ 运行时长: -</span>
+    <span class="badge badge-green" id="bdScheme" style="padding:8px 14px; font-size:13px;">🔒 协议: -</span>
+    <span class="badge badge-orange" id="bdAddresses" style="padding:8px 14px; font-size:13px;">🌐 可达地址: -</span>
+    <span class="badge badge-warning" id="bdIpChange" style="padding:8px 14px; font-size:13px; display:none;">⚠ IP 变化</span>
+</div>
+<div id="coldTip" style="display:none; margin-bottom:16px;">
+    <div class="notice-warn" style="background:#fff8e1; border:1px solid #ffe082; color:#8d6e63; border-radius:8px; padding:10px 14px; font-size:13px;">
+        📌 <strong>冷门插件提示</strong>：<span id="coldPlugins"></span>
+        <span style="color:#a1887f;">（已启用但从未被调用，可考虑在<a href="/admin/plugins" style="color:#5d4037;">插件管理</a>中禁用或卸载）</span>
+    </div>
+</div>
+
 <!-- 统计卡片 -->
 <div class="stats-grid">
     <div class="stat-card c-blue">
@@ -45,6 +59,17 @@
         </div>
     </div>
 
+    <!-- v4.14 最近动态（审计日志最近 8 条） -->
+    <div class="card">
+        <h3 class="card-title">🕒 最近动态</h3>
+        <div id="recentAudit" style="font-size:13px; line-height:1.9; color:#2c3e50;">
+            <span class="loading">加载中...</span>
+        </div>
+        <div style="margin-top:10px;">
+            <a href="/admin/logs" class="btn btn-info btn-sm">📄 查看全部日志</a>
+        </div>
+    </div>
+
     <!-- 系统信息 -->
     <div class="card">
         <h3 class="card-title">🖥️ 系统信息</h3>
@@ -64,6 +89,7 @@
             <a href="/admin/plugins" class="btn btn-primary" style="justify-content:center; padding:18px 0;">🔌 插件管理</a>
             <a href="/admin/logs" class="btn btn-info" style="justify-content:center; padding:18px 0;">📄 日志查看</a>
             <a href="/admin/stats" class="btn btn-success" style="justify-content:center; padding:18px 0;">📈 统计详情</a>
+            <a href="/admin/network" class="btn btn-info" style="justify-content:center; padding:18px 0; background:#16a085; border-color:#16a085;">🌐 网络与访问</a>
             <a href="/admin/system" class="btn btn-warning" style="justify-content:center; padding:18px 0;">⚙️ 系统管理</a>
             <a href="/" class="btn btn-info" style="justify-content:center; padding:18px 0;">🏠 返回首页</a>
         </div>
@@ -120,8 +146,89 @@
                     document.getElementById('stFrontend').textContent = fmt(res.data.total_frontend_tools);
                     document.getElementById('stApiCalls').textContent = fmt(res.data.total_api_calls);
                     document.getElementById('stFrontendAccess').textContent = fmt(res.data.total_frontend_access);
+                    // v4.14：冷门插件提示
+                    const cold = res.data.cold_plugins || [];
+                    const tip = document.getElementById('coldTip');
+                    if (cold.length > 0) {
+                        document.getElementById('coldPlugins').innerHTML = cold.map(c =>
+                            `<a href="${c.page_url}" style="color:#5d4037; font-weight:600;">${esc(c.name)}</a>`
+                        ).join('、');
+                        tip.style.display = '';
+                    } else {
+                        tip.style.display = 'none';
+                    }
                 }
             }).catch(() => {});
+    }
+
+    // v4.14：状态徽章行（运行时长 / 协议 / 可达地址 / IP 变化）
+    function fmtUptime(sec) {
+        if (!sec) return '刚刚启动';
+        const d = Math.floor(sec / 86400), h = Math.floor(sec % 86400 / 3600), m = Math.floor(sec % 3600 / 60);
+        if (d > 0) return d + ' 天 ' + h + ' 小时';
+        if (h > 0) return h + ' 小时 ' + m + ' 分';
+        return m + ' 分钟';
+    }
+
+    function loadBadges() {
+        // 系统信息（运行时长/协议）
+        fetch('/api/admin/system/info', { credentials: 'include' })
+            .then(r => r.json()).then(res => {
+                if (res.code !== 200) return;
+                const d = res.data;
+                document.getElementById('bdUptime').textContent = '⏱ 运行时长: ' + fmtUptime(d.uptime_seconds);
+            }).catch(() => {});
+        // 网络与访问（协议/可达地址/IP 变化）
+        fetch('/api/admin/network', { credentials: 'include' })
+            .then(r => r.json()).then(res => {
+                if (res.code !== 200) return;
+                const d = res.data;
+                const scheme = d.scheme || 'http';
+                const bdS = document.getElementById('bdScheme');
+                bdS.textContent = (scheme === 'https' ? '🔒 HTTPS' : '🔓 HTTP');
+                bdS.className = 'badge ' + (scheme === 'https' ? 'badge-green' : 'badge-orange') + ' bd-badge';
+                const urls = (d.access_urls || []);
+                document.getElementById('bdAddresses').textContent = '🌐 可达地址: ' + urls.length + ' 个';
+                const iw = d.ip_watch || {};
+                const tip = document.getElementById('bdIpChange');
+                if (iw.last_change_detail) {
+                    tip.textContent = '⚠ IP 变化: ' + iw.last_change_detail;
+                    tip.style.display = '';
+                } else {
+                    tip.style.display = 'none';
+                }
+            }).catch(() => {});
+    }
+
+    // v4.14：最近动态（审计日志最近 8 条）
+    function loadRecentAudit() {
+        fetch('/api/admin/audit?lines=8', { credentials: 'include' })
+            .then(r => r.json()).then(res => {
+                const box = document.getElementById('recentAudit');
+                if (res.code !== 200 || !res.data || res.data.length === 0) {
+                    box.innerHTML = '<span style="color:#95a5a6;">暂无管理操作记录</span>';
+                    return;
+                }
+                box.innerHTML = res.data.map(a => {
+                    const t = a.time ? a.time.slice(5, 16) : '';
+                    const actor = a.actor || '?';
+                    const action = a.action || '';
+                    const target = a.target ? '· ' + a.target : '';
+                    const mark = a.result === 'ok' ? '✅' : (a.result === 'fail' ? '❌' : '');
+                    return `<div style="border-bottom:1px dashed #ecf0f1; padding:4px 0;">` +
+                        `<span style="color:#95a5a6; font-size:12px;">${t}</span> ` +
+                        `<strong>${actor}</strong> ${action} ${target} ${mark}` +
+                        (a.ip ? ` <span style="color:#bdc3c7; font-size:12px;">(${a.ip})</span>` : '') +
+                        `</div>`;
+                }).join('');
+            }).catch(() => {
+                document.getElementById('recentAudit').innerHTML = '<span style="color:#95a5a6;">加载失败</span>';
+            });
+    }
+
+    function esc(s) {
+        return String(s == null ? '' : s).replace(/[&<>"']/g, c =>
+            ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     }
 
     function loadSysInfo() {
@@ -155,8 +262,12 @@
         document.getElementById('sysInfoBody').innerHTML = '<tr><td colspan="2" class="loading">加载中...</td></tr>';
         loadStats();
         loadSysInfo();
+        loadBadges();
+        loadRecentAudit();
     }
 
-    document.addEventListener('DOMContentLoaded', () => { loadStats(); loadSysInfo(); checkUpdate(false); });
+    document.addEventListener('DOMContentLoaded', () => {
+        loadStats(); loadSysInfo(); checkUpdate(false); loadBadges(); loadRecentAudit();
+    });
 </script>
 {% endblock %}

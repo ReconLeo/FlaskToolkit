@@ -4,7 +4,7 @@
 
 | Version | Support |
 |---------|---------|
-| **v4.x (Community Edition)** | ✅ Actively maintained — security fixes are backported and land in the next patch or minor release, with the usual full regression (32 scripts / 869 assertions, verified 2026-09-06) + CI |
+| **v4.x (Community Edition)** | ✅ Actively maintained — security fixes are backported and land in the next patch or minor release, with the usual full regression (33 scripts / 869 assertions, verified 2026-09-07) + CI |
 | **v5.x (Enterprise Edition)** | ⚠️ Roadmap only — carries the long-term enterprise plans (fine-grained permission model, process-level sandbox, stricter CSP, etc.) and is **publicly seeking a new maintainer**. See [Enterprise handover & roadmap](documents/Enterprise-Edition-交接与路线.md) |
 | **< v4.x** | ❌ Not supported — historical versions (archived in `documents/archive/`) receive no security updates |
 

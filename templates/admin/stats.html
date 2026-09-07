@@ -33,6 +33,39 @@
 </div>
 
 <div class="card">
+    <div class="card-title">📈 最近 14 天调用趋势（含错误）</div>
+    <div id="trendBox" class="loading" style="padding:8px 0;">加载中...</div>
+</div>
+
+<div class="card">
+    <div class="card-title">⚠️ 错误最多的接口（4xx/5xx，最近 {{ stats_retention_days|default(30) }} 天 Top 20）</div>
+    <div class="table-wrap">
+        <table class="data-table">
+            <thead><tr><th style="width:50px;">#</th><th>接口</th><th style="width:90px;">总调用</th><th style="width:80px;">4xx</th><th style="width:80px;">5xx</th></tr></thead>
+            <tbody id="errorTopBody"><tr><td colspan="5" class="empty-state">暂无错误记录</td></tr></tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-title">🖥️ 访问画像（v4.14：登录用户记身份，游客记 IP）</div>
+    <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:16px; padding:4px 2px;">
+        <div>
+            <div style="font-weight:600; margin-bottom:6px; color:#34495e;">👤 用户 Top 10</div>
+            <div id="profileUsers" style="font-size:13px; line-height:2;"><span class="loading">加载中...</span></div>
+        </div>
+        <div>
+            <div style="font-weight:600; margin-bottom:6px; color:#34495e;">🌐 来源 IP Top 10</div>
+            <div id="profileIps" style="font-size:13px; line-height:2;"><span class="loading">加载中...</span></div>
+        </div>
+        <div>
+            <div style="font-weight:600; margin-bottom:6px; color:#34495e;">📱 设备分布</div>
+            <div id="profileDevices" style="font-size:13px; line-height:2.2;"><span class="loading">加载中...</span></div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
     <div class="card-title">🔌 API 调用明细（Top 100）
         <input type="text" id="apiFilter" placeholder="搜索插件名/路径..." style="max-width:240px; margin-left:auto; font-size:13px;"
                oninput="renderTables()">
@@ -124,8 +157,93 @@
                     .sort((a, b) => b.count - a.count)
                     .slice(0, 100);
 
+                // v4.14：趋势 / 错误 Top / 访问画像
+                renderTrendSvg(d.daily_series || []);
+                renderErrorTop(d.error_top || []);
+                renderProfile(d.access_profile || {});
                 renderTables();
             }).catch(() => {});
+    }
+
+    // v4.14：最近 14 天调用趋势（纯 SVG 柱状，无外部依赖）
+    function renderTrendSvg(series) {
+        const box = document.getElementById('trendBox');
+        if (!series.length) { box.innerHTML = '<span style="color:#95a5a6;">暂无数据</span>'; return; }
+        const W = 700, H = 170, padL = 34, padB = 22, padT = 8;
+        const maxV = Math.max(1, ...series.map(s => s.count));
+        const n = series.length;
+        const bw = (W - padL - 6) / n;
+        const chartH = H - padT - padB;
+        let bars = '', labels = '';
+        series.forEach((s, i) => {
+            const x = padL + i * bw;
+            const h = Math.max(2, s.count / maxV * chartH);
+            const y = padT + chartH - h;
+            const err = s.e4xx + s.e5xx;
+            const errH = err > 0 ? Math.max(2, err / maxV * chartH) : 0;
+            bars += `<rect x="${x + 2}" y="${y}" width="${Math.max(2, bw - 5)}" height="${h}" fill="#3498db" rx="2">`;
+            if (errH > 0) {
+                const ey = padT + chartH - errH;
+                bars += `<rect x="${x + 2}" y="${ey}" width="${Math.max(2, bw - 5)}" height="${errH}" fill="#e74c3c" rx="2" opacity="0.75">`;
+            }
+            if (i % 2 === 0 || n <= 8) {
+                labels += `<text x="${x + bw / 2}" y="${H - 6}" font-size="9" text-anchor="middle" fill="#7f8c8d">${s.date}</text>`;
+            }
+        });
+        const title = `总 ${fmt(series.reduce((a, s) => a + s.count, 0))} 次调用`;
+        box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" style="width:100%; height:auto;" preserveAspectRatio="xMidYMid meet">` +
+            `<line x1="${padL}" y1="${padT + chartH}" x2="${W - 4}" y2="${padT + chartH}" stroke="#bdc3c7" stroke-width="1"/>` +
+            `<text x="${padL}" y="${padT + 2}" font-size="11" fill="#34495e" font-weight="600">${title}（蓝=正常 红=错误叠加）</text>` +
+            bars + labels + `</svg>`;
+    }
+
+    // v4.14：错误 Top（4xx/5xx）
+    function renderErrorTop(rows) {
+        const body = document.getElementById('errorTopBody');
+        if (!rows.length) {
+            body.innerHTML = '<tr><td colspan="5" class="empty-state">暂无错误记录（过去 30 天内无 4xx/5xx）</td></tr>';
+            return;
+        }
+        body.innerHTML = rows.map((r, i) =>
+            `<tr><td>${i + 1}</td><td style="font-family:monospace; font-size:13px;">${esc(r.key)}</td>` +
+            `<td>${fmt(r.count)}</td><td style="color:#e67e22;">${fmt(r.e4xx)}</td>` +
+            `<td style="color:#e74c3c;">${fmt(r.e5xx)}</td></tr>`
+        ).join('');
+    }
+
+    // v4.14：访问画像（用户 / IP / 设备）
+    function renderProfile(p) {
+        if (!p || !p.enabled) {
+            const msg = '访问画像未开启（ACCESS_PROFILE_ENABLED=false），仅展示调用统计。';
+            document.getElementById('profileUsers').textContent = msg;
+            document.getElementById('profileIps').textContent = msg;
+            document.getElementById('profileDevices').textContent = msg;
+            return;
+        }
+        const users = (p.users_top || []).slice(0, 10);
+        const ips = (p.ips_top || []).slice(0, 10);
+        const dev = p.devices || {};
+        const devNames = [['mobile', '📱 手机'], ['tablet', '📟 平板'], ['desktop', '🖥 桌面'], ['bot', '🤖 爬虫/脚本']];
+        const maxDev = Math.max(1, ...devNames.map(d => dev[d[0]] || 0));
+        document.getElementById('profileUsers').innerHTML = users.length
+            ? users.map(u => `<div style="display:flex; justify-content:space-between; border-bottom:1px dashed #ecf0f1;">` +
+                `<span>👤 ${esc(u.username)}</span><b>${fmt(u.count)}</b></div>`).join('')
+            : '<span style="color:#95a5a6;">暂无登录用户访问</span>';
+        document.getElementById('profileIps').innerHTML = ips.length
+            ? ips.map(u => `<div style="display:flex; justify-content:space-between; border-bottom:1px dashed #ecf0f1;">` +
+                `<span style="font-family:monospace; font-size:12px;">${esc(u.ip)}` +
+                (u.users && u.users.length ? ` <span style="color:#95a5a6; font-size:11px;">(${u.users.join('/')})</span>` : '') +
+                `</span><b>${fmt(u.count)}</b></div>`).join('')
+            : '<span style="color:#95a5a6;">暂无来源 IP</span>';
+        document.getElementById('profileDevices').innerHTML = devNames.map(d => {
+            const v = dev[d[0]] || 0;
+            const w = Math.max(2, v / maxDev * 100);
+            return `<div style="display:flex; align-items:center; gap:8px;">` +
+                `<span style="width:80px;">${d[1]}</span>` +
+                `<div style="flex:1; background:#ecf0f1; border-radius:4px; height:14px;">` +
+                `<div style="width:${w}%; background:#16a085; border-radius:4px; height:14px;"></div></div>` +
+                `<b style="width:40px; text-align:right;">${fmt(v)}</b></div>`;
+        }).join('');
     }
 
     function renderTables() {

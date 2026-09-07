@@ -1,6 +1,7 @@
 # ------------------------------ 标准库 ------------------------------
 import os
 import sys
+import time
 
 # ------------------------------ 第三方库 ------------------------------
 from flask import Flask
@@ -193,6 +194,9 @@ if __name__ == '__main__':
     # ===== 用户配置加载（tools/config.py 管理）+ 框架完整性自校验 =====
     from global_var import load_user_config
     load_user_config()
+
+    # ===== v4.14：记录启动时间（dashboard 服务运行时长徽章）=====
+    global_var.START_TIME = time.time()
 
     # ===== v4.7.0：启动横幅（宣传项目信息与 GitHub 链接）=====
     _ucfg = global_var.get_user_config()

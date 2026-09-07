@@ -29,7 +29,7 @@ CACHE_VERSION = 1  # 缓存格式版本，变更时自动失效
 LOG_DIR = os.path.join(BASE_DIR, 'logs')
 
 # ------------------------------ 全局常量 ------------------------------
-FRAMEWORK_VERSION = "4.13.0"  # 框架版本（后端插件 require_framework_version 比较基准）
+FRAMEWORK_VERSION = "4.14.0"  # 框架版本（后端插件 require_framework_version 比较基准）
 # 项目宣传信息（v4.7.0，只读常量，供 app.py 启动横幅与后台关于页展示）
 PROJECT_NAME = "FlaskToolkit"  # 项目名称
 PROJECT_AUTHOR = "ReconLeo"  # 作者/维护者
@@ -144,7 +144,7 @@ CONFIG_ITEMS = {
                     'desc': '系统显示名称（v4.7.0，前端主页面/后台页眉展示，仅装饰不影响内部标识）'},
     'LANGUAGE': {'default': 'zh-CN', 'kind': 'str',
                              'desc': '系统显示语言（v4.9.0，内置 zh-CN/en，可扩展；可选值由 locales/ 语言包决定；Cookie lang 可覆盖）'},
-    'SYSTEM_VERSION_LABEL': {'default': 'v4.13.0', 'kind': 'str',
+    'SYSTEM_VERSION_LABEL': {'default': 'v4.14.0', 'kind': 'str',
                              'desc': '系统版本显示标签（v4.7.0，前端展示用，仅装饰不改 FRAMEWORK_VERSION 逻辑；升级框架时建议同步更新）'},
     'UPDATE_FEED_URL': {'default': 'https://raw.githubusercontent.com/ReconLeo/FlaskToolkit/main/changelog.json', 'kind': 'str',
                          'desc': '版本更新数据源（v4.8.0，默认 GitHub changelog.json，企业内网可指向内网镜像）'},
@@ -166,6 +166,10 @@ CONFIG_ITEMS = {
                       'desc': '外部访问主机名/域名（v4.12，反向代理场景分享地址输出外部入口；空=自动按本机 IP 推导）'},
     'EXTERNAL_PORT': {'default': 0, 'kind': 'int',
                       'desc': '外部访问端口（v4.12，反向代理场景设 Nginx 监听端口如 8443；0=使用内部端口）'},
+    'STATS_RETENTION_DAYS': {'default': 30, 'kind': 'int',
+                             'desc': '统计时间桶保留天数（v4.14，daily_stats 按天聚合超过该天数的旧桶自动清理；最小 7）'},
+    'ACCESS_PROFILE_ENABLED': {'default': True, 'kind': 'bool',
+                               'desc': '访问画像开关（v4.14，默认开：登录用户记用户名、游客记 IP 与设备类型，可追溯单插件 API；局域网内部场景关闭即不采集画像仅计时间桶）'},
 }
 
 USER_CONFIG_FILE = os.path.join(BASE_DIR, 'data', 'user_config.json')
@@ -251,8 +255,14 @@ plugin_catalog: List[Dict] = []  # 插件目录（含禁用/未加载，供首�
 scheduler = None
 
 # 统计相关
-call_stats: Dict[str, int] = {}  # 接口调用统计
-frontend_access_stats: Dict[str, int] = {}  # 前端工具页面访问统计
+call_stats: Dict[str, int] = {}  # 接口调用统计（累计计数，v4.14 起保留兼容）
+frontend_access_stats: Dict[str, int] = {}  # 前端工具页面访问统计（累计计数）
+# v4.14 Statistics：daily_stats 时间桶 {YYYY-MM-DD: {key: {count/ok/e4xx/e5xx/ms_sum/ms_n}}}
+# key 格式与 call_stats 一致：plugin:path 或 frontend:<tool>
+daily_stats: Dict[str, Dict[str, Dict]] = {}
+# v4.14 Statistics：访问画像（ACCESS_PROFILE_ENABLED 控制）
+# {by_ip: {ip: {count/last_seen/devices/users}}, by_user: {username: {...}}, summary: {total_visits/first_seen/last_seen}}
+access_profile: Dict[str, Dict] = {'by_ip': {}, 'by_user': {}, 'summary': {'total_visits': 0, 'first_seen': 0, 'last_seen': 0}}
 
 # 前端工具
 frontend_tools: List[Dict] = []

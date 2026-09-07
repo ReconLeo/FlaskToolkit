@@ -380,10 +380,17 @@ if os.path.exists(_iso_audit):
 check("E11 审计 JSONL 落盘隔离目录（含插件与建议声明）",
       'auditdemo' in _iso_text and 'filesystem:write' in _iso_text)
 
-# E12：真实项目未污染
-check("E12 真实项目未污染",
+# E12：真实项目未污染（框架常驻运行时 data/audit.log 为真实审计文件，
+#      改为检查其中是否残留测试插件 auditdemo 痕迹，语义更准确）
+_audit_contaminated = False
+_real_audit = os.path.join(REAL_BASE, 'data', 'audit.log')
+if os.path.isfile(_real_audit):
+    with open(_real_audit, encoding='utf-8', errors='replace') as _f:
+        if 'auditdemo' in _f.read():
+            _audit_contaminated = True
+check("E12 真实项目未污染（插件文件 + 审计日志均无测试痕迹）",
       not os.path.isfile(os.path.join(REAL_BASE, 'plugins', 'auditdemo.py'))
-      and not os.path.isfile(os.path.join(REAL_BASE, 'data', 'audit.log')))
+      and not _audit_contaminated)
 
 # ============ 汇总 ============
 n_pass = sum(1 for _, c in results if c)

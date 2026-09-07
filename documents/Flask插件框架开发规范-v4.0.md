@@ -3,6 +3,21 @@
 > 版本特性与演进史（来龙去脉）见 [Flask插件框架-版本演进记录.md](Flask插件框架-版本演进记录.md)；
 > 下方为各版本变更说明（按时间倒序）。
 
+## 版本：v4.14.0（Statistics：数据统计洞察） | 更新日期：2026年09月07日
+
+### 版本说明（v4.14.0 变更）
+
+**主题：回答"后台管理到底要什么"——统计数据面板再规划**。以"现在怎么样 / 谁在用什么 / 出了什么问题 / 我该做什么"四问为框架，把累计计数升级为**时间序列 + 访问画像**双维数据模型，dashboard 总览化：
+
+1. **数据模型（core/stats.py 重写，272 行）**：① `daily_stats` 时间桶——按天聚合 `{plugin:path | frontend:<tool>}` 的 count/ok/4xx/5xx/ms_sum/ms_n（key 与 call_stats 一致，daily 用实际请求路径便于错误 Top 定位）；② `access_profile` 访问画像——by_ip（IP 追溯主键：count/last_seen/devices 四类/by_user 关联）与 by_user（登录用户含管理员，游客不记 by_user）双维 + summary（total_visits/first_seen/last_seen）；③ TTL 清理 `cleanup_daily_stats`（保留 STATS_RETENTION_DAYS 天，默认 30 最小 7）。
+2. **埋点（routes/interceptor.py）**：before_request 记录 `request._ft_stats_t0`，新增 `@app.after_request` global_stats_recorder——`/api/<plugin>/`（排除 /api/admin/）写桶+画像、`/frontend/<tool>` 写桶+画像、`/plugin/` 页面仅画像（record_page_view）。**职责分离防双计数**：累计计数（call_stats/frontend_access_stats）仍由原埋点维护，after_request 只写 daily_stats/画像。未授权请求（401/403）与 404 亦计入 4xx 桶。
+3. **设备分类**：`classify_device` 纯 UA 关键字匹配（bot/tablet/mobile/desktop），无新增依赖。
+4. **配置（global_var.py）**：CONFIG_ITEMS 新增 `STATS_RETENTION_DAYS`（int 30，最小 7）与 `ACCESS_PROFILE_ENABLED`（bool true）；config.py 自动支持；Factory Reset 的 stats_logs 域同步清空 daily_stats/access_profile。
+5. **dashboard 总览化（templates/admin/dashboard.html）**：顶部徽章行（运行时长 uptime_seconds / 协议 scheme / 访问地址数 / IP 变化状态）+ **冷门插件提示条**（api_calls==0 且 enabled 且非内置，含快速跳转）+ **最近动态卡**（/api/admin/audit?lines=8 审计流）；补上此前缺失的"网络与访问"页入口。
+6. **统计页增强（templates/admin/stats.html）**：14 天请求趋势（纯 SVG 柱状图 viewBox 700×170，蓝=正常红=错误叠加，无前端依赖）+ 错误 Top 表（4xx/5xx 路径 TOP20）+ 访问画像卡（用户 Top10 / IP Top10 / 设备分布条形）。API：/api/admin/stats 扩展 daily_series/error_top/access_profile/cold_plugins/stats_retention_days；/api/admin/system/info 新增 uptime_seconds（app.py 记录 global_var.START_TIME）。
+7. **框架漏洞修复**：core/network.py start_http_redirect 的 _RedirectHandler._jump **不消费请求体**——单线程 HTTPServer 下 POST/PUT 带 body 请求在客户端发送阶段被 RST（WinError 10053，跳转端口真实场景偶发连接中止，测试 J3 暴露）。修复：按 Content-Length 读取消费 body。
+8. **测试**：新增 tests/test_stats.py（55 项：设备分类/时间桶聚合/画像/TTL 清理/趋势序列/错误 Top/开关关闭/旧接口兼容）；test_audit_hook E12"真实项目未污染"改为检查审计日志中是否含测试插件痕迹（框架常驻运行时真实 audit.log 必然存在，原文件存在性检查误报）；全量回归 **33 脚本 869 项 0 失败**。
+
 ## 版本：v4.13.0（Mobile & Tablet：移动端与平板适配） | 更新日期：2026年09月07日
 
 ### 版本说明（v4.13.0 变更）
@@ -173,6 +188,7 @@
 
 | 版本 | 日期 | 主题 | 提交 |
 |------|------|------|------|
+| **v4.14.0** | 2026-09-07 | Statistics：数据统计洞察（时间桶 + 访问画像双维数据模型 / dashboard 总览化 / 14 天趋势 + 错误 Top + 画像卡 / 跳转端口 POST body 消费修复） | 待回填 |
 | **v4.13.0** | 2026-09-07 | Mobile & Tablet：移动端与平板适配（mobile.css / admin-mobile.css / mobile.js 四件套 + 示例插件移动端样式，与原有 CSS 分开创建） | ad2bf59 |
 | **v4.12.2** | 2026-09-07 | 安全修复：上传临时文件防线（F6 失败分支清理 + preview TTL 30min + F12 preview_id 路径穿越封堵） | 84c17ed |
 | **v4.12.1** | 2026-09-06 | Secure 修复：登录回归 F10（Cookie Secure 判定跟随请求实际协议）+ 压力/多机归因评估落地（test_server 脚手架 + 评估报告） | 786ae5d |

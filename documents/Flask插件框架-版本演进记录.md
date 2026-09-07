@@ -39,6 +39,7 @@ Kaleido 同样开源（自托管题库系统）：[github.com/ReconLeo/Kaleido](
 | 补丁覆盖 | 2026-09-06 | tools 运维工具适配 v4.9 结构 + v4.9.2 覆盖发布 | `73c6a9f` `ee3e23d` `612c565` |
 | **v4.10.0** | 2026-09-06 | Accessibility 能力可达性：pip 依赖独立声明 + 能力清单确认 + 调试页权限修正/API 文档增强 + 首次运行向导/强制改密 + 邀请码自助注册 + 脚手架/离线安装卸载 + 单插件空间清理 | `e26b25e`（M4）`2ecb8b7`（M5）`941ea66`（airdrop 移交）`32aa2ce`（M6）`9d3aaf4`（M6-Extra）`699fae0`（前端清理），tag `v4.10.0` |
 | **v4.11.0** | 2026-09-06 | Reachability 网络可达：地址中心（core/network.py）+ mDNS 服务注册（core/mdns.py 可选 zeroconf）+ 后台网络与访问页（二维码/共享/mDNS/IP 检测）+ 启动横幅播报 + IP 变化检测（core/ip_watcher.py）+ 桌面启动器（tools/desktop_launcher.py） | `e16e67b`（M1-M5）`4a76811`（文档），tag `v4.11.0` |
+| **v4.14.0** | 2026-09-07 | Statistics 数据统计洞察：时间桶 + 访问画像双维数据模型 / dashboard 总览化（徽章行 + 冷门提示 + 最近动态）/ 14 天趋势 + 错误 Top + 画像卡 / 跳转端口 POST body 消费修复 | `待回填`，tag `v4.14.0` |
 | **v4.13.0** | 2026-09-07 | Mobile & Tablet 移动端与平板适配：公开页面 + 后台管理页响应式翻修（mobile.css / admin-mobile.css 与原有样式分开创建）+ JS 增强层四件套（mobile.js：表格自动包裹/汉堡菜单/模态框全屏/toast 通栏）+ 14 框架模板幂等注入 + 五个示例插件各自 *_mobile.css | `ad2bf59`，tag `v4.13.0` |
 | **v4.12.2** | 2026-09-07 | 安全修复：上传临时文件防线——F6 失败分支统一清理（preview/confirm 失败残留）+ preview 文件 TTL 30min 防写盘累积 + F12 preview_id 路径穿越封堵（严格 uuid 格式校验）+ test_admin_api 62→69 项 | `84c17ed`，tag `v4.12.2` |
 | **v4.12.1** | 2026-09-06 | Secure 修复：P1 登录回归 F10（is_secure_cookie_mode 跟随 request.scheme）+ 压力与多机归因评估落地（test_server 脚手架 + 评估报告，R6 归因闭环） | `f8cfd21`（feat）`786ae5d`（docs），tag `v4.12.1` |
@@ -192,6 +193,18 @@ P1 安全强化至此全部完成，形成纵深防御：**静态扫描 → 能�
 - **示例插件移动端样式**：五个示例插件各自新增独立移动端 CSS——corp_tools（corp_mobile.css）、multitool_demo（demo_mobile.css）、hello_plugin（hello_mobile.css）、async_file_demo（async_mobile.css）、dashboard_demo 前端工具（dashboard_mobile.css）。
 - **验证**：浏览器端到端（首页 / 登录 / 后台 dashboard / 统计页 / 系统管理页）确认资源注入与表格包裹 100% 生效、无 JS 错误；全量回归 **32 脚本 869 项 0 失败**。
 
+### 3.19 v4.14.0（2026-09-07，tag `v4.14.0`）
+
+**Statistics（数据统计洞察）**——从"后台管理到底要什么"出发的统计面板再规划。以"现在怎么样 / 谁在用什么 / 出了什么问题 / 我该做什么"四问为框架，把原本只有累计计数的统计升级为**时间序列 + 访问画像**双维数据模型，让管理员一眼看清运行状态与访问者构成。
+
+- **数据模型（core/stats.py 重写）**：`daily_stats` 时间桶按天聚合（count/ok/4xx/5xx/ms，key 与 call_stats 一致 plugin:path / frontend:<tool>）；`access_profile` 访问画像双维——by_ip（count/last_seen/devices/by_user 关联）与 by_user（登录用户含管理员，游客仅记 IP）+ summary（total_visits/first_seen/last_seen）；30 天 TTL 可配置（STATS_RETENTION_DAYS，最小 7）。
+- **埋点（routes/interceptor.py）**：before_request 记 `_ft_stats_t0` + 新增 after_request `global_stats_recorder`——API / 前端工具写桶+画像、/plugin/ 页面仅画像；**职责分离防双计数**（累计计数仍由原埋点维护）；401/403/404 计入 4xx 桶（before_request 阶段拿不到状态码是驱动 after_request 方案的主因）。
+- **设备分类**：classify_device 纯 UA 关键字匹配（bot/tablet/mobile/desktop），无新增依赖。
+- **dashboard 总览化**：运行徽章行（运行时长 / 协议 / 访问地址数 / IP 变化）+ 冷门插件提示（api_calls==0 且 enabled 非内置）+ 最近动态卡（audit 流 lines=8）；补上缺失的"网络与访问"页入口。
+- **统计页增强**：14 天请求趋势（纯 SVG 柱状图，无前端依赖）+ 错误 Top 表（4xx/5xx TOP20）+ 访问画像卡（用户 Top10 / IP Top10 / 设备分布）。
+- **框架漏洞修复（测试 J3 暴露）**：start_http_redirect 的 _jump 不消费请求体，单线程 HTTPServer 下 POST/PUT 带 body 在客户端发送阶段被 RST（WinError 10053）——按 Content-Length 消费 body 修复，跳转端口真实场景连接中止根治。
+- **测试**：新增 tests/test_stats.py（55 项）；test_audit_hook E12 改为审计日志痕迹检查（框架常驻运行时真实 audit.log 存在性检查误报）；全量回归 **33 脚本 869 项 0 失败**。
+
 ## 4. 发布实践沉淀
 
 - **changelog.json 是发布强制同步点**：`tools/release.py build` 会重写（latest_version/sha256/download_url/changes），须随 Release 一起 commit + push（v4.9.0/v4.9.1 曾漏同步，v4.9.2 补齐并固化）。
@@ -201,4 +214,4 @@ P1 安全强化至此全部完成，形成纵深防御：**静态扫描 → 能�
 - **README 故事段维护**：保持精简（主题里程碑聚合），细节指向开发规范与本演进记录，避免随版本膨胀。
 - **release.py bump 锚点必须是"当前版本"**：版本替换锚点曾误用"新版本号"（v4.8.0 引入，首次使用即暴露）——替换锚点应从 `global_var.FRAMEWORK_VERSION` 读取当前值，而不是目标新值；发布工具链改动必须经真实 bump 演练（v4.10 M7 修复）。
 - **runtime 精简包内容随版本核对**：新增面向使用者的工具（如 v4.10 的 scaffold/install_plugin）必须补进 `RUNTIME_TOP`，否则离线包缺文件（v4.10 曾漏 tools/）。
-- **回归数字是 CI 口径**：本地（无 AirDrop 子项目）与 CI（含子项目测试）口径不同，README/开发规范/SECURITY.md 统一使用 CI 口径（32 脚本 807 项），并在开发规范标注 AirDrop 移交说明，避免文档间数字漂移。
+- **回归数字统一口径**：README / 开发规范 / SECURITY.md / 演进记录统一使用本地全量实测口径（33 脚本 869 项，2026-09-07 v4.14 复核；此前 807/779 系版本记录估算值），CI 含 AirDrop 子项目测试口径另计，避免文档间数字漂移。

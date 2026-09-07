@@ -115,11 +115,19 @@ def reset_stats_logs(results: dict):
     """清除调用统计与日志"""
     stats_path = os.path.join(global_var.BASE_DIR, 'data', 'stats.json')
     _write_text(stats_path, json.dumps(
-        {'call_stats': {}, 'frontend_access_stats': {}}, ensure_ascii=False, indent=2
+        {'call_stats': {}, 'frontend_access_stats': {},
+         'daily_stats': {}, 'access_profile': {'by_ip': {}, 'by_user': {},
+                                               'summary': {'total_visits': 0, 'first_seen': 0, 'last_seen': 0}}},
+        ensure_ascii=False, indent=2
     ), results, '统计 data/stats.json')
-    # 同步清空内存统计
+    # 同步清空内存统计（v4.14：含时间桶与访问画像）
     global_var.call_stats.clear()
     global_var.frontend_access_stats.clear()
+    global_var.daily_stats.clear()
+    global_var.access_profile['by_ip'].clear()
+    global_var.access_profile['by_user'].clear()
+    global_var.access_profile['summary'].update(
+        {'total_visits': 0, 'first_seen': 0, 'last_seen': 0})
 
     logs_dir = os.path.join(global_var.BASE_DIR, 'logs')
     if os.path.isdir(logs_dir):

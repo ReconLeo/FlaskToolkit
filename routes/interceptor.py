@@ -1,15 +1,20 @@
 # -*- coding: utf-8 -*-
 """全局请求拦截器：系统级兜底鉴权（管理员/登录路径守卫），插件 API 权限下放给插件装饰器"""
+import time
 import urllib.parse
 
 from flask import jsonify, redirect, render_template, request
 
 import global_var
+from core.stats import record_page_view, record_request_stats
 
 
 def register(app):
     @app.before_request
     def global_auth_interceptor():
+        # v4.14 Statistics：记录请求开始时间（after_request 计算延迟）
+        request._ft_stats_t0 = time.time()
+
         # 白名单路径：精确匹配或前缀匹配
         EXACT_PUBLIC_PATHS = {  # 精确匹配的白名单
             '/',
@@ -79,3 +84,42 @@ def register(app):
             return render_template('403.html', message="仅管理员可访问此页面"), 403
 
         return None
+
+    @app.after_request
+    def global_stats_recorder(response):
+        """v4.14 Statistics：请求后聚合——插件 API / 前端工具写时间桶+画像，插件页面仅画像。
+        累计计数（call_stats / frontend_access_stats）由原埋点维护，此处职责分离不重复计数。"""
+        try:
+            ctx = getattr(request, '_ft_stats_t0', None)
+            path = request.path
+            ms = (time.time() - ctx) * 1000 if ctx else -1
+            ua = request.headers.get('User-Agent', '')
+            ip = request.remote_addr or ''
+            user = getattr(request, 'user', None)
+            username = user.get('username') if isinstance(user, dict) else None
+            status = response.status_code
+
+            # 插件 API（排除后台自身 /api/admin/）：/api/<plugin>/<rest>
+            if path.startswith('/api/') and not path.startswith('/api/admin/'):
+                parts = path.split('/')
+                if len(parts) >= 3 and parts[2]:
+                    plugin = parts[2]
+                    endpoint = '/' + '/'.join(parts[3:]) if len(parts) > 3 else ''
+                    record_request_stats(plugin, endpoint or '/', status, ms,
+                                         username, ip, ua, frontend=False)
+            # 前端工具页面：/frontend/<tool>
+            elif path.startswith('/frontend/'):
+                parts = path.split('/')
+                tool = parts[2] if len(parts) >= 3 else ''
+                if tool:
+                    record_request_stats(None, tool, status, ms,
+                                         username, ip, ua, frontend=True)
+            # 插件页面访问：仅画像（登录守卫/公开页豁免后的页面浏览）
+            elif path.startswith('/plugin/') and not path.startswith('/plugin/static'):
+                parts = path.split('/')
+                if len(parts) >= 3 and parts[2]:
+                    record_page_view(username, ip, ua)
+        except Exception as e:
+            # 统计失败不影响业务响应
+            app.logger.warning(f"统计记录异常: {str(e)}", extra={'plugin': 'system'})
+        return response
