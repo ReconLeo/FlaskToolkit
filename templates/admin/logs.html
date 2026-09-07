@@ -1,18 +1,18 @@
 {% extends 'admin/base.html' %}
-{% block title %}日志 · {{ system_name }} 管理后台{% endblock %}
+{% block title %}{{ t('日志') }} · {{ system_name }} {{ t('管理后台') }}{% endblock %}
 {% block content %}
 <div class="page-header">
     <div>
-        <h1 class="page-title">📄 日志查看</h1>
-        <p class="page-subtitle">按级别 / 行数 / 插件过滤框架与插件日志（logs/ 目录）</p>
+        <h1 class="page-title">📄 {{ t('日志查看') }}</h1>
+        <p class="page-subtitle">{{ t('按级别 / 行数 / 插件过滤框架与插件日志（logs/ 目录）') }}</p>
     </div>
-    <button class="btn btn-primary" onclick="loadLogs()">🔄 刷新</button>
+    <button class="btn btn-primary" onclick="loadLogs()">🔄 {{ t('刷新') }}</button>
 </div>
 
 <div class="card">
     <div style="display:flex; gap:14px; flex-wrap:wrap; align-items:flex-end;">
         <div class="form-group" style="flex:1; min-width:120px; margin-bottom:0;">
-            <label>日志级别</label>
+            <label>{{ t('日志级别') }}</label>
             <select id="logLevel">
                 <option value="debug">debug</option>
                 <option value="info" selected>info</option>
@@ -22,7 +22,7 @@
             </select>
         </div>
         <div class="form-group" style="flex:1; min-width:120px; margin-bottom:0;">
-            <label>显示行数</label>
+            <label>{{ t('显示行数') }}</label>
             <select id="logLines">
                 <option value="50">50</option>
                 <option value="100" selected>100</option>
@@ -32,18 +32,18 @@
             </select>
         </div>
         <div class="form-group" style="flex:2; min-width:200px; margin-bottom:0;">
-            <label>插件过滤（可选）</label>
-            <input type="text" id="logPlugin" placeholder="如 auth / user_manage，留空显示全部">
+            <label>{{ t('插件过滤（可选）') }}</label>
+            <input type="text" id="logPlugin" placeholder="{{ t('如 auth / user_manage，留空显示全部') }}">
         </div>
-        <button class="btn btn-info" onclick="loadLogs()">查询</button>
+        <button class="btn btn-info" onclick="loadLogs()">{{ t('查询') }}</button>
     </div>
 </div>
 
 <div class="card">
-    <div class="card-title">📜 日志输出 <span id="logMeta" style="font-size:12px;color:#95a5a6;font-weight:400;"></span></div>
+    <div class="card-title">📜 {{ t('日志输出') }} <span id="logMeta" style="font-size:12px;color:#95a5a6;font-weight:400;"></span></div>
     <div id="logArea" class="loading" style="background:#1e1e1e; border-radius:8px; padding:16px;
         font-family: Consolas, Menlo, monospace; font-size:13px; color:#d4d4d4;
-        max-height: 560px; overflow:auto; white-space:pre-wrap; word-break:break-all;">加载中...</div>
+        max-height: 560px; overflow:auto; white-space:pre-wrap; word-break:break-all;">{{ t('加载中') }}...</div>
 </div>
 {% endblock %}
 
@@ -55,7 +55,7 @@
         const plugin = document.getElementById('logPlugin').value.trim();
         const area = document.getElementById('logArea');
         const meta = document.getElementById('logMeta');
-        area.textContent = '加载中...';
+        area.textContent = window.T('加载中') + '...';
         meta.textContent = '';
 
         let url = `/api/admin/logs?level=${level}&lines=${lines}`;
@@ -67,18 +67,18 @@
                 if (res.code === 200) {
                     const lines = res.data || [];
                     if (lines.length === 0) {
-                        area.textContent = '（该级别暂无日志）';
-                        meta.textContent = '· 共 0 行';
+                        area.textContent = window.T('该级别暂无日志');
+                        meta.textContent = '· ' + window.T('共') + ' 0 ' + window.T('行');
                         return;
                     }
                     area.textContent = lines.join('\n');
-                    meta.textContent = `· 共 ${lines.length} 行`;
+                    meta.textContent = `· ${window.T('共')} ${lines.length} ${window.T('行')}`;
                     area.scrollTop = area.scrollHeight;
                 } else {
-                    area.textContent = '加载失败：' + (res.message || '未知错误');
+                    area.textContent = window.T('加载失败') + '：' + (res.message || window.T('未知错误'));
                 }
             })
-            .catch(e => { area.textContent = '加载失败：' + e.message; });
+            .catch(e => { area.textContent = window.T('加载失败') + '：' + e.message; });
     }
 
     document.addEventListener('DOMContentLoaded', loadLogs);

@@ -3,6 +3,16 @@
 > 版本特性与演进史（来龙去脉）见 [Flask插件框架-版本演进记录.md](Flask插件框架-版本演进记录.md)；
 > 下方为各版本变更说明（按时间倒序）。
 
+## 版本：v4.15.3（剩余页面模板硬编码中文翻译补全） | 更新日期：2026年09月07日
+
+### 版本说明（v4.15.3 小修复）
+
+**主题：小修复——把剩余后台/公开页模板的硬编码中文全部接入 i18n，中文 key 由回归断言保证被语言包覆盖。**
+
+1. **剩余模板硬编码中文翻译补全**：`templates/admin/`（plugins.html 141 处、system.html、logs.html、network.html 补 4 处 JS 残留）+ 公开页（index.html、login.html、logout.html、register.html、setup.html、plugin_default.html）的硬编码中文全部包裹为 `{{ t('...') }}`（服务端）/ `window.T('...')`（客户端）；admin base 模板内联 JS 用 `window.T`，公开页（不继承 base、无 window.T）内联 JS 用服务端 `{{ t('...') }}` 渲染；含内嵌引号的示例 placeholder（JSON 数组/对象）拆分为无引号 key 以避免 i18n 正则截断。en.json 补 245 词条（239→484，修正 3 个句号差异 → 485）。
+2. **测试**：`test_i18n` 覆盖断言保持 29 项（扫描全部框架模板，确保模板中任一中文 key 必在 en.json）；全量回归 **37 脚本 988 项 0 失败**。
+3. **文档**：README 双版补 v4.15.2/4.15.3 i18n 全面补全特性（en 词条 485）、开发规范本段 + 版本表。
+
 ## 版本：v4.15.2（框架目录清单校正 + Statistics 模板翻译补全） | 更新日期：2026年09月07日
 
 ### 版本说明（v4.15.2 小修复）
@@ -226,6 +236,7 @@
 
 | 版本 | 日期 | 主题 | 提交 |
 |------|------|------|------|
+| **v4.15.3** | 2026-09-07 | 剩余页面模板硬编码中文翻译补全（admin plugins/system/logs/network + 公开页 index/login/logout/register/setup/plugin_default 全包裹 t()/T()，en.json 补 245 词条至 485；test_i18n 覆盖断言保证模板中文 key 必被语言包覆盖） |（本提交）|
 | **v4.15.2** | 2026-09-07 | 小修复：框架目录清单校正（documents 非运行时核心目录，移出 CORE_DIRS）+ v4.14 Statistics 模板翻译补全（dashboard/stats 硬编码中文包裹 t()/T() + en.json 补 125 词条）+ test_i18n 覆盖断言（28→29 项） |（本提交）|
 | **v4.15.1** | 2026-09-07 | 框架目录清单统一（core/framework_manifest.py 单一清单驱动自检/升级/备份/重置/Root 判定，删除各处硬编码）+ 示例插件 root_demo（framework:core Root 读写演示 + 对照拒绝） |（本提交）|
 | **v4.15.0** | 2026-09-07 | Root 域与市场骨架（framework 能力域三档 read/manage/core / 程序化插件管理服务层 / 插件级更新源 repo·update_feed·RSA 验签 / 前端 Root·更新徽章 / selfcheck 时区探测 + CORE_FILES 补全 / requirements tzdata） | ef36a40 |

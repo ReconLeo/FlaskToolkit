@@ -62,7 +62,7 @@
                 pwdToggle.addEventListener('click', function () {
                     var p = document.getElementById('password');
                     p.type = p.type === 'password' ? 'text' : 'password';
-                    pwdToggle.textContent = p.type === 'password' ? '显示' : '隐藏';
+                    pwdToggle.textContent = p.type === 'password' ? "{{ t('显示') }}" : "{{ t('隐藏') }}";
                 });
             }
             document.getElementById('registerBtn').addEventListener('click', function () {
@@ -73,10 +73,10 @@
                 var errEl = document.getElementById('errorTip');
                 errEl.style.display = 'none';
                 if (!username || !password) {
-                    errEl.textContent = '请填写用户名和密码'; errEl.style.display = 'block'; return;
+                    errEl.textContent = "{{ t('请填写用户名和密码') }}"; errEl.style.display = 'block'; return;
                 }
                 if (password.length < 6) {
-                    errEl.textContent = '密码长度至少 6 位'; errEl.style.display = 'block'; return;
+                    errEl.textContent = "{{ t('密码长度至少 6 位') }}"; errEl.style.display = 'block'; return;
                 }
                 var xhr = new XMLHttpRequest();
                 xhr.open('POST', '/api/auth/register');
@@ -88,9 +88,9 @@
                         if (xhr.status === 200 && res && res.code === 200) {
                             document.getElementById('registerForm').style.display = 'none';
                             document.getElementById('successArea').style.display = 'block';
-                            document.getElementById('successTip').textContent = res.message || '注册成功';
+                            document.getElementById('successTip').textContent = res.message || "{{ t('注册成功') }}";
                         } else {
-                            errEl.textContent = (res && res.message) || '注册失败，请重试';
+                            errEl.textContent = (res && res.message) || "{{ t('注册失败，请重试') }}";
                             errEl.style.display = 'block';
                         }
                     }

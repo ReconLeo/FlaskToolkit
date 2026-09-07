@@ -354,11 +354,11 @@
         <div class="navbar-right">
             <div class="user-box" id="userBox">
                 <div class="user-avatar" id="userAvatar">A</div>
-                <span class="user-name" id="userName">加载中...</span>
+                <span class="user-name" id="userName">{{ t('加载中...') }}</span>
             </div>
-            <a href="{{ project_github }}" target="_blank" rel="noopener" class="nav-link" title="项目主页（GitHub）">⭐ GitHub</a>
-            <a href="/" class="nav-link">首页</a>
-            <a href="javascript:;" class="nav-link logout-btn" onclick="handleLogout()">退出</a>
+            <a href="{{ project_github }}" target="_blank" rel="noopener" class="nav-link" title="{{ t('项目主页（GitHub）') }}">⭐ GitHub</a>
+            <a href="/" class="nav-link">{{ t('首页') }}</a>
+            <a href="javascript:;" class="nav-link logout-btn" onclick="handleLogout()">{{ t('退出') }}</a>
         </div>
     </nav>
 
@@ -371,27 +371,27 @@
     <!-- v4.10 强制改密弹窗：默认密码 admin123 时每次登录后台提醒 -->
     <div id="change-pwd-modal" class="modal">
         <div class="modal-content" style="max-width:420px;">
-            <h3 style="margin-bottom:14px;">修改默认密码</h3>
+            <h3 style="margin-bottom:14px;">{{ t('修改默认密码') }}</h3>
             <p style="font-size:13px; color:#7f8c8d; margin-bottom:14px;">
-                当前仍在使用默认密码 admin123，为保障后台安全请尽快修改。
-                选择"下次再说"可稍后修改，但每次登录后台都会提醒。
+                {{ t('当前仍在使用默认密码 admin123，为保障后台安全请尽快修改。') }}
+                {{ t('选择“下次再说”可稍后修改，但每次登录后台都会提醒。') }}
             </p>
             <div class="form-group">
-                <label>原密码</label>
+                <label>{{ t('原密码') }}</label>
                 <input type="password" id="cp-old" style="width:100%; padding:8px;" autocomplete="current-password">
             </div>
             <div class="form-group">
-                <label>新密码（至少 6 位）</label>
+                <label>{{ t('新密码（至少 6 位）') }}</label>
                 <input type="password" id="cp-new" style="width:100%; padding:8px;" autocomplete="new-password">
             </div>
             <div class="form-group">
-                <label>确认新密码</label>
+                <label>{{ t('确认新密码') }}</label>
                 <input type="password" id="cp-confirm" style="width:100%; padding:8px;" autocomplete="new-password">
             </div>
             <div id="cp-error" style="color:#e74c3c; font-size:13px; margin-bottom:10px; display:none;"></div>
             <div class="modal-buttons">
-                <button class="btn btn-info" onclick="closeChangePwd()">下次再说</button>
-                <button class="btn btn-success" onclick="submitChangePwd()">确认修改</button>
+                <button class="btn btn-info" onclick="closeChangePwd()">{{ t('下次再说') }}</button>
+                <button class="btn btn-success" onclick="submitChangePwd()">{{ t('确认修改') }}</button>
             </div>
         </div>
     </div>
@@ -466,13 +466,13 @@
             const errEl = document.getElementById('cp-error');
             errEl.style.display = 'none';
             if (!oldPwd || !newPwd) {
-                errEl.textContent = '请填写原密码和新密码'; errEl.style.display = 'block'; return;
+                errEl.textContent = window.T('请填写原密码和新密码'); errEl.style.display = 'block'; return;
             }
             if (newPwd.length < 6) {
-                errEl.textContent = '新密码长度至少 6 位'; errEl.style.display = 'block'; return;
+                errEl.textContent = window.T('新密码长度至少 6 位'); errEl.style.display = 'block'; return;
             }
             if (newPwd !== confirmPwd) {
-                errEl.textContent = '两次输入的新密码不一致'; errEl.style.display = 'block'; return;
+                errEl.textContent = window.T('两次输入的新密码不一致'); errEl.style.display = 'block'; return;
             }
             fetch('/api/auth/change-password', {
                 method: 'POST',
@@ -483,13 +483,13 @@
                 if (res.code === 200) {
                     try { localStorage.removeItem('ftk_must_pwd'); } catch (e) { /* ignore */ }
                     hideModal('change-pwd-modal');
-                    showToast('密码修改成功', 'success');
+                    showToast(window.T('密码修改成功'), 'success');
                 } else {
-                    errEl.textContent = res.message || '修改失败';
+                    errEl.textContent = res.message || window.T('修改失败');
                     errEl.style.display = 'block';
                 }
             }).catch(() => {
-                errEl.textContent = '网络错误，请重试';
+                errEl.textContent = window.T('网络错误，请重试');
                 errEl.style.display = 'block';
             });
         }

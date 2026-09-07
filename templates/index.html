@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="{{ lang }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Flask 工具集</title>
+    <title>{{ t('Flask 工具集') }}</title>
     <link rel="stylesheet" href="/static/css/main.css">
     <link rel="stylesheet" href="/static/css/mobile.css">
 </head>
@@ -15,7 +15,7 @@
             <div class="navbar-right">
                 <div id="userInfo" class="user-info">
                     {% if user_role == 'admin' %}
-                    <div class="admin-indicator" title="超级管理员">⚙️ 管理员</div>
+                    <div class="admin-indicator" title="{{ t('超级管理员') }}">⚙️ {{ t('管理员') }}</div>
                     {% endif %}
                 </div>
                 <div id="authButton">
@@ -26,28 +26,28 @@
     </header>
 
     <div class="container">
-        <h1 style="text-align:center; margin: 0 0 24px;">🔧 Flask 全栈工具集</h1>
+        <h1 style="text-align:center; margin: 0 0 24px;">🔧 {{ t('Flask 全栈工具集') }}</h1>
 
         <div id="adminBar" class="admin-bar hidden" style="text-align:right; margin-bottom:16px;">
-            <a href="/admin/dashboard" class="btn btn-primary btn-sm">🛠️ 管理后台</a>
+            <a href="/admin/dashboard" class="btn btn-primary btn-sm">🛠️ {{ t('管理后台') }}</a>
         </div>
 
         <!-- 工具条：搜索 + 排序 -->
         <div class="toolbar">
             <div class="search-box">
                 <span class="search-icon">🔍</span>
-                <input type="text" id="toolSearch" placeholder="搜索工具名称 / 描述 / 作者 / 分类...">
+                <input type="text" id="toolSearch" placeholder="{{ t('搜索工具名称 / 描述 / 作者 / 分类') }}...">
             </div>
-            <select id="toolSort" class="sort-select" title="排序方式">
-                <option value="default">默认排序</option>
-                <option value="heat">🔥 按热度</option>
-                <option value="alpha">按字母</option>
+            <select id="toolSort" class="sort-select" title="{{ t('排序方式') }}">
+                <option value="default">{{ t('默认排序') }}</option>
+                <option value="heat">🔥 {{ t('按热度') }}</option>
+                <option value="alpha">{{ t('按字母') }}</option>
             </select>
             <span id="toolCount" class="toolbar-count"></span>
         </div>
         <div id="searchEmpty" class="empty-state" style="display:none;">
-            <h2>没有匹配的工具</h2>
-            <p>换个关键词试试，或调整排序条件</p>
+            <h2>{{ t('没有匹配的工具') }}</h2>
+            <p>{{ t('换个关键词试试，或调整排序条件') }}</p>
         </div>
 
         {% if categories %}
@@ -71,10 +71,10 @@
                             <span class="tool-icon">{% if tool.type == 'backend' %}🔌{% else %}🌐{% endif %}</span>
                             <h3 class="tool-title" title="{{ tool.title }}">{{ tool.title }}</h3>
                             {% if tool.permission == 'admin' %}
-                            <span class="badge badge-admin">管理</span>
+                            <span class="badge badge-admin">{{ t('管理') }}</span>
                             {% endif %}
                             {% if tool._heat > 0 %}
-                            <span class="tool-heat" title="累计访问/调用">🔥 {{ tool._heat }}</span>
+                            <span class="tool-heat" title="{{ t('累计访问/调用') }}">🔥 {{ tool._heat }}</span>
                             {% endif %}
                             <span class="tool-author">by {{ tool.author }}</span>
                         </div>
@@ -82,10 +82,10 @@
                         <div class="tool-footer">
                             {% if tool.type == 'backend' %}
                             <span class="tool-version">v{{ tool.version }}</span>
-                            <a href="/plugin/{{ tool.name }}" class="btn btn-success btn-sm">打开工具</a>
+                            <a href="/plugin/{{ tool.name }}" class="btn btn-success btn-sm">{{ t('打开工具') }}</a>
                             {% else %}
-                            <span class="tool-version">前端工具</span>
-                            <a href="/frontend/{{ tool.name }}" class="btn btn-success btn-sm">打开工具</a>
+                            <span class="tool-version">{{ t('前端工具') }}</span>
+                            <a href="/frontend/{{ tool.name }}" class="btn btn-success btn-sm">{{ t('打开工具') }}</a>
                             {% endif %}
                         </div>
                     </div>
@@ -93,15 +93,15 @@
                 </div>
                 {% else %}
                 <div class="empty-state">
-                    <p>该分类下暂无可用工具</p>
+                    <p>{{ t('该分类下暂无可用工具') }}</p>
                 </div>
                 {% endif %}
             </div>
         {% endfor %}
         {% else %}
         <div class="empty-state">
-            <h2>暂无可用工具</h2>
-            <p>请先安装或启用插件</p>
+            <h2>{{ t('暂无可用工具') }}</h2>
+            <p>{{ t('请先安装或启用插件') }}</p>
         </div>
         {% endif %}
     </div>

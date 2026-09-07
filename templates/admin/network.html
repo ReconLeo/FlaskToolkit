@@ -69,7 +69,7 @@
             </div>
             <div class="toggle-row">
                 <div>
-                    <div><strong>mDNS 主机名（{{ t('IP 变了链接不变') }}）</strong></div>
+                    <div><strong>mDNS {{ t('主机名') }}（{{ t('IP 变了链接不变') }}）</strong></div>
                     <div class="net-hint">{{ t('开启后可用 {scheme}://<主机名>.local:端口 访问，例如 flasktoolkit.local', scheme=scheme) }}</div>
                     <div id="mdnsErr" class="notice-warn" style="display:none;"></div>
                 </div>
@@ -112,10 +112,10 @@
     function copyText(text) {
         if (navigator.clipboard && navigator.clipboard.writeText) {
             navigator.clipboard.writeText(text).then(function () {
-                showToast('已复制：' + text, 'success');
+                showToast(window.T('已复制') + '：' + text, 'success');
             });
         } else {
-            showToast('复制失败：' + text, 'error');
+            showToast(window.T('复制失败') + '：' + text, 'error');
         }
     }
 
@@ -129,7 +129,7 @@
         }
         var box = document.getElementById('urlList');
         if (!urls || !urls.length) {
-            box.innerHTML = '（暂无可用地址）';
+            box.innerHTML = window.T('暂无可用地址');
             return;
         }
         var html = '';
@@ -154,7 +154,7 @@
         if (window.QRCode) {
             qrCodeInst = new QRCode(box, { text: url, width: 168, height: 168, correctLevel: QRCode.CorrectLevel.M });
         } else {
-            box.innerHTML = '<span class="net-hint">QR 组件缺失</span>';
+            box.innerHTML = window.T('QR 组件缺失');
         }
     }
 
@@ -199,7 +199,7 @@
                 renderUrls(data.access_urls || []);
                 renderStatus(data);
             })
-            .catch(function (e) { showToast('加载失败：' + e.message, 'error'); });
+            .catch(function (e) { showToast(window.T('加载失败') + '：' + e.message, 'error'); });
     }
 
     function postConfig(payload, successMsg) {
@@ -211,13 +211,13 @@
             .then(function (r) { return r.json(); })
             .then(function (d) {
                 if (d.code === 200) {
-                    showToast((successMsg || '配置已保存') + (d.restart_required ? '，' + window.T('重启后生效') : ''), 'success');
+                    showToast((successMsg || window.T('配置已保存')) + (d.restart_required ? '，' + window.T('重启后生效') : ''), 'success');
                     loadNetwork();
                 } else {
-                    showToast(d.message || '保存失败', 'error');
+                    showToast(d.message || window.T('保存失败'), 'error');
                 }
             })
-            .catch(function (e) { showToast('保存异常：' + e.message, 'error'); });
+            .catch(function (e) { showToast(window.T('保存异常') + '：' + e.message, 'error'); });
     }
 
     function setShare(on) {
@@ -236,7 +236,7 @@
 
     function saveIpWatch() {
         var v = parseInt(document.getElementById('ipWatch').value, 10);
-        if (isNaN(v) || v < 0 || v > 3600) { showToast('IP_WATCH 范围 0-3600', 'error'); return; }
+        if (isNaN(v) || v < 0 || v > 3600) { showToast(window.T('IP_WATCH 范围 0-3600'), 'error'); return; }
         postConfig({ IP_WATCH_INTERVAL: v }, window.T('检测间隔已保存'));
     }
 

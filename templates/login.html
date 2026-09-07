@@ -35,7 +35,7 @@
                 </div>
                 <button class="btn btn-primary" id="loginBtn" style="width:100%; padding:11px; font-size:16px;">{{ t('登录') }}</button>
                 <div class="auth-error" id="errorTip"></div>
-                <div class="auth-tip">默认账号：admin / admin123</div>
+                <div class="auth-tip">{{ t('默认账号') }}：admin / admin123</div>
                 {% if allow_register %}
                 <div class="auth-tip" style="margin-top:6px;">
                     {{ t('还没有账号？') }} <a href="/register" style="color:#409eff; text-decoration:none;">{{ t('注册') }}</a>
@@ -47,8 +47,8 @@
             <div id="successArea" class="auth-success">
                 <div class="status-icon">✓</div>
                 <div class="status-title">{{ t('登录成功') }}</div>
-                <div class="status-tip" id="successTip">3秒后自动跳转到首页...</div>
-                <a href="javascript:goRedirect()" class="btn btn-primary" style="width:auto; padding:8px 20px;">立即前往</a>
+                <div class="status-tip" id="successTip">{{ t('3秒后自动跳转到首页') }}...</div>
+                <a href="javascript:goRedirect()" class="btn btn-primary" style="width:auto; padding:8px 20px;">{{ t('立即前往') }}</a>
             </div>
         </div>
     </div>

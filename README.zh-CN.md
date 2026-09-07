@@ -4,7 +4,7 @@
   <img src="https://github.com/ReconLeo/FlaskToolkit/actions/workflows/ci.yml/badge.svg" alt="CI">
   <img src="https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB?logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/License-MIT-yellow" alt="License">
-  <img src="https://img.shields.io/badge/version-4.15.2-blue" alt="Version">
+  <img src="https://img.shields.io/badge/version-4.15.3-blue" alt="Version">
 </p>
 
 > 一个基于 Flask 的插件化**框架**：把散落的 Python 插件与纯前端工具装进统一的运行时，
@@ -36,6 +36,7 @@
 - **数据统计（4.14）**：后台管理回答"到底发生了什么"——仪表盘新增**运行徽章行**（运行时长 / 协议 / 访问地址 / IP 变化）、**冷门插件提示**（已装未调用）与**最近动态卡**；统计页新增 **14 天请求趋势**（纯 SVG 柱状图，无前端依赖）、**错误 Top 表**与**访问画像**——按登录用户（含管理员本人）与游客 IP 双维统计，附设备分类（bot / 平板 / 手机 / 桌面）与单插件 API 调用追溯，数据保留 30 天可配置（STATS_RETENTION_DAYS）；
 - **Root 权限域与市场铺路（4.15）**：插件可声明 **framework 能力域** 三档 `read` / `manage` / `core`（`core` ≈ Linux **root**，隐含 `manage` + `read`）以操作框架自身核心文件；**`framework:core`** 权限为"修改/删除框架核心"提供了显式语义，后台用醒目的 **⚠️ Root** 徽章标识，每次放行的核心路径写入都会落一条 **root-access 审计事件**（MIT 协议，框架概不负责）。与之配套的**程序化插件管理服务层**（core/plugin_admin.py）支撑管理路由，为**第三方插件市场**铺路；插件可在 plugin.json 声明 **repo / update_feed**，通过应用内**插件级更新检查**（core/plugin_updates.py，feed 强制 RSA 验签、3s 静默超时）触达各插件自己的发布渠道。启动**自检**也新增了**时区 / tzdata 探测**——APScheduler 3.11 改用 zoneinfo，Windows 依赖 tzdata，全新环境缺 tzdata 会在自检阶段明确报错并给出修复提示，而非启动到调度器才崩；
 - **框架目录清单统一（4.15.1）**："哪些是框架核心文件、哪些是用户数据"的判定不再各处硬编码——单一清单 `core/framework_manifest.py` 一次驱动启动自检、升级更新、备份、Factory Reset 与 Root 域路径判定。新增 `root_demo` 示例插件端到端演示 `framework:core` **Root** 授权：读写框架核心配置 `data/user_config.json`（审计 root-access），并对照展示普通 `filesystem:write` 写核心路径被拒；
+- **i18n 全面补全（4.15.2/4.15.3）**：后台与公开页面全部可翻译——Statistics 页与所有剩余模板（插件管理、系统管理、日志、网络与访问、首页、登录/注册/初始化向导、插件 API 调试页）的硬编码中文统一接入 `t()` / `window.T()` 语言层，`locales/en.json` 词条增至 **485**；回归断言扫描全部框架模板，确保模板中用到的任一中文 key 必被语言包覆盖；
 - **运维与工具链**：版本检查推送 + 双后端更新（git / archive）、Factory Reset、备份/恢复、启动自检、完整性签名、插件脚手架与离线安装/卸载 CLI（scaffold.py / install_plugin.py）与单插件空间清理，以及一套 **37 脚本 / 988 项回归测试与 GitHub Actions CI**。
 
 完整功能规格见[开发规范](documents/Flask插件框架开发规范-v4.0.md)。
