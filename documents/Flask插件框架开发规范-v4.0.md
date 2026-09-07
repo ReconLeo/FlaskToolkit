@@ -3,6 +3,19 @@
 > 版本特性与演进史（来龙去脉）见 [Flask插件框架-版本演进记录.md](Flask插件框架-版本演进记录.md)；
 > 下方为各版本变更说明（按时间倒序）。
 
+## 版本：v4.12.2（安全修复：上传临时文件防线） | 更新日期：2026年09月07日
+
+### 版本说明（v4.12.2 变更）
+
+**主题：上传临时文件安全防线（F6/F12）**——压力评估与侦查发现的上传链路安全收口，堵死"利用临时文件恶意写盘"与 preview_id 路径穿越：
+
+1. **F6 失败分支临时文件清理**：插件上传的 **preview 校验失败 / confirm 安装失败** 分支此前不清理临时包（普通上传与更新接口已有 finally 兜底）——现在 `except ValueError / except Exception` 统一调用 `_safe_remove_temp()`（尽力删除 + 失败日志，不阻塞业务返回）。修复前反复"preview 失败/confirm 失败"可致 temp 无限累积写盘。
+2. **preview 文件 TTL 防护（写盘漏洞核心）**：新增 `_cleanup_stale_preview_files(30min)`，每次上传接口入口顺带清理超过 30 分钟未确认安装的 `preview_*.zip`——堵死"反复预览永不确认 → temp 无限累积"。
+3. **F12 preview_id 路径穿越（P1）**：`preview_id` 校验从"仅 startswith('preview_')"升级为严格格式 `^preview_[0-9a-f]{32}\.zip$`（uuid hex 精确匹配），`preview_../../xxx` 类穿越请求直接 400，杜绝任意文件读取/探测。
+4. **测试固化**：tests/test_admin_api.py 62→69 项（无效 zip 普通/preview 上传后 temp 无残留、伪造 preview_id 400、路径穿越 400、过期 preview TTL 清理）。
+- **测试残留清理**：评估产生的 temp 无效 zip（12 个）与 echo_upload 测试插件（313MB 数据）已全部清理。
+
+## 版本：v4.12.1（Secure 修复：登录回归） | 更新日期：2026年09月06日
 ## 版本：v4.12.1（Secure 修复：登录回归） | 更新日期：2026年09月06日
 
 ### 版本说明（v4.12.1 变更）
@@ -147,6 +160,7 @@
 
 | 版本 | 日期 | 主题 | 提交 |
 |------|------|------|------|
+| **v4.12.2** | 2026-09-07 | 安全修复：上传临时文件防线（F6 失败分支清理 + preview TTL 30min + F12 preview_id 路径穿越封堵） | 待发布 |
 | **v4.12.1** | 2026-09-06 | Secure 修复：登录回归 F10（Cookie Secure 判定跟随请求实际协议）+ 压力/多机归因评估落地（test_server 脚手架 + 评估报告） | 786ae5d |
 | **v4.12.0** | 2026-09-06 | Secure：安全传输（HTTP→HTTPS 跳转 / Cookie Secure 自动 / 反代支持 / 桌面启动器 HTTPS） | 2b3762c |
 | **v4.11.0** | 2026-09-06 | Reachability：网络可达（地址中心 / mDNS / 网络页 / IP 检测 / 桌面启动器） | e16e67b |

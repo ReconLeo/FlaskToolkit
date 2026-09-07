@@ -3,6 +3,7 @@
 import logging
 import os
 import platform
+import re
 import sys
 import time
 import uuid
@@ -23,6 +24,38 @@ from core.audit import log_audit
 from core.utils import check_upload_size, secure_filename_cn
 from core.plugin_scanner import scan_plugin_zip, should_block
 from core.capabilities import cross_validate, read_pack_capabilities
+
+
+# v4.12.2 安全修复（F6）：上传临时文件清理辅助 + 预览文件 TTL 防护
+_PREVIEW_ID_RE = re.compile(r'^preview_[0-9a-f]{32}\.zip$')
+_PREVIEW_TTL_SECONDS = 30 * 60  # 预览文件超过 30 分钟未确认安装视为废弃
+
+
+def _safe_remove_temp(path):
+    """尽力删除上传临时文件（清理失败记录日志，不阻塞业务返回）。"""
+    try:
+        if path and os.path.isfile(path):
+            os.remove(path)
+            return True
+    except Exception as e:
+        logger = logging.getLogger('routes.admin')
+        logger.warning('上传临时文件清理失败: %s - %s', path, e)
+    return False
+
+
+def _cleanup_stale_preview_files(max_age_seconds=_PREVIEW_TTL_SECONDS):
+    """清理超过 TTL 未确认安装的 preview_ 临时包，防止反复预览/放弃确认导致写盘累积。
+    每次上传接口入口调用（顺带清理）。"""
+    try:
+        now = time.time()
+        for fn in os.listdir(global_var.UPLOAD_TEMP_DIR):
+            if fn.startswith('preview_') and fn.endswith('.zip'):
+                fp = os.path.join(global_var.UPLOAD_TEMP_DIR, fn)
+                if now - os.path.getmtime(fp) > max_age_seconds:
+                    os.remove(fp)
+    except Exception as e:
+        logger = logging.getLogger('routes.admin')
+        logger.warning('预览临时文件 TTL 清理失败: %s', e)
 from core.audit_hook import get_violations as get_audit_violations
 from core.watcher import save_cache_internal
 
@@ -329,13 +362,16 @@ def register(app):
         """
         is_preview = request.form.get('preview') == '1'
         is_confirm = request.form.get('confirm') == '1'
+        # v4.12.2 安全修复（F6）：每次上传入口顺带清理过期预览包，防写盘累积
+        _cleanup_stale_preview_files()
 
         if is_confirm:
-            # 确认安装：复用预览阶段保存的临时包
+            # 确认安装：复用预览阶段保存的临时包（严格校验 preview_id 格式，防路径穿越）
             preview_id = request.form.get('preview_id', '')
+            if not _PREVIEW_ID_RE.fullmatch(preview_id):
+                return jsonify({"code": 400, "message": "预览文件不存在或已失效，请重新上传"}), 400
             temp_path = os.path.join(global_var.UPLOAD_TEMP_DIR, preview_id)
-            if (not preview_id or not preview_id.startswith('preview_')
-                    or not os.path.isfile(temp_path)):
+            if not os.path.isfile(temp_path):
                 return jsonify({"code": 400, "message": "预览文件不存在或已失效，请重新上传"}), 400
             temp_filename = preview_id
         else:
@@ -449,6 +485,8 @@ def register(app):
                                             ('declared', 'missing', 'suggested') if _cr.get(k) is not None}
             return jsonify(resp)
         except ValueError as e:
+            # v4.12.2 安全修复（F6）：校验失败同样清理临时文件（含 preview/confirm 失败残留）
+            _safe_remove_temp(temp_path)
             # 校验类错误：清理可能残留的解压文件
             try:
                 if 'plugin_name' in dir():
@@ -464,16 +502,14 @@ def register(app):
             return jsonify({"code": 400, "message": str(e)}), 400
         except Exception as e:
             logger.error(f"上传插件包失败: {str(e)}", extra={'plugin': 'system'})
+            # v4.12.2 安全修复（F6）：未预期异常也清理临时文件
+            _safe_remove_temp(temp_path)
             return jsonify({"code": 500, "message": f"上传失败: {str(e)}"}), 500
         finally:
-            try:
-                # preview/confirm 两段式：preview 文件需保留到 confirm 阶段，
-                # confirm 成功后在业务内显式清理；仅普通上传在此兜底清理
-                if not is_preview and not is_confirm and os.path.exists(temp_path):
-                    os.remove(temp_path)
-            except Exception:
-                # 临时文件清理失败不影响业务（如运行环境禁止永久删除）
-                pass
+            # preview/confirm 两段式：preview 文件需保留到 confirm 阶段，
+            # confirm 成功后在业务内显式清理；仅普通上传在此兜底清理
+            if not is_preview and not is_confirm:
+                _safe_remove_temp(temp_path)
 
     @app.route('/api/admin/factory-reset', methods=['POST'])
     @admin_api

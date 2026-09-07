@@ -22,6 +22,7 @@ import os
 import shutil
 import sys
 import tempfile
+import time
 import zipfile
 
 REAL_BASE = _PROJECT_ROOT
@@ -111,7 +112,7 @@ def main():
     data = r.get_json().get('data', {}) if r.status_code == 200 else {}
     check('system/info 返回 200', r.status_code == 200, f'status={r.status_code}')
     check('system/info framework_version=4.2.2',
-          data.get('framework_version') == '4.12.1', f"{data.get('framework_version')}")
+          data.get('framework_version') == '4.12.2', f"{data.get('framework_version')}")
     check('system/info builtin_plugins 含 auth/user_manage',
           set(data.get('builtin_plugins', [])) == {'auth', 'user_manage'},
           f"{data.get('builtin_plugins')}")
@@ -231,6 +232,47 @@ def main():
     if pv_id:
         check('确认安装后预览临时文件已清理',
               not os.path.exists(os.path.join(global_var.UPLOAD_TEMP_DIR, pv_id)), '')
+
+    # 6.2 v4.12.2 安全修复（F6/F12）：上传失败分支清理 temp + preview_id 防穿越 + 预览 TTL 清理
+    def _temp_zips():
+        return [f for f in os.listdir(global_var.UPLOAD_TEMP_DIR) if f.endswith('.zip')]
+    _t0 = _temp_zips()
+    r = client.post('/api/admin/plugins/upload',
+                    data={'file': (io.BytesIO(b'garbage-not-zip'), 'evil_bad.zip', 'application/zip')},
+                    content_type='multipart/form-data')
+    check('F6 无效 zip 普通上传 → 400', r.status_code == 400, f'status={r.status_code}')
+    check('F6 普通上传失败后 temp 无残留', _temp_zips() == _t0,
+          'before=%s after=%s' % (_t0, _temp_zips()))
+
+    r = client.post('/api/admin/plugins/upload',
+                    data={'file': (io.BytesIO(b'garbage-not-zip'), 'evil_pv.zip', 'application/zip'),
+                          'preview': '1'},
+                    content_type='multipart/form-data')
+    check('F6 preview 无效 zip → 400', r.status_code == 400, f'status={r.status_code}')
+    check('F6 preview 失败后无 preview_ 残留',
+          not [f for f in _temp_zips() if f.startswith('preview_')],
+          '残留=%s' % [f for f in _temp_zips() if f.startswith('preview_')])
+
+    r = client.post('/api/admin/plugins/upload',
+                    data={'confirm': '1', 'preview_id': 'preview_' + '0' * 32 + '.zip'},
+                    content_type='multipart/form-data')
+    check('F6 confirm 伪造 preview_id → 400', r.status_code == 400, f'status={r.status_code}')
+
+    r = client.post('/api/admin/plugins/upload',
+                    data={'confirm': '1', 'preview_id': 'preview_../../evil.zip'},
+                    content_type='multipart/form-data')
+    check('F12 preview_id 路径穿越 → 400（格式拒绝）',
+          r.status_code == 400 and '不存在或已失效' in (r.get_json() or {}).get('message', ''),
+          f'status={r.status_code} body={r.get_data(as_text=True)[:90]}')
+
+    # TTL：造一个过期 preview_ 文件，upload 入口顺带清理（缺文件请求也触发入口清理）
+    _stale = os.path.join(global_var.UPLOAD_TEMP_DIR, 'preview_' + 'a' * 32 + '.zip')
+    with open(_stale, 'wb') as _f:
+        _f.write(b'stale-preview')
+    _old = time.time() - 3600
+    os.utime(_stale, (_old, _old))
+    client.post('/api/admin/plugins/upload', data={})
+    check('F6 过期 preview 文件被 TTL 清理', not os.path.exists(_stale), _stale)
 
     # 7. check_upload_size 单元测试
     under = io.BytesIO(b'x' * 100)

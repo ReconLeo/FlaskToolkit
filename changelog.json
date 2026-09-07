@@ -1,10 +1,12 @@
 {
-  "latest_version": "4.12.1",
-  "published_at": "2026-09-06",
-  "download_url": "https://github.com/ReconLeo/FlaskToolkit/releases/download/v4.12.1/FlaskToolkit-4.12.1-runtime.zip",
-  "sha256": "e855d1730a7c771317687c555b550211cdbcfca331992eb0f183e86d7f9f8098",
+  "latest_version": "4.12.2",
+  "published_at": "2026-09-07",
+  "download_url": "https://github.com/ReconLeo/FlaskToolkit/releases/download/v4.12.2/FlaskToolkit-4.12.2-runtime.zip",
+  "sha256": "c7af39085faebc7d05444f16724c0c1a1d1c4550f01f58fc58c2217b316eeacd",
   "changes": [
-    "修复 P1 登录回归（F10）：SESSION_COOKIE_SECURE 自动判定改跟随请求实际协议（request.scheme，ProxyFix 后反代场景为 https）——内部 http 直连不再被 EXTERNAL_SCHEME=https 联动导致 Secure cookie 被丢弃、登录态失效；反代 https 场景保持 Secure",
-    "压力与多机归因评估（阶段 3/4）落地：test_server 测试脚手架（android_client/pc_stress/pc_collect/pc_audit_lookup + echo-upload 测试插件）、并发/大文件/多机 IP 归因端到端验证报告"
+    "安全修复：上传临时文件防线（F6）——preview/confirm 失败分支统一清理临时包（except 分支 _safe_remove_temp），堵死反复失败上传导致 temp 无限累积写盘",
+    "安全修复：preview 文件 TTL 防护——超过 30 分钟未确认安装的 preview_ 临时包在每次上传入口顺带清理",
+    "安全修复：preview_id 路径穿越封堵（F12，P1）——严格 uuid 格式校验 ^preview_[0-9a-f]{32}\\.zip$，preview_../../ 类请求直接 400",
+    "测试固化：test_admin_api 62→69 项（失败上传无残留/伪造 preview_id/穿越 400/过期 preview TTL 清理）；评估测试残留（12 个无效 zip + echo_upload 插件 313MB）已清理"
   ]
 }
