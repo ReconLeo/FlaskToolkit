@@ -3,6 +3,23 @@
 > 版本特性与演进史（来龙去脉）见 [Flask插件框架-版本演进记录.md](Flask插件框架-版本演进记录.md)；
 > 下方为各版本变更说明（按时间倒序）。
 
+## 版本：v4.15.0（Root 域与市场骨架：框架核心权限 + 插件级更新源） | 更新日期：2026年09月07日
+
+### 版本说明（v4.15.0 变更）
+
+**主题：Community 为 Enterprise 铺路——Root 权限域 + 第三方插件市场骨架**。回答"插件能否操作框架核心文件、能否自建插件市场"。MIT 协议下，framework:core 属高风险（root）操作，框架概不负责。
+
+1. **framework 能力域（core/capabilities.py）**：KNOWN_DOMAINS 新增 `framework`，三档 `read` / `manage` / `core`（core ≈ Linux **root**，隐含 manage/read，级别 3>2>1）；`is_framework_core_path(path)` 判定框架核心路径（core/routes/static/templates 框架部分/app.py/global_var.py/data/user_config.json/plugins/status.json，豁免 templates/plugins/、templates/frontend_tools/、plugins/data|temp|configs）；filesystem:write 命中核心路径→errors 拒绝并提示改用 framework:core；cross_validate 中 framework:core 隐式覆盖核心路径写；check_filesystem 运行时核心路径写仅 framework:core 放行；新增 `check_framework(plugin_name, level)`。
+2. **Root 审计与栈归因（core/audit_hook.py）**：allowed 核心路径写追加 root-access 审计事件；新增公共栈归因 `locate_caller_plugin()`（供服务层权限判定，防插件冒用身份伪造）。
+3. **加载横幅（core/plugin_loader.py）**：加载声明 framework:core 的插件打印醒目警告横幅；catalog 透传 repo/update_feed/capabilities。
+4. **程序化插件管理服务层（core/plugin_admin.py，新 288 行）**：PluginAdminPermissionError、require_manage（框架自身放行/插件须 framework:manage）、scan_gate、enable/disable/uninstall/purge_data/install_from_package/update_from_package；routes/admin 六个管理接口改薄壳调用服务层。为第三方插件市场提供程序化接入点。
+5. **插件级更新源（core/plugin_updates.py，新）**：插件可在 plugin.json 声明 `repo` / `update_feed`，应用内 check-updates 触达各插件自己的发布渠道——feed JSON {latest_version,published_at,download_url,sha256,changes[,signature]}、data/cache/plugin_updates.json 缓存（UPDATE_CHECK_INTERVAL 小时）、3s 超时静默、UPDATE_PUBLIC_KEY_PEM 强制 RSA 验签（package_sign.verify_signature）、版本比较；plugin_pack META_FIELDS 加 repo/update_feed（不进 COMPARE_FIELDS）。
+6. **前端（templates/admin/plugins.html）**：Root/Manage/Framework 徽章（⚠️ Root 红/manage 橙/read 蓝三色警示条）、插件更新徽章（⬆ vX 可更新）、检查更新按钮。
+7. **既有 bug 修复**：routes/admin.py preview 分支 `from core.plugin_scanner import read_pack_capabilities`（函数实为 core.capabilities）→ ImportError 被 except 吞 → preview.capabilities 自 v4.10 恒空；改顶层已导入的 read_pack_capabilities。
+8. **启动自检增强（core/selfcheck.py）**：① 时区集中化——global_var 新增 `TIMEZONE` 常量，app.py 的 BackgroundScheduler 改用它；APScheduler 3.11 改用标准库 zoneinfo（不再依赖 pytz），Windows 需 tzdata 包提供 IANA 时区库，缺 tzdata 时 app.py 顶层创建 scheduler 会抛 ZoneInfoNotFoundError 使启动崩溃——selfcheck 新增时区探测，缺 tzdata 时在自检阶段致命报错并提示（而非静默通过、启动才崩）；② CORE_FILES 补登记 v4.15 新增服务层 core/plugin_admin.py、core/plugin_updates.py（routes/admin 顶层引用，缺失则 admin 路由 import 崩）。
+9. **requirements.txt**：新增 `tzdata==2026.3`（Windows zoneinfo 必需，全新 Python 环境可复现）。
+10. **测试**：新增 tests/test_root_domain.py（18 项：framework 域三档/核心路径判定/root 写放行与拒绝/服务层 require_manage/市场写 core 拒绝/更新源）、tests/test_selfcheck.py（14 项：CORE_FILES 完整性/时区探测/完整自检）；test_capabilities 扩展 G 段 framework 域 13 项；修复 test_admin_api 版本期望；全量回归 **35 脚本 914 项 0 失败**。
+
 ## 版本：v4.14.0（Statistics：数据统计洞察） | 更新日期：2026年09月07日
 
 ### 版本说明（v4.14.0 变更）
@@ -188,6 +205,7 @@
 
 | 版本 | 日期 | 主题 | 提交 |
 |------|------|------|------|
+| **v4.15.0** | 2026-09-07 | Root 域与市场骨架（framework 能力域三档 read/manage/core / 程序化插件管理服务层 / 插件级更新源 repo·update_feed·RSA 验签 / 前端 Root·更新徽章 / selfcheck 时区探测 + CORE_FILES 补全 / requirements tzdata） | ef36a40 |
 | **v4.14.0** | 2026-09-07 | Statistics：数据统计洞察（时间桶 + 访问画像双维数据模型 / dashboard 总览化 / 14 天趋势 + 错误 Top + 画像卡 / 跳转端口 POST body 消费修复） | b2f56a3 |
 | **v4.13.0** | 2026-09-07 | Mobile & Tablet：移动端与平板适配（mobile.css / admin-mobile.css / mobile.js 四件套 + 示例插件移动端样式，与原有 CSS 分开创建） | ad2bf59 |
 | **v4.12.2** | 2026-09-07 | 安全修复：上传临时文件防线（F6 失败分支清理 + preview TTL 30min + F12 preview_id 路径穿越封堵） | 84c17ed |
@@ -280,7 +298,7 @@ FlaskToolkit/
 │   ├── desktop_launcher.py  #   桌面启动器（tkinter GUI，subprocess 启动服务，v4.11 M5；HTTPS 复选框 + 证书自动生成，v4.12）
 
 │   └── reset.py               #   深度重置工具（服务停止时使用，绕过运行时文件锁定）
-├── tests/                     # 回归测试套件（32 脚本 869 项 + 端到端链路验证）
+├── tests/                     # 回归测试套件（35 脚本 914 项 + 端到端链路验证）
 ├── templates/                 # 页面模板（首页/登录/错误码页 400-500/admin 管理后台/插件页）
 │   ├── admin/                 #   管理后台（dashboard / plugins / logs / stats / system）
 │   ├── frontend_tools/        #   前端工具模板
@@ -589,6 +607,8 @@ def get_item(self, item_id):
 | `dependencies` | 否 | 依赖插件名列表（如 `["auth"]`） |
 | `require_framework_version` | 否 | 最低框架版本要求（点分版本，如 `"4.0.0"`）；非强制，一经声明须满足，见 5.7 |
 | `capabilities` | 否 | 能力白名单声明（v4.3.2，字符串列表）；未声明的检出行为在 enforce 模式下拒绝安装，见 10.7 |
+| `repo` | 否 | 插件源码/发布仓库地址（v4.15，市场铺路元数据；不进描述一致性冲突比对） |
+| `update_feed` | 否 | 插件级更新源 feed URL（v4.15，JSON {latest_version,published_at,download_url,sha256,changes[,signature]}，RSA 验签，应用内 check-updates 触达，见 5.6.8） |
 
 版本以 `plugin.json` 声明为准：上传/更新后描述文件落盘为 `plugins/<name>.json`，插件扫描与目录指纹均优先读取该文件，保证 catalog 显示版本与包内声明一致。
 
@@ -651,12 +671,31 @@ UserManage/
 
 ---
 
+#### 5.6.8 插件级更新源与 framework 能力域（v4.15）
+
+**插件级更新源（core/plugin_updates.py）**：插件在 plugin.json 声明 `update_feed`（可选；`repo` 另作市场铺路元数据）后，应用内即可触达其**独立发布渠道**，用于第三方插件市场分发：
+
+| feed 字段 | 必填 | 说明 |
+|----------|------|------|
+| `latest_version` | 是 | 最新版本（点分，支持 v 前缀；低于当前不提示更新） |
+| `published_at` | 否 | 发布时间 |
+| `download_url` | 是 | 新版插件包 .zip 下载地址 |
+| `sha256` | 是 | 包完整性校验（下载后校验） |
+| `changes` | 否 | 更新说明 |
+| `signature` | 否 | 签名（配置 `UPDATE_PUBLIC_KEY_PEM` 后强制 RSA 验签，`package_sign.verify_signature`） |
+
+- **缓存**：`data/cache/plugin_updates.json`（`UPDATE_CHECK_INTERVAL` 小时，默认 24）。
+- **静默失败**：网络 3s 超时 / 校验失败不阻断，仅标记该插件不可更新。
+- **入口**：后台插件页"检查更新"按钮 / catalog 更新徽章（⬆ vX 可更新）。
+
+**framework 能力域（core/capabilities.py）**：插件声明 `framework:read` / `framework:manage` / `framework:core` 可操作**框架自身核心文件**（core/routes/templates 框架部分/app.py/global_var.py/data/user_config.json/plugins/status.json，豁免 templates/plugins/、templates/frontend_tools/、plugins/data|temp|configs）。`core` 为最高档（隐含 manage/read，≈Linux **root**，可修改/删除核心文件）。运行时由 `check_framework(plugin_name, level)` 判定；`filesystem:write` 命中核心路径会被拒绝并要求改用 `framework:core`；放行的核心路径写自动落 **root-access 审计事件**。⚠️ **MIT 协议下框架概不负责**，仅应在充分信任的可信插件上使用。
+
 ### 5.7 最低框架版本要求（require_framework_version）
 
 后端插件可声明 `require_framework_version`（`plugin.json` 或插件类属性，非强制），用于声明插件所需的最低框架版本，以支撑框架持续迭代：
 
 - **未声明**：不检查，任意框架版本可用。
-- **声明了**：上传/更新时与 `global_var.FRAMEWORK_VERSION`（当前 `4.2.0`）做点分版本比较（`compare_versions`，修复了前端工具原先字符串比较的缺陷）；插件要求高于框架版本 → 拒绝安装并报告。
+- **声明了**：上传/更新时与 `global_var.FRAMEWORK_VERSION`（当前 `4.15.0`）做点分版本比较（`compare_versions`，修复了前端工具原先字符串比较的缺陷）；插件要求高于框架版本 → 拒绝安装并报告。
 - **运行时双重校验**：`load_plugins` 加载时同样校验（防止手工放置插件绕过上传校验），不满足则跳过加载并报错。
 - 参与描述一致性对齐（冲突拒绝/缺失补全），见 5.6.3。
 
@@ -1067,7 +1106,7 @@ python tools/config.py set PLUGIN_SCAN_MODE enforce   # 单项覆盖
 
 插件在 plugin.json 中以可选字段 `capabilities` 声明**白名单授权**（扁平字符串列表，语法 `域:子域:参数`），安装时与静态扫描的行为范围（10.6）交叉校验。核心哲学：**Deny by Default，声明即授权**——扫描器输出的是"事实"，capabilities 是"授权"，两者比对产生 mismatch 清单。
 
-**能力目录（9 大域，开放集合）**：
+**能力目录（10 大域，开放集合）**：
 
 | 域 | 能力项 | 语法 | 授权语义 |
 |----|--------|------|---------|
@@ -1080,6 +1119,7 @@ python tools/config.py set PLUGIN_SCAN_MODE enforce   # 单项覆盖
 | scheduler | 定时任务 | `scheduler` | 允许注册 APScheduler 任务 |
 | database | 数据库 | `database:sqlite:<path>` / `database:mysql:<host:port/db>` / `database:postgres:...` | 连接目标 |
 | device | 串口/打印 | `device:serial:<port>` / `device:print` | 串口枚举（如 COM3） |
+| framework | 框架核心（v4.15） | `framework:read` / `framework:manage` / `framework:core` | 操作框架自身核心文件的三档授权：read=读取 / manage=插件管理与框架配置修改（服务层 require_manage）/ **core ≈ Linux root**（隐含 manage+read，可修改/删除框架核心文件，高危，MIT 协议框架概不负责）；无参数，按级别判定 |
 | env | 环境变量 | `env:read:<pattern>` | 变量名前缀或 `*` 通配 |
 | storage | 存储配额 | `storage:limit:<size>` | 存储空间授权（v4.9.1）：插件声明配额覆盖全局默认；纯数字=MB 或带单位 mb/m/gb/g（须 > 0） |
 
@@ -1338,7 +1378,7 @@ python tests/test_desktop_launcher.py   # 36 项（桌面启动器 v4.11 + HTTPS
 python tests/test_setup.py             # 17 项（首次运行向导 + 强制改密 v4.10，隔离目录）
 python tests/test_register.py             # 25 项（自助注册 + 邀请码 + 审核 v4.10 M5，隔离目录）
 python tests/test_scaffold_tools.py  # 53 项（M6 脚手架 + 离线安装/卸载闭环，subprocess 驱动 CLI，隔离目录）
-# 合计 32 个脚本 869 项（2026-09-06 本地全量实测复核）
+# 合计 35 个脚本 914 项（2026-09-07 本地全量实测复核）
 # （AirDrop 插件加载回归 test_airdrop_loader.py 8 项已移交 AirDrop 子项目维护，不入主仓库）
 ```
 
@@ -1431,7 +1471,7 @@ python tools/config.py profile strict    # 一键套用运维加固预设
 
 框架每次启动时执行完整性自检：
 
-- 校验核心文件/目录存在、第三方依赖（flask/flask_cors/apscheduler/watchdog）可导入、数据目录可写；
+- 校验核心文件/目录存在、第三方依赖（flask/flask_cors/apscheduler/watchdog）可导入、数据目录可写；时区数据可用性（v4.15：APScheduler 3.11 改用标准库 zoneinfo，Windows 缺 tzdata 时 `ZoneInfoNotFoundError` 使启动崩溃——自检主动探测，缺失即致命报错并提示 `pip install tzdata`）；
 - 首次启动执行完整自检并在 `data/.initialized` 写入标记，非首次做快速检查；
 - 致命问题（核心文件或依赖缺失）中止启动并给出修复提示；可写性问题仅告警。
 

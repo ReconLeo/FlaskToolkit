@@ -4,7 +4,7 @@
   <img src="https://github.com/ReconLeo/FlaskToolkit/actions/workflows/ci.yml/badge.svg" alt="CI">
   <img src="https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB?logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/License-MIT-yellow" alt="License">
-  <img src="https://img.shields.io/badge/version-4.14.0-blue" alt="Version">
+  <img src="https://img.shields.io/badge/version-4.15.0-blue" alt="Version">
 </p>
 
 > 一个基于 Flask 的插件化**框架**：把散落的 Python 插件与纯前端工具装进统一的运行时，
@@ -34,11 +34,12 @@
 - **网络可达（4.11）**：告别"每次 IP 变了都要重新发访问链接"——后台新增**网络与访问页**（列出全部可达地址、分享链接 + 二维码、mDNS 开关、IP 变化检测与间隔配置）；可选 **mDNS**（`pip install zeroconf`）让服务在稳定的 `flasktoolkit.local` 主机名下可达；新增**桌面启动器**（tools/desktop_launcher.py，双击即用）——启动/停止服务、切换仅本机/局域网共享、一键复制访问地址；
 - **移动端适配（4.13）**：公开页面与后台管理页全面适配手机 / 平板——响应式 CSS 与原有样式**分开维护**（mobile.css / admin-mobile.css / 各示例插件 *_mobile.css），支持刘海屏安全区（safe-area-inset）、44px 触摸目标、**表格自动包裹滚动容器**、首页导航汉堡菜单、窄屏模态框全屏化与 toast 顶部通栏，五个示例插件也各自带移动端样式；
 - **数据统计（4.14）**：后台管理回答"到底发生了什么"——仪表盘新增**运行徽章行**（运行时长 / 协议 / 访问地址 / IP 变化）、**冷门插件提示**（已装未调用）与**最近动态卡**；统计页新增 **14 天请求趋势**（纯 SVG 柱状图，无前端依赖）、**错误 Top 表**与**访问画像**——按登录用户（含管理员本人）与游客 IP 双维统计，附设备分类（bot / 平板 / 手机 / 桌面）与单插件 API 调用追溯，数据保留 30 天可配置（STATS_RETENTION_DAYS）；
-- **运维与工具链**：版本检查推送 + 双后端更新（git / archive）、Factory Reset、备份/恢复、启动自检、完整性签名、插件脚手架与离线安装/卸载 CLI（scaffold.py / install_plugin.py）与单插件空间清理，以及一套 **33 脚本 / 869 项回归测试与 GitHub Actions CI**。
+- **Root 权限域与市场铺路（4.15）**：插件可声明 **framework 能力域** 三档 `read` / `manage` / `core`（`core` ≈ Linux **root**，隐含 `manage` + `read`）以操作框架自身核心文件；**`framework:core`** 权限为"修改/删除框架核心"提供了显式语义，后台用醒目的 **⚠️ Root** 徽章标识，每次放行的核心路径写入都会落一条 **root-access 审计事件**（MIT 协议，框架概不负责）。与之配套的**程序化插件管理服务层**（core/plugin_admin.py）支撑管理路由，为**第三方插件市场**铺路；插件可在 plugin.json 声明 **repo / update_feed**，通过应用内**插件级更新检查**（core/plugin_updates.py，feed 强制 RSA 验签、3s 静默超时）触达各插件自己的发布渠道。启动**自检**也新增了**时区 / tzdata 探测**——APScheduler 3.11 改用 zoneinfo，Windows 依赖 tzdata，全新环境缺 tzdata 会在自检阶段明确报错并给出修复提示，而非启动到调度器才崩；
+- **运维与工具链**：版本检查推送 + 双后端更新（git / archive）、Factory Reset、备份/恢复、启动自检、完整性签名、插件脚手架与离线安装/卸载 CLI（scaffold.py / install_plugin.py）与单插件空间清理，以及一套 **35 脚本 / 914 项回归测试与 GitHub Actions CI**。
 
 完整功能规格见[开发规范](documents/Flask插件框架开发规范-v4.0.md)。
 
-坦白说，这框架的目标不是"再造一个 Django"：它站在 Flask、APScheduler、Werkzeug 这些巨人的肩膀上，把我需要的那部分想法落了地。它的信任模型是朴素的——**安装插件即信任其作者**：插件与框架同进程、无沙箱隔离（详见开发规范 10.1）。在"安装即信任"之上，框架又叠加了纵深防御——静态扫描、能力声明交叉校验、运行时审计钩子——并支持可选鉴权 / HTTPS 与数据配额管控，足以支撑**可信局域网 / 企业内网**的日常工具运行；若要对公网对抗性环境开放，仍需自行评估风险（插件仍无沙箱）。
+坦白说，这框架的目标不是"再造一个 Django"：它站在 Flask、APScheduler、Werkzeug 这些巨人的肩膀上，把我需要的那部分想法落了地。它的信任模型是朴素的——**安装插件即信任其作者**：插件与框架同进程、无沙箱隔离（详见开发规范 10.1）。v4.15 的 **framework:core** 权限是"安装即信任"之上的唯一显式升级——一个可审计的 **root** 授予，允许插件修改/删除框架自身核心文件，后台用醒目标识并全程审计，且置于 MIT 协议之下（作者对高风险操作造成的损失概不负责）。在"安装即信任"之上，框架又叠加了纵深防御——静态扫描、能力声明交叉校验、运行时审计钩子——并支持可选鉴权 / HTTPS 与数据配额管控，足以支撑**可信局域网 / 企业内网**的日常工具运行；若要对公网对抗性环境开放，仍需自行评估风险（插件仍无沙箱）。
 
 我坚持的原则只有一个：**需求导向，怎么方便怎么来**。所以最终呈现给你的，是一个开箱即用、低门槛、能随手往里加工具、且数据始终在自己手里的工具箱。
 
@@ -130,7 +131,7 @@ python examples/install_all.py                            # 一键安装 7 个�
 
 ## 测试与 CI
 
-`tests/` 32 个脚本共 869 项回归测试（隔离目录模式，不污染项目文件）；GitHub Actions 在 Python 3.10 / 3.11 / 3.12 上自动执行，覆盖权限、插件包 / 前端工具链路、完整性签名、卸载清单、Factory Reset、大插件多模板页面路由、文件传输（上传限制 / 中文名下载 / Range）、插件静态安全扫描、能力声明交叉校验、运行时审计钩子、i18n 语言框架、插件数据配额、插件脚手架与离线安装/卸载 CLI、单插件空间清理、运维工具等。
+`tests/` 35 个脚本共 914 项回归测试（隔离目录模式，不污染项目文件）；GitHub Actions 在 Python 3.10 / 3.11 / 3.12 上自动执行，覆盖权限、插件包 / 前端工具链路、完整性签名、卸载清单、Factory Reset、大插件多模板页面路由、文件传输（上传限制 / 中文名下载 / Range）、插件静态安全扫描、能力声明交叉校验、运行时审计钩子、i18n 语言框架、插件数据配额、插件脚手架与离线安装/卸载 CLI、单插件空间清理、运维工具等。
 
 <details>
 <summary>展开：32 个测试脚本</summary>
@@ -169,14 +170,14 @@ python tests/test_network.py              # 网络与访问（v4.11）+ 308 跳�
 python tests/test_mdns.py                 # mDNS 服务注册（v4.11，可选 zeroconf）22 项
 python tests/test_ip_watcher.py           # IP 变化检测（v4.11）15 项
 python tests/test_desktop_launcher.py     # 桌面启动器（v4.11）+ HTTPS 复选框（v4.12）36 项
-# 合计 32 个脚本 869 项
+# 合计 35 个脚本 914 项
 ```
 
 </details>
 
 ## 版本状态
 
-- **Community Edition（v4.x）**：功能开发持续进行，但架构规模有意识控制——专注小型局域网/个人用户场景，我们定期维护与发布（32 脚本 869 项回归 + CI）。
+- **Community Edition（v4.x）**：功能开发持续进行，但架构规模有意识控制——专注小型局域网/个人用户场景，我们定期维护与发布（35 脚本 914 项回归 + CI）。
 - **Enterprise Edition（v5.x）**：规划承载远期路线（权限模型细化、进程级沙箱、CSP 收紧、企业身份对接等）。因当前小团队开发能力有限，公开寻求接手者——详见 [Enterprise Edition 交接与路线](documents/Enterprise-Edition-交接与路线.md)。
 
 ## 已知局限
@@ -192,7 +193,7 @@ MIT License · 贡献指南见 [CONTRIBUTING.md](CONTRIBUTING.md) · 开发过�
 
 ### 人工智能辅助开发声明
 
-本项目在开发过程中使用了 AI 辅助编程工具，包括但不限于：代码生成与重构、代码审查、测试用例编写、文档撰写。所有 AI 辅助生成或修改的内容，均已由开发者人工审查，并通过项目自身的回归测试套件（`tests/`，869 项）与启动完整性自检验证后才会合入。
+本项目在开发过程中使用了 AI 辅助编程工具，包括但不限于：代码生成与重构、代码审查、测试用例编写、文档撰写。所有 AI 辅助生成或修改的内容，均已由开发者人工审查，并通过项目自身的回归测试套件（`tests/`，914 项）与启动完整性自检验证后才会合入。
 
 对贡献者的透明性约定：
 

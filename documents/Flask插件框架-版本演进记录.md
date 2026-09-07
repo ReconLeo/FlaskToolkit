@@ -39,6 +39,7 @@ Kaleido 同样开源（自托管题库系统）：[github.com/ReconLeo/Kaleido](
 | 补丁覆盖 | 2026-09-06 | tools 运维工具适配 v4.9 结构 + v4.9.2 覆盖发布 | `73c6a9f` `ee3e23d` `612c565` |
 | **v4.10.0** | 2026-09-06 | Accessibility 能力可达性：pip 依赖独立声明 + 能力清单确认 + 调试页权限修正/API 文档增强 + 首次运行向导/强制改密 + 邀请码自助注册 + 脚手架/离线安装卸载 + 单插件空间清理 | `e26b25e`（M4）`2ecb8b7`（M5）`941ea66`（airdrop 移交）`32aa2ce`（M6）`9d3aaf4`（M6-Extra）`699fae0`（前端清理），tag `v4.10.0` |
 | **v4.11.0** | 2026-09-06 | Reachability 网络可达：地址中心（core/network.py）+ mDNS 服务注册（core/mdns.py 可选 zeroconf）+ 后台网络与访问页（二维码/共享/mDNS/IP 检测）+ 启动横幅播报 + IP 变化检测（core/ip_watcher.py）+ 桌面启动器（tools/desktop_launcher.py） | `e16e67b`（M1-M5）`4a76811`（文档），tag `v4.11.0` |
+| **v4.15.0** | 2026-09-07 | Root 域与市场骨架：framework 能力域三档 read/manage/core + 程序化插件管理服务层（core/plugin_admin.py）+ 插件级更新源（plugin.json repo/update_feed + RSA 验签）+ 前端 Root·更新徽章 + selfcheck 时区探测（tzdata）+ requirements tzdata | `ef36a40`，tag `v4.15.0` |
 | **v4.14.0** | 2026-09-07 | Statistics 数据统计洞察：时间桶 + 访问画像双维数据模型 / dashboard 总览化（徽章行 + 冷门提示 + 最近动态）/ 14 天趋势 + 错误 Top + 画像卡 / 跳转端口 POST body 消费修复 | `b2f56a3`，tag `v4.14.0` |
 | **v4.13.0** | 2026-09-07 | Mobile & Tablet 移动端与平板适配：公开页面 + 后台管理页响应式翻修（mobile.css / admin-mobile.css 与原有样式分开创建）+ JS 增强层四件套（mobile.js：表格自动包裹/汉堡菜单/模态框全屏/toast 通栏）+ 14 框架模板幂等注入 + 五个示例插件各自 *_mobile.css | `ad2bf59`，tag `v4.13.0` |
 | **v4.12.2** | 2026-09-07 | 安全修复：上传临时文件防线——F6 失败分支统一清理（preview/confirm 失败残留）+ preview 文件 TTL 30min 防写盘累积 + F12 preview_id 路径穿越封堵（严格 uuid 格式校验）+ test_admin_api 62→69 项 | `84c17ed`，tag `v4.12.2` |
@@ -205,6 +206,21 @@ P1 安全强化至此全部完成，形成纵深防御：**静态扫描 → 能�
 - **框架漏洞修复（测试 J3 暴露）**：start_http_redirect 的 _jump 不消费请求体，单线程 HTTPServer 下 POST/PUT 带 body 在客户端发送阶段被 RST（WinError 10053）——按 Content-Length 消费 body 修复，跳转端口真实场景连接中止根治。
 - **测试**：新增 tests/test_stats.py（55 项）；test_audit_hook E12 改为审计日志痕迹检查（框架常驻运行时真实 audit.log 存在性检查误报）；全量回归 **33 脚本 869 项 0 失败**。
 
+### 3.20 v4.15.0（2026-09-07，tag `v4.15.0`）
+
+**Root 权限域 + 第三方插件市场骨架**——Community 作为 Enterprise 的微缩版/试验台，为"插件能否操作框架核心、能否自建插件市场"铺路。
+
+- **framework 能力域（core/capabilities.py）**：KNOWN_DOMAINS 新增 framework，三档 read/manage/core（core≈Linux root，隐含 manage/read，级别 3>2>1）；is_framework_core_path 判定框架核心路径（core/routes/templates 框架部分/app.py/global_var.py/data/user_config.json/plugins/status.json，豁免模板/插件数据目录）；filesystem:write 命中核心路径→errors 拒绝并提示改用 framework:core；cross_validate 中 framework:core 隐式覆盖核心路径写；check_filesystem 运行时核心写仅 framework:core 放行；新增 check_framework。
+- **Root 审计与栈归因（core/audit_hook.py）**：allowed 核心路径写追加 root-access 审计事件；新增公共栈归因 locate_caller_plugin()（服务层权限判定，防插件冒用身份伪造）。
+- **加载横幅（core/plugin_loader.py）**：加载 framework:core 插件打印醒目横幅；catalog 透传 repo/update_feed/capabilities。
+- **程序化插件管理服务层（core/plugin_admin.py，新 288 行）**：require_manage（框架自身放行/插件须 framework:manage）、scan_gate、enable/disable/uninstall/purge_data/install_from_package/update_from_package；routes/admin 六个管理接口改薄壳调用服务层，为第三方插件市场提供程序化接入点。
+- **插件级更新源（core/plugin_updates.py，新）**：plugin.json 声明 repo/update_feed，应用内 check-updates 触达各插件独立发布渠道——feed JSON {latest_version,published_at,download_url,sha256,changes[,signature]}、data/cache/plugin_updates.json 缓存（UPDATE_CHECK_INTERVAL 小时）、3s 超时静默、UPDATE_PUBLIC_KEY_PEM 强制 RSA 验签、版本比较；plugin_pack META_FIELDS 加 repo/update_feed（不进 COMPARE_FIELDS）。
+- **前端（templates/admin/plugins.html）**：Root/Manage/Framework 徽章（⚠️ Root 红/manage 橙/read 蓝三色警示条）、插件更新徽章（⬆ vX 可更新）、检查更新按钮。
+- **既有 bug 修复**：preview.capabilities 恒空（preview 分支 `from core.plugin_scanner import read_pack_capabilities` 实为 core.capabilities，ImportError 被 except 吞，v4.10 起恒空）→ 改顶层已导入函数。
+- **启动自检增强（core/selfcheck.py）**：时区集中化（global_var.TIMEZONE，app.py BackgroundScheduler 改用它）——APScheduler 3.11 弃 pytz 改 zoneinfo，Windows 缺 tzdata 时顶层创建 scheduler 抛 ZoneInfoNotFoundError 使启动崩溃，selfcheck 新增时区探测在自检阶段致命报错并提示装 tzdata；CORE_FILES 补登记 core/plugin_admin.py、core/plugin_updates.py。
+- **requirements.txt**：新增 tzdata==2026.3（Windows zoneinfo 必需，全新 Python 环境可复现）。
+- **测试**：新增 tests/test_root_domain.py（18 项）+ tests/test_selfcheck.py（14 项）；test_capabilities 扩展 G 段 framework 域 13 项；修复 test_admin_api 版本期望；全量回归 **35 脚本 914 项 0 失败**。
+
 ## 4. 发布实践沉淀
 
 - **changelog.json 是发布强制同步点**：`tools/release.py build` 会重写（latest_version/sha256/download_url/changes），须随 Release 一起 commit + push（v4.9.0/v4.9.1 曾漏同步，v4.9.2 补齐并固化）。
@@ -214,4 +230,4 @@ P1 安全强化至此全部完成，形成纵深防御：**静态扫描 → 能�
 - **README 故事段维护**：保持精简（主题里程碑聚合），细节指向开发规范与本演进记录，避免随版本膨胀。
 - **release.py bump 锚点必须是"当前版本"**：版本替换锚点曾误用"新版本号"（v4.8.0 引入，首次使用即暴露）——替换锚点应从 `global_var.FRAMEWORK_VERSION` 读取当前值，而不是目标新值；发布工具链改动必须经真实 bump 演练（v4.10 M7 修复）。
 - **runtime 精简包内容随版本核对**：新增面向使用者的工具（如 v4.10 的 scaffold/install_plugin）必须补进 `RUNTIME_TOP`，否则离线包缺文件（v4.10 曾漏 tools/）。
-- **回归数字统一口径**：README / 开发规范 / SECURITY.md / 演进记录统一使用本地全量实测口径（33 脚本 869 项，2026-09-07 v4.14 复核；此前 807/779 系版本记录估算值），CI 含 AirDrop 子项目测试口径另计，避免文档间数字漂移。
+- **回归数字统一口径**：README / 开发规范 / SECURITY.md / 演进记录统一使用本地全量实测口径（35 脚本 914 项，2026-09-07 v4.15 复核；此前 807/779 系版本记录估算值），CI 含 AirDrop 子项目测试口径另计，避免文档间数字漂移。

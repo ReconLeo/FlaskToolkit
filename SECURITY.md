@@ -4,7 +4,7 @@
 
 | Version | Support |
 |---------|---------|
-| **v4.x (Community Edition)** | ✅ Actively maintained — security fixes are backported and land in the next patch or minor release, with the usual full regression (33 scripts / 869 assertions, verified 2026-09-07) + CI |
+| **v4.x (Community Edition)** | ✅ Actively maintained — security fixes are backported and land in the next patch or minor release, with the usual full regression (35 scripts / 914 assertions, verified 2026-09-07) + CI |
 | **v5.x (Enterprise Edition)** | ⚠️ Roadmap only — carries the long-term enterprise plans (fine-grained permission model, process-level sandbox, stricter CSP, etc.) and is **publicly seeking a new maintainer**. See [Enterprise handover & roadmap](documents/Enterprise-Edition-交接与路线.md) |
 | **< v4.x** | ❌ Not supported — historical versions (archived in `documents/archive/`) receive no security updates |
 
@@ -12,7 +12,7 @@
 
 Please read this before installing anything:
 
-- **Plugins run in-process with the framework, without sandboxing.** Installing a plugin means trusting its author — this is an explicit design decision (see the development guide, chapter 10).
+- **Plugins run in-process with the framework, without sandboxing.** Installing a plugin means trusting its author — this is an explicit design decision (see the development guide, chapter 10). **The `framework:core` permission (v4.15) is the single explicit escalation above that trust model**: a plugin declaring it can read/manage/**modify or delete the framework's own core files** (≈ Linux root). It is surfaced with a loud ⚠️ Root badge in the admin UI and every allowed core-path write is recorded as a **root-access audit event**, but it is shipped under the MIT license — **the framework takes no responsibility for damage caused by high-risk operations**. Only install such plugins from authors you fully trust.
 - On top of that "bare trust" model, the framework layers defense in depth:
   1. **AST static scanning** (4.3.1) — blocks obviously risky code at install time;
   2. **Capability declaration & cross-validation** (4.3.2) — a plugin can only exercise what it declares (`filesystem:`, `network:`, `scheduler:`, `storage:` …);
