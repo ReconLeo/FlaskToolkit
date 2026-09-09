@@ -10,6 +10,9 @@
 <body>
     <div class="auth-page">
         <div class="auth-card">
+        <div class="auth-lang" style="text-align:right; margin-bottom:10px;">
+            {% for code, name in available_langs.items() %}{% if code != lang %}<a href="/lang/{{ code }}?next={{ request.path }}" style="font-size:13px; color:#666; text-decoration:none; margin-left:10px;">{{ name }}</a>{% endif %}{% endfor %}
+        </div>
             <h2 class="auth-title">📝 {{ t('用户注册') }}</h2>
             <div id="registerForm">
                 <div class="form-item">

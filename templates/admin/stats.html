@@ -48,7 +48,7 @@
 </div>
 
 <div class="card">
-    <div class="card-title">🖥️ {{ t('访问画像（v4.14：登录用户记身份，游客记 IP）') }}</div>
+    <div class="card-title">🖥️ {{ t('访问画像') }}<span style="font-size:12px; color:#95a5a6; font-weight:400; margin-left:8px;">（{{ t('登录用户记身份，游客记 IP') }}）</span></div>
     <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:16px; padding:4px 2px;">
         <div>
             <div style="font-weight:600; margin-bottom:6px; color:#34495e;">👤 {{ t('用户 Top 10') }}</div>
@@ -89,7 +89,7 @@
 </div>
 
 <div class="card">
-    <div class="card-title">🛡️ {{ t('运行期未授权行为（v4.4.0，按插件聚合；建议声明点击复制）') }}
+    <div class="card-title">🛡️ {{ t('运行期未授权行为') }}<span style="font-size:12px; color:#95a5a6; font-weight:400; margin-left:8px;">（{{ t('按插件聚合，点击建议声明可复制') }}）</span>
         <input type="text" id="auditFilter" placeholder="{{ t('搜索插件/建议声明...') }}" style="max-width:240px; margin-left:auto; font-size:13px;"
                oninput="renderAuditTable()">
     </div>
@@ -103,6 +103,7 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="/static/js/chart.umd.min.js"></script>
 <script>
     let apiDetails = [];
     let frontendDetails = [];
@@ -125,7 +126,7 @@
                 document.getElementById('stApiCalls').textContent = fmt(d.total_api_calls);
                 document.getElementById('stFrontendAccess').textContent = fmt(d.total_frontend_access);
 
-                // 运行期未授权行为（v4.4.0）：合计由前端完成，后端按插件分组
+                // 运行期未授权行为：合计由前端完成，后端按插件分组
                 const auditV = d.audit_violations || [];
                 const auditCard = document.getElementById('auditCard');
                 if (auditV.length > 0) {
@@ -158,44 +159,59 @@
                     .slice(0, 100);
 
                 // v4.14：趋势 / 错误 Top / 访问画像
-                renderTrendSvg(d.daily_series || []);
+                renderTrend(d.daily_series || []);
                 renderErrorTop(d.error_top || []);
                 renderProfile(d.access_profile || {});
                 renderTables();
             }).catch(() => {});
     }
 
-    // v4.14：最近 14 天调用趋势（纯 SVG 柱状，无外部依赖）
-    function renderTrendSvg(series) {
+    // v4.14：最近 14 天调用趋势（Chart.js 柱状：正常调用 + 错误叠加）
+    let trendChart = null;
+    function renderTrend(series) {
         const box = document.getElementById('trendBox');
-        if (!series.length) { box.innerHTML = '<span style="color:#95a5a6;">' + window.T('暂无数据') + '</span>'; return; }
-        const W = 700, H = 170, padL = 34, padB = 22, padT = 8;
-        const maxV = Math.max(1, ...series.map(s => s.count));
-        const n = series.length;
-        const bw = (W - padL - 6) / n;
-        const chartH = H - padT - padB;
-        let bars = '', labels = '';
-        series.forEach((s, i) => {
-            const x = padL + i * bw;
-            const h = Math.max(2, s.count / maxV * chartH);
-            const y = padT + chartH - h;
-            const err = s.e4xx + s.e5xx;
-            const errH = err > 0 ? Math.max(2, err / maxV * chartH) : 0;
-            bars += `<rect x="${x + 2}" y="${y}" width="${Math.max(2, bw - 5)}" height="${h}" fill="#3498db" rx="2">`;
-            if (errH > 0) {
-                const ey = padT + chartH - errH;
-                bars += `<rect x="${x + 2}" y="${ey}" width="${Math.max(2, bw - 5)}" height="${errH}" fill="#e74c3c" rx="2" opacity="0.75">`;
-            }
-            if (i % 2 === 0 || n <= 8) {
-                labels += `<text x="${x + bw / 2}" y="${H - 6}" font-size="9" text-anchor="middle" fill="#7f8c8d">${s.date}</text>`;
+        if (!window.Chart) {
+            box.innerHTML = '<span style="color:#c0392b;">' + window.T('图表组件加载失败') + '</span>';
+            return;
+        }
+        if (!series.length) {
+            box.innerHTML = '<span style="color:#95a5a6;">' + window.T('暂无数据') + '</span>';
+            return;
+        }
+        // 保证存在 canvas 容器（含稳定高度，Chart.js responsive 需要）
+        if (!document.getElementById('trendChart')) {
+            box.innerHTML = '<div style="position:relative; height:280px;"><canvas id="trendChart"></canvas></div>';
+        }
+        const cv = document.getElementById('trendChart');
+        const labels = series.map(s => s.date);
+        const norm = series.map(s => s.count);
+        const err = series.map(s => (s.e4xx || 0) + (s.e5xx || 0));
+        const total = series.reduce((a, s) => a + s.count, 0);
+        if (trendChart) trendChart.destroy();
+        trendChart = new Chart(cv, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    { label: window.T('正常调用'), data: norm, backgroundColor: '#3498db', borderRadius: 3 },
+                    { label: window.T('错误调用'), data: err, backgroundColor: '#e74c3c', borderRadius: 3 }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    title: { display: true, text: window.T('总 {n} 次调用').replace('{n}', fmt(total)), font: { size: 13 } },
+                    legend: { labels: { boxWidth: 14, font: { size: 12 } } },
+                    tooltip: { callbacks: { label: function (ctx) { return ctx.dataset.label + ': ' + fmt(ctx.parsed.y); } } }
+                },
+                scales: {
+                    x: { ticks: { maxRotation: 45, minRotation: 0, autoSkip: true, maxTicksLimit: 14, font: { size: 10 } } },
+                    y: { beginAtZero: true, ticks: { precision: 0, font: { size: 10 } } }
+                }
             }
         });
-        const total = series.reduce((a, s) => a + s.count, 0);
-        const title = window.T('总 {n} 次调用').replace('{n}', fmt(total));
-        box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" style="width:100%; height:auto;" preserveAspectRatio="xMidYMid meet">` +
-            `<line x1="${padL}" y1="${padT + chartH}" x2="${W - 4}" y2="${padT + chartH}" stroke="#bdc3c7" stroke-width="1"/>` +
-            `<text x="${padL}" y="${padT + 2}" font-size="11" fill="#34495e" font-weight="600">${title}（${window.T('蓝=正常 红=错误叠加')}）</text>` +
-            bars + labels + `</svg>`;
     }
 
     // v4.14：错误 Top（4xx/5xx）

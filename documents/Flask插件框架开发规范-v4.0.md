@@ -3,6 +3,22 @@
 > 版本特性与演进史（来龙去脉）见 [Flask插件框架-版本演进记录.md](Flask插件框架-版本演进记录.md)；
 > 下方为各版本变更说明（按时间倒序）。
 
+## 版本：v4.15.4（稳定版体验优化：各页面语言切换 + 翻译工具 + 健壮性修复） | 更新日期：2026年09月09日
+
+### 版本说明（v4.15.4 稳定版累计更新）
+
+**主题：稳定版维护期体验优化批次——各页面语言切换、翻译工具与语言包贡献者字段、若干健壮性修复。**
+
+1. **各页面语言切换**：所有页面（首页/后台 navbar/插件默认页/注册页/全部 7 个错误页）统一加入语言切换入口——深色导航页用 `templates/_lang_switch.html` 下拉片段（按钮显当前语言 + hover 下拉），浅色页用平铺链接（login 模式）；复用 `/lang/<code>?next=` 切换路由，`next={{ request.path }}` 回跳当前页；en.json 补 `切换语言`。
+2. **翻译工具 `tools/i18n_status.py`**：以 en.json 为完整基准报告各语言翻译进度与贡献者；`--create <lang> --name` 一键基于 en.json 模板创建新语言包（内置 en/zh-CN 受保护不可创建/修改）；`--json` / `--check` / 指定语言；鼓励 GitHub 翻译贡献。语言包新增 `__contributors` 元信息字段（固定 `__` 前缀，与 `__name__` 一致不参与翻译对照）。
+3. **健壮性修复**：
+   - HTTP 跳转端口容错（`core/network.py` `_RedirectHandler` 重写 `handle_one_request`+`send_error`）——苹果设备用 https:// 访问 http 跳转端口报 `Bad HTTP/0.9 request type` 时返回友好提示不再崩日志；
+   - 卸载统计残留清理 + 启动孤儿清理（`core/stats.py` 新增 `purge_plugin_stats` / `purge_frontend_tool_stats` / `purge_orphan_stats`，接入 `plugin_admin.uninstall` / `routes/frontend.py` / `tools/install_plugin.py` 离线卸载 / `app.py` 启动）；
+   - 桌面端 dashboard 残留汉堡按钮隐藏（base.html 默认 `.nav-toggle{display:none}`）；
+   - 插件空间饼图 Top7+其它归并、IP 变化显示、network 顺序、插件拖拽上传/has_config/移除恢复出厂、index 空状态等。
+4. **测试**：`test_i18n` 29 项；全量回归 **37 脚本 988 项 0 失败**。
+5. **文档**：README 双版补 v4.15.4 语言切换+翻译工具特性、开发规范本段。
+
 ## 版本：v4.15.3（剩余页面模板硬编码中文翻译补全） | 更新日期：2026年09月07日
 
 ### 版本说明（v4.15.3 小修复）

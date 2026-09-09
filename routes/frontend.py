@@ -14,7 +14,7 @@ from core.frontend_tools import load_frontend_tools
 from core.permission import _check_permission, admin_api
 from core.package_sign import verify_package
 from core.plugin_pack import compare_versions
-from core.stats import increment_frontend_access, save_stats
+from core.stats import increment_frontend_access, save_stats, purge_frontend_tool_stats
 from core.audit import log_audit
 from core.utils import check_upload_size, secure_filename_cn
 from core.plugin_scanner import scan_frontend_zip, should_block
@@ -411,11 +411,8 @@ def register(app):
         # 删除资源文件（入口 html + 静态资源目录）
         cleanup_frontend_resources(tool_name)
 
-        # 删除统计数据
-        stats_key = f"frontend:{tool_name}"
-        if stats_key in global_var.frontend_access_stats:
-            del global_var.frontend_access_stats[stats_key]
-            save_stats()
+        # 删除统计数据（frontend_access_stats + daily_stats 的 frontend:{tool} 项）
+        purge_frontend_tool_stats(tool_name)
 
         # 移除配置
         del global_var.frontend_tools[tool_index]

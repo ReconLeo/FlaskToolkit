@@ -4,7 +4,7 @@
   <img src="https://github.com/ReconLeo/FlaskToolkit/actions/workflows/ci.yml/badge.svg" alt="CI">
   <img src="https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB?logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/License-MIT-yellow" alt="License">
-  <img src="https://img.shields.io/badge/version-4.15.3-blue" alt="Version">
+  <img src="https://img.shields.io/badge/version-4.15.4-blue" alt="Version">
 </p>
 
 > 一个基于 Flask 的插件化**框架**：把散落的 Python 插件与纯前端工具装进统一的运行时，
@@ -29,6 +29,7 @@
 - **统一文件传输**：全局上传大小上限（默认 100MB，route 级可覆盖）+ 保存前流式预检、中文文件名下载不乱码（RFC 5987）、下载统计与 Range 断点续传；
 - **插件数据配额体系**：单插件配额（4.9.0）→ 声明式 storage:limit 覆盖（4.9.1）→ **全局总量配额 + 后台空间管理**（4.9.2）；
 - **国际化**：轻量 JSON 语言包（内置 zh-CN + en 可扩展），模板/后端/前端统一 t()，LANGUAGE 启动语言 + 用户级 Cookie 切换（4.9.0）；
+- **各页面语言切换 + 翻译工具（4.15.4）**：所有页面（首页/后台/插件默认页/注册页/全部错误页）统一加入语言切换入口（深色导航页下拉、浅色页平铺链接）；新增 `tools/i18n_status.py` 翻译工具——以 en.json 为基准报告各语言翻译进度、显示语言包 `__contributors` 贡献者，并可 `--create` 一键创建新语言包（内置 en/zh-CN 受保护不可修改）；
 - **无障碍易用（4.10）**：首次运行向导 + 强制改密（可暂缓，未改则每次登录后台提醒）；邀请码自助注册（管理员发邀请链接，持码免审核，无码进待审队列）；插件可选 pip_dependencies 声明（缺失仅跳过加载并告警，不影响框架启动）；带权限标注的插件 API 文档页，后台直达；**单插件空间清理**——仅临时目录或全部数据（含声明的自定义写目录），后台卡片或离线 CLI 均可操作；
 - **安全传输（4.12）**：框架自身实现 **HTTP→HTTPS 自动跳转**（308 保留 POST 方法与 body）——自签名 HTTPS 模式下额外监听一个 HTTP 跳转端口（主端口+1），访问旧 `http://` 地址自动落到 HTTPS，链接永不失效；**SESSION_COOKIE_SECURE 自动配置**（HTTPS / 反向代理下自动开启 Secure，纯 HTTP 局域网自动关闭防浏览器丢 Cookie，仍可显式强制）；config.py 新增 SSL 配对提示与 HTTPS 状态检查；桌面启动器新增 **HTTPS 复选框**（自动生成自签名证书，`--https` 参数）；
 - **网络可达（4.11）**：告别"每次 IP 变了都要重新发访问链接"——后台新增**网络与访问页**（列出全部可达地址、分享链接 + 二维码、mDNS 开关、IP 变化检测与间隔配置）；可选 **mDNS**（`pip install zeroconf`）让服务在稳定的 `flasktoolkit.local` 主机名下可达；新增**桌面启动器**（tools/desktop_launcher.py，双击即用）——启动/停止服务、切换仅本机/局域网共享、一键复制访问地址；

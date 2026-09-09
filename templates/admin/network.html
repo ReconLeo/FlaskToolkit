@@ -196,8 +196,10 @@
             .then(function (d) {
                 if (d.code !== 200) return;
                 var data = d.data || {};
-                renderUrls(data.access_urls || []);
+                // 顺序：先 renderStatus 设置 window.__ipChange，再 renderUrls 读它渲染 IP 变化提示
+                // （旧顺序 renderUrls 在前，ipChangeTip 读到的是上一次的 __ipChange，提示滞后一次刷新）
                 renderStatus(data);
+                renderUrls(data.access_urls || []);
             })
             .catch(function (e) { showToast(window.T('加载失败') + '：' + e.message, 'error'); });
     }

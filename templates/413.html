@@ -10,6 +10,9 @@
 <body>
     <div class="error-wrap">
         <div class="error-card">
+    <div class="err-lang" style="text-align:right; margin-bottom:14px;">
+        {% for code, name in available_langs.items() %}{% if code != lang %}<a href="/lang/{{ code }}?next={{ request.path }}" style="font-size:13px; color:#7f8c8d; text-decoration:none; margin-left:10px;">{{ code }}</a>{% endif %}{% endfor %}
+    </div>
             <div class="error-icon">📦</div>
             <div class="error-code">413</div>
             <h1 class="error-title">{{ t('请求内容过大') }}</h1>

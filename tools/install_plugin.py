@@ -340,6 +340,14 @@ def uninstall_backend(args, base: str) -> int:
 
     print(f"[OK] 插件 {name} 已卸载（清理 {len(removed)} 项；离线卸载不执行 on_uninstall 钩子，启动框架后自动从列表移除）")
     print(f"      {data_note}" if data_note else "      数据空间已随卸载清理")
+    # v4.15.4：离线卸载一并清理该插件统计残留（call_stats / daily_stats）
+    try:
+        from core.stats import load_stats, purge_plugin_stats
+        load_stats()
+        if purge_plugin_stats(name):
+            print(f"      [OK] 已清理插件 {name} 的统计残留")
+    except Exception as _e:
+        print(f"      [warn] 统计残留清理失败: {_e}", file=sys.stderr)
     return 0
 
 
@@ -354,6 +362,14 @@ def uninstall_frontend(args, base: str) -> int:
     tools = [t for t in tools if t['name'] != name]
     _save_frontend_config(base, tools)
     print(f"[OK] 前端工具 {name} 已卸载（清理 {len(removed)} 项；前端工具无数据目录）")
+    # v4.15.4：离线卸载一并清理该前端工具统计残留（frontend_access_stats / daily_stats）
+    try:
+        from core.stats import load_stats, purge_frontend_tool_stats
+        load_stats()
+        if purge_frontend_tool_stats(name):
+            print(f"      [OK] 已清理前端工具 {name} 的统计残留")
+    except Exception as _e:
+        print(f"      [warn] 统计残留清理失败: {_e}", file=sys.stderr)
     return 0
 
 

@@ -70,6 +70,9 @@
   "深度重置": "Factory Reset",
   "确认重置": "Confirm Reset",
   "__name__": "English",
+  "__contributors": [
+    {"name": "ReconLeo", "url": "https://github.com/ReconLeo"}
+  ],
   "显示": "Show",
   "记住用户名": "Remember username",
   "仪表盘": "Dashboard",
@@ -483,5 +486,16 @@
   "默认排序": "Default Order",
   "如需仅重置部分范围，请前往「系统管理」页按需勾选": "To reset only a partial scope, go to the \"System Management\" page and check as needed.",
   "完成初始化后即可访问首页；未初始化时所有页面将自动跳转回此向导": "After initialization you can access the homepage; before initialization all pages will redirect back to this wizard.",
-  "基于 Flask 的插件化全栈工具集，支持插件热重载、生命周期管理、前后端工具混合展示、可选鉴权与安全预设": "A Flask-based pluggable full-stack toolkit supporting hot plugin reload, lifecycle management, hybrid frontend/backend tool display, optional auth and security presets."
+  "基于 Flask 的插件化全栈工具集，支持插件热重载、生命周期管理、前后端工具混合展示、可选鉴权与安全预设": "A Flask-based pluggable full-stack toolkit supporting hot plugin reload, lifecycle management, hybrid frontend/backend tool display, optional auth and security presets.",
+  "访问画像": "Access Profile",
+  "登录用户记身份，游客记 IP": "Logged-in users by identity, guests by IP",
+  "按插件聚合，点击建议声明可复制": "Grouped by plugin; click a suggested declaration to copy",
+  "图表组件加载失败": "Chart component failed to load",
+  "正常调用": "Normal calls",
+  "错误调用": "Error calls",
+  "API 文档与调试": "API Docs & Debugging",
+  "其它插件": "Other plugins",
+  "各插件空间用量（MB）": "Per-plugin space usage (MB)",
+  "点击选择或拖拽 .zip 文件到此处": "Click or drag a .zip file here",
+  "切换语言": "Switch language"
 }

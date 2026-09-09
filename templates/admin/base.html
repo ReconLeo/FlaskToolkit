@@ -98,6 +98,10 @@
         .user-name {
             color: #ecf0f1;
         }
+        /* 汉堡按钮默认隐藏（桌面端不显示）；窄屏由 admin-mobile.css 覆盖为 inline-flex */
+        .nav-toggle {
+            display: none;
+        }
         .nav-link {
             color: #bdc3c7;
             text-decoration: none;
@@ -352,6 +356,7 @@
             </ul>
         </div>
         <div class="navbar-right">
+            {% include '_lang_switch.html' %}
             <div class="user-box" id="userBox">
                 <div class="user-avatar" id="userAvatar">A</div>
                 <span class="user-name" id="userName">{{ t('加载中...') }}</span>
@@ -446,11 +451,14 @@
                 .finally(() => { window.location.replace('/login'); });
         }
 
-        // v4.10 强制改密：登录后仍为默认密码时弹窗（可拒绝，每次登录后台都会提醒）
+        // v4.10 强制改密：登录后仍为默认密码时弹窗（可拒绝）。
+        // 设计：每次“登录”（新会话）提醒一次；同一会话内切换子页面用已提醒标记抑制，避免打扰。
         function checkMustChangePwd() {
             try {
-                if (localStorage.getItem('ftk_must_pwd') === '1') {
+                if (sessionStorage.getItem('ftk_must_pwd') === '1' &&
+                    sessionStorage.getItem('ftk_must_pwd_shown') !== '1') {
                     showModal('change-pwd-modal');
+                    sessionStorage.setItem('ftk_must_pwd_shown', '1');
                 }
             } catch (e) { /* ignore */ }
         }
@@ -481,7 +489,10 @@
                 body: JSON.stringify({ old_password: oldPwd, new_password: newPwd })
             }).then(r => r.json()).then(res => {
                 if (res.code === 200) {
-                    try { localStorage.removeItem('ftk_must_pwd'); } catch (e) { /* ignore */ }
+                    try {
+                        sessionStorage.removeItem('ftk_must_pwd');
+                        sessionStorage.removeItem('ftk_must_pwd_shown');
+                    } catch (e) { /* ignore */ }
                     hideModal('change-pwd-modal');
                     showToast(window.T('密码修改成功'), 'success');
                 } else {

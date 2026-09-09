@@ -1,11 +1,12 @@
 {
-  "latest_version": "4.15.3",
-  "published_at": "2026-09-07",
-  "download_url": "https://github.com/ReconLeo/FlaskToolkit/releases/download/v4.15.3/FlaskToolkit-4.15.3-runtime.zip",
-  "sha256": "b50736cf143b14b3af17ea0abf3095430a2cf4d21aeb03c08c882538ac787b89",
+  "latest_version": "4.15.4",
+  "published_at": "2026-09-09",
+  "download_url": "https://github.com/ReconLeo/FlaskToolkit/releases/download/v4.15.4/FlaskToolkit-4.15.4-runtime.zip",
+  "sha256": "783f9a86f0824727f9cc50088075a53162d652df396f1ed88a8316674aeb1cb6",
   "changes": [
-    "剩余页面模板硬编码中文翻译补全（v4.15.3）：templates/admin/（plugins 141 处 / system / logs / network 补 4 处 JS）+ 公开页（index / login / logout / register / setup / plugin_default）硬编码中文全部包裹为 t()（服务端）/ window.T()（客户端）；admin base 内联 JS 用 window.T，公开页内联 JS 用服务端 {{ t() }} 渲染；含内嵌引号的示例 placeholder 拆为无引号 key。en.json 补 245 词条（239 到 485）。",
-    "测试：test_i18n 覆盖断言保持 29 项（模板任一中文 key 必被语言包覆盖）；全量回归 37 脚本 988 项 0 失败。",
-    "文档：README 双版补 v4.15.2/4.15.3 i18n 全面补全特性（en 词条 485）、开发规范 v4.15.3 段 + 版本表。"
+    "稳定版体验优化：改密弹窗会话级提醒抑制、旧 frontend_tools.json 自动清理、后台布局与图表（统计 chart.js 趋势图 / 插件空间 doughnut 饼图 Top7+其它）、插件管理拖拽上传与配置按钮按 has_config 显隐、移动端导航优化、插件公开页 navbar 统一与首页空状态修复。",
+    "健壮性与数据一致性：HTTP 跳转端口容错（修复苹果 https 访问 http 端口报 Bad HTTP/0.9）、卸载与启动时清理统计孤儿数据（call_stats/daily_stats/frontend_access_stats）、语言包 __contributors 元信息字段。",
+    "各页面语言切换（首页/后台/注册/插件默认页/错误页统一入口，首次启动语言引导已有）+ 翻译工具 tools/i18n_status.py（翻译进度/贡献者/创建语言包，内置语言不可修改）。",
+    "全量回归 37 脚本 988 项 0 失败。"
   ]
 }

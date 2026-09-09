@@ -96,9 +96,10 @@
                     // 会话 token 已由后端写入 HttpOnly Cookie，前端仅清理残留
                     try { localStorage.removeItem('token'); } catch (e) { /* ignore */ }
                     // v4.10 强制改密：密码仍为默认 admin123 时置标志，后台加载时弹改密窗
+                    // 用 sessionStorage：每次新登录（新会话）都会提醒，但同一会话内切换子页面不重复弹窗
                     try {
                         if (res.data.must_change_pwd) {
-                            localStorage.setItem('ftk_must_pwd', '1');
+                            sessionStorage.setItem('ftk_must_pwd', '1');
                         }
                     } catch (e) { /* ignore */ }
                     showSuccess();

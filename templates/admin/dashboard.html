@@ -48,7 +48,7 @@
 </div>
 
 <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:20px;">
-    <!-- 版本更新（v4.8.0） -->
+    <!-- 版本更新 -->
     <div class="card">
         <h3 class="card-title">🔄 {{ t('版本更新') }}</h3>
         <div id="updateBox" style="font-size:14px; line-height:1.9; color:#2c3e50;">
@@ -81,6 +81,7 @@
             </table>
         </div>
     </div>
+</div>
 
     <!-- 快捷入口 -->
     <div class="card">
@@ -96,7 +97,7 @@
         <h3 class="card-title" style="margin-top:24px;">📌 {{ t('内置插件') }}</h3>
         <div id="builtinList" class="loading">{{ t('加载中...') }}</div>
     </div>
-</div>
+
 {% endblock %}
 
 {% block scripts %}
@@ -192,7 +193,8 @@
                 const iw = d.ip_watch || {};
                 const tip = document.getElementById('bdIpChange');
                 if (iw.last_change_detail) {
-                    tip.textContent = '⚠ ' + window.T('IP 变化') + ': ' + iw.last_change_detail;
+                    const det = iw.last_change_detail;
+                    tip.textContent = '⚠ ' + window.T('IP 变化') + ': ' + (det.old || []).join(',') + ' → ' + (det.new || []).join(',') + '。' + window.T('请重新分享访问链接');
                     tip.style.display = '';
                 } else {
                     tip.style.display = 'none';

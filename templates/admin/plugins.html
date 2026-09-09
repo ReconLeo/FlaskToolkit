@@ -4,6 +4,14 @@
 <style>
     .file-info { font-size: 13px; color: #7f8c8d; margin-top: 8px; }
     .file-info.error { color: #e74c3c; }
+    .hidden { display: none !important; } /* v4.15.4：通用隐藏类（修复安装前确认区初始可见） */
+    .drop-zone {
+        border: 2px dashed #bdc3c7; border-radius: 10px; padding: 28px 16px;
+        text-align: center; cursor: pointer; transition: all 0.2s; background: #fafbfc;
+    }
+    .drop-zone:hover, .drop-zone.dragover { border-color: #3498db; background: #eef6fd; }
+    .drop-zone .drop-hint { font-size: 14px; color: #7f8c8d; }
+    .drop-zone.dragover .drop-hint { color: #2980b9; }
     .upload-progress { height: 8px; background: #ecf0f1; border-radius: 4px; margin-top: 10px; overflow: hidden; }
     .upload-progress.hidden { display: none; }
     .upload-progress-bar { height: 100%; width: 0; background: #3498db; border-radius: 4px; transition: width 0.2s; }
@@ -19,7 +27,6 @@
     <div style="display:flex; gap:10px; flex-wrap:wrap;">
         <button class="btn btn-success" onclick="openUploadModal()">+ {{ t('上传新插件/工具') }}</button>
         <a class="btn btn-info" href="/admin/system">⚙️ {{ t('系统管理') }}</a>
-        <button class="btn btn-danger" onclick="openResetModal()">♻️ {{ t('恢复出厂设置') }}</button>
         <button class="btn btn-primary" onclick="loadPlugins()">🔄 {{ t('刷新') }}</button>
         <button class="btn btn-info" onclick="checkPluginUpdates(true)">⬆ {{ t('检查插件更新') }}</button>
     </div>
@@ -80,10 +87,13 @@
         </div>
         <div class="form-group" id="upload-file-group">
             <label id="upload-file-label">{{ t('选择插件包 (.zip)') }}</label>
-            <input type="file" id="upload-file" accept=".zip" onchange="handleFileSelected('upload')">
-            <div class="file-info" id="upload-file-info"></div>
-            <div class="upload-progress hidden" id="upload-progress">
-                <div class="upload-progress-bar" id="upload-progress-bar" style="width:0%"></div>
+            <div class="drop-zone" id="upload-drop">
+                <input type="file" id="upload-file" accept=".zip" onchange="handleFileSelected('upload')" style="display:none;">
+                <div class="drop-hint">📁 {{ t('点击选择或拖拽 .zip 文件到此处') }}</div>
+                <div class="file-info" id="upload-file-info"></div>
+                <div class="upload-progress hidden" id="upload-progress">
+                    <div class="upload-progress-bar" id="upload-progress-bar" style="width:0%"></div>
+                </div>
             </div>
         </div>
         <div class="form-group" style="font-size:13px; color:#7f8c8d;">
@@ -111,10 +121,13 @@
         <h3 id="update-modal-title" style="margin-bottom:14px;">{{ t('更新插件') }}</h3>
         <div class="form-group">
             <label id="update-file-label">{{ t('选择插件包 (.zip)') }}</label>
-            <input type="file" id="update-file" accept=".zip" onchange="handleFileSelected('update')">
-            <div class="file-info" id="update-file-info"></div>
-            <div class="upload-progress hidden" id="update-progress">
-                <div class="upload-progress-bar" id="update-progress-bar" style="width:0%"></div>
+            <div class="drop-zone" id="update-drop">
+                <input type="file" id="update-file" accept=".zip" onchange="handleFileSelected('update')" style="display:none;">
+                <div class="drop-hint">📁 {{ t('点击选择或拖拽 .zip 文件到此处') }}</div>
+                <div class="file-info" id="update-file-info"></div>
+                <div class="upload-progress hidden" id="update-progress">
+                    <div class="upload-progress-bar" id="update-progress-bar" style="width:0%"></div>
+                </div>
             </div>
         </div>
         <div class="modal-buttons">
@@ -166,6 +179,37 @@
         }
     }
 
+    // v4.15.4：拖拽上传（点击选择 / 拖拽 .zip 到 drop-zone）
+    function setupDropZones() {
+        [
+            ['upload', 'upload-file', 'upload-drop'],
+            ['update', 'update-file', 'update-drop']
+        ].forEach(function (cfg) {
+            var mode = cfg[0], inputId = cfg[1], zoneId = cfg[2];
+            var zone = document.getElementById(zoneId);
+            var input = document.getElementById(inputId);
+            if (!zone || !input) return;
+            zone.addEventListener('click', function () { input.click(); });
+            ['dragenter', 'dragover'].forEach(function (ev) {
+                zone.addEventListener(ev, function (e) { e.preventDefault(); zone.classList.add('dragover'); });
+            });
+            ['dragleave', 'drop'].forEach(function (ev) {
+                zone.addEventListener(ev, function (e) { e.preventDefault(); zone.classList.remove('dragover'); });
+            });
+            zone.addEventListener('drop', function (e) {
+                e.preventDefault();
+                var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+                if (!f) return;
+                try {
+                    var dt = new DataTransfer();
+                    dt.items.add(f);
+                    input.files = dt.files;
+                    input.dispatchEvent(new Event('change')); // 触发 onchange → handleFileSelected
+                } catch (err) { console.warn('drop zone error', err); }
+            });
+        });
+    }
+
     function uploadWithProgress(url, file, onSuccess, extraFields) {
         const isUpdate = url.indexOf('/update') !== -1;
         const progressWrap = document.getElementById(isUpdate ? 'update-progress' : 'upload-progress');
@@ -207,13 +251,13 @@
         const caps = plugin.capabilities || [];
         const raw = Array.isArray(caps) ? caps : Object.keys(caps);
         if (raw.some(c => String(c).startsWith('framework:core'))) {
-            return '<span class="badge badge-red" style="margin-left:8px;" title="" + window.T('声明 Root 权限：可读写框架核心文件与全局状态') + "">⚠️ Root</span>';
+            return '<span class="badge badge-red" style="margin-left:8px;" title="" + window.T("声明 Root 权限：可读写框架核心文件与全局状态") + "">⚠️ Root</span>';
         }
         if (raw.some(c => String(c).startsWith('framework:manage'))) {
-            return '<span class="badge badge-orange" style="margin-left:8px;" title="" + window.T('声明插件管理权限：可程序化安装/更新/卸载插件') + "">Manage</span>';
+            return '<span class="badge badge-orange" style="margin-left:8px;" title="" + window.T("声明插件管理权限：可程序化安装/更新/卸载插件") + "">Manage</span>';
         }
         if (raw.some(c => String(c).startsWith('framework:read'))) {
-            return '<span class="badge badge-blue" style="margin-left:8px;" title="" + window.T('声明只读框架数据权限') + "">Framework</span>';
+            return '<span class="badge badge-blue" style="margin-left:8px;" title="" + window.T("声明只读框架数据权限") + "">Framework</span>';
         }
         return '';
     }
@@ -304,11 +348,11 @@
                             ${plugin.install_time ? `<br>${window.T('安装')}：${plugin.install_time}` : ''}
                             ${plugin.source ? ` ｜ ${window.T('来源')}：${plugin.source}` : ''}
                             ${(plugin.history && plugin.history.length > 1) ? ` ｜ ${window.T('版本历史')}：${plugin.history.map(h => h.version).join(' → ')}` : ''}
-                            ${plugin.type === 'frontend' ? ` ｜ ${window.T('权限')}：<select style="font-size:12px; padding:2px 4px; border:1px solid #ccc; border-radius:4px; background:#fff;" onchange="changeFrontendPermission('${plugin.name}', this.value)">
+                            ${plugin.type === 'frontend' ? `<div style="margin-top:8px; display:flex; align-items:center; gap:6px;"><span style="width: 50px;">${window.T('权限')}：</span><select style="font-size:12px; padding:2px 4px; border:1px solid #ccc; border-radius:4px; background:#fff;" onchange="changeFrontendPermission('${plugin.name}', this.value)">
                                 <option value="public" ${plugin.permission === 'public' ? 'selected' : ''}>${window.T('公开')}</option>
                                 <option value="user" ${plugin.permission === 'user' ? 'selected' : ''}>${window.T('登录')}</option>
                                 <option value="admin" ${plugin.permission === 'admin' ? 'selected' : ''}>${window.T('管理员')}</option>
-                            </select>` : ''}
+                            </select></div>` : ''}
                         </div>
                     </div>
                     <div style="display:flex; gap:8px; flex-wrap:wrap;">
@@ -319,8 +363,8 @@
                             : (plugin.enabled
                                 ? `<button class="btn btn-warning btn-sm" onclick="togglePlugin('${plugin.name}', false)">${window.T('禁用')}</button>`
                                 : `<button class="btn btn-success btn-sm" onclick="togglePlugin('${plugin.name}', true)">${window.T('启用')}</button>`)}
-                        ${plugin.type !== 'frontend' ? `<button class="btn btn-info btn-sm" onclick="toggleConfig('${plugin.name}')">${window.T('配置')}</button>` : ''}
-                        ${plugin.type !== 'frontend' ? `<a class="btn btn-info btn-sm" href="/__plugin_api__/${plugin.name}" target="_blank" title="${window.T('API 文档与调试（v4.10）')}">${window.T('API 文档')}</a>` : ''}
+                        ${(plugin.type !== 'frontend' && plugin.has_config) ? `<button class="btn btn-info btn-sm" onclick="toggleConfig('${plugin.name}')">${window.T('配置')}</button>` : ''}
+                        ${plugin.type !== 'frontend' ? `<a class="btn btn-info btn-sm" href="/__plugin_api__/${plugin.name}" target="_blank" title="${window.T('API 文档与调试')}">${window.T('API 文档')}</a>` : ''}
                         <button class="btn btn-primary btn-sm" onclick="openUpdateModal('${plugin.name}', '${plugin.type || 'backend'}')">${window.T('更新')}</button>
                         <button class="btn btn-danger btn-sm" onclick="confirmUninstall('${plugin.name}', '${plugin.type || 'backend'}')">${window.T('卸载')}</button>
                     </div>
@@ -661,44 +705,10 @@
         } catch (e) { showToast(window.T('卸载失败') + ': ' + e.message, 'error'); }
     }
 
-    // ==================== Factory Reset（全部重置，细分在系统管理页） ====================
-    function openResetModal() {
-        document.getElementById('modal-title').textContent = window.T('恢复出厂设置');
-        document.getElementById('modal-message').innerHTML =
-            window.T('确定要执行 <strong>全部重置</strong> 吗？') + '<br>' +
-            window.T('将清除：自定义插件、前端工具、统计与日志、登录会话、临时文件，并重置内置插件配置（auth 恢复默认 admin/admin123）。') + '<br>' +
-            '<span style="color:#e74c3c; font-weight:600;">' + window.T('该操作不可撤销！请务必先手动备份关键数据（plugins/configs、data、frontend_tools.json 等）') + '，' + window.T('恢复出厂后不可回退') + '。</span><br>' +
-            '<span style="font-size:12px; color:#95a5a6;">' + window.T('如需仅重置部分范围，请前往「系统管理」页按需勾选') + '。</span>';
-        document.getElementById('modal-confirm-btn').onclick = resetFactory;
-        showModal('confirm-modal');
-    }
-
-    async function resetFactory() {
-        closeModal();
-        try {
-            const response = await fetch('/api/admin/factory-reset', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': _getCsrfCookie() },
-                body: JSON.stringify({ scope: 'all' })
-            });
-            const data = await response.json();
-            if (data.code === 200) {
-                const fail = (data.data && data.data.failed && data.data.failed.length)
-                    ? '，' + window.T('失败') + ' ' + data.data.failed.length + ' ' + window.T('项') : '';
-                const cleaned = (data.data && data.data.cleaned) ? data.data.cleaned.length : 0;
-                showToast(`${window.T('重置完成')}：${window.T('清理')} ${cleaned} ${window.T('项')}${fail}`, fail ? 'warning' : 'success');
-            } else {
-                showToast(window.T('重置失败') + '：' + (data.message || window.T('未知错误')), 'error');
-            }
-            loadPlugins();
-        } catch (e) {
-            showToast(window.T('重置异常') + '：' + e.message, 'error');
-        }
-    }
-
     // ==================== 确认弹窗 ====================
     function closeModal() { hideModal('confirm-modal'); currentPlugin = null; }
 
-    window.onload = loadPlugins;
+    // v4.15.4：绑定拖拽上传区 + 加载插件
+    window.onload = function () { setupDropZones(); loadPlugins(); };
 </script>
 {% endblock %}

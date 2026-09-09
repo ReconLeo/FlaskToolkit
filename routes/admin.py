@@ -79,6 +79,10 @@ def register(app):
                 p['source'] = _st.get('source', '')
                 p['install_time'] = _st.get('install_time', '')
                 p['history'] = _st.get('history', [])
+            # v4.15.4：是否开放前端修改配置 API（存在 /config 路由且插件已加载），前端据此决定是否显示『配置』按钮
+            _inst = global_var.plugins.get(p.get('name'))
+            p['has_config'] = bool(_inst is not None and any(
+                (r.get('path') == '/config') for r in (getattr(_inst, 'routes', None) or [])))
 
         # 前端工具：内存列表已含 name/title/author/description/version/category/permission/enabled/type
         for tool in global_var.frontend_tools:

@@ -10,13 +10,13 @@
 </div>
 
 <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:20px;">
-    <!-- 关于项目（v4.7.0） -->
+    <!-- 关于项目 -->
     <div class="card">
         <h3 class="card-title">🚀 {{ t('关于项目') }}</h3>
         <div style="font-size:14px; line-height:1.9; color:#2c3e50;">
             <p style="margin-bottom:8px;"><strong style="font-size:15px;">{{ system_name }} {{ system_version }}</strong></p>
             <p style="color:#7f8c8d; margin-bottom:8px;">{{ project_slogan }} —— {{ t('基于 Flask 的插件化全栈工具集，支持插件热重载、生命周期管理、前后端工具混合展示、可选鉴权与安全预设') }}。</p>
-            <p style="margin-bottom:8px;">👤 {{ t('作者') }}：<a href="{{ project_github }}" target="_blank" rel="noopener">{{ project_author }}</a></p>
+            <p style="margin-bottom:8px;">👤 {{ t('作者') }}：<a href="{{ project_github }}" target="_blank" rel="noopener" style="color:#2980b9; font-weight:600; text-decoration:none;">{{ project_author }}</a></p>
             <p style="margin-bottom:8px;">⭐ {{ t('项目主页') }}：<a href="{{ project_github }}" target="_blank" rel="noopener" style="text-decoration:none; font-weight:600; color:#2980b9;">{{ t('GitHub 仓库') }}</a></p>
             <p style="font-size:12px; color:#95a5a6; margin-bottom:0;">{{ t('系统名称/版本标签可经') }} <code>tools/config.py</code> {{ t('的') }} <code>SYSTEM_NAME</code> / <code>SYSTEM_VERSION_LABEL</code> {{ t('自定义，仅影响展示不影响内部逻辑') }}。</p>
         </div>
@@ -33,16 +33,24 @@
             </table>
         </div>
     </div>
+</div>
 
-    <!-- 插件空间管理（v4.9.2） -->
+    <!-- 插件空间管理 -->
     <div class="card">
         <h3 class="card-title">💾 {{ t('插件空间') }}</h3>
         <div class="card-body">
-            <table class="table table-sm" style="font-size:13px;">
-                <thead><tr><th>{{ t('插件') }}</th><th>{{ t('限额') }}</th><th>{{ t('已用') }}</th><th>{{ t('剩余') }}</th><th>{{ t('操作') }}</th></tr></thead>
-                <tbody id="quotaBody"></tbody>
-                <tfoot><tr style="font-weight:600;"><td>{{ t('总用量') }}</td><td id="quotaTotalLimit">-</td><td id="quotaTotalUsage">-</td><td id="quotaTotalRemain">-</td><td></td></tr></tfoot>
-            </table>
+            <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:20px; align-items:start;">
+                <div style="position:relative; height:260px; min-width:240px;">
+                    <canvas id="quotaChart"></canvas>
+                </div>
+                <div class="table-wrap">
+                    <table class="data-table" style="font-size:13px;">
+                        <thead><tr><th>{{ t('插件') }}</th><th>{{ t('限额') }}</th><th>{{ t('已用') }}</th><th>{{ t('剩余') }}</th><th>{{ t('操作') }}</th></tr></thead>
+                        <tbody id="quotaBody"></tbody>
+                        <tfoot><tr style="font-weight:600;"><td>{{ t('总用量') }}</td><td id="quotaTotalLimit">-</td><td id="quotaTotalUsage">-</td><td id="quotaTotalRemain">-</td><td></td></tr></tfoot>
+                    </table>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -103,7 +111,6 @@
             {{ t('审计日志记录管理后台敏感操作（安装/更新/卸载/启用/禁用/重置）') }}，{{ t('存储于') }} <code>data/audit.log</code>，{{ t('Factory Reset 各范围均不会清除') }}。
         </p>
     </div>
-</div>
 
 <!-- 确认弹窗 -->
 <div id="reset-modal" class="modal">
@@ -119,6 +126,7 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="/static/js/chart.umd.min.js"></script>
 <script>
     let pendingScope = null;
 
@@ -211,9 +219,9 @@
         pendingScope = 'all';
         document.getElementById('reset-modal-title').textContent = window.T('确认全部重置');
         document.getElementById('reset-modal-message').innerHTML =
-            '${window.T('即将执行')} <strong>${window.T('全部重置')}</strong>：${window.T('清除自定义插件、前端工具、统计与日志、登录会话、临时文件')}，<br>' +
-            '${window.T('并重置内置插件配置（auth 恢复默认 admin/admin123）')}。<br>' +
-            '<span style="color:#e74c3c; font-weight:600;">${window.T('该操作不可撤销！请务必先手动备份关键数据（plugins/configs、data、frontend_tools.json 等）')}，${window.T('恢复出厂后不可回退')}。</span>';
+            `${window.T('即将执行')} <strong>${window.T('全部重置')}</strong>：${window.T('清除自定义插件、前端工具、统计与日志、登录会话、临时文件')}，<br>` +
+            `${window.T('并重置内置插件配置（auth 恢复默认 admin/admin123）')}。<br>` +
+            `<span style="color:#e74c3c; font-weight:600;">${window.T('该操作不可撤销！请务必先手动备份关键数据（plugins/configs、data、frontend_tools.json 等）')}，${window.T('恢复出厂后不可回退')}。</span>`;
         showModal('reset-modal');
     }
 
@@ -235,7 +243,7 @@
                     const cleaned = (res.data && res.data.cleaned) || [];
                     const failed = (res.data && res.data.failed) || [];
                     resultBox.innerHTML = `<div class="badge badge-green" style="font-size:13px; margin-bottom:6px;">✅ ${window.T('重置完成')}</div>
-                        <div style="font-size:13px; color:#155724;">${window.T('清理')} ${cleaned.length} ${window.T('项')}${failed.length ? '，${window.T('失败')} ' + failed.length + ' ${window.T('项')}' : ''}</div>` +
+                        <div style="font-size:13px; color:#155724;">${window.T('清理')} ${cleaned.length} ${window.T('项')}${failed.length ? `，${window.T('失败')} ` + failed.length + ` ${window.T('项')}` : ''}</div>` +
                         (failed.length ? `<div style="font-size:12px; color:#c0392b; margin-top:6px;">${failed.join('<br>')}</div>` : '');
                     showToast(`${window.T('重置完成')}：${window.T('清理')} ${cleaned.length} ${window.T('项')}` + (failed.length ? `，${window.T('失败')} ${failed.length} ${window.T('项')}` : ''), failed.length ? 'warning' : 'success');
                 } else {
@@ -253,6 +261,41 @@
 
     document.addEventListener('DOMContentLoaded', () => { loadSysInfo(); loadSysVer(); loadAuditLog(); });
 
+    // v4.15.4：插件空间饼图（Chart.js doughnut，直观展示各插件用量占比）
+    let quotaChart = null;
+    const QUOTA_COLORS = ['#3498db', '#e67e22', '#27ae60', '#9b59b6', '#e74c3c', '#16a085', '#f39c12', '#2c3e50', '#8e44ad', '#1abc9c'];
+    function renderQuotaChart(plugins) {
+        const cv = document.getElementById('quotaChart');
+        if (!cv) return;
+        if (!window.Chart || !plugins.length) { cv.style.display = 'none'; return; }
+        cv.style.display = '';
+        // v4.15.4：插件多时取用量最大前 7 个，其余归并“其它插件”
+        var TOP_N = 7;
+        var sorted = plugins.slice().sort(function (a, b) { return (Number(b.usage_mb) || 0) - (Number(a.usage_mb) || 0); });
+        var shown = sorted.slice(0, TOP_N);
+        var rest = sorted.slice(TOP_N);
+        var labels = shown.map(function (p) { return p.plugin; });
+        var data = shown.map(function (p) { return Number(p.usage_mb) || 0; });
+        if (rest.length) {
+            var restSum = rest.reduce(function (s, p) { return s + (Number(p.usage_mb) || 0); }, 0);
+            labels.push(window.T('其它插件'));
+            data.push(restSum);
+        }
+        if (quotaChart) quotaChart.destroy();
+        quotaChart = new Chart(cv, {
+            type: 'doughnut',
+            data: { labels: labels, datasets: [{ data: data, backgroundColor: QUOTA_COLORS.slice(0, data.length), borderWidth: 1, borderColor: '#fff' }] },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: {
+                    title: { display: true, text: window.T('各插件空间用量（MB）'), font: { size: 13 } },
+                    legend: { position: 'right', labels: { boxWidth: 12, font: { size: 11 } } },
+                    tooltip: { callbacks: { label: function (ctx) { return ctx.label + ': ' + Number(ctx.parsed).toFixed(1) + ' MB'; } } }
+                }
+            }
+        });
+    }
+
     // v4.9.2：插件空间管理（/api/admin/quota）
     function loadQuota() {
         fetch('/api/admin/quota', {headers: {'X-CSRF-Token': _getCsrfCookie()}})
@@ -260,11 +303,12 @@
             .then(function (d) {
                 if (d.code !== 200) return;
                 var q = d.data || {};
+                renderQuotaChart(q.plugins || []);
                 var rows = (q.plugins || []).map(function (it) {
                     var lim = it.limit_mb ? it.limit_mb + ' MB' : window.T('无限制');
                     var rem = it.remaining_mb === null ? '-' : it.remaining_mb.toFixed(1) + ' MB';
-                    var ops = '<button class="btn btn-sm btn-outline-secondary" style="margin-right:4px;" onclick="purgePluginData(\'' + it.plugin + '\',\'temp\')">' + window.T('清理临时') + '</button>' +
-                        '<button class="btn btn-sm btn-outline-danger" onclick="purgePluginData(\'' + it.plugin + '\',\'all\')">' + window.T('清理全部') + '</button>';
+                    var ops = '<button class="btn btn-sm btn-info" style="margin-right:4px;" onclick="purgePluginData(\'' + it.plugin + '\',\'temp\')">' + window.T('清理临时') + '</button>' +
+                        '<button class="btn btn-sm btn-danger" onclick="purgePluginData(\'' + it.plugin + '\',\'all\')">' + window.T('清理全部') + '</button>';
                     return '<tr><td>' + it.plugin + '</td><td>' + lim + '</td><td>' + it.usage_mb.toFixed(1) + ' MB</td><td>' + rem + '</td><td>' + ops + '</td></tr>';
                 }).join('');
                 document.getElementById('quotaBody').innerHTML = rows;

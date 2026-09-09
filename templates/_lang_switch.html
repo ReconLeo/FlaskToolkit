@@ -1,0 +1,21 @@
+{% if available_langs|length > 1 %}
+<div class="lang-switch" title="{{ t('切换语言') }}">
+    <button type="button" class="lang-btn">{{ available_langs.get(lang, lang) }} ▾</button>
+    <div class="lang-menu">
+        {% for code, name in available_langs.items() %}
+        {% if code != lang %}
+        <a href="/lang/{{ code }}?next={{ request.path }}" data-lang="{{ code }}">{{ name }}</a>
+        {% endif %}
+        {% endfor %}
+    </div>
+</div>
+<style>
+.lang-switch{position:relative;display:inline-block;vertical-align:middle}
+.lang-btn{background:rgba(255,255,255,0.08);color:#fff;border:1px solid #7f8c8d;padding:6px 12px;border-radius:6px;font-size:13px;cursor:pointer;line-height:1.4;font-family:inherit}
+.lang-btn:hover{background:rgba(255,255,255,0.15);border-color:#95a5a6}
+.lang-menu{display:none;position:absolute;right:0;top:calc(100% + 6px);min-width:130px;background:#2c3e50;border:1px solid rgba(255,255,255,0.15);border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,0.3);z-index:1000;overflow:hidden;padding:4px 0}
+.lang-switch:hover .lang-menu,.lang-switch:focus-within .lang-menu{display:block}
+.lang-menu a{display:block;padding:8px 14px;color:#ecf0f1;text-decoration:none;font-size:13px;white-space:nowrap}
+.lang-menu a:hover{background:rgba(255,255,255,0.12);color:#fff}
+</style>
+{% endif %}

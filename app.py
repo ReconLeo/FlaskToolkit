@@ -262,6 +262,14 @@ if __name__ == '__main__':
 
     load_plugins()
     load_frontend_tools()
+    # v4.15.4：启动孤儿统计清理（手动移除插件/前端工具后残留的 call_stats / daily_stats key）
+    try:
+        from core.stats import purge_orphan_stats
+        _orphan_n = purge_orphan_stats()
+        if _orphan_n:
+            app.logger.info(f"启动统计清理：已移除 {_orphan_n} 项孤儿统计", extra={'plugin': 'system'})
+    except Exception:
+        pass
     watcher = start_file_watcher()
     
     # ===== 阶段二-B：运行配置环境变量化（默认安全），用户配置兜底 =====

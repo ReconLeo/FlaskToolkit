@@ -15,13 +15,47 @@
     .btn { display: inline-flex; align-items: center; justify-content: center; }
 }
 
-/* ---------- 导航（窄屏：菜单换行 + 横向滚动保持，间距加大） ---------- */
+/* ---------- 导航（窄屏：汉堡折叠式） ----------
+   后台 navbar 结构：nav.navbar > (.navbar-left(brand+menu) + .navbar-right + .nav-toggle)
+   mobile.js 自动注入 .nav-toggle，点击切换 nav.navbar.nav-open；窄屏菜单默认隐藏，展开后纵向全宽。 */
 @media (max-width: 768px) {
-    .navbar { padding: 8px 12px; }
-    .navbar-left { flex-wrap: wrap; }
-    .nav-menu { order: 3; width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-    .nav-menu a { padding: 10px 12px; white-space: nowrap; }
-    .navbar-right { margin-left: auto; }
+    nav.navbar { flex-wrap: wrap; height: auto; padding: 10px 14px; gap: 8px; }
+    .navbar-left { flex: 1 1 auto; min-width: 0; flex-wrap: wrap; }
+    .navbar-brand { margin-right: 12px; }
+    /* 汉堡按钮（mobile.js 插入到 nav 末尾，order 让其靠右） */
+    .nav-toggle {
+        order: 99;
+        margin-left: auto;
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 40px; height: 40px;
+        background: transparent; border: 1px solid rgba(255,255,255,0.35);
+        border-radius: 6px; color: #fff; font-size: 20px; line-height: 1;
+        cursor: pointer; padding: 0;
+    }
+    .nav-toggle:hover { background: rgba(255,255,255,0.12); }
+    /* 菜单默认折叠，展开后纵向全宽 */
+    .nav-menu {
+        order: 100;
+        display: none;
+        flex-direction: column;
+        width: 100%;
+        gap: 2px;
+        padding: 8px 0;
+        overflow: visible;
+    }
+    nav.navbar.nav-open .nav-menu { display: flex; }
+    .nav-menu a { padding: 11px 12px; white-space: nowrap; }
+    /* 右侧用户区独立一行 */
+    .navbar-right {
+        order: 101;
+        width: 100%;
+        margin-left: 0;
+        flex-wrap: wrap;
+        gap: 8px;
+        padding-top: 10px;
+        border-top: 1px solid rgba(255,255,255,0.12);
+    }
+    .user-box { margin-right: auto; }
 }
 
 /* ---------- 主区域与卡片 ---------- */

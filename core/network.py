@@ -297,6 +297,74 @@ def start_http_redirect(host, https_port):
     from core.utils import get_available_port, is_port_available
 
     class _RedirectHandler(BaseHTTPRequestHandler):
+        protocol_version = 'HTTP/1.1'
+
+        def handle_one_request(self):
+            """v4.15.4：苹果 https:// 访问本 HTTP 跳转端口时容错。
+
+            TLS ClientHello 无换行，http.server 默认在 readline 阶段阻塞。这里先
+            peek 首字节，识别 TLS 握手（ContentType: handshake/ccs/alert/appdata，
+            或 SSLv2 0x80）后返回友好提示，避免连接挂起；其余正常走父类解析。
+            """
+            try:
+                first = self.rfile.peek(1)[:1]
+            except Exception:
+                first = b''
+            if first in (b'\x16', b'\x17', b'\x14', b'\x15', b'\x80'):
+                self._refuse_tls()
+                return
+            super().handle_one_request()
+
+        def parse_request(self):
+            """v4.15.4：请求行可读但版本解析失败（如 Bad HTTP/0.9）时容错。
+
+            父类 super().parse_request() 失败会调 send_error 发送默认错误；send_error
+            已被 override 为友好提示，因此这里只需确保连接结束即可。
+            """
+            try:
+                return super().parse_request()
+            except Exception:
+                self.close_connection = True
+                return False
+
+        def send_error(self, code, message=None, explain=None):
+            """v4.15.4：所有错误响应统一给友好提示，不再暴露 Bad HTTP/0.9 等内部错误。"""
+            body = (f'HTTP 跳转端口：请使用 http:// 访问本端口以自动跳转到 HTTPS，'
+                    f'或直接访问 https://{https_port} 主端口。').encode('utf-8')
+            try:
+                self.request_version = self.request_version or 'HTTP/1.0'
+                self.requestline = getattr(self, 'requestline', '')
+                self.send_response(code)  # 不传父类 message，避免泄露 Bad HTTP/0.9 等内部错误
+                self.send_header('Content-Type', 'text/plain; charset=utf-8')
+                self.send_header('Content-Length', str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+                self.wfile.flush()
+            except Exception:
+                pass
+            self.close_connection = True
+
+        def _refuse_tls(self):
+            """向 TLS 探测返回友好提示：说明这是 HTTP 跳转端口，应使用 http:// 或直连 https:// 主端口。"""
+            body = (f'HTTP 跳转端口：请使用 http:// 访问本端口以自动跳转到 HTTPS，'
+                    f'或直接访问 https://{https_port} 主端口。').encode('utf-8')
+            try:
+                self.request_version = getattr(self, 'request_version', None) or 'HTTP/1.1'
+                self.requestline = ''
+                self.send_response(400, 'Bad Request')
+                self.send_header('Content-Type', 'text/plain; charset=utf-8')
+                self.send_header('Content-Length', str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+                self.wfile.flush()
+            except Exception:
+                pass
+            self.close_connection = True
+
+        def log_error(self, fmt, *args):
+            """抑制协议解析错误刷屏（send_error 已自定义响应）。"""
+            pass
+
         def _jump(self):
             # 消费请求体：单线程 HTTPServer 若不读 body，POST/PUT 等带体请求会在
             # 客户端发送 body 阶段被 RST（WinError 10053），且残留体污染下一请求行

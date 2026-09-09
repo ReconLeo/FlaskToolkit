@@ -13,6 +13,50 @@
         .perm-public { background: #e8f8f5; color: #1e8449; border: 1px solid #a9dfbf; }
         .perm-user   { background: #eaf2f8; color: #2471a3; border: 1px solid #aed6f1; }
         .perm-admin  { background: #fdedec; color: #c0392b; border: 1px solid #f5b7b1; }
+        /* 参数类型徽标（type-badge）基础样式 + 常见类型变体 */
+        .type-badge {
+            display: inline-block; padding: 1px 7px; border-radius: 8px;
+            font-size: 11px; font-weight: 600; margin-left: 6px; vertical-align: 1px;
+            background: #ecf0f1; color: #5d6d7e; border: 1px solid #d5dbdb;
+        }
+        .type-badge.string, .type-badge.text { background: #eaf2f8; color: #2471a3; border: 1px solid #aed6f1; }
+        .type-badge.boolean, .type-badge.bool, .type-badge.boolbean { background: #f4ecf7; color: #7d3c98; border: 1px solid #d7bde2; }
+        .type-badge.integer, .type-badge.int, .type-badge.number { background: #fef9e7; color: #b9770e; border: 1px solid #f9e79f; }
+        .type-badge.float, .type-badge.double { background: #fef5e7; color: #a04000; border: 1px solid #f5cba7; }
+        .type-badge.file { background: #fdedec; color: #c0392b; border: 1px solid #f5b7b1; }
+        .type-badge.array, .type-badge.list { background: #e8f8f5; color: #117a65; border: 1px solid #a9dfbf; }
+        .type-badge.object, .type-badge.json, .type-badge.dict { background: #eafaf1; color: #1e8449; border: 1px solid #abebc6; }
+        /* v4.15.4：导航条与后台 base.html 统一（深色条 + 品牌 + 右侧操作）；公开页舍弃后台菜单 */
+        header.navbar {
+            background: #2c3e50;
+            height: 56px;
+            display: flex;
+            align-items: center;
+            padding: 0 24px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            margin-bottom: 0;
+        }
+        header.navbar .container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 0;
+        }
+        header.navbar .navbar-brand { color: #fff; font-weight: 700; font-size: 17px; text-decoration: none; }
+        header.navbar .navbar-right { display: flex; align-items: center; gap: 10px; }
+        header.navbar .auth-btn.login-btn {
+            background: transparent; color: #bdc3c7; border: 1px solid #7f8c8d;
+            padding: 6px 12px; border-radius: 6px; font-size: 13px; text-decoration: none;
+        }
+        header.navbar .auth-btn.login-btn:hover { color: #fff; background: rgba(255,255,255,0.1); border-color: #7f8c8d; }
+        /* 公开页无后台菜单，隐藏 mobile.js 可能注入的汉堡按钮 */
+        header.navbar .nav-toggle { display: none !important; }
     </style>
     <link rel="stylesheet" href="/static/css/mobile.css">
 </head>
@@ -22,6 +66,7 @@
         <div class="container">
             <a class="navbar-brand" href="/">{{ system_name }}</a>
             <div class="navbar-right">
+                {% include '_lang_switch.html' %}
                 <a href="/" class="auth-btn login-btn">← {{ t('返回首页') }}</a>
             </div>
         </div>

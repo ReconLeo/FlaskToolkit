@@ -119,7 +119,9 @@
             const q = (searchEl.value || '').trim().toLowerCase();
             const n = applyFilter(cards, q, sortEl.value);
             if (countEl) countEl.textContent = '共 ' + n + ' 个工具';
-            if (emptyEl) emptyEl.style.display = (n === 0) ? 'block' : 'none';
+            // v4.15.4：仅当存在工具卡片时才按搜索结果切换 #searchEmpty；
+            // 未安装公开插件（cards 为空）时由后端 #empty-state『暂无可用工具』提示，避免两者并存
+            if (emptyEl) emptyEl.style.display = (cards.length > 0 && n === 0) ? 'block' : 'none';
         }
 
         searchEl.addEventListener('input', apply);

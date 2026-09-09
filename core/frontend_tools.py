@@ -20,7 +20,12 @@ def migrate_legacy_config():
         os.replace(LEGACY_CONFIG_FILE, new_path)
         logger.info("已迁移旧版前端工具配置 %s -> %s", LEGACY_CONFIG_FILE, new_path, extra={'plugin': 'system'})
     elif os.path.exists(LEGACY_CONFIG_FILE) and os.path.exists(new_path):
-        logger.warning("检测到新旧两处前端工具配置文件，保留 %s，请手动清理 %s", new_path, LEGACY_CONFIG_FILE, extra={'plugin': 'system'})
+        # 新配置已存在时，旧版根目录文件为冗余：自动清理，不再提示用户手动删除
+        try:
+            os.remove(LEGACY_CONFIG_FILE)
+            logger.info("已自动清理冗余的旧版前端工具配置 %s", LEGACY_CONFIG_FILE, extra={'plugin': 'system'})
+        except OSError as e:
+            logger.warning("自动清理旧版前端工具配置 %s 失败: %s", LEGACY_CONFIG_FILE, e, extra={'plugin': 'system'})
 
 
 def load_frontend_tools():

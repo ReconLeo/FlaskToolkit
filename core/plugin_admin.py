@@ -181,6 +181,13 @@ def uninstall(plugin_name, actor=None):
             cache['timestamp'] = time.time()
             save_cache_internal(cache)
         load_plugins()
+        # v4.15.4：卸载后清理该插件统计残留（call_stats / daily_stats）
+        try:
+            from core.stats import purge_plugin_stats
+            purge_plugin_stats(plugin_name)
+        except Exception as _e:
+            logger.warning(f'插件 {plugin_name} 统计清理失败: {_e}',
+                           extra={'plugin': 'system'})
         return True, f'插件 {plugin_name} 已卸载'
     except Exception as e:
         return False, f'卸载失败: {str(e)}'

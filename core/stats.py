@@ -269,3 +269,76 @@ def get_access_profile_view() -> dict:
                     for ip, r in ips[:50]],
         'devices': devices,
     }
+
+# ------------------------------ v4.15.4：卸载 / 孤儿统计清理 ------------------------------
+
+def purge_plugin_stats(plugin_name):
+    """卸载后端插件后清理其统计残留：call_stats 与 daily_stats 中 ``{plugin}:`` 前缀项。
+
+    返回是否实际删除了数据（供调用方判断是否需 save_stats）。
+    """
+    prefix = f"{plugin_name}:"
+    changed = False
+    for k in [k for k in global_var.call_stats if k.startswith(prefix)]:
+        del global_var.call_stats[k]
+        changed = True
+    for day, bucket in global_var.daily_stats.items():
+        for k in [k for k in bucket if k.startswith(prefix)]:
+            del bucket[k]
+            changed = True
+    if changed:
+        save_stats()
+    return changed
+
+
+def purge_frontend_tool_stats(tool_name):
+    """卸载前端工具后清理其统计残留：frontend_access_stats 与 daily_stats 中 ``frontend:{tool}`` 项。
+
+    返回是否实际删除了数据。
+    """
+    key = f"frontend:{tool_name}"
+    changed = False
+    if key in global_var.frontend_access_stats:
+        del global_var.frontend_access_stats[key]
+        changed = True
+    for day, bucket in global_var.daily_stats.items():
+        if key in bucket:
+            del bucket[key]
+            changed = True
+    if changed:
+        save_stats()
+    return changed
+
+
+def purge_orphan_stats():
+    """启动孤儿清理：移除已无对应插件/前端工具的统计 key（手动删除文件导致的残留）。
+
+    判定规则：
+    - ``frontend:<tool>``：tool 不在已加载 frontend_tools 集合则为孤儿；
+    - ``<plugin>:<...>``：冒号前插件名不在已加载 plugins 集合则为孤儿。
+
+    适用于 call_stats / frontend_access_stats / daily_stats。返回删除的 key 总数。
+    """
+    active_plugins = set(global_var.plugins.keys())
+    active_tools = set(t.get('name') for t in global_var.frontend_tools)
+
+    def _is_orphan(key: str) -> bool:
+        if key.startswith('frontend:'):
+            return key[len('frontend:'):] not in active_tools
+        plugin = key.split(':', 1)[0] if ':' in key else key
+        return plugin not in active_plugins
+
+    removed = 0
+    for k in [k for k in global_var.call_stats if _is_orphan(k)]:
+        del global_var.call_stats[k]
+        removed += 1
+    for k in [k for k in global_var.frontend_access_stats if _is_orphan(k)]:
+        del global_var.frontend_access_stats[k]
+        removed += 1
+    for day, bucket in global_var.daily_stats.items():
+        for k in [k for k in bucket if _is_orphan(k)]:
+            del bucket[k]
+            removed += 1
+    if removed:
+        save_stats()
+    return removed
