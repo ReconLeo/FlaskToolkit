@@ -45,6 +45,8 @@ CORE_FILES = [
     'core/plugin_admin.py', 'core/plugin_updates.py',
     # v4.15.1 框架目录清单统一（被 selfcheck/capabilities/update 等引用，缺失即 import 崩）
     'core/framework_manifest.py',
+    # v4.16 事件总线 + 插件真依赖解析（plugin_loader/base_plugin/routes 引用，缺失即 import 崩）
+    'core/events.py', 'core/plugin_deps.py',
     'plugins/__init__.py', 'plugins/base_plugin.py',
     'plugins/auth.py', 'plugins/user_manage.py',
 ]

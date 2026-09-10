@@ -29,36 +29,52 @@ from core.utils import parse_path_pattern
 logger = logging.getLogger('flask.app')
 
 
-def check_dependencies(plugin_instance, available_plugins: set) -> list[str]:
+def check_dependencies(plugin_instance, available_plugins: set, plugin_versions=None):
     """
-    校验插件依赖（v4.10 语义拆分）：
-    - dependencies：仅限其他插件名；未匹配到插件的旧写法（3.x 曾混写 pip 包）向后兼容按
-      pip 包检测，并告警提示迁移到 pip_dependencies；
-    - pip_dependencies：第三方 Python 包，用 importlib.metadata 检测是否已安装。
+    校验插件依赖（v4.10 语义拆分 + v4.16 版本约束 name>=x）：
+    - dependencies：仅限其他插件名（支持 name>=x 版本约束）；未匹配到插件的旧写法（3.x 曾混写
+      pip 包）向后兼容按 pip 包检测，并告警提示迁移到 pip_dependencies；
+    - pip_dependencies：第三方 Python 包，用 importlib.metadata 检测是否已安装（支持版本约束）。
     :param plugin_instance: 待校验插件实例
     :param available_plugins: 当前系统中存在的所有插件名集合
-    :return: 缺失的依赖列表（插件名或包名）
+    :param plugin_versions: {插件名: 已装版本}，用于依赖版本约束校验（缺省不校验版本）
+    :return: (missing, version_mismatch)
+        - missing: 缺失的依赖列表（插件名或 pip 包名）
+        - version_mismatch: 已存在但版本不满足的 [(name, [(op,ver),...]), ...]
     """
+    from core.plugin_deps import dep_name, parse_dep_spec, version_satisfies
+    plugin_versions = plugin_versions or {}
     missing = []
-    for dep in plugin_instance.dependencies:
+    version_mismatch = []
+    for spec in plugin_instance.dependencies:
+        name, constraints = parse_dep_spec(spec)
         # 优先判断是否是插件依赖
-        if dep in available_plugins:
+        if name in available_plugins:
+            if constraints:
+                inst_ver = plugin_versions.get(name)
+                if inst_ver and not version_satisfies(inst_ver, constraints):
+                    version_mismatch.append((name, constraints))
             continue
         # 向后兼容：dependencies 中非插件项按 pip 包检测（3.x 旧写法）
         logger.warning(
-            f"插件 {plugin_instance.name} 的 dependencies 中 '{dep}' 未匹配到插件，"
+            f"插件 {plugin_instance.name} 的 dependencies 中 '{name}' 未匹配到插件，"
             f"若为第三方 Python 包请改用 pip_dependencies 声明（v4.10）",
             extra={'plugin': 'system'})
         try:
-            importlib.metadata.distribution(dep)
+            dist = importlib.metadata.distribution(name)
+            if constraints and not version_satisfies(dist.version, constraints):
+                version_mismatch.append((name, constraints))
         except importlib.metadata.PackageNotFoundError:
-            missing.append(dep)
-    for pkg in (getattr(plugin_instance, 'pip_dependencies', None) or []):
+            missing.append(name)
+    for spec in (getattr(plugin_instance, 'pip_dependencies', None) or []):
+        name, constraints = parse_dep_spec(spec)
         try:
-            importlib.metadata.distribution(pkg)
+            dist = importlib.metadata.distribution(name)
+            if constraints and not version_satisfies(dist.version, constraints):
+                version_mismatch.append((name, constraints))
         except importlib.metadata.PackageNotFoundError:
-            missing.append(pkg)
-    return missing
+            missing.append(name)
+    return missing, version_mismatch
 
 
 def register_scheduled_tasks(plugin_instance):
@@ -79,6 +95,8 @@ def load_plugins():
     plugin_dir = os.path.join(global_var.BASE_DIR, 'plugins')
     global_temp_root = os.path.join(plugin_dir, 'temp')
     os.makedirs(global_temp_root, exist_ok=True)
+    # v4.16：本轮加载的依赖问题标记（缺失/版本不满足/循环），供后台展示；每轮重载清零
+    global_var.plugin_load_issues = {}
 
     # 清理旧缓存（模块缓存）
     base_module_name = 'plugins.base_plugin'
@@ -139,31 +157,17 @@ def load_plugins():
     available_plugin_names = set(plugin_meta.keys())
     logger.info(f"发现 {len(available_plugin_names)} 个插件: {', '.join(available_plugin_names)}", extra={'plugin': 'system'})
 
-    # ==================== 拓扑排序 ====================
-    sorted_plugin_names = []
-    visited = set()
-    temp_visited = set()
-
-    def dfs(plugin_name):
-        if plugin_name in temp_visited:
-            raise RuntimeError(f"检测到插件循环依赖: {plugin_name}")
-        if plugin_name in visited:
-            return
-        if plugin_name not in plugin_meta:
-            logger.debug(f"可选依赖插件 {plugin_name} 不存在，跳过", extra={'plugin': 'system'})
-            return
-
-        temp_visited.add(plugin_name)
-        for dep in plugin_meta[plugin_name]["dependencies"]:
-            dfs(dep)
-        temp_visited.remove(plugin_name)
-        visited.add(plugin_name)
-        sorted_plugin_names.append(plugin_name)
-
-    for plugin_name in plugin_meta.keys():
-        if plugin_name not in visited:
-            dfs(plugin_name)
-
+    # ==================== 拓扑排序（Kahn + 循环检测，v4.16） ====================
+    # 循环依赖不再抛异常中止全局加载，而是标记后剔除；缺失/版本不满足在加载循环内逐插件判定
+    from core.plugin_deps import dep_name, resolve_dependency_order
+    _dep_graph = {name: {dep_name(d) for d in info['dependencies']}
+                  for name, info in plugin_meta.items()}
+    sorted_plugin_names, _cycles = resolve_dependency_order(_dep_graph)
+    for _cyc in _cycles:
+        logger.error(f"检测到插件循环依赖: {' -> '.join(_cyc)}", extra={'plugin': 'system'})
+        for _n in _cyc:
+            global_var.plugin_load_issues.setdefault(_n, {})['reason'] = 'dependency_circular'
+            global_var.plugin_load_issues[_n]['detail'] = ' -> '.join(_cyc)
     logger.info(f"插件加载顺序: {', '.join(sorted_plugin_names)}", extra={'plugin': 'system'})
 
     # 能力注册表清空（v4.3.2）：重载时按现存插件重建，
@@ -234,14 +238,31 @@ def load_plugins():
                 global_var.plugins[plugin_instance.name] = plugin_instance
                 continue
 
-            # 校验依赖
-            missing_deps = check_dependencies(plugin_instance, available_plugin_names)
+            # 校验依赖（v4.16：支持 name>=x 版本约束；缺失/版本不满足均标记并跳过）
+            _pv = {n: m['version'] for n, m in plugin_meta.items()}
+            missing_deps, version_mismatch = check_dependencies(
+                plugin_instance, available_plugin_names, _pv)
             if missing_deps:
                 _pips = [d for d in missing_deps if d not in available_plugin_names]
                 _hint = f"。pip 包可执行: pip install {' '.join(_pips)}" if _pips else ""
                 logger.warning(
                     f"插件 {plugin_instance.name} 缺少依赖: {', '.join(missing_deps)}，跳过加载{_hint}",
                     extra={'plugin': 'system'})
+                global_var.plugin_load_issues.setdefault(
+                    plugin_instance.name, {})['reason'] = 'dependency_missing'
+                global_var.plugin_load_issues[
+                    plugin_instance.name]['detail'] = ', '.join(missing_deps)
+                continue
+            if version_mismatch:
+                _vd = ', '.join(f"{n}(需 {' and '.join(op + v for op, v in cs)})"
+                                for n, cs in version_mismatch)
+                logger.warning(
+                    f"插件 {plugin_instance.name} 依赖版本不满足: {_vd}，跳过加载",
+                    extra={'plugin': 'system'})
+                global_var.plugin_load_issues.setdefault(
+                    plugin_instance.name, {})['reason'] = 'dependency_version'
+                global_var.plugin_load_issues[
+                    plugin_instance.name]['detail'] = _vd
                 continue
 
             # 注册路由
@@ -285,6 +306,13 @@ def load_plugins():
 
             # 执行加载钩子
             plugin_instance.on_load()
+
+            # v4.16 事件总线：插件加载完成通知
+            try:
+                from core.events import events
+                events.emit('plugin.loaded', plugin_name=plugin_instance.name)
+            except Exception:
+                pass
 
             # 注册定时任务
             register_scheduled_tasks(plugin_instance)

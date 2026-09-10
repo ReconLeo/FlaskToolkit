@@ -337,6 +337,7 @@
                             ${plugin.type === 'frontend' ? '<span class="badge badge-blue" style="margin-left:8px;">' + window.T('前端工具') + '</span>' : ''}
                             ${plugin.enabled ? '<span class="badge badge-green" style="margin-left:8px;">' + window.T('已启用') + '</span>' : '<span class="badge badge-red" style="margin-left:8px;">' + window.T('已禁用') + '</span>'}
                             ${plugin.loaded ? '<span class="badge badge-purple" style="margin-left:8px;">' + window.T('已加载') + '</span>' : ''}
+                            ${plugin.load_issue ? '<span class="badge badge-red" style="margin-left:8px;">' + window.T('未加载') + '</span>' : ''}
                             ${pluginFrameworkBadge(plugin)}
                             ${pluginUpdateBadge(plugin)}
                         </h3>
@@ -345,6 +346,7 @@
                             ${plugin.require_framework_version ? `${window.T('要求框架')}：v${plugin.require_framework_version} ｜ ` : ''}
                             ${window.T('依赖')}：${(plugin.dependencies && plugin.dependencies.length) ? plugin.dependencies.join(', ') : window.T('无')} ｜
                             ${window.T('调用')}：<b>${plugin.api_calls || 0}</b>
+                            ${plugin.load_issue_detail ? `<div style="margin-top:6px; color:#e74c3c;">⚠ ${window.T('未加载原因')}：${escapeHtml(plugin.load_issue_detail)}</div>` : ''}
                             ${plugin.install_time ? `<br>${window.T('安装')}：${plugin.install_time}` : ''}
                             ${plugin.source ? ` ｜ ${window.T('来源')}：${plugin.source}` : ''}
                             ${(plugin.history && plugin.history.length > 1) ? ` ｜ ${window.T('版本历史')}：${plugin.history.map(h => h.version).join(' → ')}` : ''}

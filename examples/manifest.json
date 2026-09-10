@@ -14,14 +14,15 @@
     },
     {
       "name": "scheduler_demo",
-      "title": "示例：APScheduler 定时任务",
+      "title": "示例：APScheduler 定时任务 + 事件总线",
       "path": "plugins/scheduler_demo",
       "type": "backend",
       "focus": [
-        "scheduled_tasks 属性声明定时任务",
-        "interval 触发器（每 30 秒心跳）",
-        "cron 触发器（每分钟统计）",
-        "定时数据持久化 + 页面实时展示"
+        "scheduled_tasks 声明定时任务（interval 心跳/cron 统计）",
+        "BasePlugin 事件集成 on_event/emit_event（v4.16）",
+        "订阅内置事件 user.login/plugin.loaded/request.finished",
+        "定时任务触发自定义事件发布/订阅（heartbeat/stats）",
+        "同步 + 异步(async_)订阅、事件历史页与 API"
       ]
     },
     {
@@ -39,12 +40,13 @@
     },
     {
       "name": "dependent_demo",
-      "title": "示例：插件依赖与跨插件调用",
+      "title": "示例：插件依赖 + 跨插件调用 + 跨插件事件",
       "path": "plugins/dependent_demo",
       "type": "backend",
       "focus": [
         "dependencies 依赖声明（缺失依赖拒绝加载）",
-        "call_plugin_method 跨插件调用 auth"
+        "call_plugin_method 跨插件调用 auth",
+        "on_event 跨插件事件订阅（v4.16 事件总线）"
       ]
     },
     {

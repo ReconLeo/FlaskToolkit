@@ -3,6 +3,21 @@
 > 版本特性与演进史（来龙去脉）见 [Flask插件框架-版本演进记录.md](Flask插件框架-版本演进记录.md)；
 > 下方为各版本变更说明（按时间倒序）。
 
+## 版本：v4.16.0（事件总线 + 插件真依赖解析） | 更新日期：2026年09月10日
+
+### 版本说明（v4.16.0 变更）
+
+**主题：Community 架构能力演进——自研事件总线（插件间解耦通信）+ 插件全量真依赖解析（含版本约束）；BasePlugin 事件集成 + 示例插件升级演示。纯 stdlib，无新增运行时依赖。**
+
+1. **事件总线 core/events.py（新）**：轻量进程内发布-订阅，单例 `from core.events import events`。API `on(event, handler, *, once=False, async_=False, priority=0, owner=None)` / `once` / `off(event, handler=None)` / `emit(event, **data)` / `has` / `clear`。**weakref 防泄漏**（可 weakref 的模块级函数用弱引用、宿主回收订阅自动失效；绑定方法/闭包不可 weakref 用强引用 + `owner` 标记）；`async_=True` 走后台线程池（max_workers=4）不阻塞 emit。事件名约定：全局点分命名空间（`plugin.loaded` / `user.login` / `request.finished`），插件自定义 `plugin.<插件名>:<事件名>`。内置埋点：`plugin.loaded`/`installed`/`uninstalled`/`enabled`/`disabled`、`user.login`/`logout`、`request.finished`。
+2. **插件真依赖解析 core/plugin_deps.py（新）**：`parse_dep_spec` 支持 `name` / `name>=x` / `name<y` / `name==z` / `name>=a,<b` 多约束；`_version_tuple` 纯 stdlib 简化 semver（预发布 a/b/rc 权重）；`version_satisfies`；`resolve_dependency_order`（Kahn 拓扑排序 + 环检测）。plugin_loader 由 DFS 改为该拓扑排序，循环不再中止全局加载（标记剔除）；`check_dependencies` 支持版本约束；`global_var.plugin_load_issues` 记录 `dependency_missing` / `dependency_version` / `dependency_circular`，经 `/api/admin/plugins` 透出并显示后台插件列表『未加载』徽章 + 原因；plugin_admin 卸载前反向依赖检查、安装后依赖缺失告警。
+3. **BasePlugin 事件集成（plugins/base_plugin.py）**：插件无需直接接触 core.events——`on_event(event, handler, *, once=False, async_=False, priority=0)`（自动 owner=self 并登记 `_event_subs`）、`emit_event(name, **data)`（自动加 `plugin:<插件名>:` 前缀）、`event_name(name)`、`_cleanup_events()`（卸载/禁用时清理订阅，防绑定方法泄漏）；`on_unload` 默认调用 `_cleanup_events`，插件重载时应 `super().on_unload()`。
+4. **示例插件升级（事件总线演示，均已端到端验证）**：
+   - scheduler_demo **1.2.0**（require_framework_version 4.16.0）：`on_load` 订阅内置事件 + 自定义事件 + 异步订阅；定时任务经 `emit_event` 发布 heartbeat/stats；页面『手动发布事件』发 manual_trigger（已订阅 → 事件历史可见）+ 事件历史卡片 + API。
+   - dependent_demo **2.0.0**（require_framework_version 4.16.0）：新增跨插件事件订阅——松耦合订阅 scheduler_demo 事件 + 全局事件，**未在 dependencies 声明 scheduler_demo** 体现解耦价值；事件来源归因『跨插件(<name>)』/『框架全局』+ 页面『跨插件事件接收』卡片。
+5. **测试**：新增 tests/test_events.py 11 项、tests/test_dependency.py 11 项、tests/test_plugin_events.py 28 项（BasePlugin 集成 + scheduler_demo 事件演示 + dependent_demo 跨插件事件）；全量回归 **40 脚本 0 失败**。
+6. **文档**：README 双版补 v4.16 特性与测试数、开发规范本段 + 事件总线/依赖解析小节。
+
 ## 版本：v4.15.4（稳定版体验优化：各页面语言切换 + 翻译工具 + 健壮性修复） | 更新日期：2026年09月09日
 
 ### 版本说明（v4.15.4 稳定版累计更新）
@@ -252,6 +267,8 @@
 
 | 版本 | 日期 | 主题 | 提交 |
 |------|------|------|------|
+| **v4.16.0** | 2026-09-10 | 事件总线 + 插件真依赖解析（自研 core/events.py 发布-订阅 weakref 防泄漏 async 线程池 / core/plugin_deps.py 版本约束+Kahn 拓扑 / BasePlugin 事件集成 on_event·emit_event·event_name / scheduler_demo 1.2.0·dependent_demo 2.0.0 事件演示 / 卸载反向依赖检查） |（本提交）|
+| **v4.15.4** | 2026-09-09 | 稳定版体验优化：各页面语言切换 + 翻译工具 i18n_status.py（含 __contributors）+ 健壮性修复（HTTP 跳转端口容错 / 卸载统计残留清理 / 汉堡按钮 / 饼图 Top7 归并） |（本提交）|
 | **v4.15.3** | 2026-09-07 | 剩余页面模板硬编码中文翻译补全（admin plugins/system/logs/network + 公开页 index/login/logout/register/setup/plugin_default 全包裹 t()/T()，en.json 补 245 词条至 485；test_i18n 覆盖断言保证模板中文 key 必被语言包覆盖） |（本提交）|
 | **v4.15.2** | 2026-09-07 | 小修复：框架目录清单校正（documents 非运行时核心目录，移出 CORE_DIRS）+ v4.14 Statistics 模板翻译补全（dashboard/stats 硬编码中文包裹 t()/T() + en.json 补 125 词条）+ test_i18n 覆盖断言（28→29 项） |（本提交）|
 | **v4.15.1** | 2026-09-07 | 框架目录清单统一（core/framework_manifest.py 单一清单驱动自检/升级/备份/重置/Root 判定，删除各处硬编码）+ 示例插件 root_demo（framework:core Root 读写演示 + 对照拒绝） |（本提交）|
@@ -551,7 +568,7 @@ class HelloPlugin(BasePlugin):
 |------|---------|---------|
 | `on_load()` | 插件加载完成后 | 空 |
 | `on_shutdown()` | 服务停止前 | 空 |
-| `on_unload()` | 插件卸载前（显式卸载） | 空 |
+| `on_unload()` | 插件卸载前（显式卸载） | 清理本插件订阅的事件（v4.16） |
 | `on_uninstall()` | 插件删除前（显式卸载） | 空 |
 
 ```python
@@ -582,6 +599,57 @@ scheduled_tasks = [
     {"func": clean_cache, "trigger": "interval", "minutes": 30},
 ]
 ```
+
+### 5.4.1 事件总线（v4.16）
+
+框架内置轻量进程内事件总线（`core/events.py`，纯 stdlib 观察者模式），用于插件之间、插件与框架之间**松耦合**通信：发布方 `emit` 事件，任意订阅方 `on` 监听，订阅方之间互不知晓、无需依赖声明与方法调用。
+
+BasePlugin 提供事件集成助手，插件无需直接接触 core.events：
+
+```python
+from .base_plugin import BasePlugin
+from .base_plugin import permission as permission_required
+
+class MyPlugin(BasePlugin):
+    name = "my_plugin"
+
+    def on_load(self):
+        # 订阅框架内置全局事件（点分命名空间）
+        self.on_event('user.login', self._on_user_login)
+        self.on_event('plugin.loaded', self._on_plugin_loaded)
+        # 订阅自身发布的自定义事件（event_name 自动加 plugin:my_plugin: 前缀）
+        self.on_event(self.event_name('heartbeat'), self._on_heartbeat)
+        # 异步订阅：async_=True 走后台线程池，不阻塞事件发布
+        self.on_event('plugin.loaded', self._on_async, async_=True)
+
+    def _on_user_login(self, event, **data):
+        """回调签名 handler(event_name, **data)，异常被框架隔离不影响其他订阅者"""
+        self.logger.info(f'用户登录: {data.get("username")}')
+
+    def _on_heartbeat(self, event, **data):
+        pass
+
+    def _on_async(self, event, **data):
+        pass
+
+    def emit_demo(self):
+        # 发布本插件自定义事件（自动加 plugin:my_plugin: 前缀）
+        self.emit_event('heartbeat', type='interval', message='运行中')
+        # event_name('heartbeat') == 'plugin:my_plugin:heartbeat'，供其他插件订阅
+```
+
+**BasePlugin 事件助手**：
+
+| 方法 | 说明 |
+|------|------|
+| `on_event(event, handler, *, once=False, async_=False, priority=0)` | 订阅事件；自动 `owner=self` 并登记 `_event_subs`；返回 handler 可链式 |
+| `emit_event(name, **data)` | 发布本插件自定义事件，自动加 `plugin:<插件名>:` 前缀 |
+| `event_name(name)` | 返回 `plugin:<插件名>:<事件名>` 完整名，便于订阅/引用 |
+| `_cleanup_events()` | 清空本插件订阅的事件（`on_unload` 默认调用，防绑定方法订阅泄漏） |
+
+内置事件：`plugin.loaded` / `installed` / `uninstalled` / `enabled` / `disabled`、`user.login` / `logout`、`request.finished`。
+
+**示例插件演示**：scheduler_demo（订阅内置 + 自定义事件 + 异步订阅，定时任务 `emit_event` 发布 heartbeat/stats，页面手动发布 manual_trigger）；dependent_demo（跨插件事件订阅——松耦合订阅 scheduler_demo 事件，事件来源归因『跨插件(<name>)』/『框架全局』）。
 
 ### 5.5 路径参数与参数校验
 
@@ -654,13 +722,32 @@ def get_item(self, item_id):
 | `category` | 否 | 分类 |
 | `description` | 否 | 描述 |
 | `permission` | 否 | 权限级别（覆盖插件类 `permission`） |
-| `dependencies` | 否 | 依赖插件名列表（如 `["auth"]`） |
+| `dependencies` | 否 | 依赖插件名列表（如 `["auth"]`，v4.16 支持版本约束如 `"auth>=2.0"`，见 5.6.2.1） |
 | `require_framework_version` | 否 | 最低框架版本要求（点分版本，如 `"4.0.0"`）；非强制，一经声明须满足，见 5.7 |
 | `capabilities` | 否 | 能力白名单声明（v4.3.2，字符串列表）；未声明的检出行为在 enforce 模式下拒绝安装，见 10.7 |
 | `repo` | 否 | 插件源码/发布仓库地址（v4.15，市场铺路元数据；不进描述一致性冲突比对） |
 | `update_feed` | 否 | 插件级更新源 feed URL（v4.15，JSON {latest_version,published_at,download_url,sha256,changes[,signature]}，RSA 验签，应用内 check-updates 触达，见 5.6.8） |
 
 版本以 `plugin.json` 声明为准：上传/更新后描述文件落盘为 `plugins/<name>.json`，插件扫描与目录指纹均优先读取该文件，保证 catalog 显示版本与包内声明一致。
+
+#### 5.6.2.1 依赖声明与版本约束（v4.16）
+
+`dependencies`（依赖插件）与 `pip_dependencies`（第三方 pip 包，v4.10）均支持**名称或带版本约束**的写法：
+
+| 语法 | 含义 | 示例 |
+|------|------|------|
+| `name` | 仅要求已安装/已加载 | `"auth"` |
+| `name>=x` | 版本 ≥ x | `"auth>=2.0"` |
+| `name>x` | 版本 > x | `"auth>1.5"` |
+| `name<x` / `name<=x` | 版本 < x / ≤ x | `"auth<3"` |
+| `name==x` / `name!=x` | 精确相等 / 不等 | `"auth==2.0.1"` |
+| `name>=a,<b` | 多约束（逗号，全部满足） | `"auth>=2.0,<3"` |
+
+版本比较为纯 stdlib 简化 semver（数字段 + 预发布权重 a/b/rc），如 `1.0 > 1.0rc1 > 1.0b1 > 1.0a1`。
+
+- **加载**：插件加载器做 Kahn 拓扑排序，先加载依赖；依赖缺失/版本不满足/存在循环时，该插件不加载，`global_var.plugin_load_issues` 记录原因（`dependency_missing` / `dependency_version` / `dependency_circular`），后台插件列表显示『未加载』徽章 + 原因。
+- **安装**：安装时校验依赖；卸载时做反向依赖检查（仍被其他插件依赖则阻止卸载）。
+- **示例**：`dependent_demo` 声明 `dependencies = ["auth"]`；`scheduler_demo` / `dependent_demo` 通过事件总线松耦合感知彼此（见 5.4.1）。
 
 #### 5.6.3 描述一致性（plugin.json 与插件类属性对齐）
 
@@ -1394,6 +1481,11 @@ FLASKTOOLKIT_HOST=0.0.0.0 FLASKTOOLKIT_PORT=8000 python app.py
 | `test_setup.py` | 首次运行向导 + 强制改密（v4.10 M4）：/setup 路由与标记 / 改密校验与踢会话 / must_change_pwd 标记 | 17 项 |
 | `test_register.py` | 邀请码自助注册（v4.10 M5）：邀请码生成消费 / pending 拦截 / 审核 API | 25 项 |
 | `test_scaffold_tools.py` | 脚手架 + 离线安装/卸载闭环（v4.10 M6）：scaffold 骨架 / install_plugin 安装升级降级拒绝 / uninstall 清理 | 53 项 |
+| `test_stats.py` | 数据统计洞察（v4.14）：时间桶 + 访问画像双维数据模型 / dashboard 总览化 / 14 天趋势 + 错误 Top + 画像卡 | 55 项 |
+| `test_selfcheck.py` | 启动完整性自检（v4.15）：CORE_FILES 完整性 / 时区（tzdata）探测 / 完整自检 | 14 项 |
+| `test_events.py` | 事件总线（v4.16）：priority / once / off / weakref 失效清理 / 绑定方法强引用 / async 非阻塞 / 异常隔离 / 内置事件 | 11 项 |
+| `test_dependency.py` | 依赖解析（v4.16）：dep_spec 解析 / semver 含预发布 / Kahn 拓扑 / 环 / 缺失排除 | 11 项 |
+| `test_plugin_events.py` | BasePlugin 事件集成 + 示例演示（v4.16）：scheduler_demo 事件订阅/定时/手动发布/清空/清理防泄漏 + dependent_demo 跨插件事件来源归因 | 28 项 |
 
 
 ```bash
@@ -1430,7 +1522,12 @@ python tests/test_desktop_launcher.py   # 36 项（桌面启动器 v4.11 + HTTPS
 python tests/test_setup.py             # 17 项（首次运行向导 + 强制改密 v4.10，隔离目录）
 python tests/test_register.py             # 25 项（自助注册 + 邀请码 + 审核 v4.10 M5，隔离目录）
 python tests/test_scaffold_tools.py  # 53 项（M6 脚手架 + 离线安装/卸载闭环，subprocess 驱动 CLI，隔离目录）
-# 合计 37 个脚本 988 项（2026-09-07 本地全量实测复核）
+python tests/test_stats.py               # 55 项（数据统计洞察 v4.14，隔离目录）
+python tests/test_selfcheck.py           # 14 项（启动完整性自检 v4.15，隔离目录）
+python tests/test_events.py              # 11 项（事件总线 v4.16，隔离目录）
+python tests/test_dependency.py          # 11 项（依赖解析 v4.16，隔离目录）
+python tests/test_plugin_events.py       # 28 项（BasePlugin 事件集成 + 示例演示 v4.16，隔离目录）
+# 合计 40 个脚本（本地全量实测）
 # （AirDrop 插件加载回归 test_airdrop_loader.py 8 项已移交 AirDrop 子项目维护，不入主仓库）
 ```
 

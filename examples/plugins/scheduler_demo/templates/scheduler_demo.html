@@ -80,6 +80,33 @@
             </tbody>
         </table>
     </div>
+
+    <div class="card">
+        <div style="font-size:16px;font-weight:bold;margin-bottom:10px;">事件总线（BasePlugin 事件集成）</div>
+        <p style="font-size:13px;color:#7f8c8d;margin-bottom:10px;">
+            本插件在 <code>on_load</code> 订阅内置事件（user.login / plugin.loaded / request.finished）与自身自定义事件（heartbeat / stats），
+            定时任务触发时经 <code>emit_event</code> 发布事件，订阅回调写入本历史；含一个 <b>异步（async_=True）</b> 订阅（后台执行不阻塞发布）。
+        </p>
+        <button onclick="loadEvents()">刷新事件历史</button>
+        <button onclick="emitManual()" style="background:#27ae60;margin-left:8px;">手动发布事件</button>
+        <button onclick="clearEvents()" style="background:#e74c3c;margin-left:8px;">清空历史</button>
+        <table style="margin-top:10px;">
+            <thead><tr><th>时间</th><th>事件</th><th>同步/异步</th><th>数据</th></tr></thead>
+            <tbody id="eventRows">
+            {% for ev in events %}
+            <tr>
+                <td>{{ ev.ts }}</td>
+                <td><code>{{ ev.event }}</code></td>
+                <td>{% if ev.async %}<span class="tag tag-cron">异步</span>{% else %}<span class="tag tag-interval">同步</span>{% endif %}</td>
+                <td style="font-size:12px;color:#555;">{{ ev.data }}</td>
+            </tr>
+            {% endfor %}
+            {% if not events %}
+            <tr><td colspan="4" style="text-align:center;color:#95a5a6;">暂无事件记录（等待定时任务触发，或点击"手动发布事件"）</td></tr>
+            {% endif %}
+            </tbody>
+        </table>
+    </div>
 </div>
 
 <script>
@@ -98,6 +125,40 @@
         }
     }
     loadStats();
+
+    async function loadEvents() {
+        try {
+            const resp = await fetch('/api/scheduler_demo/events');
+            const data = await resp.json();
+            const items = (data.data && data.data.items) || [];
+            const tb = document.getElementById('eventRows');
+            tb.innerHTML = items.length ? items.map(function(e) {
+                return '<tr><td>' + e.ts + '</td><td><code>' + e.event + '</code></td><td>' +
+                    (e.async ? '<span class="tag tag-cron">异步</span>' : '<span class="tag tag-interval">同步</span>') +
+                    '</td><td style="font-size:12px;color:#555;">' + (e.data || '') + '</td></tr>';
+            }).join('') : '<tr><td colspan="4" style="text-align:center;color:#95a5a6;">暂无事件记录</td></tr>';
+        } catch (e) { console.error(e); }
+    }
+    async function emitManual() {
+        try {
+            const resp = await fetch('/api/scheduler_demo/emit_event', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({name: 'manual_trigger'})
+            });
+            const data = await resp.json();
+            alert(data.message || '已发布');
+            loadEvents();
+        } catch (e) { console.error(e); }
+    }
+    async function clearEvents() {
+        try {
+            const resp = await fetch('/api/scheduler_demo/events', {method: 'DELETE'});
+            const data = await resp.json();
+            alert(data.message || '已清空');
+            loadEvents();
+        } catch (e) { console.error(e); }
+    }
+    loadEvents();
 </script>
 </body>
 </html>

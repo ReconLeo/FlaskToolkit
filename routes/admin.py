@@ -83,6 +83,11 @@ def register(app):
             _inst = global_var.plugins.get(p.get('name'))
             p['has_config'] = bool(_inst is not None and any(
                 (r.get('path') == '/config') for r in (getattr(_inst, 'routes', None) or [])))
+            # v4.16：依赖加载问题（缺失/版本不满足/循环），未加载插件透出原因
+            _issue = global_var.plugin_load_issues.get(p.get('name'))
+            if _issue:
+                p['load_issue'] = _issue.get('reason', '')
+                p['load_issue_detail'] = _issue.get('detail', '')
 
         # 前端工具：内存列表已含 name/title/author/description/version/category/permission/enabled/type
         for tool in global_var.frontend_tools:

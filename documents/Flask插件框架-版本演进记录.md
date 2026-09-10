@@ -39,6 +39,7 @@ Kaleido 同样开源（自托管题库系统）：[github.com/ReconLeo/Kaleido](
 | 补丁覆盖 | 2026-09-06 | tools 运维工具适配 v4.9 结构 + v4.9.2 覆盖发布 | `73c6a9f` `ee3e23d` `612c565` |
 | **v4.10.0** | 2026-09-06 | Accessibility 能力可达性：pip 依赖独立声明 + 能力清单确认 + 调试页权限修正/API 文档增强 + 首次运行向导/强制改密 + 邀请码自助注册 + 脚手架/离线安装卸载 + 单插件空间清理 | `e26b25e`（M4）`2ecb8b7`（M5）`941ea66`（airdrop 移交）`32aa2ce`（M6）`9d3aaf4`（M6-Extra）`699fae0`（前端清理），tag `v4.10.0` |
 | **v4.11.0** | 2026-09-06 | Reachability 网络可达：地址中心（core/network.py）+ mDNS 服务注册（core/mdns.py 可选 zeroconf）+ 后台网络与访问页（二维码/共享/mDNS/IP 检测）+ 启动横幅播报 + IP 变化检测（core/ip_watcher.py）+ 桌面启动器（tools/desktop_launcher.py） | `e16e67b`（M1-M5）`4a76811`（文档），tag `v4.11.0` |
+| **v4.16.0** | 2026-09-10 | 事件总线 + 插件真依赖解析：自研 core/events.py（发布-订阅 weakref 防泄漏 async 线程池）+ core/plugin_deps.py（版本约束 + Kahn 拓扑 + 环检测）+ BasePlugin 事件集成（on_event·emit_event·event_name·_cleanup_events）+ 卸载反向依赖检查 + scheduler_demo 1.2.0·dependent_demo 2.0.0 事件演示，全量回归 40 脚本 | tag `v4.16.0` |
 | **v4.15.0** | 2026-09-07 | Root 域与市场骨架：framework 能力域三档 read/manage/core + 程序化插件管理服务层（core/plugin_admin.py）+ 插件级更新源（plugin.json repo/update_feed + RSA 验签）+ 前端 Root·更新徽章 + selfcheck 时区探测（tzdata）+ requirements tzdata | `ef36a40`，tag `v4.15.0` |
 | **v4.14.0** | 2026-09-07 | Statistics 数据统计洞察：时间桶 + 访问画像双维数据模型 / dashboard 总览化（徽章行 + 冷门提示 + 最近动态）/ 14 天趋势 + 错误 Top + 画像卡 / 跳转端口 POST body 消费修复 | `b2f56a3`，tag `v4.14.0` |
 | **v4.13.0** | 2026-09-07 | Mobile & Tablet 移动端与平板适配：公开页面 + 后台管理页响应式翻修（mobile.css / admin-mobile.css 与原有样式分开创建）+ JS 增强层四件套（mobile.js：表格自动包裹/汉堡菜单/模态框全屏/toast 通栏）+ 14 框架模板幂等注入 + 五个示例插件各自 *_mobile.css | `ad2bf59`，tag `v4.13.0` |
@@ -220,6 +221,17 @@ P1 安全强化至此全部完成，形成纵深防御：**静态扫描 → 能�
 - **启动自检增强（core/selfcheck.py）**：时区集中化（global_var.TIMEZONE，app.py BackgroundScheduler 改用它）——APScheduler 3.11 弃 pytz 改 zoneinfo，Windows 缺 tzdata 时顶层创建 scheduler 抛 ZoneInfoNotFoundError 使启动崩溃，selfcheck 新增时区探测在自检阶段致命报错并提示装 tzdata；CORE_FILES 补登记 core/plugin_admin.py、core/plugin_updates.py。
 - **requirements.txt**：新增 tzdata==2026.3（Windows zoneinfo 必需，全新 Python 环境可复现）。
 - **测试**：新增 tests/test_root_domain.py（18 项）+ tests/test_selfcheck.py（14 项）；test_capabilities 扩展 G 段 framework 域 13 项；修复 test_admin_api 版本期望；全量回归 **35 脚本 914 项 0 失败**。
+
+### 3.21 v4.16.0（2026-09-10，tag `v4.16.0`）
+
+**事件总线 + 插件真依赖解析**——Community 架构能力演进，纯 stdlib 无新增运行时依赖，让插件间、插件与框架间解耦通信，并让依赖声明真正"可校验"。
+
+- **事件总线 core/events.py（新）**：轻量进程内发布-订阅观察者模式，单例 `from core.events import events`。API `on(event, handler, *, once=False, async_=False, priority=0, owner=None)` / `once` / `off(event, handler=None)` / `emit(event, **data)` / `has` / `clear`。**weakref 防泄漏**：可 weakref 的模块级函数用弱引用、宿主回收订阅自动失效；绑定方法/闭包不可 weakref 用强引用 + `owner` 标记。`async_=True` 走后台线程池（ThreadPoolExecutor max_workers=4）不阻塞 emit。事件名约定：全局点分命名空间（`plugin.loaded`/`user.login`/`request.finished`），插件自定义 `plugin.<插件名>:<事件名>`。内置埋点：`plugin.loaded`/`installed`/`uninstalled`/`enabled`/`disabled`（plugin_loader/plugin_admin）、`user.login`/`logout`（auth）、`request.finished`（interceptor）。
+- **插件真依赖解析 core/plugin_deps.py（新）**：`parse_dep_spec` 支持 `name`/`name>=x`/`name<y`/`name==z`/`name>=a,<b` 多约束；`_version_tuple` 纯 stdlib 简化 semver（数字段 + 预发布 a/b/rc 权重，`1.0>1.0rc1>1.0b1>1.0a1`）；`version_satisfies`；`resolve_dependency_order`（Kahn 拓扑排序 + 环分组检测）。
+- **加载/安装/卸载接入**：plugin_loader 由 DFS 改为 `resolve_dependency_order`（循环不再中止全局加载，改标记剔除）；`check_dependencies` 支持版本约束；`global_var.plugin_load_issues` 记录 `dependency_missing`/`dependency_version`/`dependency_circular`，经 `/api/admin/plugins` 透出并显示后台『未加载』徽章 + 原因；plugin_admin 卸载前反向依赖检查（被依赖则阻止）、安装后依赖缺失告警（不自动安装）、`_set_enabled` 禁用路径清理事件订阅。
+- **BasePlugin 事件集成（plugins/base_plugin.py）**：插件无需直接接触 core.events——`on_event(event, handler, *, once=False, async_=False, priority=0)`（自动 owner=self 并登记 `_event_subs`）、`emit_event(name, **data)`（自动加 `plugin:<插件名>:` 前缀）、`event_name(name)`、`_cleanup_events()`；`on_unload` 默认调用 `_cleanup_events`（插件重载应 `super().on_unload()`）。
+- **示例插件升级（均已端到端验证）**：scheduler_demo **1.2.0**（on_load 订阅内置 + 自定义 + 异步事件；定时任务 emit_event 发布 heartbeat/stats；页面事件卡片 + 手动发布 manual_trigger + 清空；事件历史持久化）；dependent_demo **2.0.0**（跨插件事件订阅——松耦合订阅 scheduler_demo 事件 + 全局事件，**未在 dependencies 声明 scheduler_demo** 体现解耦；事件来源归因 `_source_of`『跨插件(<name>)』/『框架全局』+ 页面『跨插件事件接收』卡片）。
+- **测试**：新增 tests/test_events.py 11 项、tests/test_dependency.py 11 项、tests/test_plugin_events.py 28 项（BasePlugin 集成 + scheduler_demo 事件演示 + dependent_demo 跨插件事件）；framework_manifest 登记 core/events.py、core/plugin_deps.py；全量回归 **40 脚本 0 失败**。
 
 ## 4. 发布实践沉淀
 

@@ -1,12 +1,13 @@
 {
-  "latest_version": "4.15.4",
-  "published_at": "2026-09-09",
-  "download_url": "https://github.com/ReconLeo/FlaskToolkit/releases/download/v4.15.4/FlaskToolkit-4.15.4-runtime.zip",
-  "sha256": "783f9a86f0824727f9cc50088075a53162d652df396f1ed88a8316674aeb1cb6",
+  "latest_version": "4.16.0",
+  "published_at": "2026-09-10",
+  "download_url": "https://github.com/ReconLeo/FlaskToolkit/releases/download/v4.16.0/FlaskToolkit-4.16.0-runtime.zip",
+  "sha256": "1712135138654d8d05d3e2d1dd43421b73562349d9401bad4c8cd26331f7b896",
   "changes": [
-    "稳定版体验优化：改密弹窗会话级提醒抑制、旧 frontend_tools.json 自动清理、后台布局与图表（统计 chart.js 趋势图 / 插件空间 doughnut 饼图 Top7+其它）、插件管理拖拽上传与配置按钮按 has_config 显隐、移动端导航优化、插件公开页 navbar 统一与首页空状态修复。",
-    "健壮性与数据一致性：HTTP 跳转端口容错（修复苹果 https 访问 http 端口报 Bad HTTP/0.9）、卸载与启动时清理统计孤儿数据（call_stats/daily_stats/frontend_access_stats）、语言包 __contributors 元信息字段。",
-    "各页面语言切换（首页/后台/注册/插件默认页/错误页统一入口，首次启动语言引导已有）+ 翻译工具 tools/i18n_status.py（翻译进度/贡献者/创建语言包，内置语言不可修改）。",
-    "全量回归 37 脚本 988 项 0 失败。"
+    "事件总线 core/events.py（自研发布-订阅：on/once/off/emit/has/clear，weakref 防泄漏，async_=True 后台线程池；内置事件 plugin.loaded/installed/uninstalled/enabled/disabled、user.login/logout、request.finished；插件自定义事件 plugin:<name>:<event>）。",
+    "插件真依赖解析 core/plugin_deps.py（dependencies/pip_dependencies 支持版本约束 name>=x，semver 含预发布权重；Kahn 拓扑排序 + 环检测；缺失/版本/循环标记未加载并在后台透出原因；卸载反向依赖检查 + 安装依赖缺失告警）。",
+    "BasePlugin 事件集成：on_event/emit_event/event_name/_cleanup_events（自动 plugin:<name>: 前缀，订阅卸载/禁用自动清理防泄漏；on_unload 默认清理）。",
+    "示例插件升级：scheduler_demo 1.2.0（订阅/发布内置+自定义+异步事件，页面事件历史卡片 + 手动发布/清空）、dependent_demo 2.0.0（跨插件事件订阅 + 来源归因）。",
+    "全量回归 40 脚本 0 失败（新增 test_events 11 + test_dependency 11 + test_plugin_events 28）。"
   ]
 }

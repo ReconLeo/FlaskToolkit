@@ -497,5 +497,7 @@
   "其它插件": "Other plugins",
   "各插件空间用量（MB）": "Per-plugin space usage (MB)",
   "点击选择或拖拽 .zip 文件到此处": "Click or drag a .zip file here",
-  "切换语言": "Switch language"
+  "切换语言": "Switch language",
+  "未加载": "Not loaded",
+  "未加载原因": "Not loaded reason"
 }

@@ -8,7 +8,7 @@
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: Arial, sans-serif; }
         body { background-color: #f5f7fa; padding: 24px; }
-        .container { max-width: 760px; margin: 0 auto; }
+        .container { max-width: 820px; margin: 0 auto; }
         .card {
             background: white; border-radius: 8px; padding: 20px 24px;
             margin-bottom: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);
@@ -22,6 +22,7 @@
         }
         .btn-admin { background: #e74c3c; }
         .btn-user { background: #3498db; }
+        .btn-event { background: #8e44ad; }
         input[type=text] {
             padding: 8px 10px; border: 1px solid #ddd; border-radius: 6px; width: 200px;
         }
@@ -30,6 +31,13 @@
             padding: 12px; font-size: 13px; overflow-x: auto; margin-top: 12px;
         }
         .note { font-size: 13px; color: #7f8c8d; line-height: 1.9; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 10px; }
+        th, td { border: 1px solid #e1e4e8; padding: 6px 8px; text-align: left; }
+        th { background: #f8f9fa; font-weight: bold; }
+        .tag { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 12px; }
+        .tag-cross { background: #f3e8ff; color: #6b21a8; }
+        .tag-global { background: #e0f2fe; color: #075985; }
+        .event-empty { color: #95a5a6; text-align: center; padding: 12px; }
     </style>
 </head>
 <body>
@@ -41,7 +49,12 @@
             <b>依赖声明</b>：<code>dependencies = ["auth"]</code> —— 插件加载器按拓扑排序先加载 auth，
             若 auth 未安装则拒绝加载并提示缺失依赖。<br>
             <b>跨插件调用</b>：<code>self.call_plugin_method("auth", "get_all_users")</code> 直接复用
-            auth 插件的用户数据能力，无需重复实现。
+            auth 插件的用户数据能力，无需重复实现。<br>
+            <b>跨插件事件（v4.16 事件总线）</b>：<code>self.on_event(...)</code> 松耦合订阅其他插件发布的事件——
+            无需依赖声明、无需调用其方法即可感知状态变化。本插件订阅了 scheduler_demo 的自定义事件
+            （<code>plugin:scheduler_demo:heartbeat / stats / manual_trigger</code>）与框架全局事件
+            （<code>user.login / user.logout / plugin.loaded / request.finished</code>）。
+            即使 scheduler_demo 未安装，本插件也能正常加载，这正是事件总线解耦的价值。
         </div>
     </div>
 
@@ -53,6 +66,40 @@
             <button class="btn-user" onclick="getUser()">查询用户（user）</button>
         </div>
         <pre id="result">点击按钮体验跨插件调用 auth 插件的方法。</pre>
+    </div>
+
+    <div class="card">
+        <div style="font-size:16px;font-weight:bold;margin-bottom:4px;">跨插件事件接收（v4.16 事件总线）</div>
+        <div class="note">订阅回调自动写入本历史。定时任务、登录、插件加载等都会触发——可先去
+            <a href="/plugin/scheduler_demo" target="_blank">scheduler_demo</a> 点『手动发布事件』，
+            或触发一次登录/访问页面，再回来刷新查看跨插件事件。</div>
+        <button class="btn-event" onclick="loadEvents()">刷新事件历史</button>
+        <span style="font-size:13px;color:#7f8c8d;">共 {{ total }} 条</span>
+        <table>
+            <thead>
+                <tr><th>时间</th><th>来源</th><th>事件</th><th>数据</th></tr>
+            </thead>
+            <tbody id="eventRows">
+                {% if events %}
+                    {% for e in events %}
+                    <tr>
+                        <td>{{ e.ts }}</td>
+                        <td>
+                            {% if e.source.startswith('跨插件') %}
+                                <span class="tag tag-cross">{{ e.source }}</span>
+                            {% else %}
+                                <span class="tag tag-global">{{ e.source }}</span>
+                            {% endif %}
+                        </td>
+                        <td><code>{{ e.event }}</code></td>
+                        <td style="font-size:12px;color:#555;">{{ e.data }}</td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr><td colspan="4" class="event-empty">暂无事件记录（等待事件触发）</td></tr>
+                {% endif %}
+            </tbody>
+        </table>
     </div>
 </div>
 
@@ -81,6 +128,25 @@
             el.textContent = '请求失败: ' + e.message;
         }
     }
+
+    async function loadEvents() {
+        try {
+            const resp = await fetch('/api/dependent_demo/events');
+            const data = await resp.json();
+            const items = (data.data && data.data.items) || [];
+            const tb = document.getElementById('eventRows');
+            tb.innerHTML = items.length ? items.map(function (e) {
+                const isCross = e.source && e.source.indexOf('跨插件') === 0;
+                const tag = isCross
+                    ? '<span class="tag tag-cross">' + e.source + '</span>'
+                    : '<span class="tag tag-global">' + e.source + '</span>';
+                return '<tr><td>' + e.ts + '</td><td>' + tag + '</td><td><code>' +
+                    e.event + '</code></td><td style="font-size:12px;color:#555;">' +
+                    (e.data || '') + '</td></tr>';
+            }).join('') : '<tr><td colspan="4" class="event-empty">暂无事件记录（等待事件触发）</td></tr>';
+        } catch (e) { console.error(e); }
+    }
+    loadEvents();
 </script>
 </body>
 </html>

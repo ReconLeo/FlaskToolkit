@@ -4,7 +4,7 @@
   <img src="https://github.com/ReconLeo/FlaskToolkit/actions/workflows/ci.yml/badge.svg" alt="CI">
   <img src="https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB?logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/License-MIT-yellow" alt="License">
-  <img src="https://img.shields.io/badge/version-4.15.4-blue" alt="Version">
+  <img src="https://img.shields.io/badge/version-4.16.0-blue" alt="Version">
 </p>
 
 > A Flask-based plugin **framework**: bring scattered Python plugins and pure-frontend tools into one unified runtime —
@@ -38,7 +38,8 @@ Over time it grew into what it is today — a few highlights:
 - **Root domain & marketplace groundwork (4.15)**: plugins can now declare a **`framework` capability domain** with three tiers — `read` / `manage` / `core` (`core` ≈ Linux **root**, implies `manage` + `read`) for touching the framework's own core files; the **`framework:core`** permission grants explicit semantics for *modifying/deleting* framework internals, surfaces as a loud **⚠️ Root** badge in the admin UI, and every allowed core-path write is stamped with a **root-access audit event** (MIT license — the framework takes no liability). Parallel to that, a **programmatic plugin-management service layer** (`core/plugin_admin.py`) backs the admin routes and paves the way for a **third-party plugin market**; plugins can declare **`repo` / `update_feed`** in `plugin.json` so in-app **per-plugin update checks** (`core/plugin_updates.py`, RSA-signature-verified feeds, silent 3s timeout) reach each plugin's own release channel. The startup **self-check** also gained a **timezone / `tzdata` probe** — APScheduler 3.11 uses `zoneinfo`, which needs `tzdata` on Windows, so a fresh environment now fails loudly at self-check with an actionable hint instead of crashing at scheduler startup;
 - **Framework manifest (4.15.1)**: the "framework core file vs. user data" classification is no longer hardcoded per module — a single manifest `core/framework_manifest.py` now drives startup self-check, the updater, backup, Factory Reset, and the Root-domain path check from one source. A new `root_demo` example plugin demonstrates the `framework:core` **Root** grant end-to-end: read/write the framework core config `data/user_config.json` (audited `root-access`), plus the contrast of a plain `filesystem:write` being rejected on core paths;
 - **Full i18n sweep (4.15.2/4.15.3)**: every admin & public page is now fully translatable — the Statistics pages and all remaining templates (plugin manager, system, logs, network, home, login/register/setup, and the plugin API debug page) had their hardcoded Chinese wrapped into the `t()` / `window.T()` language layer, and `locales/en.json` grew to **485 keys**; a regression assertion scans every framework template so any Chinese key used in a template is guaranteed to be covered by the language pack;
-- **Ops & tooling**: version check with a `changelog.json` feed + dual-backend updater (git / archive), Factory Reset, backup/restore, startup self-check, package integrity signing, plugin scaffolding + offline install/uninstall CLI (`scaffold.py` / `install_plugin.py`), plus a **37-script / 988-assertion regression suite and GitHub Actions CI**.
+- **Event bus & true dependency resolution (4.16)**: a lightweight in-process publish–subscribe bus (`core/events.py`, pure stdlib — `on/once/off/emit/has/clear`, weakref-backed handlers that auto-cleanup when the owner is collected, optional `async_=True` background execution) lets plugins talk to each other and to the framework **without knowing who is listening** — built-in events (`plugin.loaded/enabled/disabled/installed/uninstalled`, `user.login/logout`, `request.finished`) plus plugin-namespaced custom events (`plugin:<name>:<event>`); **BasePlugin** gains `on_event` / `emit_event` / `event_name` helpers (auto `plugin:<name>:` prefix, subscriptions auto-cleaned on unload/disable). Parallel to that, `core/plugin_deps.py` brings **real dependency resolution**: `dependencies` / `pip_dependencies` now accept **version constraints** (`auth>=2.0`, `name>=a,<b`, semver with pre-release weights), the loader uses **Kahn topological order with cycle detection** (a loop or a missing/unsatisfied dependency marks the plugin *not loaded* with a reason surfaced in the admin UI instead of aborting startup), and uninstalling a plugin that others still depend on is blocked. The `scheduler_demo` (event demo — subscribe/publish built-in + custom + async events, manual trigger) and `dependent_demo` (cross-plugin event subscription with source attribution) examples were upgraded to demonstrate it end-to-end;
+- **Ops & tooling**: version check with a `changelog.json` feed + dual-backend updater (git / archive), Factory Reset, backup/restore, startup self-check, package integrity signing, plugin scaffolding + offline install/uninstall CLI (`scaffold.py` / `install_plugin.py`), plus a **40-script regression suite and GitHub Actions CI**.
 
 The full feature specification lives in the [development guide](documents/Flask插件框架开发规范-v4.0.md).
 
@@ -135,10 +136,10 @@ Detailed specs live in the [Flask Plugin Framework Development Guide](documents/
 
 ## Tests & CI
 
-`tests/` contains **37 scripts / 988 assertions** of regression tests (isolated-directory mode, no pollution of project files); GitHub Actions runs them automatically on Python 3.10 / 3.11 / 3.12, covering permissions, plugin-package / frontend-tool chains, integrity signatures, uninstall manifests, Factory Reset, large-plugin multi-template page routing, file transfer (upload limits / Chinese-name downloads / Range), static security scanning, capability cross-validation, runtime audit hooks, i18n framework, plugin data quota, plugin scaffolding / offline install-uninstall CLI, per-plugin space cleanup, ops tools, etc.
+`tests/` contains **40 scripts** of regression tests (isolated-directory mode, no pollution of project files); GitHub Actions runs them automatically on Python 3.10 / 3.11 / 3.12, covering permissions, plugin-package / frontend-tool chains, integrity signatures, uninstall manifests, Factory Reset, large-plugin multi-template page routing, file transfer (upload limits / Chinese-name downloads / Range), static security scanning, capability cross-validation, runtime audit hooks, i18n framework, plugin data quota, event bus & dependency resolution, plugin scaffolding / offline install-uninstall CLI, per-plugin space cleanup, ops tools, etc.
 
 <details>
-<summary>Expand: 32 test scripts</summary>
+<summary>Expand: 40 test scripts</summary>
 
 ```bash
 cd FlaskToolkit
@@ -177,14 +178,19 @@ python tests/test_network.py              # network & access (v4.11) + 308 redir
 python tests/test_mdns.py                 # mDNS service registration (v4.11, optional zeroconf) 22
 python tests/test_ip_watcher.py           # IP-change detection (v4.11) 15
 python tests/test_desktop_launcher.py     # desktop launcher (v4.11) + HTTPS checkbox (v4.12) 36
-# total: 37 scripts / 988 assertions
+python tests/test_stats.py                  # statistics insight (v4.14): time-bucket + access-profile dual model / dashboard / trend & error top
+python tests/test_selfcheck.py              # startup self-check (v4.15): CORE_FILES completeness / timezone probe / full check 14
+python tests/test_events.py                 # event bus (v4.16): priority / once / off / weakref cleanup / bound-method strong ref / async non-blocking / exception isolation / built-in emission 11
+python tests/test_dependency.py             # dependency resolution (v4.16): dep-spec parse / semver incl pre-release / Kahn topo / cycles / missing exclusion 11
+python tests/test_plugin_events.py          # BasePlugin event integration + example demos (v4.16): scheduler_demo events & manual trigger / dependent_demo cross-plugin subscription 28
+# total: 40 scripts
 ```
 
 </details>
 
 ## Edition Status
 
-- **Community Edition (v4.x)**: feature development continues with a deliberately controlled architectural scale, focused on small-LAN / personal-use scenarios; we maintain and release regularly (37 scripts / 988 assertions regression + CI).
+- **Community Edition (v4.x)**: feature development continues with a deliberately controlled architectural scale, focused on small-LAN / personal-use scenarios; we maintain and release regularly (40-script regression suite + CI).
 - **Enterprise Edition (v5.x)**: planned to carry the long-term roadmap (refined permission model, process-level sandboxing, stricter CSP, enterprise identity integration, etc.). Due to limited team capacity, we are openly looking for maintainers to take over — see the [Enterprise Edition handover & roadmap](documents/Enterprise-Edition-交接与路线.md).
 
 ## Known Limitations

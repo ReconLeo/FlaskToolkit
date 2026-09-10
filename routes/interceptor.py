@@ -122,4 +122,10 @@ def register(app):
         except Exception as e:
             # 统计失败不影响业务响应
             app.logger.warning(f"统计记录异常: {str(e)}", extra={'plugin': 'system'})
+        # v4.16 事件总线：请求完成通知（供统计/审计等订阅）
+        try:
+            from core.events import events
+            events.emit('request.finished', path=request.path, status=response.status_code)
+        except Exception:
+            pass
         return response

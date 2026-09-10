@@ -1,12 +1,12 @@
 {
   "name": "scheduler_demo",
-  "title": "示例：APScheduler 定时任务",
-  "version": "1.1.0",
+  "title": "示例：APScheduler 定时任务 + 事件总线",
+  "version": "1.2.0",
   "author": "FlaskToolkit Examples",
   "category": "示例",
-  "description": "定时任务示例：通过 scheduled_tasks 属性声明 interval（间隔）与 cron（表达式）两类触发器，定时写入心跳记录，页面实时展示调度历史。",
+  "description": "定时任务 + 事件总线示例：通过 scheduled_tasks 声明 interval/cron 触发器定时写入心跳，并由 BasePlugin 事件集成订阅/发布事件（内置事件订阅、自定义事件发布订阅、同步/异步），页面实时展示调度与事件历史。",
   "permission": "user",
-  "require_framework_version": "4.3.2",
+  "require_framework_version": "4.16.0",
   "capabilities": [
     "scheduler"
   ]

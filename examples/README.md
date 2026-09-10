@@ -7,9 +7,9 @@
 | 示例 | 类型 | 安装后访问 | 展示的框架能力 |
 |------|------|-----------|---------------|
 | `hello_plugin`（Hello 脚手架） | 后端插件 | `/plugin/hello_plugin` | 生命周期钩子（on_load/on_shutdown/on_unload/on_uninstall）、三层权限路由（public/user/admin）、配置读写、自定义页面 |
-| `scheduler_demo`（APScheduler 定时任务） | 后端插件 | `/plugin/scheduler_demo` | `scheduled_tasks` 属性声明定时任务、interval 与 cron 双触发器、定时数据持久化、页面实时展示调度历史 |
+| `scheduler_demo`（APScheduler 定时任务 + 事件总线） | 后端插件 | `/plugin/scheduler_demo` | `scheduled_tasks` 属性声明定时任务、interval 与 cron 双触发器、定时数据持久化、页面实时展示调度历史 + v4.16 事件总线演示（BasePlugin on_event 订阅内置/自定义/异步事件，定时任务 emit_event 发布 heartbeat/stats，页面事件历史卡片 + 手动发布/清空） |
 | `async_file_demo`（异步任务与文件上传） | 后端插件 | `/plugin/async_file_demo` | 上传类型/大小限制、`save_uploaded_file`、`run_async_task` 异步处理、状态轮询、`send_file_response` 下载结果、**声明式存储配额（storage:limit:10mb + 上传预检 413 + /quota 状态）** |
-| `dependent_demo`（插件依赖与跨插件调用） | 后端插件 | `/plugin/dependent_demo` | `dependencies` 依赖声明（缺失依赖拒绝加载）、`call_plugin_method` 跨插件调用 auth |
+| `dependent_demo`（插件依赖 + 跨插件调用 + 跨插件事件） | 后端插件 | `/plugin/dependent_demo` | `dependencies` 依赖声明（缺失依赖拒绝加载）、`call_plugin_method` 跨插件调用 auth、v4.16 跨插件事件订阅（松耦合订阅 scheduler_demo 事件，来源归因『跨插件』/『框架全局』） |
 | `multitool_demo`（大插件多模板） | 后端插件 | `/plugin/multitool_demo` | 大插件三要素：多模板（主入口 index + 页面路由 page=True 子页）、辅助 .py（multitool_utils 纯函数模块）、静态资源（css/js 经 `/plugin-static/` 访问）、`render_index` 数据钩子 |
 | `corp_tools`（企业内网工具箱） | 后端插件 | `/plugin/corp_tools` | 企业内网综合场景：服务健康检查（定时探测 + `network:http` capabilities 白名单）、内部工具导航（按权限过滤）、公告板（异步落盘）、多模板 + 静态资源 + 配置读写系统性组合、**插件多语言（自带 locales/en.json 语言包合并 + 模板/后端/前端 t()）** |
 | `root_demo`（框架 Root 域） | 后端插件 | `/plugin/root_demo` | **Root 权限域（`framework:core` capability，v4.15.0）**：只读框架版本/核心路径清单/框架核心配置、Root 写 `data/user_config.json`（审计 root-access）、对照普通 `filesystem:write` 写核心被拒 |
@@ -86,6 +86,8 @@ def scheduled_tasks(self):
 
 每个任务配置传给 `scheduler.add_job(func=..., id=..., **task_config)`，`trigger` 支持 `interval` / `cron` / `date`，其余参数与 APScheduler 一致（如 `max_instances`、`hour` 等）。
 
+**v4.16 事件总线演示**：`on_load` 通过 BasePlugin `on_event` 订阅内置全局事件（`user.login` / `plugin.loaded` / `request.finished`）与自身自定义事件（`heartbeat` / `stats` / `manual_trigger`），并含一个 `async_=True` 异步订阅；定时任务经 `emit_event` 发布 `heartbeat` / `stats`；页面『手动发布事件』发 `manual_trigger`（已订阅 → 事件历史可见）。事件历史持久化到 `plugins/data/scheduler_demo/events.json`，页面卡片 + API（GET /events、DELETE /events 清空、POST /emit_event 手动发布）实时展示发布→订阅→记录链路。
+
 ### 3. async_file_demo —— 异步任务与文件上传
 
 长耗时任务不阻塞请求：上传后立即返回 `task_id`，后台线程处理，前端轮询状态，完成后下载结果。
@@ -122,6 +124,8 @@ class DependentDemoPlugin(BasePlugin):
 ```
 
 安装时若 auth 未安装，该插件会被拒绝安装——这正是依赖机制的演示。
+
+**v4.16 跨插件事件订阅**：`on_load` 通过 `on_event` **松耦合**订阅 scheduler_demo 发布的自定义事件（`plugin:scheduler_demo:heartbeat/stats/manual_trigger`）与框架全局事件（`user.login/user.logout/plugin.loaded/request.finished`）。关键点是**未在 `dependencies` 声明 scheduler_demo**——即使 scheduler_demo 未安装，本插件也能正常加载，这正是事件总线解耦的价值（无需依赖声明、无需方法调用即可感知其他插件状态）。事件来源归因：`_source_of` 按 `plugin:<插件名>:` 前缀区分『跨插件(<name>)』与『框架全局』；事件历史持久化 + 页面『跨插件事件接收』卡片 + GET /events API。
 
 ### 5. multitool_demo —— 大插件多模板（多模板 + 辅助 .py + 静态资源）
 

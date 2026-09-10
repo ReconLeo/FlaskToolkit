@@ -130,17 +130,38 @@ def _set_enabled(plugin_name, enabled, actor=None):
         cache['status_snapshot'] = global_var.plugin_status
         _, cache['status_hash'] = load_plugin_status()
         save_cache_internal(cache)
+    # v4.16：禁用时清理该插件订阅的事件（防止禁用后仍收到事件/绑定方法泄漏；重启用时 load_plugins 重新 on_load 订阅）
+    if not enabled:
+        try:
+            _inst = global_var.plugins.get(plugin_name)
+            if _inst is not None:
+                _inst._cleanup_events()
+        except Exception:
+            pass
     load_plugins()
     return True, f'插件 {plugin_name} 已{"启用" if enabled else "禁用"}'
 
 
+def _emit(event, **data):
+    """v4.16 事件总线：发送事件，失败不影响业务。"""
+    try:
+        from core.events import events
+        events.emit(event, **data)
+    except Exception:
+        pass
+
+
 def enable(plugin_name, actor=None):
     ok, msg = _set_enabled(plugin_name, True, actor)
+    if ok:
+        _emit('plugin.enabled', plugin_name=plugin_name, actor=actor)
     return ok, msg
 
 
 def disable(plugin_name, actor=None):
     ok, msg = _set_enabled(plugin_name, False, actor)
+    if ok:
+        _emit('plugin.disabled', plugin_name=plugin_name, actor=actor)
     return ok, msg
 
 
@@ -150,6 +171,20 @@ def uninstall(plugin_name, actor=None):
     plugin_file = os.path.join(global_var.BASE_DIR, 'plugins', f'{plugin_name}.py')
     if not os.path.exists(plugin_file):
         return False, '插件文件不存在'
+    # v4.16：反向依赖检查——若仍有插件依赖本插件，阻止卸载（避免产生悬空依赖）
+    try:
+        from core.plugin_deps import dep_name
+        _dependents = [
+            n for n, _p in global_var.plugins.items()
+            if _p is not None and any(
+                dep_name(d) == plugin_name
+                for d in (getattr(_p, 'dependencies', None) or []))
+        ]
+        if _dependents:
+            return False, (f'插件 {plugin_name} 正被依赖: {", ".join(_dependents)}，'
+                           '请先卸载依赖方再卸载本插件')
+    except Exception:
+        pass
     try:
         _inst = global_var.plugins.get(plugin_name)
         if _inst is not None:
@@ -188,6 +223,7 @@ def uninstall(plugin_name, actor=None):
         except Exception as _e:
             logger.warning(f'插件 {plugin_name} 统计清理失败: {_e}',
                            extra={'plugin': 'system'})
+        _emit('plugin.uninstalled', plugin_name=plugin_name, actor=actor)
         return True, f'插件 {plugin_name} 已卸载'
     except Exception as e:
         return False, f'卸载失败: {str(e)}'
@@ -246,8 +282,23 @@ def install_from_package(zip_path, plugin_name=None, actor=None, source_label=No
     }
     save_plugin_status()
     _audit('插件安装', name, 'ok', f"v{desc.get('version', '?')} 来源 {src}", actor)
+    _emit('plugin.installed', plugin_name=name, version=str(desc.get('version', '?')), actor=actor)
     extra = _scan_response_extra(scan_report)
-    return True, f'插件 {name} 已安装', extra
+    # v4.16：依赖预检——新插件声明的依赖插件未安装时附告警（不自动安装）
+    _warn = []
+    try:
+        from core.plugin_deps import dep_name
+        for _d in (desc.get('dependencies') or []):
+            if dep_name(_d) not in global_var.plugins:
+                _warn.append(_d)
+    except Exception:
+        pass
+    if _warn:
+        _msg = (f'插件 {name} 已安装，但依赖未安装: {", ".join(_warn)}，'
+                '安装后暂无法加载，请先安装依赖')
+    else:
+        _msg = f'插件 {name} 已安装'
+    return True, _msg, extra
 
 
 def update_from_package(zip_path, plugin_name, actor=None, source_label=None):

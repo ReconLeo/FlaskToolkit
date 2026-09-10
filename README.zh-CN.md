@@ -4,7 +4,7 @@
   <img src="https://github.com/ReconLeo/FlaskToolkit/actions/workflows/ci.yml/badge.svg" alt="CI">
   <img src="https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB?logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/License-MIT-yellow" alt="License">
-  <img src="https://img.shields.io/badge/version-4.15.4-blue" alt="Version">
+  <img src="https://img.shields.io/badge/version-4.16.0-blue" alt="Version">
 </p>
 
 > 一个基于 Flask 的插件化**框架**：把散落的 Python 插件与纯前端工具装进统一的运行时，
@@ -38,7 +38,8 @@
 - **Root 权限域与市场铺路（4.15）**：插件可声明 **framework 能力域** 三档 `read` / `manage` / `core`（`core` ≈ Linux **root**，隐含 `manage` + `read`）以操作框架自身核心文件；**`framework:core`** 权限为"修改/删除框架核心"提供了显式语义，后台用醒目的 **⚠️ Root** 徽章标识，每次放行的核心路径写入都会落一条 **root-access 审计事件**（MIT 协议，框架概不负责）。与之配套的**程序化插件管理服务层**（core/plugin_admin.py）支撑管理路由，为**第三方插件市场**铺路；插件可在 plugin.json 声明 **repo / update_feed**，通过应用内**插件级更新检查**（core/plugin_updates.py，feed 强制 RSA 验签、3s 静默超时）触达各插件自己的发布渠道。启动**自检**也新增了**时区 / tzdata 探测**——APScheduler 3.11 改用 zoneinfo，Windows 依赖 tzdata，全新环境缺 tzdata 会在自检阶段明确报错并给出修复提示，而非启动到调度器才崩；
 - **框架目录清单统一（4.15.1）**："哪些是框架核心文件、哪些是用户数据"的判定不再各处硬编码——单一清单 `core/framework_manifest.py` 一次驱动启动自检、升级更新、备份、Factory Reset 与 Root 域路径判定。新增 `root_demo` 示例插件端到端演示 `framework:core` **Root** 授权：读写框架核心配置 `data/user_config.json`（审计 root-access），并对照展示普通 `filesystem:write` 写核心路径被拒；
 - **i18n 全面补全（4.15.2/4.15.3）**：后台与公开页面全部可翻译——Statistics 页与所有剩余模板（插件管理、系统管理、日志、网络与访问、首页、登录/注册/初始化向导、插件 API 调试页）的硬编码中文统一接入 `t()` / `window.T()` 语言层，`locales/en.json` 词条增至 **485**；回归断言扫描全部框架模板，确保模板中用到的任一中文 key 必被语言包覆盖；
-- **运维与工具链**：版本检查推送 + 双后端更新（git / archive）、Factory Reset、备份/恢复、启动自检、完整性签名、插件脚手架与离线安装/卸载 CLI（scaffold.py / install_plugin.py）与单插件空间清理，以及一套 **37 脚本 / 988 项回归测试与 GitHub Actions CI**。
+- **事件总线与插件真依赖解析（4.16）**：轻量进程内发布-订阅总线（core/events.py，纯 stdlib——on/once/off/emit/has/clear，weakref 防泄漏（宿主被回收订阅自动失效）、可选 async_=True 后台线程池），让插件之间、插件与框架之间**无需知道谁在监听**即可松耦合通信——内置事件（plugin.loaded/enabled/disabled/installed/uninstalled、user.login/logout、request.finished）+ 插件命名空间自定义事件（plugin:<插件名>:<事件名>）；**BasePlugin** 新增 on_event / emit_event / event_name 助手（自动加 plugin:<插件名>: 前缀，卸载/禁用时自动清理订阅）。与之并行，core/plugin_deps.py 带来**真依赖解析**：dependencies / pip_dependencies 支持**版本约束**（auth>=2.0、name>=a,<b，semver 含预发布权重），加载器用 **Kahn 拓扑排序 + 环检测**（缺失/版本不满足/循环不再中止启动，而是标记该插件『未加载』并在后台透出原因），卸载仍被依赖的插件会被阻止。示例 scheduler_demo（事件演示：订阅/发布内置+自定义+异步事件、手动触发）与 dependent_demo（跨插件事件订阅 + 来源归因）已升级端到端演示。
+- **运维与工具链**：版本检查推送 + 双后端更新（git / archive）、Factory Reset、备份/恢复、启动自检、完整性签名、插件脚手架与离线安装/卸载 CLI（scaffold.py / install_plugin.py）与单插件空间清理，以及一套 **40 脚本回归测试与 GitHub Actions CI**。
 
 完整功能规格见[开发规范](documents/Flask插件框架开发规范-v4.0.md)。
 
@@ -135,10 +136,10 @@ python examples/install_all.py                            # 一键安装 7 个�
 
 ## 测试与 CI
 
-`tests/` 37 个脚本共 988 项回归测试（隔离目录模式，不污染项目文件）；GitHub Actions 在 Python 3.10 / 3.11 / 3.12 上自动执行，覆盖权限、插件包 / 前端工具链路、完整性签名、卸载清单、Factory Reset、大插件多模板页面路由、文件传输（上传限制 / 中文名下载 / Range）、插件静态安全扫描、能力声明交叉校验、运行时审计钩子、i18n 语言框架、插件数据配额、插件脚手架与离线安装/卸载 CLI、单插件空间清理、运维工具等。
+`tests/` 40 个回归测试脚本（隔离目录模式，不污染项目文件）；GitHub Actions 在 Python 3.10 / 3.11 / 3.12 上自动执行，覆盖权限、插件包 / 前端工具链路、完整性签名、卸载清单、Factory Reset、大插件多模板页面路由、文件传输（上传限制 / 中文名下载 / Range）、插件静态安全扫描、能力声明交叉校验、运行时审计钩子、i18n 语言框架、插件数据配额、事件总线与依赖解析、插件脚手架与离线安装/卸载 CLI、单插件空间清理、运维工具等。
 
 <details>
-<summary>展开：32 个测试脚本</summary>
+<summary>展开：40 个测试脚本</summary>
 
 ```bash
 cd FlaskToolkit
@@ -177,14 +178,19 @@ python tests/test_network.py              # 网络与访问（v4.11）+ 308 跳�
 python tests/test_mdns.py                 # mDNS 服务注册（v4.11，可选 zeroconf）22 项
 python tests/test_ip_watcher.py           # IP 变化检测（v4.11）15 项
 python tests/test_desktop_launcher.py     # 桌面启动器（v4.11）+ HTTPS 复选框（v4.12）36 项
-# 合计 37 个脚本 988 项
+python tests/test_stats.py                  # 数据统计洞察（v4.14）：时间桶 + 访问画像双维模型 / dashboard 总览化 / 14 天趋势与错误 Top
+python tests/test_selfcheck.py              # 启动完整性自检（v4.15）：CORE_FILES 完整性 / 时区探测 / 完整自检 14 项
+python tests/test_events.py                 # 事件总线（v4.16）：priority / once / off / weakref 清理 / 绑定方法强引用 / async 非阻塞 / 异常隔离 / 内置事件 11 项
+python tests/test_dependency.py             # 依赖解析（v4.16）：dep_spec 解析 / semver 含预发布 / Kahn 拓扑 / 环 / 缺失排除 11 项
+python tests/test_plugin_events.py          # BasePlugin 事件集成 + 示例演示（v4.16）：scheduler_demo 事件与手动触发 / dependent_demo 跨插件订阅 28 项
+# 合计 40 个回归脚本
 ```
 
 </details>
 
 ## 版本状态
 
-- **Community Edition（v4.x）**：功能开发持续进行，但架构规模有意识控制——专注小型局域网/个人用户场景，我们定期维护与发布（37 脚本 988 项回归 + CI）。
+- **Community Edition（v4.x）**：功能开发持续进行，但架构规模有意识控制——专注小型局域网/个人用户场景，我们定期维护与发布（40 脚本回归套件 + CI）。
 - **Enterprise Edition（v5.x）**：规划承载远期路线（权限模型细化、进程级沙箱、CSP 收紧、企业身份对接等）。因当前小团队开发能力有限，公开寻求接手者——详见 [Enterprise Edition 交接与路线](documents/Enterprise-Edition-交接与路线.md)。
 
 ## 已知局限
@@ -200,7 +206,7 @@ MIT License · 贡献指南见 [CONTRIBUTING.md](CONTRIBUTING.md) · 开发过�
 
 ### 人工智能辅助开发声明
 
-本项目在开发过程中使用了 AI 辅助编程工具，包括但不限于：代码生成与重构、代码审查、测试用例编写、文档撰写。所有 AI 辅助生成或修改的内容，均已由开发者人工审查，并通过项目自身的回归测试套件（`tests/`，988 项）与启动完整性自检验证后才会合入。
+本项目在开发过程中使用了 AI 辅助编程工具，包括但不限于：代码生成与重构、代码审查、测试用例编写、文档撰写。所有 AI 辅助生成或修改的内容，均已由开发者人工审查，并通过项目自身的回归测试套件（`tests/`，40 脚本）与启动完整性自检验证后才会合入。
 
 对贡献者的透明性约定：
 

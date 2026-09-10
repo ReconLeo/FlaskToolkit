@@ -709,6 +709,13 @@ class AuthPlugin(BasePlugin):
         if success:
             # 登录成功，清除该维度的失败计数
             self._clear_login_attempts(username)
+            # v4.16 事件总线：用户登录成功
+            try:
+                from core.events import events
+                events.emit('user.login', username=username, user_id=user.get('id'),
+                            role=user.get('role'))
+            except Exception:
+                pass
             # v4.10 强制改密：密码仍为默认 admin123 时置 true（前端登录后台弹改密窗）
             # login() 返回的 user_info 不含 password（安全剥离），按 id 反查 config 中的哈希
             _pwd_hash = ''
@@ -768,6 +775,12 @@ class AuthPlugin(BasePlugin):
         if token:
             removed_count = self.sessions.pop(token, None)
             self._save_sessions()
+            # v4.16 事件总线：用户登出
+            try:
+                from core.events import events
+                events.emit('user.logout', username=request.headers.get('X-Username') or '')
+            except Exception:
+                pass
             self.logger.info(f"用户登出成功，已销毁token: {token[:8]}...")
         else:
             self.logger.warning("登出请求未携带有效token")

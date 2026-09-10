@@ -746,12 +746,50 @@ class BasePlugin(ABC):
         pass
 
     # 插件卸载前回调钩子（与开发文档声明对齐，框架默认空实现，插件可重载）
+    # ==================== v4.16 事件总线集成 ====================
+    def on_event(self, event, handler, *, once=False, async_=False, priority=0):
+        """订阅事件（v4.16 事件总线集成）。
+
+        event 可为内置全局事件（user.login / plugin.loaded / request.finished）或完整
+        自定义事件名（plugin:<插件名>:<事件名>）。订阅自动记录，插件卸载/禁用时统一清理
+        （防绑定方法订阅泄漏）。返回 handler 便于链式使用。
+        """
+        from core.events import events
+        events.on(event, handler, once=once, async_=async_, priority=priority, owner=self)
+        subs = self.__dict__.setdefault('_event_subs', [])
+        if event not in subs:
+            subs.append(event)
+        return handler
+
+    def emit_event(self, name, **data):
+        """发布本插件自定义事件（自动加 ``plugin:<插件名>:`` 前缀）。"""
+        from core.events import events
+        events.emit(f'plugin:{self.name}:{name}', **data)
+
+    def event_name(self, name):
+        """返回本插件自定义事件的完整名（plugin:<插件名>:<事件名>），便于订阅/引用。"""
+        return f'plugin:{self.name}:{name}'
+
+    def _cleanup_events(self):
+        """清理本插件订阅的事件（卸载/禁用时调用，防绑定方法订阅泄漏）。"""
+        subs = self.__dict__.pop('_event_subs', None) or []
+        if not subs:
+            return
+        try:
+            from core.events import events
+            for ev in subs:
+                events.off(ev)
+        except Exception:
+            pass
+        self.__dict__['_event_subs'] = []
+
     def on_unload(self):
         """
-        插件卸载前回调，可在此处实现清理资源、保存状态、取消定时任务等逻辑
-        框架默认空实现，重载此方法即可自定义卸载前操作
+        插件卸载前回调，可在此处实现清理资源、保存状态、取消定时任务等逻辑。
+        框架默认实现会先清理本插件订阅的事件（v4.16）；插件重载本方法时应调用
+        super().on_unload() 以确保订阅清理。
         """
-        pass
+        self._cleanup_events()
 
     # 插件卸载删除前回调钩子（与开发文档声明对齐，框架默认空实现，插件可重载）
     def on_uninstall(self):
