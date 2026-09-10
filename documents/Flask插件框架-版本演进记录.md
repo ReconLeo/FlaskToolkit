@@ -39,14 +39,18 @@ Kaleido 同样开源（自托管题库系统）：[github.com/ReconLeo/Kaleido](
 | 补丁覆盖 | 2026-09-06 | tools 运维工具适配 v4.9 结构 + v4.9.2 覆盖发布 | `73c6a9f` `ee3e23d` `612c565` |
 | **v4.10.0** | 2026-09-06 | Accessibility 能力可达性：pip 依赖独立声明 + 能力清单确认 + 调试页权限修正/API 文档增强 + 首次运行向导/强制改密 + 邀请码自助注册 + 脚手架/离线安装卸载 + 单插件空间清理 | `e26b25e`（M4）`2ecb8b7`（M5）`941ea66`（airdrop 移交）`32aa2ce`（M6）`9d3aaf4`（M6-Extra）`699fae0`（前端清理），tag `v4.10.0` |
 | **v4.11.0** | 2026-09-06 | Reachability 网络可达：地址中心（core/network.py）+ mDNS 服务注册（core/mdns.py 可选 zeroconf）+ 后台网络与访问页（二维码/共享/mDNS/IP 检测）+ 启动横幅播报 + IP 变化检测（core/ip_watcher.py）+ 桌面启动器（tools/desktop_launcher.py） | `e16e67b`（M1-M5）`4a76811`（文档），tag `v4.11.0` |
-| **v4.17.0** | 2026-09-10 | 移动端/桌面端页面分离：core/device.py（UA 检测 + resolve_template 分发）+ templates/mobile/ 独立模板 + mobile-app.css + BasePlugin 移动端能力（is_mobile_context·mobile_template·render 分发）+ corp_tools 1.1.0 移动端独立模板演示，test_device 20 项 | tag `v4.17.0` |
-| **v4.16.0** | 2026-09-10 | 事件总线 + 插件真依赖解析：自研 core/events.py（发布-订阅 weakref 防泄漏 async 线程池）+ core/plugin_deps.py（版本约束 + Kahn 拓扑 + 环检测）+ BasePlugin 事件集成（on_event·emit_event·event_name·_cleanup_events）+ 卸载反向依赖检查 + scheduler_demo 1.2.0·dependent_demo 2.0.0 事件演示，全量回归 40 脚本 | tag `v4.16.0` |
-| **v4.15.0** | 2026-09-07 | Root 域与市场骨架：framework 能力域三档 read/manage/core + 程序化插件管理服务层（core/plugin_admin.py）+ 插件级更新源（plugin.json repo/update_feed + RSA 验签）+ 前端 Root·更新徽章 + selfcheck 时区探测（tzdata）+ requirements tzdata | `ef36a40`，tag `v4.15.0` |
-| **v4.14.0** | 2026-09-07 | Statistics 数据统计洞察：时间桶 + 访问画像双维数据模型 / dashboard 总览化（徽章行 + 冷门提示 + 最近动态）/ 14 天趋势 + 错误 Top + 画像卡 / 跳转端口 POST body 消费修复 | `b2f56a3`，tag `v4.14.0` |
-| **v4.13.0** | 2026-09-07 | Mobile & Tablet 移动端与平板适配：公开页面 + 后台管理页响应式翻修（mobile.css / admin-mobile.css 与原有样式分开创建）+ JS 增强层四件套（mobile.js：表格自动包裹/汉堡菜单/模态框全屏/toast 通栏）+ 14 框架模板幂等注入 + 五个示例插件各自 *_mobile.css | `ad2bf59`，tag `v4.13.0` |
-| **v4.12.2** | 2026-09-07 | 安全修复：上传临时文件防线——F6 失败分支统一清理（preview/confirm 失败残留）+ preview 文件 TTL 30min 防写盘累积 + F12 preview_id 路径穿越封堵（严格 uuid 格式校验）+ test_admin_api 62→69 项 | `84c17ed`，tag `v4.12.2` |
-| **v4.12.1** | 2026-09-06 | Secure 修复：P1 登录回归 F10（is_secure_cookie_mode 跟随 request.scheme）+ 压力与多机归因评估落地（test_server 脚手架 + 评估报告，R6 归因闭环） | `f8cfd21`（feat）`786ae5d`（docs），tag `v4.12.1` |
 | **v4.12.0** | 2026-09-06 | Secure 安全传输：HTTP→HTTPS 自动跳转（308 保留 POST）+ SESSION_COOKIE_SECURE 自动配置（None=自动）+ config.py SSL 配对提示/HTTPS 状态检查 + 桌面启动器 HTTPS 复选框与证书自动生成 + 反代支持归档（TRUST_PROXY_HEADERS / EXTERNAL_SCHEME / EXTERNAL_HOST / EXTERNAL_PORT） | `919cb0b` `d0ccec7`（阶段1-2）`2b3762c`（feat）`fbbc60a`（docs），tag `v4.12.0` |
+| **v4.12.1** | 2026-09-06 | Secure 修复：P1 登录回归 F10（is_secure_cookie_mode 跟随 request.scheme）+ 压力与多机归因评估落地（test_server 脚手架 + 评估报告，R6 归因闭环） | `f8cfd21`（feat）`786ae5d`（docs），tag `v4.12.1` |
+| **v4.12.2** | 2026-09-07 | 安全修复：上传临时文件防线——F6 失败分支统一清理（preview/confirm 失败残留）+ preview 文件 TTL 30min 防写盘累积 + F12 preview_id 路径穿越封堵（严格 uuid 格式校验）+ test_admin_api 62→69 项 | `84c17ed`，tag `v4.12.2` |
+| **v4.13.0** | 2026-09-07 | Mobile & Tablet 移动端与平板适配：公开页面 + 后台管理页响应式翻修（mobile.css / admin-mobile.css 与原有样式分开创建）+ JS 增强层四件套（mobile.js：表格自动包裹/汉堡菜单/模态框全屏/toast 通栏）+ 14 框架模板幂等注入 + 五个示例插件各自 *_mobile.css | `ad2bf59`，tag `v4.13.0` |
+| **v4.14.0** | 2026-09-07 | Statistics 数据统计洞察：时间桶 + 访问画像双维数据模型 / dashboard 总览化（徽章行 + 冷门提示 + 最近动态）/ 14 天趋势 + 错误 Top + 画像卡 / 跳转端口 POST body 消费修复 | `b2f56a3`，tag `v4.14.0` |
+| **v4.15.0** | 2026-09-07 | Root 域与市场骨架：framework 能力域三档 read/manage/core + 程序化插件管理服务层（core/plugin_admin.py）+ 插件级更新源（plugin.json repo/update_feed + RSA 验签）+ 前端 Root·更新徽章 + selfcheck 时区探测（tzdata）+ requirements tzdata | `ef36a40`，tag `v4.15.0` |
+| **v4.15.1** | 2026-09-07 | 框架目录清单统一（core/framework_manifest.py 单一清单驱动自检/升级/备份/重置/Root 判定）+ 示例插件 root_demo（framework:core Root 读写演示 + 对照拒绝），全量回归 37 脚本 987 项 | tag `v4.15.1` |
+| **v4.15.2** | 2026-09-07 | 小修复：框架目录清单校正（documents 移出 CORE_DIRS）+ Statistics 模板翻译补全（en.json 114→239）+ test_i18n 覆盖断言（28→29 项） | tag `v4.15.2` |
+| **v4.15.3** | 2026-09-07 | 小修复：剩余页面模板硬编码中文翻译补全（en.json→485）+ test_i18n 覆盖断言 | tag `v4.15.3` |
+| **v4.15.4** | 2026-09-09 | 稳定版体验优化：各页面语言切换 + 翻译工具 i18n_status.py（__contributors）+ 健壮性修复（HTTP 跳转端口容错/统计孤儿清理/汉堡隐藏等），全量回归 37 脚本 988 项 | tag `v4.15.4` |
+| **v4.16.0** | 2026-09-10 | 事件总线 + 插件真依赖解析：自研 core/events.py（发布-订阅 weakref 防泄漏 async 线程池）+ core/plugin_deps.py（版本约束 + Kahn 拓扑 + 环检测）+ BasePlugin 事件集成（on_event·emit_event·event_name·_cleanup_events）+ 卸载反向依赖检查 + scheduler_demo 1.2.0·dependent_demo 2.0.0 事件演示，全量回归 40 脚本 | tag `v4.16.0` |
+| **v4.17.0** | 2026-09-10 | 移动端/桌面端页面分离：core/device.py（UA 检测 + resolve_template 分发）+ templates/mobile/ 独立模板 + mobile-app.css + BasePlugin 移动端能力（is_mobile_context·mobile_template·render 分发）+ corp_tools 1.1.0 移动端独立模板演示，test_device 20 项 | tag `v4.17.0` |
 
 ## 3. 版本详情
 
@@ -185,7 +189,26 @@ P1 安全强化至此全部完成，形成纵深防御：**静态扫描 → 能�
 - **反代支持归档**：`TRUST_PROXY_HEADERS`（ProxyFix 信任 X-Forwarded-Proto/For/Host，恢复客户端 IP 归因）+ `EXTERNAL_SCHEME`/`EXTERNAL_HOST`/`EXTERNAL_PORT`（外部入口，分享地址/二维码/横幅置顶输出）+ `app.validate_ssl_cert`（PEM 可读/配对/有效期校验，启动失败友好退出）；mDNS 提示随 scheme 插值。
 - **回归**：v4.11 收尾时 32 脚本 779 项；2026-09-06 全量实测复核 **32 脚本 869 项**（network 41 / mdns 22 / ip_watcher 15 / desktop_launcher 36 / admin_api 62——版本说明中的 779/807 系增量估算，以实测为准）；runtime 83 文件（sha256 `da9711c1...`），changelog 5 条。
 
-### 3.18 v4.13.0（2026-09-07，tag `v4.13.0`）
+### 3.18 v4.12.1（2026-09-06，tag `v4.12.1`）
+
+**Secure 修复（登录回归）**——v4.12.0 的 `SESSION_COOKIE_SECURE` 自动判定被 `EXTERNAL_SCHEME` 全局联动：反代场景配置 `EXTERNAL_SCHEME=https` 后，内部 HTTP 直连（http://IP:端口）的登录 cookie 也被加 Secure，被浏览器/客户端按标准丢弃 → 登录后会话立即失效（登录态 API 全部 401）。压力与多机归因评估真机复现并修复。
+
+- **`core/network.is_secure_cookie_mode()` 跟随请求实际协议**：自动模式优先取 `request.scheme`（反代场景经 ProxyFix 已反映外部协议 https、内部 http 直连为 http），不再受 `EXTERNAL_SCHEME` 联动；无请求上下文（启动横幅/CLI）回退 `get_scheme()`；显式 `true/false` 强制不受影响。test_network J 组 41/41 兼容。
+- **压力与多机归因评估（阶段 3/4）落地**：`test_server/` 测试脚手架（android_client 三模式 + pc_stress + pc_collect + pc_audit_lookup + echo-upload 测试插件）入库；评估报告 `documents/HTTPS与反向代理稳定性评估-补充-压力与多机归因-2026-09-06.md`。
+- **评估结论（部署建议）**：dev server 保持单线程（threaded 高并发会假死，F7）；大文件路由声明 `max_upload` 突破全局 100MB（F9）且反代需同步调大 Nginx `client_max_body_size`（F11）；多机 IP 归因直连/反代均验证正确（R6 闭环）。
+- runtime 82 文件（sha256 `e855d173...`）。
+
+### 3.19 v4.12.2（2026-09-07，tag `v4.12.2`）
+
+**安全修复（上传临时文件防线）**——压力评估与侦查发现的上传链路安全收口，堵死"利用临时文件恶意写盘"与 preview_id 路径穿越。
+
+- **F6 失败分支临时文件清理**：preview 校验失败 / confirm 安装失败分支此前不清理临时包，统一 `_safe_remove_temp()`（尽力删除 + 失败日志，不阻塞业务返回）。修复前反复"preview 失败/confirm 失败"可致 temp 无限累积写盘。
+- **preview 文件 TTL 防护**：新增 `_cleanup_stale_preview_files(30min)`，每次上传接口入口顺带清理超 30 分钟未确认安装的 `preview_*.zip`——堵死"反复预览永不确认 → temp 无限累积"。
+- **F12 preview_id 路径穿越（P1）**：校验从 `startswith('preview_')` 升级为严格格式 `^preview_[0-9a-f]{32}\.zip$`（uuid hex 精确匹配），`preview_../../xxx` 类穿越请求直接 400。
+- **测试固化**：test_admin_api 62→69 项（无效 zip 普通/preview 上传后 temp 无残留、伪造 preview_id 400、路径穿越 400、过期 preview TTL 清理）。
+- runtime 82 文件（sha256 `c7af3908...`）。
+
+### 3.20 v4.13.0（2026-09-07，tag `v4.13.0`）
 
 **Mobile & Tablet（移动端与平板适配）**——对框架前端页面与示例插件 CSS 的一次翻修，针对 Mobile / Tablets 设备的显示适配问题。核心原则：**新增 CSS 与原有 CSS 分开创建**（不修改原样式，便于回退与独立演进）。
 
@@ -196,7 +219,7 @@ P1 安全强化至此全部完成，形成纵深防御：**静态扫描 → 能�
 - **示例插件移动端样式**：五个示例插件各自新增独立移动端 CSS——corp_tools（corp_mobile.css）、multitool_demo（demo_mobile.css）、hello_plugin（hello_mobile.css）、async_file_demo（async_mobile.css）、dashboard_demo 前端工具（dashboard_mobile.css）。
 - **验证**：浏览器端到端（首页 / 登录 / 后台 dashboard / 统计页 / 系统管理页）确认资源注入与表格包裹 100% 生效、无 JS 错误；全量回归 **32 脚本 869 项 0 失败**。
 
-### 3.19 v4.14.0（2026-09-07，tag `v4.14.0`）
+### 3.21 v4.14.0（2026-09-07，tag `v4.14.0`）
 
 **Statistics（数据统计洞察）**——从"后台管理到底要什么"出发的统计面板再规划。以"现在怎么样 / 谁在用什么 / 出了什么问题 / 我该做什么"四问为框架，把原本只有累计计数的统计升级为**时间序列 + 访问画像**双维数据模型，让管理员一眼看清运行状态与访问者构成。
 
@@ -208,7 +231,7 @@ P1 安全强化至此全部完成，形成纵深防御：**静态扫描 → 能�
 - **框架漏洞修复（测试 J3 暴露）**：start_http_redirect 的 _jump 不消费请求体，单线程 HTTPServer 下 POST/PUT 带 body 在客户端发送阶段被 RST（WinError 10053）——按 Content-Length 消费 body 修复，跳转端口真实场景连接中止根治。
 - **测试**：新增 tests/test_stats.py（55 项）；test_audit_hook E12 改为审计日志痕迹检查（框架常驻运行时真实 audit.log 存在性检查误报）；全量回归 **33 脚本 869 项 0 失败**。
 
-### 3.20 v4.15.0（2026-09-07，tag `v4.15.0`）
+### 3.22 v4.15.0（2026-09-07，tag `v4.15.0`）
 
 **Root 权限域 + 第三方插件市场骨架**——Community 作为 Enterprise 的微缩版/试验台，为"插件能否操作框架核心、能否自建插件市场"铺路。
 
@@ -223,7 +246,41 @@ P1 安全强化至此全部完成，形成纵深防御：**静态扫描 → 能�
 - **requirements.txt**：新增 tzdata==2026.3（Windows zoneinfo 必需，全新 Python 环境可复现）。
 - **测试**：新增 tests/test_root_domain.py（18 项）+ tests/test_selfcheck.py（14 项）；test_capabilities 扩展 G 段 framework 域 13 项；修复 test_admin_api 版本期望；全量回归 **35 脚本 914 项 0 失败**。
 
-### 3.21 v4.16.0（2026-09-10，tag `v4.16.0`）
+### 3.23 v4.15.1（2026-09-07，tag `v4.15.1`）
+
+**框架目录清单统一 + Root 演示示例 root_demo**——不再"各处硬编码核心/用户数据清单"，统一 `core/framework_manifest.py` 一次驱动自检/升级/备份/重置/Root 判定；新增 root_demo 示例插件端到端演示 `framework:core`（Root）能力。
+
+- **框架目录清单统一（core/framework_manifest.py，单一事实来源）**：`CORE_FILES`（35 个核心文件，缺失致命）/ `CORE_DIRS`（6 个核心目录）/ `USER_DATA_PATHS`（10 条用户数据路径）/ `ROOT_RUNTIME_FILES` / 豁免与管辖规则 / `BACKUP_ITEMS`（备份范围派生）；判定函数 `is_user_data_path` / `is_core_file` / `is_framework_core_path`。模块为纯常量 + 纯函数，模块级不 import global_var（避免副作用），BASE_DIR 自推导。
+- **各模块改读统一清单（删硬编码）**：core/selfcheck.py、tools/update.py、tools/backup.py、core/factory_reset.py、core/capabilities.py 均改 import manifest。**后续新增框架文件只需在 manifest 登记一处**，自检/升级/备份/重置/Root 判定全自动跟随。
+- **示例插件 root_demo（官方 Root 域演示）**：plugin.json 声明 `framework:core` + `filesystem:read:data/`、require_framework_version=4.15.0。后端 `/overview`（框架版本/Root 级别/核心文件清单）、`/config`（读/写 data/user_config.json，Root 授权 + 审计 root-access）、`/demo-reject`（对照：仅 filesystem:write 写核心被拒）；页面模板 + 插件语言包。
+- **测试**：新增 test_framework_manifest.py（54 项）+ test_root_demo.py（19 项）；适配 test_capabilities 委托后的 G 段回归；全量回归 **37 脚本 987 项 0 失败**。
+
+### 3.24 v4.15.2（2026-09-07，tag `v4.15.2`）
+
+**小修复：框架目录清单校正 + Statistics 模板翻译补全**。
+
+- **框架目录清单校正（core/framework_manifest.py）**：`documents/` 仅为开发文档（不在精简运行包内、无运行时代码引用，缺失不影响框架运行）——从 `CORE_DIRS` 移除，不再作为致命核心目录；逐一核查其余声明均正确。
+- **Statistics 模板翻译补全（v4.14 遗留）**：`templates/admin/dashboard.html`、`stats.html` 硬编码中文全部包裹 `t()`/`T()`，新增词条补入 en.json（124 + 协议 共 125 词条，en 总量 114→239）。
+- **测试**：test_i18n 新增"框架模板 t()/T() 中文 key 全覆盖 en.json"断言（28→29 项）；全量回归 **37 脚本 988 项 0 失败**。
+
+### 3.25 v4.15.3（2026-09-07，tag `v4.15.3`）
+
+**小修复：剩余页面模板硬编码中文翻译补全**。
+
+- **剩余模板翻译补全**：`templates/admin/`（plugins.html 141 处、system.html、logs.html、network.html 补 4 处 JS 残留）+ 公开页（index/login/logout/register/setup/plugin_default）硬编码中文全部包裹 `t()`/`T()`；en.json 补 245 词条（239→484，修正 3 个句号差异 → 485）。
+- **测试**：test_i18n 覆盖断言保持 29 项（扫描全部框架模板，确保模板中任一中文 key 必被语言包覆盖）；全量回归 **37 脚本 988 项 0 失败**。
+
+### 3.26 v4.15.4（2026-09-09，tag `v4.15.4`）
+
+**稳定版体验优化批次**——各页面语言切换、翻译工具与语言包贡献者字段、若干健壮性修复。
+
+- **各页面语言切换**：所有页面（首页/后台 navbar/插件默认页/注册页/全部错误页）统一加入语言切换入口——深色导航页 `templates/_lang_switch.html` 下拉片段，浅色页用平铺链接；复用 `/lang/<code>?next=` 切换路由（`next={{ request.path }}` 回跳当前页）。
+- **翻译工具 `tools/i18n_status.py`**：以 en.json 为完整基准报告各语言翻译进度与贡献者；`--create <lang> --name` 一键基于 en.json 模板创建新语言包（内置 en/zh-CN 受保护不可创建/修改）；`--json` / `--check` / 指定语言。语言包新增 `__contributors` 元信息字段（固定 `__` 前缀，不参与翻译对照）。
+- **健壮性修复**：HTTP 跳转端口容错（苹果设备 https 访问 http 跳转端口报 Bad HTTP/0.9 时返回友好提示不再崩日志）；卸载/启动统计孤儿清理（`purge_plugin_stats` / `purge_frontend_tool_stats` / `purge_orphan_stats`）；桌面 dashboard 残留汉堡按钮隐藏；插件空间饼图 Top7+其它归并、IP 变化显示等。
+- **测试**：test_i18n 29 项；全量回归 **37 脚本 988 项 0 失败**。
+- runtime 91 文件（sha256 `783f9a86...`）。
+
+### 3.27 v4.16.0（2026-09-10，tag `v4.16.0`）
 
 **事件总线 + 插件真依赖解析**——Community 架构能力演进，纯 stdlib 无新增运行时依赖，让插件间、插件与框架间解耦通信，并让依赖声明真正"可校验"。
 
@@ -234,7 +291,7 @@ P1 安全强化至此全部完成，形成纵深防御：**静态扫描 → 能�
 - **示例插件升级（均已端到端验证）**：scheduler_demo **1.2.0**（on_load 订阅内置 + 自定义 + 异步事件；定时任务 emit_event 发布 heartbeat/stats；页面事件卡片 + 手动发布 manual_trigger + 清空；事件历史持久化）；dependent_demo **2.0.0**（跨插件事件订阅——松耦合订阅 scheduler_demo 事件 + 全局事件，**未在 dependencies 声明 scheduler_demo** 体现解耦；事件来源归因 `_source_of`『跨插件(<name>)』/『框架全局』+ 页面『跨插件事件接收』卡片）。
 - **测试**：新增 tests/test_events.py 11 项、tests/test_dependency.py 11 项、tests/test_plugin_events.py 28 项（BasePlugin 集成 + scheduler_demo 事件演示 + dependent_demo 跨插件事件）；framework_manifest 登记 core/events.py、core/plugin_deps.py；全量回归 **40 脚本 0 失败**。
 
-### 3.22 v4.17.0（2026-09-10，tag `v4.17.0`）
+### 3.28 v4.17.0（2026-09-10，tag `v4.17.0`）
 
 **移动端/桌面端页面分离**——脱离 v4.13『桌面端 + `xxx_mobile.css`/`mobile.js` 样式补充』模式，改为同 URL + 服务端 UA 检测分发独立模板。纯 stdlib 无新增运行时依赖。
 
