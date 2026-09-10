@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>{{ t('Flask 工具集') }}</title>
+    <link rel="stylesheet" href="/static/css/main.css">
+    <link rel="stylesheet" href="/static/css/mobile-app.css">
+</head>
+<body class="mobile">
+    <!-- 移动端顶部栏 -->
+    <nav class="m-nav">
+        <a class="m-brand" href="/">{{ system_name }}</a>
+        <div class="m-nav-right">
+            <div id="userInfo" class="m-nav-user"></div>
+            <div id="authButton"></div>
+        </div>
+    </nav>
+
+    <div class="m-container">
+        <div id="adminBar" class="hidden" style="margin-bottom:12px;">
+            <a href="/admin/dashboard" class="btn btn-primary btn-sm">🛠️ {{ t('管理后台') }}</a>
+        </div>
+
+        <!-- 移动端工具条：搜索 + 排序 -->
+        <div class="m-toolbar">
+            <input type="text" id="toolSearch" placeholder="{{ t('搜索工具名称 / 描述 / 作者 / 分类') }}...">
+            <div class="m-toolbar-row">
+                <select id="toolSort" title="{{ t('排序方式') }}">
+                    <option value="default">{{ t('默认排序') }}</option>
+                    <option value="heat">🔥 {{ t('按热度') }}</option>
+                    <option value="alpha">{{ t('按字母') }}</option>
+                </select>
+                <span id="toolCount" class="m-count" style="color:var(--text-light); font-size:13px;"></span>
+            </div>
+        </div>
+        <div id="searchEmpty" class="m-empty" style="display:none;">
+            <h3>{{ t('没有匹配的工具') }}</h3>
+            <p>{{ t('换个关键词试试，或调整排序条件') }}</p>
+        </div>
+
+        {% if categories %}
+        {% for category, tools in categories.items() %}
+            <div class="category-section">
+                <h2 class="m-section-title">{{ category }}
+                    <span class="m-count">({{ tools | selectattr('enabled') | list | length }})</span>
+                </h2>
+                {% set enabled_tools = tools | selectattr('enabled') | list %}
+                {% if enabled_tools %}
+                <div class="m-tools">
+                    {% for tool in enabled_tools %}
+                    <div class="m-tool-card tool-card"
+                         data-title="{{ tool.title }}"
+                         data-name="{{ tool.name }}"
+                         data-author="{{ tool.author }}"
+                         data-desc="{{ tool.description }}"
+                         data-category="{{ tool.category }}"
+                         data-heat="{{ tool._heat }}">
+                        <div class="m-tool-head">
+                            <span>{% if tool.type == 'backend' %}🔌{% else %}🌐{% endif %}</span>
+                            <span class="m-tool-title">{{ tool.title }}</span>
+                            {% if tool.permission == 'admin' %}
+                            <span class="m-admin-badge">{{ t('管理') }}</span>
+                            {% endif %}
+                        </div>
+                        <div class="m-tool-meta">
+                            {% if tool._heat > 0 %}<span>🔥 {{ tool._heat }}</span>{% endif %}
+                            <span>by {{ tool.author }}</span>
+                            <span>{% if tool.type == 'backend' %}v{{ tool.version }}{% else %}{{ t('前端工具') }}{% endif %}</span>
+                        </div>
+                        <div class="m-tool-desc">{{ tool.description }}</div>
+                        {% if tool.type == 'backend' %}
+                        <a href="/plugin/{{ tool.name }}" class="btn btn-success btn-sm m-tool-open">{{ t('打开工具') }}</a>
+                        {% else %}
+                        <a href="/frontend/{{ tool.name }}" class="btn btn-success btn-sm m-tool-open">{{ t('打开工具') }}</a>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="m-empty">
+                    <p>{{ t('该分类下暂无可用工具') }}</p>
+                </div>
+                {% endif %}
+            </div>
+        {% endfor %}
+        {% else %}
+        <div class="m-empty">
+            <h3>{{ t('暂无可用工具') }}</h3>
+            <p>{{ t('请先安装或启用插件') }}</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <script src="/static/js/main.js"></script>
+    <script src="/static/js/index.js"></script>
+</body>
+</html>

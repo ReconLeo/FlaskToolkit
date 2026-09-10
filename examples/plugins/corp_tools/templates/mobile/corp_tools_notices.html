@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>{{ t('公告板') }} - {{ name }}</title>
+    <link rel="stylesheet" href="/static/css/main.css">
+    <link rel="stylesheet" href="/static/css/mobile-app.css">
+    <script>window.__I18N = {{ t_json | tojson }}; window.T = function (k) { return (window.__I18N && window.__I18N[k]) || k; };</script>
+</head>
+<body class="mobile">
+    <div class="m-container">
+        <div class="m-lang">
+            {% for code, name in available_langs.items() %}{% if code != lang %}<a href="/lang/{{ code }}?next={{ request.path }}">{{ name }}</a>{% endif %}{% endfor %}
+        </div>
+
+        <div class="m-card" style="margin-bottom:14px;">
+            <h2 class="m-card-title">📢 {{ t('公告板') }}</h2>
+            <p style="font-size:13px; color:var(--text-light); text-align:center;">
+                {{ t('管理员发布（异步落盘）/ 删除公告；登录用户查看。数据存 plugins/data/{{ name }}/notices.json。') }}
+            </p>
+        </div>
+
+        <div id="corp-notices"><p style="color:var(--text-light); text-align:center;">{{ t('加载中…') }}</p></div>
+    </div>
+
+    <script src="/static/js/main.js"></script>
+    <script src="/plugin-static/{{ name }}/js/corp.js"></script>
+</body>
+</html>

@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>{{ title }} - {{ t('企业内网工具箱') }}</title>
+    <link rel="stylesheet" href="/static/css/main.css">
+    <link rel="stylesheet" href="/static/css/mobile-app.css">
+    <script>window.__I18N = {{ t_json | tojson }}; window.T = function (k) { return (window.__I18N && window.__I18N[k]) || k; };</script>
+</head>
+<body class="mobile">
+    <div class="m-container">
+        <div class="m-lang">
+            {% for code, name in available_langs.items() %}{% if code != lang %}<a href="/lang/{{ code }}?next={{ request.path }}">{{ name }}</a>{% endif %}{% endfor %}
+        </div>
+
+        <div class="m-card" style="margin-bottom:14px;">
+            <h2 class="m-card-title">{{ title }}</h2>
+            <p style="font-size:13px; color:var(--text-light); text-align:center; margin-bottom:4px;">
+                {{ t('欢迎，') }}<strong>{{ username }}</strong>（{{ role }}）·
+                <code style="font-size:12px;">{{ name }}</code>
+            </p>
+            <p style="font-size:12px; color:var(--text-light); text-align:center;">
+                {{ t('企业内网生产场景综合示例：多模板 · 权限 · 定时任务 · capabilities 白名单 · 配置 · 数据目录 · 异步 · 静态资源') }}
+            </p>
+        </div>
+
+        <div class="m-card" style="margin-bottom:14px; display:flex; align-items:center; gap:10px;">
+            <span style="font-size:28px; font-weight:700; color:var(--primary);">{{ health.up }}/{{ health.total }}</span>
+            <span style="font-size:14px; color:var(--text-light);">{{ t('服务在线') }}</span>
+        </div>
+
+        <div class="m-tools">
+            <a class="m-tool-card" href="/plugin/{{ name }}/health" style="text-decoration:none;">
+                <div class="m-tool-head"><span>🩺</span><span>{{ t('服务健康') }}</span></div>
+                <div class="m-tool-desc">{{ t('每 60s 定时探测内网服务，红/绿状态实时展示。') }}</div>
+            </a>
+            <a class="m-tool-card" href="/plugin/{{ name }}/links" style="text-decoration:none;">
+                <div class="m-tool-head"><span>🧭</span><span>{{ t('工具导航') }}</span></div>
+                <div class="m-tool-desc">{{ t('配置驱动内部系统链接，按当前用户权限过滤。') }}</div>
+            </a>
+            <a class="m-tool-card" href="/plugin/{{ name }}/notices" style="text-decoration:none;">
+                <div class="m-tool-head"><span>📢</span><span>{{ t('公告板') }}</span></div>
+                <div class="m-tool-desc">{{ t('管理员发布/删除公告，登录用户查看，级别区分。') }}</div>
+            </a>
+        </div>
+
+        {% if sub_pages %}
+        <h3 class="m-section-title">{{ t('子页面') }}</h3>
+        <div class="m-tools">
+            {% for p in sub_pages %}<a class="m-tool-card" href="/plugin/{{ name }}{{ p }}" style="text-decoration:none;"><span class="m-tool-head"><code style="font-size:13px;">{{ p }}</code></span></a>{% endfor %}
+        </div>
+        {% endif %}
+
+        <p style="font-size:12px; color:var(--text-light); margin-top:16px; text-align:center;">
+            {{ t('本页由 render_index() 提供上下文 · 移动端独立模板渲染') }}
+        </p>
+    </div>
+</body>
+</html>

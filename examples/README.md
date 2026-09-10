@@ -11,7 +11,7 @@
 | `async_file_demo`（异步任务与文件上传） | 后端插件 | `/plugin/async_file_demo` | 上传类型/大小限制、`save_uploaded_file`、`run_async_task` 异步处理、状态轮询、`send_file_response` 下载结果、**声明式存储配额（storage:limit:10mb + 上传预检 413 + /quota 状态）** |
 | `dependent_demo`（插件依赖 + 跨插件调用 + 跨插件事件） | 后端插件 | `/plugin/dependent_demo` | `dependencies` 依赖声明（缺失依赖拒绝加载）、`call_plugin_method` 跨插件调用 auth、v4.16 跨插件事件订阅（松耦合订阅 scheduler_demo 事件，来源归因『跨插件』/『框架全局』） |
 | `multitool_demo`（大插件多模板） | 后端插件 | `/plugin/multitool_demo` | 大插件三要素：多模板（主入口 index + 页面路由 page=True 子页）、辅助 .py（multitool_utils 纯函数模块）、静态资源（css/js 经 `/plugin-static/` 访问）、`render_index` 数据钩子 |
-| `corp_tools`（企业内网工具箱） | 后端插件 | `/plugin/corp_tools` | 企业内网综合场景：服务健康检查（定时探测 + `network:http` capabilities 白名单）、内部工具导航（按权限过滤）、公告板（异步落盘）、多模板 + 静态资源 + 配置读写系统性组合、**插件多语言（自带 locales/en.json 语言包合并 + 模板/后端/前端 t()）** |
+| `corp_tools`（企业内网工具箱） | 后端插件 | `/plugin/corp_tools` | 企业内网综合场景：服务健康检查（定时探测 + `network:http` capabilities 白名单）、内部工具导航（按权限过滤）、公告板（异步落盘）、多模板 + 静态资源 + 配置读写系统性组合、**插件多语言（自带 locales/en.json 语言包合并 + 模板/后端/前端 t()）**、**移动端独立模板（v4.17，templates/mobile/ 同名模板 + 服务端 UA 分发）** |
 | `root_demo`（框架 Root 域） | 后端插件 | `/plugin/root_demo` | **Root 权限域（`framework:core` capability，v4.15.0）**：只读框架版本/核心路径清单/框架核心配置、Root 写 `data/user_config.json`（审计 root-access）、对照普通 `filesystem:write` 写核心被拒 |
 | `dashboard_demo`（Dashboard 管理面板） | 前端工具包 | `/frontend/dashboard_demo` | admin 权限前端工具、调用后端 admin API、ECharts 图表、zip 静态资源上传与访问 |
 
@@ -158,6 +158,7 @@ class MultiToolDemo(BasePlugin):
 - **多模板 + 静态资源**：主入口 index + 3 个 page=True 子页（health/links/notices），css/js 经 `/plugin-static/corp_tools/` 访问；
 - **跨插件调用**：`GET /api/corp_tools/me` 调 auth 获取当前用户/用户数（auth 未安装时优雅回退）。
 - **插件多语言（v4.9.1 示例）**：自带 `locales/en.json` 语言包（演示插件语言包合并机制——插件词条自动并入框架查找链）；4 个模板 `{{ t('...') }}` 迁移、后端消息经 `_tr()` 翻译、前端 `window.T` 翻译（模板注入 `window.__I18N`）；页面顶部自动出现语言切换入口（`/lang/<code>?next=<当前路径>`）。切换 `LANGUAGE` 配置或 Cookie 即整站中英联动。
+- **移动端独立模板（v4.17 示例）**：新增 `templates/plugins/corp_tools/mobile/` 下 4 个同名移动端独立模板（主入口 + health/links/notices 子页），彻底脱离 v4.13 的 `corp_mobile.css` 样式补充模式。服务端按 UA 判定手机端 → BasePlugin 自动分发渲染 `mobile/` 命名空间模板（精简 DOM、触屏友好、复用框架 `mobile-app.css`）；平板/桌面走桌面端响应式模板避免退化。corp_tools **1.1.0**（`require_framework_version 4.17.0`）。插件接入移动端独立渲染只需放同名模板，`render()`/`render_plugin_page()`/子页面路由均已自动支持，无需改视图。
 
 ```python
 @property
@@ -216,5 +217,5 @@ examples/
 
 - 示例安装会写入真实项目运行时目录（`plugins/`、`templates/`、`frontend_tools.json`），卸载后清理。若要测试隔离环境，请使用临时副本或先备份。
 - `dependent_demo` 依赖 `auth` 插件；`scheduler_demo` 的心跳数据持久化在 `plugins/data/scheduler_demo/heartbeats.json`（v4.3.2 `get_data_path` 自属目录，隐式豁免），重启服务后保留。
-- 插件在 `plugin.json` 中以可选 `capabilities` 字段声明白名单能力（如 `scheduler_demo` 声明 `["scheduler"]`；数据目录读写属自属路径**隐式豁免**，无需声明），安装时与静态扫描范围交叉校验（见开发规范 10.7）。示例均已按最新规范补齐声明，`require_framework_version` 与所用框架 API 匹配（使用 `get_data_path` 的示例要求 ≥ 4.3.2）。
+- 插件在 `plugin.json` 中以可选 `capabilities` 字段声明白名单能力（如 `scheduler_demo` 声明 `["scheduler"]`；数据目录读写属自属路径**隐式豁免**，无需声明），安装时与静态扫描范围交叉校验（见开发规范 10.7）。示例均已按最新规范补齐声明，`require_framework_version` 与所用框架 API 匹配（使用 `get_data_path` 的示例要求 ≥ 4.3.2；`corp_tools` 1.1.0 使用 v4.17 移动端独立模板能力，要求 ≥ 4.17.0）。
 - 想自己打包插件？直接复制某个示例目录，修改 `plugin.json` 与主文件后，用 `python tools/package.py pack <目录> -o xxx.zip --type backend|frontend` 打包（支持 `--sign` 签名）。

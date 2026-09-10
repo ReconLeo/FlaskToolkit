@@ -1,0 +1,241 @@
+/* ============================================================
+   FlaskToolkit v4.17 — 移动端独立模板精简布局层
+   配合 templates/mobile/ 独立模板使用（服务端 UA 分发），脱离
+   桌面端 xxx_mobile.css/mobile.js 样式补充模式。
+   仅作用于手机端独立渲染；平板/桌面走桌面端响应式模板。
+   说明：复用 main.css 设计体系变量（--primary/--success 等），
+   此处仅做触屏尺寸/间距/单列化精简，不重复定义配色体系。
+   ============================================================ */
+:root {
+    /* 触屏目标最小尺寸 */
+    --touch-min: 44px;
+}
+
+html { -webkit-text-size-adjust: 100%; }
+
+body.mobile {
+    background-color: var(--bg);
+    color: var(--text);
+    font-size: 15px;
+    padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* ---------------- 移动端顶部栏 ---------------- */
+body.mobile .m-nav {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 12px 14px;
+    padding-top: calc(12px + env(safe-area-inset-top));
+    background-color: var(--dark);
+    color: #fff;
+}
+body.mobile .m-nav .m-brand {
+    color: #fff;
+    font-size: 1.05rem;
+    font-weight: bold;
+    text-decoration: none;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+body.mobile .m-nav .m-nav-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+body.mobile .m-nav .m-avatar {
+    width: 32px; height: 32px; border-radius: 50%;
+    background-color: var(--primary); color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: bold; font-size: 14px;
+    text-decoration: none;
+}
+body.mobile .m-nav .m-admin-badge {
+    background: var(--warning); color: #fff;
+    padding: 2px 8px; border-radius: 10px; font-size: 11px;
+}
+
+/* ---------------- 移动端主容器 ---------------- */
+body.mobile .m-container {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 16px 14px 32px;
+}
+body.mobile .m-section-title {
+    font-size: 1.05rem;
+    margin: 18px 0 10px;
+    color: var(--text);
+}
+body.mobile .m-section-title .m-count {
+    color: var(--text-light);
+    font-size: 0.85em;
+    font-weight: normal;
+}
+
+/* ---------------- 移动端工具卡片（单列） ---------------- */
+body.mobile .m-tools {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+body.mobile .m-tool-card {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 14px;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+}
+body.mobile .m-tool-card .m-tool-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text);
+}
+body.mobile .m-tool-card .m-tool-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--text-light);
+}
+body.mobile .m-tool-card .m-tool-desc {
+    font-size: 13px;
+    color: var(--text-light);
+    line-height: 1.5;
+}
+body.mobile .m-tool-card .m-tool-open {
+    align-self: flex-start;
+    margin-top: 2px;
+}
+
+/* ---------------- 移动端搜索/排序工具条 ---------------- */
+body.mobile .m-toolbar {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+body.mobile .m-toolbar input,
+body.mobile .m-toolbar select {
+    width: 100%;
+    min-height: var(--touch-min);
+    padding: 0 14px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 15px;
+    background-color: var(--card-bg);
+    color: var(--text);
+}
+body.mobile .m-toolbar .m-toolbar-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* ---------------- 移动端通用按钮 ---------------- */
+body.mobile .btn {
+    min-height: var(--touch-min);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 18px;
+    border-radius: 8px;
+    font-size: 15px;
+    border: none;
+    cursor: pointer;
+    text-decoration: none;
+}
+body.mobile .btn-primary {
+    background-color: var(--primary);
+    color: #fff;
+}
+body.mobile .btn-primary:active { background-color: var(--primary-dark); }
+body.mobile .btn-success {
+    background-color: var(--success);
+    color: #fff;
+}
+body.mobile .btn-block { width: 100%; }
+body.mobile .btn-sm { min-height: 36px; padding: 0 14px; font-size: 14px; }
+
+/* ---------------- 移动端表单 ---------------- */
+body.mobile .m-field { margin-bottom: 14px; }
+body.mobile .m-field label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 14px;
+    color: var(--text);
+}
+body.mobile .m-field input[type="text"],
+body.mobile .m-field input[type="password"] {
+    width: 100%;
+    min-height: var(--touch-min);
+    padding: 0 14px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 16px; /* 避免 iOS 自动缩放 */
+    background-color: var(--card-bg);
+    color: var(--text);
+}
+body.mobile .m-field input:focus {
+    outline: none;
+    border-color: var(--primary);
+}
+
+/* ---------------- 移动端卡片 ---------------- */
+body.mobile .m-card {
+    padding: 20px 18px;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+}
+body.mobile .m-card-title {
+    font-size: 1.1rem;
+    font-weight: bold;
+    margin-bottom: 16px;
+    text-align: center;
+    color: var(--text);
+}
+body.mobile .m-tip {
+    font-size: 13px;
+    color: var(--text-light);
+    margin-top: 12px;
+    text-align: center;
+}
+body.mobile .m-tip a { color: var(--primary); text-decoration: none; }
+body.mobile .m-error {
+    color: var(--danger);
+    font-size: 14px;
+    min-height: 20px;
+    margin-top: 12px;
+    text-align: center;
+}
+
+/* ---------------- 移动端空状态 ---------------- */
+body.mobile .m-empty {
+    text-align: center;
+    padding: 40px 16px;
+    color: var(--text-light);
+}
+body.mobile .m-empty h3 { color: var(--text); margin-bottom: 8px; }
+
+/* ---------------- 移动端语言切换 ---------------- */
+body.mobile .m-lang {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-bottom: 12px;
+    font-size: 13px;
+}
+body.mobile .m-lang a { color: var(--text-light); text-decoration: none; }

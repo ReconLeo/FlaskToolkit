@@ -47,6 +47,8 @@ CORE_FILES = [
     'core/framework_manifest.py',
     # v4.16 事件总线 + 插件真依赖解析（plugin_loader/base_plugin/routes 引用，缺失即 import 崩）
     'core/events.py', 'core/plugin_deps.py',
+    # v4.17 设备检测 + 移动端模板分发（app/routes/BasePlugin 引用，缺失即 import 崩）
+    'core/device.py',
     'plugins/__init__.py', 'plugins/base_plugin.py',
     'plugins/auth.py', 'plugins/user_manage.py',
 ]

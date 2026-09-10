@@ -94,6 +94,17 @@ def inject_system_info():
         'project_slogan': global_var.PROJECT_SLOGAN,
     }
 
+# v4.17：设备上下文注入（is_mobile / device），供模板条件渲染移动端独立模板
+@app.context_processor
+def inject_device():
+    from core import device
+    return {
+        'is_mobile': device.is_mobile(),
+        'device': device.get_device(),
+        'mobile_enabled': device.mobile_enabled(),
+    }
+
+
 # 注册应用关闭钩子，确保服务停止前保存最新统计数据
 @app.teardown_appcontext
 def save_stats_on_shutdown(exception=None):

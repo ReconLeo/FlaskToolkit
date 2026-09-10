@@ -51,11 +51,11 @@ class CorpToolsPlugin(BasePlugin):
     name = "corp_tools"
     title = "示例：企业内网工具箱"
     description = "企业内网综合示例：服务健康检查（定时探测 + 网络白名单 capabilities）+ 内部工具导航（权限过滤）+ 公告板（异步落盘），系统性展示框架多模板/权限/定时任务/配置读写/数据目录/静态资源能力。"
-    version = "1.0.0"
+    version = "1.1.0"
     author = "FlaskToolkit Examples"
     category = "示例"
     permission = "user"
-    require_framework_version = "4.3.2"  # get_data_path 为 v4.3.2 能力
+    require_framework_version = "4.17.0"  # 移动端独立模板（templates/plugins/<name>/mobile/）为 v4.17 能力
 
     # 默认配置（可被 plugins/configs/corp_tools.json 覆盖，管理后台可改）
     DEFAULT_CONFIG = {

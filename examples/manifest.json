@@ -69,7 +69,8 @@
       "focus": [
         "服务健康检查（scheduled_tasks 定时探测 + network:http capabilities 白名单）",
         "内部工具导航（按 public/user/admin 权限过滤）",
-        "公告板（异步落盘 + 多模板页面）"
+        "公告板（异步落盘 + 多模板页面）",
+        "移动端独立模板（v4.17：templates/plugins/corp_tools/mobile/ 同名模板，服务端 UA 分发，脱离 corp_mobile.css 样式补充）"
       ]
     },
     {

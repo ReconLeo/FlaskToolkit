@@ -3,6 +3,19 @@
 > 版本特性与演进史（来龙去脉）见 [Flask插件框架-版本演进记录.md](Flask插件框架-版本演进记录.md)；
 > 下方为各版本变更说明（按时间倒序）。
 
+## 版本：v4.17.0（移动端/桌面端页面分离） | 更新日期：2026年09月10日
+
+### 版本说明（v4.17.0 变更）
+
+**主题：Community 移动端体验架构升级——脱离 v4.13『桌面端 + xxx_mobile.css/mobile.js 样式补充』模式，改为同 URL + 服务端 UA 检测分发独立模板。纯 stdlib，无新增运行时依赖。**
+
+1. **设备检测基建 core/device.py（新）**：`detect_device(user_agent)`（复用 core/stats.classify_device，bot 视为 desktop）返回 `mobile|tablet|desktop`；`get_device()`（读当前请求 UA）；`is_mobile()`（仅手机端为 True，tablet 走桌面端响应式避免退化）；`mobile_enabled()`（读配置 MOBILE_ENABLED）；`resolve_template(name)`（手机端且存在 `templates/mobile/<name>` 则返回移动端模板，否则安全回退桌面端模板）；`render(template, **ctx)`（统一渲染入口自动分发）。配置项 `MOBILE_ENABLED=True`（总开关）/ `FORCE_MOBILE=False`（调试强制手机端）。app.py 新增 `inject_device` context_processor（注入 `is_mobile`/`device`/`mobile_enabled` 到模板上下文）。
+2. **框架公开页移动端模板**：新增 `templates/mobile/login.html`、`templates/mobile/index.html` 移动端独立模板 + `static/css/mobile-app.css` 精简移动端布局层（触屏目标尺寸、单列卡片、大按钮）；`routes/public.py` 登录页/首页改用 `device.render` 分发。错误页沿用响应式 base 降低风险。
+3. **后台分发挂点**：`routes/admin.py` 的 `_admin_page` 改用 `device.render`，开放 `mobile/admin/<template>` 移动端独立能力；后台沿用响应式 base 保底（避免 2500 行双维护与 content 渲染破坏）。
+4. **BasePlugin 移动端能力（plugins/base_plugin.py）**：`_resolve_template(template, mobile=False)`（mobile=True 时优先查找 `plugins/<name>/mobile/<template>`）；`is_mobile_context()`；`mobile_template(template)`；`render()`/`render_plugin_page()` 移动端自动分发移动端命名空间；`routes/plugin.py` 子页面分发接入移动端。插件接入移动端独立渲染只需放 `templates/plugins/<name>/mobile/` 同名模板，无需改视图。
+5. **示例插件 corp_tools 升级 1.1.0（移动端独立模板演示，已端到端验证）**：新增 `templates/plugins/corp_tools/mobile/` 下 4 个同名移动端独立模板（主入口 + health/links/notices 子页），精简 DOM、触屏友好、复用框架 mobile-app.css，**脱离 corp_mobile.css 样式补充**；require_framework_version 4.17.0。真实移动/桌面 UA 验证：手机端返回移动端模板、平板/桌面返回桌面模板。
+6. **测试**：新增 tests/test_device.py 20 项（UA 检测 / 配置开关 / resolve_template 分发 / 公开页模板分发 / BasePlugin 移动端命名空间）；ci.yml TESTS 数组加 test_device。
+
 ## 版本：v4.16.0（事件总线 + 插件真依赖解析） | 更新日期：2026年09月10日
 
 ### 版本说明（v4.16.0 变更）
@@ -267,6 +280,7 @@
 
 | 版本 | 日期 | 主题 | 提交 |
 |------|------|------|------|
+| **v4.17.0** | 2026-09-10 | 移动端/桌面端页面分离（core/device.py UA 检测 + templates/mobile/ 独立模板 + mobile-app.css + BasePlugin 移动端能力 + corp_tools 1.1.0 移动端模板演示） |（本提交）|
 | **v4.16.0** | 2026-09-10 | 事件总线 + 插件真依赖解析（自研 core/events.py 发布-订阅 weakref 防泄漏 async 线程池 / core/plugin_deps.py 版本约束+Kahn 拓扑 / BasePlugin 事件集成 on_event·emit_event·event_name / scheduler_demo 1.2.0·dependent_demo 2.0.0 事件演示 / 卸载反向依赖检查） |（本提交）|
 | **v4.15.4** | 2026-09-09 | 稳定版体验优化：各页面语言切换 + 翻译工具 i18n_status.py（含 __contributors）+ 健壮性修复（HTTP 跳转端口容错 / 卸载统计残留清理 / 汉堡按钮 / 饼图 Top7 归并） |（本提交）|
 | **v4.15.3** | 2026-09-07 | 剩余页面模板硬编码中文翻译补全（admin plugins/system/logs/network + 公开页 index/login/logout/register/setup/plugin_default 全包裹 t()/T()，en.json 补 245 词条至 485；test_i18n 覆盖断言保证模板中文 key 必被语言包覆盖） |（本提交）|
@@ -883,6 +897,44 @@ UserManage/
 
 ---
 
+### 5.7 移动端/桌面端页面分离（v4.17）
+
+**目标**：移动端页面脱离 v4.13『桌面端 + `xxx_mobile.css`/`mobile.js` 样式补充』模式，改为**同 URL + 服务端 UA 检测分发独立模板**——手机端渲染精简独立模板，平板/桌面走桌面端响应式模板避免退化。纯 stdlib，无新增运行时依赖。
+
+#### 5.7.1 设备检测 core/device.py
+
+| 函数 | 说明 |
+|------|------|
+| `detect_device(user_agent)` | 按 UA 返回 `mobile`/`tablet`/`desktop`（复用 `core/stats.classify_device`；bot/爬虫视为 desktop 不强制移动端） |
+| `get_device()` | 当前请求设备类型（读 UA）；`FORCE_MOBILE=True` 时强制返回 mobile |
+| `is_mobile()` | 当前请求是否手机端（仅 mobile 为 True；tablet 走桌面响应式；`MOBILE_ENABLED=False` 全回退；`FORCE_MOBILE` 强制） |
+| `mobile_enabled()` | 移动端分离开关（读 `MOBILE_ENABLED`） |
+| `resolve_template(name)` | 手机端且存在 `templates/mobile/<name>` → 返回移动端模板；否则回退桌面端模板（安全回退避免 500） |
+| `render(template, **ctx)` | 统一渲染入口：`render_template(resolve_template(template))` |
+
+配置项（`global_var.py` + CONFIG_ITEMS）：
+
+- `MOBILE_ENABLED=True`：移动端页面分离开关（关则全部回退桌面端模板）。
+- `FORCE_MOBILE=False`：调试/测试强制手机端（`is_mobile()` 恒 True）。
+
+`app.py` 通过 `inject_device` context_processor 向模板注入 `is_mobile`/`device`/`mobile_enabled`。
+
+#### 5.7.2 移动端模板命名空间与分发
+
+- **框架公开页**：`templates/mobile/<name>`（如 `mobile/login.html`、`mobile/index.html`），配合 `static/css/mobile-app.css` 精简移动端布局层。渲染点改用 `device.render`（`routes/public.py` 登录页/首页）。
+- **后台**：`templates/mobile/admin/<template>` 开放独立能力（`_admin_page` 已用 `device.render`）；后台沿用响应式 base 保底。
+- **插件页**：移动端命名空间 `templates/plugins/<name>/mobile/<template>`。BasePlugin 已增强：`_resolve_template(template, mobile=True)` 优先查找该命名空间，`is_mobile_context()`/`mobile_template()` 辅助，`render()`/`render_plugin_page()` 移动端自动分发，`routes/plugin.py` 子页面分发接入。**插件接入移动端独立渲染只需放同名模板，无需改视图**。
+
+#### 5.7.3 插件接入移动端独立渲染
+
+1. 在 `templates/plugins/<name>/mobile/` 放置与桌面端同名的模板（主入口 + 各 page=True 子页）。
+2. 移动端模板复用框架 `static/css/mobile-app.css`（或自带精简样式），触屏友好（≥44px 目标、单列卡片、大按钮）。
+3. 保持 JS 所需 DOM id（如 corp_tools 的 `#corp-health` 等），前端逻辑复用。
+4. `require_framework_version` 声明 `4.17.0`（使用移动端能力）。
+5. 平板/桌面仍渲染桌面端模板；不提供移动端模板的插件自动回退桌面端模板（兼容）。
+
+---
+
 ## 六、前端工具开发规范
 
 ### 6.1 工具包格式
@@ -1486,6 +1538,7 @@ FLASKTOOLKIT_HOST=0.0.0.0 FLASKTOOLKIT_PORT=8000 python app.py
 | `test_events.py` | 事件总线（v4.16）：priority / once / off / weakref 失效清理 / 绑定方法强引用 / async 非阻塞 / 异常隔离 / 内置事件 | 11 项 |
 | `test_dependency.py` | 依赖解析（v4.16）：dep_spec 解析 / semver 含预发布 / Kahn 拓扑 / 环 / 缺失排除 | 11 项 |
 | `test_plugin_events.py` | BasePlugin 事件集成 + 示例演示（v4.16）：scheduler_demo 事件订阅/定时/手动发布/清空/清理防泄漏 + dependent_demo 跨插件事件来源归因 | 28 项 |
+| `test_device.py` | 设备检测 + 移动端模板分发（v4.17）：UA 分类 / 配置开关 / resolve_template 分发 / 公开页移动端模板 / BasePlugin 移动端命名空间 | 20 项 |
 
 
 ```bash
@@ -1527,7 +1580,8 @@ python tests/test_selfcheck.py           # 14 项（启动完整性自检 v4.15�
 python tests/test_events.py              # 11 项（事件总线 v4.16，隔离目录）
 python tests/test_dependency.py          # 11 项（依赖解析 v4.16，隔离目录）
 python tests/test_plugin_events.py       # 28 项（BasePlugin 事件集成 + 示例演示 v4.16，隔离目录）
-# 合计 40 个脚本（本地全量实测）
+python tests/test_device.py              # 20 项（设备检测 + 移动端模板分发 v4.17，隔离目录）
+# 合计 41 个脚本（本地全量实测）
 # （AirDrop 插件加载回归 test_airdrop_loader.py 8 项已移交 AirDrop 子项目维护，不入主仓库）
 ```
 

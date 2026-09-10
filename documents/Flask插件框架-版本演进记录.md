@@ -39,6 +39,7 @@ Kaleido 同样开源（自托管题库系统）：[github.com/ReconLeo/Kaleido](
 | 补丁覆盖 | 2026-09-06 | tools 运维工具适配 v4.9 结构 + v4.9.2 覆盖发布 | `73c6a9f` `ee3e23d` `612c565` |
 | **v4.10.0** | 2026-09-06 | Accessibility 能力可达性：pip 依赖独立声明 + 能力清单确认 + 调试页权限修正/API 文档增强 + 首次运行向导/强制改密 + 邀请码自助注册 + 脚手架/离线安装卸载 + 单插件空间清理 | `e26b25e`（M4）`2ecb8b7`（M5）`941ea66`（airdrop 移交）`32aa2ce`（M6）`9d3aaf4`（M6-Extra）`699fae0`（前端清理），tag `v4.10.0` |
 | **v4.11.0** | 2026-09-06 | Reachability 网络可达：地址中心（core/network.py）+ mDNS 服务注册（core/mdns.py 可选 zeroconf）+ 后台网络与访问页（二维码/共享/mDNS/IP 检测）+ 启动横幅播报 + IP 变化检测（core/ip_watcher.py）+ 桌面启动器（tools/desktop_launcher.py） | `e16e67b`（M1-M5）`4a76811`（文档），tag `v4.11.0` |
+| **v4.17.0** | 2026-09-10 | 移动端/桌面端页面分离：core/device.py（UA 检测 + resolve_template 分发）+ templates/mobile/ 独立模板 + mobile-app.css + BasePlugin 移动端能力（is_mobile_context·mobile_template·render 分发）+ corp_tools 1.1.0 移动端独立模板演示，test_device 20 项 | tag `v4.17.0` |
 | **v4.16.0** | 2026-09-10 | 事件总线 + 插件真依赖解析：自研 core/events.py（发布-订阅 weakref 防泄漏 async 线程池）+ core/plugin_deps.py（版本约束 + Kahn 拓扑 + 环检测）+ BasePlugin 事件集成（on_event·emit_event·event_name·_cleanup_events）+ 卸载反向依赖检查 + scheduler_demo 1.2.0·dependent_demo 2.0.0 事件演示，全量回归 40 脚本 | tag `v4.16.0` |
 | **v4.15.0** | 2026-09-07 | Root 域与市场骨架：framework 能力域三档 read/manage/core + 程序化插件管理服务层（core/plugin_admin.py）+ 插件级更新源（plugin.json repo/update_feed + RSA 验签）+ 前端 Root·更新徽章 + selfcheck 时区探测（tzdata）+ requirements tzdata | `ef36a40`，tag `v4.15.0` |
 | **v4.14.0** | 2026-09-07 | Statistics 数据统计洞察：时间桶 + 访问画像双维数据模型 / dashboard 总览化（徽章行 + 冷门提示 + 最近动态）/ 14 天趋势 + 错误 Top + 画像卡 / 跳转端口 POST body 消费修复 | `b2f56a3`，tag `v4.14.0` |
@@ -232,6 +233,17 @@ P1 安全强化至此全部完成，形成纵深防御：**静态扫描 → 能�
 - **BasePlugin 事件集成（plugins/base_plugin.py）**：插件无需直接接触 core.events——`on_event(event, handler, *, once=False, async_=False, priority=0)`（自动 owner=self 并登记 `_event_subs`）、`emit_event(name, **data)`（自动加 `plugin:<插件名>:` 前缀）、`event_name(name)`、`_cleanup_events()`；`on_unload` 默认调用 `_cleanup_events`（插件重载应 `super().on_unload()`）。
 - **示例插件升级（均已端到端验证）**：scheduler_demo **1.2.0**（on_load 订阅内置 + 自定义 + 异步事件；定时任务 emit_event 发布 heartbeat/stats；页面事件卡片 + 手动发布 manual_trigger + 清空；事件历史持久化）；dependent_demo **2.0.0**（跨插件事件订阅——松耦合订阅 scheduler_demo 事件 + 全局事件，**未在 dependencies 声明 scheduler_demo** 体现解耦；事件来源归因 `_source_of`『跨插件(<name>)』/『框架全局』+ 页面『跨插件事件接收』卡片）。
 - **测试**：新增 tests/test_events.py 11 项、tests/test_dependency.py 11 项、tests/test_plugin_events.py 28 项（BasePlugin 集成 + scheduler_demo 事件演示 + dependent_demo 跨插件事件）；framework_manifest 登记 core/events.py、core/plugin_deps.py；全量回归 **40 脚本 0 失败**。
+
+### 3.22 v4.17.0（2026-09-10，tag `v4.17.0`）
+
+**移动端/桌面端页面分离**——脱离 v4.13『桌面端 + `xxx_mobile.css`/`mobile.js` 样式补充』模式，改为同 URL + 服务端 UA 检测分发独立模板。纯 stdlib 无新增运行时依赖。
+
+- **设备检测 core/device.py（新）**：`detect_device(user_agent)`（复用 `core/stats.classify_device`，bot 视为 desktop）返回 `mobile`/`tablet`/`desktop`；`get_device()`（读当前请求 UA）；`is_mobile()`（仅手机端为 True，tablet 走桌面端响应式避免退化）；`mobile_enabled()`；`resolve_template(name)`（手机端且存在 `templates/mobile/<name>` 则用移动端模板，否则安全回退桌面端）；`render(template, **ctx)` 统一渲染入口。配置 `MOBILE_ENABLED`/`FORCE_MOBILE`；app.py `inject_device` context_processor 注入 `is_mobile`/`device`。
+- **框架公开页移动端模板**：新增 `templates/mobile/login.html`、`templates/mobile/index.html` + `static/css/mobile-app.css` 精简移动端布局层；`routes/public.py` 登录页/首页改用 `device.render` 分发；错误页沿用响应式 base 降低风险。
+- **后台分发挂点**：`routes/admin.py` `_admin_page` 改用 `device.render`，开放 `mobile/admin/<template>` 独立能力；后台沿用响应式 base 保底。
+- **BasePlugin 移动端能力（plugins/base_plugin.py）**：`_resolve_template(template, mobile=False)`（mobile=True 优先查找 `plugins/<name>/mobile/<template>`）；`is_mobile_context()`/`mobile_template()`；`render()`/`render_plugin_page()` 移动端自动分发；`routes/plugin.py` 子页面分发接入。插件接入移动端独立渲染只需放 `templates/plugins/<name>/mobile/` 同名模板。
+- **示例插件 corp_tools 升级 1.1.0**：新增 `templates/plugins/corp_tools/mobile/` 下 4 个同名移动端独立模板（主入口 + health/links/notices），精简 DOM、触屏友好、复用 mobile-app.css，脱离 corp_mobile.css 样式补充；require_framework_version 4.17.0；真实移动/桌面 UA 端到端验证通过。
+- **测试**：新增 tests/test_device.py 20 项（UA 分类 / 配置开关 / resolve_template 分发 / 公开页移动端模板 / BasePlugin 移动端命名空间，用 DictLoader 注入避免写工作区）；framework_manifest 登记 core/device.py；ci.yml 加 test_device；开发规范/README/examples 同步。
 
 ## 4. 发布实践沉淀
 

@@ -6,6 +6,7 @@ import time
 import urllib.parse
 
 from flask import jsonify, make_response, redirect, render_template, request, send_from_directory
+from core import device
 
 import global_var
 from core import i18n
@@ -73,7 +74,7 @@ def register(app):
         if 'auth' in global_var.plugins:
             _auth_cfg = getattr(global_var.plugins['auth'], 'config', None) or {}
             allow_register = bool(_auth_cfg.get('ALLOW_REGISTER', False))
-        return render_template('login.html', allow_register=allow_register)
+        return device.render('login.html', allow_register=allow_register)
 
     @app.route('/register')
     def register_page():
@@ -160,8 +161,8 @@ def register(app):
         # 过滤掉空分类
         categories = {k: v for k, v in categories.items() if v}
 
-        # 将当前用户角色传到前端，用于页面动态渲染
-        return render_template(
+        # 将当前用户角色传到前端，用于页面动态渲染（v4.17：移动端分发独立模板）
+        return device.render(
             'index.html',
             FRAMEWORK_VERSION=global_var.FRAMEWORK_VERSION,
             categories=categories,

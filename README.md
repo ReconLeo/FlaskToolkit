@@ -4,7 +4,7 @@
   <img src="https://github.com/ReconLeo/FlaskToolkit/actions/workflows/ci.yml/badge.svg" alt="CI">
   <img src="https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB?logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/License-MIT-yellow" alt="License">
-  <img src="https://img.shields.io/badge/version-4.16.0-blue" alt="Version">
+  <img src="https://img.shields.io/badge/version-4.17.0-blue" alt="Version">
 </p>
 
 > A Flask-based plugin **framework**: bring scattered Python plugins and pure-frontend tools into one unified runtime —
@@ -39,7 +39,8 @@ Over time it grew into what it is today — a few highlights:
 - **Framework manifest (4.15.1)**: the "framework core file vs. user data" classification is no longer hardcoded per module — a single manifest `core/framework_manifest.py` now drives startup self-check, the updater, backup, Factory Reset, and the Root-domain path check from one source. A new `root_demo` example plugin demonstrates the `framework:core` **Root** grant end-to-end: read/write the framework core config `data/user_config.json` (audited `root-access`), plus the contrast of a plain `filesystem:write` being rejected on core paths;
 - **Full i18n sweep (4.15.2/4.15.3)**: every admin & public page is now fully translatable — the Statistics pages and all remaining templates (plugin manager, system, logs, network, home, login/register/setup, and the plugin API debug page) had their hardcoded Chinese wrapped into the `t()` / `window.T()` language layer, and `locales/en.json` grew to **485 keys**; a regression assertion scans every framework template so any Chinese key used in a template is guaranteed to be covered by the language pack;
 - **Event bus & true dependency resolution (4.16)**: a lightweight in-process publish–subscribe bus (`core/events.py`, pure stdlib — `on/once/off/emit/has/clear`, weakref-backed handlers that auto-cleanup when the owner is collected, optional `async_=True` background execution) lets plugins talk to each other and to the framework **without knowing who is listening** — built-in events (`plugin.loaded/enabled/disabled/installed/uninstalled`, `user.login/logout`, `request.finished`) plus plugin-namespaced custom events (`plugin:<name>:<event>`); **BasePlugin** gains `on_event` / `emit_event` / `event_name` helpers (auto `plugin:<name>:` prefix, subscriptions auto-cleaned on unload/disable). Parallel to that, `core/plugin_deps.py` brings **real dependency resolution**: `dependencies` / `pip_dependencies` now accept **version constraints** (`auth>=2.0`, `name>=a,<b`, semver with pre-release weights), the loader uses **Kahn topological order with cycle detection** (a loop or a missing/unsatisfied dependency marks the plugin *not loaded* with a reason surfaced in the admin UI instead of aborting startup), and uninstalling a plugin that others still depend on is blocked. The `scheduler_demo` (event demo — subscribe/publish built-in + custom + async events, manual trigger) and `dependent_demo` (cross-plugin event subscription with source attribution) examples were upgraded to demonstrate it end-to-end;
-- **Ops & tooling**: version check with a `changelog.json` feed + dual-backend updater (git / archive), Factory Reset, backup/restore, startup self-check, package integrity signing, plugin scaffolding + offline install/uninstall CLI (`scaffold.py` / `install_plugin.py`), plus a **40-script regression suite and GitHub Actions CI**.
+- **Mobile / desktop page separation (4.17)**: phone views move off the v4.13 "desktop page + `*_mobile.css`/`mobile.js` style patching" approach onto **same-URL, server-side UA-detected dedicated templates** — a new `core/device.py` classifies UA (`mobile`/`tablet`/`desktop`, bots counted as desktop), and `resolve_template()`/`device.render()` hand a phone a slim `templates/mobile/<page>` template (safe fallback to the desktop one if it is missing); tablets still get the desktop responsive template to avoid regression. Framework login & home get dedicated mobile templates plus a touch-friendly `mobile-app.css` layer; **BasePlugin** gains `is_mobile_context()` / `mobile_template()` and auto-dispatches `render()`/`render_plugin_page()`/sub-pages to `templates/plugins/<name>/mobile/` when present — a plugin opts into mobile rendering by simply dropping same-named templates (no view changes). The `corp_tools` example (1.1.0) demonstrates it end-to-end;
+- **Ops & tooling**: version check with a `changelog.json` feed + dual-backend updater (git / archive), Factory Reset, backup/restore, startup self-check, package integrity signing, plugin scaffolding + offline install/uninstall CLI (`scaffold.py` / `install_plugin.py`), plus a **41-script regression suite and GitHub Actions CI**.
 
 The full feature specification lives in the [development guide](documents/Flask插件框架开发规范-v4.0.md).
 
@@ -136,7 +137,7 @@ Detailed specs live in the [Flask Plugin Framework Development Guide](documents/
 
 ## Tests & CI
 
-`tests/` contains **40 scripts** of regression tests (isolated-directory mode, no pollution of project files); GitHub Actions runs them automatically on Python 3.10 / 3.11 / 3.12, covering permissions, plugin-package / frontend-tool chains, integrity signatures, uninstall manifests, Factory Reset, large-plugin multi-template page routing, file transfer (upload limits / Chinese-name downloads / Range), static security scanning, capability cross-validation, runtime audit hooks, i18n framework, plugin data quota, event bus & dependency resolution, plugin scaffolding / offline install-uninstall CLI, per-plugin space cleanup, ops tools, etc.
+`tests/` contains **41 scripts** of regression tests (isolated-directory mode, no pollution of project files); GitHub Actions runs them automatically on Python 3.10 / 3.11 / 3.12, covering permissions, plugin-package / frontend-tool chains, integrity signatures, uninstall manifests, Factory Reset, large-plugin multi-template page routing, file transfer (upload limits / Chinese-name downloads / Range), static security scanning, capability cross-validation, runtime audit hooks, i18n framework, plugin data quota, event bus & dependency resolution, device detection & mobile template dispatch, plugin scaffolding / offline install-uninstall CLI, per-plugin space cleanup, ops tools, etc.
 
 <details>
 <summary>Expand: 40 test scripts</summary>
@@ -183,14 +184,15 @@ python tests/test_selfcheck.py              # startup self-check (v4.15): CORE_F
 python tests/test_events.py                 # event bus (v4.16): priority / once / off / weakref cleanup / bound-method strong ref / async non-blocking / exception isolation / built-in emission 11
 python tests/test_dependency.py             # dependency resolution (v4.16): dep-spec parse / semver incl pre-release / Kahn topo / cycles / missing exclusion 11
 python tests/test_plugin_events.py          # BasePlugin event integration + example demos (v4.16): scheduler_demo events & manual trigger / dependent_demo cross-plugin subscription 28
-# total: 40 scripts
+python tests/test_device.py                 # device detection + mobile template dispatch (v4.17): UA classification / config switches / resolve_template / public-page mobile template / BasePlugin mobile namespace 20
+# total: 41 scripts
 ```
 
 </details>
 
 ## Edition Status
 
-- **Community Edition (v4.x)**: feature development continues with a deliberately controlled architectural scale, focused on small-LAN / personal-use scenarios; we maintain and release regularly (40-script regression suite + CI).
+- **Community Edition (v4.x)**: feature development continues with a deliberately controlled architectural scale, focused on small-LAN / personal-use scenarios; we maintain and release regularly (41-script regression suite + CI).
 - **Enterprise Edition (v5.x)**: planned to carry the long-term roadmap (refined permission model, process-level sandboxing, stricter CSP, enterprise identity integration, etc.). Due to limited team capacity, we are openly looking for maintainers to take over — see the [Enterprise Edition handover & roadmap](documents/Enterprise-Edition-交接与路线.md).
 
 ## Known Limitations

@@ -1,13 +1,12 @@
 {
-  "latest_version": "4.16.0",
+  "latest_version": "4.17.0",
   "published_at": "2026-09-10",
-  "download_url": "https://github.com/ReconLeo/FlaskToolkit/releases/download/v4.16.0/FlaskToolkit-4.16.0-runtime.zip",
-  "sha256": "1712135138654d8d05d3e2d1dd43421b73562349d9401bad4c8cd26331f7b896",
+  "download_url": "https://github.com/ReconLeo/FlaskToolkit/releases/download/v4.17.0/FlaskToolkit-4.17.0-runtime.zip",
+  "sha256": "a0ffc1f793928097c75ad480744fb14ffd663383469bc6b87ee27633ee7e01f4",
   "changes": [
-    "事件总线 core/events.py（自研发布-订阅：on/once/off/emit/has/clear，weakref 防泄漏，async_=True 后台线程池；内置事件 plugin.loaded/installed/uninstalled/enabled/disabled、user.login/logout、request.finished；插件自定义事件 plugin:<name>:<event>）。",
-    "插件真依赖解析 core/plugin_deps.py（dependencies/pip_dependencies 支持版本约束 name>=x，semver 含预发布权重；Kahn 拓扑排序 + 环检测；缺失/版本/循环标记未加载并在后台透出原因；卸载反向依赖检查 + 安装依赖缺失告警）。",
-    "BasePlugin 事件集成：on_event/emit_event/event_name/_cleanup_events（自动 plugin:<name>: 前缀，订阅卸载/禁用自动清理防泄漏；on_unload 默认清理）。",
-    "示例插件升级：scheduler_demo 1.2.0（订阅/发布内置+自定义+异步事件，页面事件历史卡片 + 手动发布/清空）、dependent_demo 2.0.0（跨插件事件订阅 + 来源归因）。",
-    "全量回归 40 脚本 0 失败（新增 test_events 11 + test_dependency 11 + test_plugin_events 28）。"
+    "移动端/桌面端页面分离：core/device.py（UA 检测 detect_device/get_device/is_mobile + resolve_template/render 分发 + MOBILE_ENABLED/FORCE_MOBILE 配置），同 URL + 服务端 UA 分发独立模板，脱离 v4.13 桌面端 xxx_mobile.css 样式补充模式。",
+    "框架公开页移动端独立模板：templates/mobile/login.html·index.html + static/css/mobile-app.css 精简移动端布局层（触屏友好、单列卡片、大按钮）；登录页/首页 routes/public.py 改用 device.render 分发；错误页沿用响应式 base。后台 _admin_page 开放 mobile/admin/<template> 独立分发，后台沿用响应式保底。",
+    "BasePlugin 移动端能力：_resolve_template(template, mobile=True) 优先 plugins/<name>/mobile/ 命名空间；is_mobile_context()/mobile_template()；render()/render_plugin_page()/子页面路由移动端自动分发。插件接入移动端独立渲染只需放同名模板，无需改视图。",
+    "示例插件 corp_tools 1.1.0：新增 templates/plugins/corp_tools/mobile/ 下 4 个同名移动端独立模板（主入口 + health/links/notices），精简 DOM、触屏友好、脱离 corp_mobile.css；require_framework_version 4.17.0。新增 test_device 20 项，回归 41 脚本。"
   ]
 }

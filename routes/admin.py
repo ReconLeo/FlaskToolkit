@@ -9,6 +9,7 @@ import time
 import uuid
 
 from flask import jsonify, render_template, request
+from core import device
 
 import global_var
 from core.factory_reset import factory_reset
@@ -718,7 +719,8 @@ def register(app):
         }
         ctx = {"active_page": active_page, "stats": stats}
         ctx.update(extra)
-        return render_template(template, **ctx)
+        # v4.17：移动端后台独立模板分发（mobile/admin/<template> 存在则渲染移动端，否则回退桌面端响应式 base）
+        return device.render(template, **ctx)
 
     @app.route('/admin/dashboard')
     @admin_api

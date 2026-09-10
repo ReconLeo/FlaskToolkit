@@ -645,14 +645,24 @@ class BasePlugin(ABC):
         # 前端请求封装以 body.code 判断业务结果，HTTP 状态码用于网关/监控/调试语义对齐。
         return jsonify({"code": code, "message": message, "msg": message, "status": "failed", "data": None}), code
 
-    def _resolve_template(self, template):
+    def _resolve_template(self, template, mobile=False):
         """解析插件模板路径：优先插件命名空间 plugins/<name>/<template>，回退旧式 plugins/<template>。
-        返回可直接传给 render_template 的模板名（正斜杠，Jinja 模板名须为 POSIX 风格），不存在返回 None。"""
+        返回可直接传给 render_template 的模板名（正斜杠，Jinja 模板名须为 POSIX 风格），不存在返回 None。
+
+        v4.17：mobile=True 时优先查找移动端命名空间 plugins/<name>/mobile/<template>（脱离桌面端样式补充模式），
+        不存在则回退桌面端插件模板。"""
         template = template.replace('\\', '/')
-        candidates = [
-            f'plugins/{self.name}/{template}',
-            f'plugins/{template}',
-        ]
+        candidates = []
+        if mobile:
+            candidates = [
+                f'plugins/{self.name}/mobile/{template}',
+                f'plugins/{template}',
+            ]
+        else:
+            candidates = [
+                f'plugins/{self.name}/{template}',
+                f'plugins/{template}',
+            ]
         from flask import current_app
         for cand in candidates:
             try:
@@ -662,11 +672,25 @@ class BasePlugin(ABC):
                 continue
         return None
 
+    def is_mobile_context(self):
+        """v4.17：当前请求是否为手机端（服务端 UA 检测）。
+        插件可在视图/模板中据此决定移动端渲染；返回 True 表示应渲染移动端独立模板。"""
+        from core import device
+        return device.is_mobile()
+
+    def mobile_template(self, template):
+        """v4.17：返回移动端独立模板名（plugins/<name>/mobile/<template>），不存在返回 None。
+        插件可用它显式获取移动端模板，配合模板条件渲染。"""
+        return self._resolve_template(template, mobile=True)
+
     def render(self, template, **context):
         """渲染插件模板（自动定位到插件模板命名空间 templates/plugins/<name>/）。
         等价 render_template('plugins/<name>/<template>', plugin=self, **context)。
-        若命名空间模板不存在则回退到旧式 plugins/<template>（兼容）。"""
-        resolved = self._resolve_template(template)
+        若命名空间模板不存在则回退到旧式 plugins/<template>（兼容）。
+
+        v4.17：移动端请求时优先渲染移动端独立模板 plugins/<name>/mobile/<template>（若存在），
+        否则回退桌面端模板；插件无需改视图即自动接入移动端独立渲染。"""
+        resolved = self._resolve_template(template, mobile=self.is_mobile_context())
         if resolved is None:
             raise ValueError(f"插件模板不存在: {template}（已查找 {self.name} 命名空间与 plugins/ 根目录）")
         # 返回 Response 而非字符串：插件视图函数可直接 return self.render(...) 作为页面响应
@@ -700,8 +724,9 @@ class BasePlugin(ABC):
         # 兼容旧式：插件类自身定义了 page()（基类无此方法，旧式自定义页面入口）→ 走插件渲染逻辑
         if hasattr(type(self), 'page'):
             return self.page()
-        # 主入口模板：命名空间 index.html 或 <name>.html（同名主入口优先 index）
-        main_tpl = self._resolve_template('index.html') or self._resolve_template(f'{self.name}.html')
+        # v4.17：移动端优先解析移动端命名空间 plugins/<name>/mobile/ 同名主入口模板
+        mobile = self.is_mobile_context()
+        main_tpl = self._resolve_template('index.html', mobile=mobile) or self._resolve_template(f'{self.name}.html', mobile=mobile)
         if main_tpl:
             context = self.render_index()
             if not isinstance(context, dict):

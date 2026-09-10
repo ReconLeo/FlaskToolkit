@@ -99,7 +99,14 @@ def register(app):
             return render_template('500.html', message=f"页面加载失败: {str(e)}"), 500
         if isinstance(result, Response):
             return result
-        resolved = plugin._resolve_template(entry['template']) if hasattr(plugin, '_resolve_template') else None
+        # v4.17：移动端请求优先解析插件移动端命名空间 plugins/<name>/mobile/<template>
+        mobile = False
+        try:
+            from core import device as _dev
+            mobile = _dev.is_mobile()
+        except Exception:
+            pass
+        resolved = plugin._resolve_template(entry['template'], mobile=mobile) if hasattr(plugin, '_resolve_template') else None
         if resolved is None:
             resolved = f'plugins/{plugin_name}/{entry["template"].replace(chr(92), "/")}'
         ctx = result if isinstance(result, dict) else {}
