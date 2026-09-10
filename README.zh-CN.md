@@ -24,23 +24,19 @@
 
 它慢慢长成了现在的样子——几处代表性的亮点：
 
-- **插件生态**：从单文件插件长成**插件包（.zip）**（模板+静态资源，安装即用）；纯前端 HTML 工具作为"一等公民"；大插件可拆成**多模板 + 辅助模块 + 静态资源**，自带子页面（page=True）；
-- **权限与安全**：统一三层权限、可选鉴权、审计日志、热重载；纵深防御——**AST 静态扫描（4.3.1）→ 能力声明交叉校验（4.3.2）→ 运行时审计钩子（4.4.0）**；登录失败锁定与手动解封；可选 HTTPS；
-- **统一文件传输**：全局上传大小上限（默认 100MB，route 级可覆盖）+ 保存前流式预检、中文文件名下载不乱码（RFC 5987）、下载统计与 Range 断点续传；
-- **插件数据配额体系**：单插件配额（4.9.0）→ 声明式 storage:limit 覆盖（4.9.1）→ **全局总量配额 + 后台空间管理**（4.9.2）；
-- **国际化**：轻量 JSON 语言包（内置 zh-CN + en 可扩展），模板/后端/前端统一 t()，LANGUAGE 启动语言 + 用户级 Cookie 切换（4.9.0）；
-- **各页面语言切换 + 翻译工具（4.15.4）**：所有页面（首页/后台/插件默认页/注册页/全部错误页）统一加入语言切换入口（深色导航页下拉、浅色页平铺链接）；新增 `tools/i18n_status.py` 翻译工具——以 en.json 为基准报告各语言翻译进度、显示语言包 `__contributors` 贡献者，并可 `--create` 一键创建新语言包（内置 en/zh-CN 受保护不可修改）；
-- **无障碍易用（4.10）**：首次运行向导 + 强制改密（可暂缓，未改则每次登录后台提醒）；邀请码自助注册（管理员发邀请链接，持码免审核，无码进待审队列）；插件可选 pip_dependencies 声明（缺失仅跳过加载并告警，不影响框架启动）；带权限标注的插件 API 文档页，后台直达；**单插件空间清理**——仅临时目录或全部数据（含声明的自定义写目录），后台卡片或离线 CLI 均可操作；
-- **安全传输（4.12）**：框架自身实现 **HTTP→HTTPS 自动跳转**（308 保留 POST 方法与 body）——自签名 HTTPS 模式下额外监听一个 HTTP 跳转端口（主端口+1），访问旧 `http://` 地址自动落到 HTTPS，链接永不失效；**SESSION_COOKIE_SECURE 自动配置**（HTTPS / 反向代理下自动开启 Secure，纯 HTTP 局域网自动关闭防浏览器丢 Cookie，仍可显式强制）；config.py 新增 SSL 配对提示与 HTTPS 状态检查；桌面启动器新增 **HTTPS 复选框**（自动生成自签名证书，`--https` 参数）；
-- **网络可达（4.11）**：告别"每次 IP 变了都要重新发访问链接"——后台新增**网络与访问页**（列出全部可达地址、分享链接 + 二维码、mDNS 开关、IP 变化检测与间隔配置）；可选 **mDNS**（`pip install zeroconf`）让服务在稳定的 `flasktoolkit.local` 主机名下可达；新增**桌面启动器**（tools/desktop_launcher.py，双击即用）——启动/停止服务、切换仅本机/局域网共享、一键复制访问地址；
-- **移动端适配（4.13）**：公开页面与后台管理页全面适配手机 / 平板——响应式 CSS 与原有样式**分开维护**（mobile.css / admin-mobile.css / 各示例插件 *_mobile.css），支持刘海屏安全区（safe-area-inset）、44px 触摸目标、**表格自动包裹滚动容器**、首页导航汉堡菜单、窄屏模态框全屏化与 toast 顶部通栏，五个示例插件也各自带移动端样式；
-- **数据统计（4.14）**：后台管理回答"到底发生了什么"——仪表盘新增**运行徽章行**（运行时长 / 协议 / 访问地址 / IP 变化）、**冷门插件提示**（已装未调用）与**最近动态卡**；统计页新增 **14 天请求趋势**（纯 SVG 柱状图，无前端依赖）、**错误 Top 表**与**访问画像**——按登录用户（含管理员本人）与游客 IP 双维统计，附设备分类（bot / 平板 / 手机 / 桌面）与单插件 API 调用追溯，数据保留 30 天可配置（STATS_RETENTION_DAYS）；
-- **Root 权限域与市场铺路（4.15）**：插件可声明 **framework 能力域** 三档 `read` / `manage` / `core`（`core` ≈ Linux **root**，隐含 `manage` + `read`）以操作框架自身核心文件；**`framework:core`** 权限为"修改/删除框架核心"提供了显式语义，后台用醒目的 **⚠️ Root** 徽章标识，每次放行的核心路径写入都会落一条 **root-access 审计事件**（MIT 协议，框架概不负责）。与之配套的**程序化插件管理服务层**（core/plugin_admin.py）支撑管理路由，为**第三方插件市场**铺路；插件可在 plugin.json 声明 **repo / update_feed**，通过应用内**插件级更新检查**（core/plugin_updates.py，feed 强制 RSA 验签、3s 静默超时）触达各插件自己的发布渠道。启动**自检**也新增了**时区 / tzdata 探测**——APScheduler 3.11 改用 zoneinfo，Windows 依赖 tzdata，全新环境缺 tzdata 会在自检阶段明确报错并给出修复提示，而非启动到调度器才崩；
-- **框架目录清单统一（4.15.1）**："哪些是框架核心文件、哪些是用户数据"的判定不再各处硬编码——单一清单 `core/framework_manifest.py` 一次驱动启动自检、升级更新、备份、Factory Reset 与 Root 域路径判定。新增 `root_demo` 示例插件端到端演示 `framework:core` **Root** 授权：读写框架核心配置 `data/user_config.json`（审计 root-access），并对照展示普通 `filesystem:write` 写核心路径被拒；
-- **i18n 全面补全（4.15.2/4.15.3）**：后台与公开页面全部可翻译——Statistics 页与所有剩余模板（插件管理、系统管理、日志、网络与访问、首页、登录/注册/初始化向导、插件 API 调试页）的硬编码中文统一接入 `t()` / `window.T()` 语言层，`locales/en.json` 词条增至 **485**；回归断言扫描全部框架模板，确保模板中用到的任一中文 key 必被语言包覆盖；
-- **事件总线与插件真依赖解析（4.16）**：轻量进程内发布-订阅总线（core/events.py，纯 stdlib——on/once/off/emit/has/clear，weakref 防泄漏（宿主被回收订阅自动失效）、可选 async_=True 后台线程池），让插件之间、插件与框架之间**无需知道谁在监听**即可松耦合通信——内置事件（plugin.loaded/enabled/disabled/installed/uninstalled、user.login/logout、request.finished）+ 插件命名空间自定义事件（plugin:<插件名>:<事件名>）；**BasePlugin** 新增 on_event / emit_event / event_name 助手（自动加 plugin:<插件名>: 前缀，卸载/禁用时自动清理订阅）。与之并行，core/plugin_deps.py 带来**真依赖解析**：dependencies / pip_dependencies 支持**版本约束**（auth>=2.0、name>=a,<b，semver 含预发布权重），加载器用 **Kahn 拓扑排序 + 环检测**（缺失/版本不满足/循环不再中止启动，而是标记该插件『未加载』并在后台透出原因），卸载仍被依赖的插件会被阻止。示例 scheduler_demo（事件演示：订阅/发布内置+自定义+异步事件、手动触发）与 dependent_demo（跨插件事件订阅 + 来源归因）已升级端到端演示。
-- **移动端/桌面端页面分离（4.17）**：手机端视图脱离 v4.13『桌面端 + xxx_mobile.css/mobile.js 样式补充』模式，改为**同 URL + 服务端 UA 检测分发独立模板**——新增 core/device.py 按 UA 分类（mobile/tablet/desktop，bot 视为 desktop），`resolve_template()`/`device.render()` 给手机端渲染精简的 `templates/mobile/<页面>` 独立模板（缺失安全回退桌面端）；平板仍走桌面端响应式避免退化。框架登录页/首页新增移动端独立模板 + 触屏友好 `mobile-app.css` 布局层；**BasePlugin** 新增 `is_mobile_context()`/`mobile_template()`，`render()`/`render_plugin_page()`/子页面路由自动分发到 `templates/plugins/<插件名>/mobile/`（存在时）——插件只需放同名模板即接入移动端独立渲染，无需改视图。示例 corp_tools（1.1.0）端到端演示。
-- **运维与工具链**：版本检查推送 + 双后端更新（git / archive）、Factory Reset、备份/恢复、启动自检、完整性签名、插件脚手架与离线安装/卸载 CLI（scaffold.py / install_plugin.py）与单插件空间清理，以及一套 **41 脚本回归测试与 GitHub Actions CI**。
+- **插件生态**：从单文件插件长成 **.zip 插件包**（模板 + 静态资源，安装即用）；纯前端 HTML 工具是一等公民；大插件可拆成多模板 + 辅助模块 + 静态资源，自带子页面。
+- **权限与纵深防御**：统一三层权限（public/user/admin）、可选鉴权、审计日志、热重载；分层防护——**AST 静态扫描 → 能力声明交叉校验 → 运行时审计钩子**；登录失败锁定；可选 HTTPS。
+- **统一文件传输**：全局上传上限 + 保存前预检、中文文件名下载（RFC 5987）、下载统计与 Range 断点续传。
+- **数据配额体系**：单插件配额 → 声明式 storage:limit → **全局总量上限 + 后台空间管理**。
+- **国际化**：轻量 JSON 语言包（内置 zh-CN + en，可扩展）、模板/后端/前端统一 t()、每个页面都可切换语言 + 翻译工具。
+- **低门槛上手**：首次运行向导 + 强制改密、邀请码自助注册、带权限标注的插件 API 文档页、单插件空间清理、可选 pip_dependencies 优雅降级。
+- **安全传输**：自签名 HTTPS + 自动 **HTTP→HTTPS 308 跳转** + Secure Cookie 自动配置——旧 http:// 链接永不失效。
+- **网络可达**：后台**网络与访问页**（分享链接 + 二维码、mDNS、IP 变化检测）+ 双击即用的桌面启动器（本机/局域网一键切换）。
+- **移动端**：同 URL、服务端 UA 检测分发**独立移动端模板**——插件只需把同名模板放进 mobile/ 命名空间即接入。
+- **统计洞察**：回答"到底发生了什么"的仪表盘——运行徽章、冷门插件提示、14 天请求趋势、错误 Top、按用户/按 IP 的访问画像。
+- **Root 权限域与市场铺路**：插件可声明 framework 能力域三档（read/manage/core，core ≈ root），写核心全程审计；配套程序化插件管理服务层 + 插件级更新源。
+- **事件总线与真依赖解析**：轻量进程内发布-订阅总线，插件间无需知道谁在监听即可通信；依赖解析支持版本约束 + 环检测。
+- **运维与工具链**：版本检查 + 双后端更新、Factory Reset、备份/恢复、启动自检、完整性签名、插件脚手架与离线安装/卸载 CLI，以及 **41 脚本回归套件与 GitHub Actions CI**。
 
 完整功能规格见[开发规范](documents/Flask插件框架开发规范-v4.0.md)。
 
@@ -50,14 +46,16 @@
 
 ## 它是什么
 
-自托管的 Flask 插件化**框架**：
+自托管的 Flask 插件化**框架**——把散落的 Python 脚本与纯前端 HTML 工具装进一套可复用、可扩展、跑在自己机器上的统一运行时：
 
-- **后端插件（Python）**与**前端工具（HTML 包）**都是"一等公民"——单文件或 **.zip 插件包**（可携带模板、静态资源、子页面）运行时即可安装 / 更新 / 卸载 / 启用 / 禁用；
-- 鉴权是**可选插件**——不装就是游客模式，装了立刻有登录 / 三层权限控制；
-- **文件监听热重载**——改完即生效，无需重启；
-- 自带**管理后台**（仪表盘 / 插件管理 / 日志 / 统计 / 系统重置）；
-- **安全护栏**——AST 静态扫描 → 能力声明交叉校验 → 运行时审计钩子、可选 HTTPS、插件级与全局数据配额（详见上文 Why）；
-- **运维工具链**——备份 / 恢复、Factory Reset、启动自检、双后端（git / archive）更新。
+- **插件是一等公民**：后端 **Python 插件**与**前端 HTML 工具包**运行时即可安装 / 更新 / 卸载 / 启用 / 禁用——单文件或携带模板、静态资源、甚至子页面的 .zip 插件包；文件监听**热重载**改完即生效，依赖解析器按版本约束排好加载顺序。
+- **鉴权可选**：不装就是游客模式的个人工作台；装 auth 插件即有登录 + 三层权限（public/user/admin）控制与审计日志。
+- **自带管理后台**：仪表盘 / 插件管理 / 日志 / 统计 / 网络与访问 / 系统重置，外加插件级与全局**数据配额**。
+- **统一文件传输**：全局上传上限 + 保存前预检、中文文件名下载、下载统计与 Range 断点续传。
+- **天生国际化**：JSON 语言包、模板/后端/前端统一 t()、每个页面都可切换语言。
+- **安全护栏**：AST 静态扫描 → 能力声明交叉校验 → 运行时审计钩子、可选 HTTPS、登录失败锁定——足以支撑可信局域网与企业内网。
+- **运维工具链**：备份 / 恢复、Factory Reset、启动自检、双后端（git / archive）更新、插件脚手架、离线安装/卸载。
+- **想怎么跑怎么跑**：默认仅本机（127.0.0.1），`FLASKTOOLKIT_HOST=0.0.0.0` 即局域网共享；桌面启动器、mDNS、一键 HTTPS 让这一切变得无痛。
 
 一句话：这是一个**插件化框架**——给你的本地小程序一个统一的家，以及一套不用重写的"地基"。
 
@@ -96,7 +94,7 @@ python app.py
 
 ```bash
 pip install -r requirements.txt -r requirements-dev.txt   # install_all.py 依赖 requests
-python examples/install_all.py                            # 一键安装 7 个官方示例
+python examples/install_all.py                            # 一键安装 8 个官方示例（7 后端插件 + 1 前端工具）
 ```
 
 ### 运行环境变量
@@ -111,16 +109,16 @@ python examples/install_all.py                            # 一键安装 7 个�
 
 [`examples/`](examples/README.md) 随仓库分发一套可一键安装的示例，完整展示框架能力，也是新插件开发的起始模板：
 
-| 示例 | 类型 | 展示能力 |
-|------|------|---------|
-| `hello_plugin` | 后端插件 | 生命周期钩子、三层权限、配置读写、自定义页面 |
-| `scheduler_demo` | 后端插件 | APScheduler 定时任务（interval/cron） |
-| `async_file_demo` | 后端插件 | 文件上传限制、异步任务、状态轮询、结果下载 |
-| `dependent_demo` | 后端插件 | 插件依赖声明、跨插件调用 |
-| `multitool_demo` | 后端插件 | 大插件多模板：多模板页面路由、辅助 .py、静态资源 |
-| `corp_tools` | 后端插件 | 企业内网工具箱：定时健康探测 + 网络白名单 capabilities、权限过滤导航、公告板 |
-| `root_demo` | 后端插件 | **Root 权限域**（`framework:core`）：读写框架核心配置 `data/user_config.json`，对照普通 `filesystem:write` 写核心被拒 |
-| `dashboard_demo` | 前端工具包 | 管理员权限、调用后端 API、ECharts 图表、静态资源 |
+| 示例 | 类型 | 一句话定位 | 能力标签 |
+|------|------|-----------|---------|
+| `hello_plugin` | 后端插件 | 脚手架模板：生命周期、权限、配置、自定义页 | 热重载 · 权限 · 生命周期 · 配置 |
+| `scheduler_demo` | 后端插件 | APScheduler 定时任务（interval/cron）+ 事件总线 | 定时任务 · 事件总线 · 异步事件 |
+| `async_file_demo` | 后端插件 | 异步任务 + 上传限制 + 声明式存储配额 | 异步 · 上传限制 · 存储配额 |
+| `dependent_demo` | 后端插件 | 依赖解析 + 跨插件调用 + 跨插件事件订阅 | 依赖解析 · 跨插件调用 · 事件订阅 |
+| `multitool_demo` | 后端插件 | 大插件形态：页面路由子页 + 辅助模块 + 静态资源 | 多模板 · 页面路由 · 静态资源 |
+| `corp_tools` | 后端插件 | 企业内网工具箱：健康探测 + 权限导航 + 公告板 + i18n + 移动端模板 | 定时探测 · capabilities · i18n · 移动端模板 |
+| `root_demo` | 后端插件 | Root 权限域：读写框架核心配置，全程审计 | Root 域 · framework:core · 审计 |
+| `dashboard_demo` | 前端工具包 | 管理面板：调用后端 API + ECharts | 前端工具 · admin 权限 · ECharts |
 
 详见 [examples/README.md](examples/README.md)。
 
@@ -147,30 +145,30 @@ cd FlaskToolkit
 python tests/test_permission.py            # 权限体系 20 项
 python tests/test_stage2.py                # 安全加固回归 19 项
 python tests/test_zip_slip.py              # 插件包 zip slip 19 项
-python tests/test_pack_meta.py             # 插件包描述一致性 17 项
+python tests/test_pack_meta.py             # 插件包描述一致性 22 项
 python tests/test_reload_race.py           # 热加载重载竞态 1 项（20 轮）
 python tests/test_meta_e2e.py              # 插件包元信息端到端 10 项
 python tests/test_frontend_zip_slip.py     # 前端工具 zip slip 21 项
 python tests/test_frontend_chain.py        # 前端工具链路端到端 23 项
-python tests/test_admin_api.py             # 管理端 API 27 项
-python tests/test_factory_reset.py         # Factory Reset 范围 37 项
+python tests/test_admin_api.py             # 管理端 API 69 项
+python tests/test_factory_reset.py         # Factory Reset 范围 39 项
 python tests/test_error_pages.py           # 错误码页面 12 项
 python tests/test_package_sign.py          # 完整性校验/签名 22 项
 python tests/test_plugin_cleanup.py        # 插件卸载 installed_files 清单 23 项
 python tests/test_frontend_permission.py   # 前端工具访问控制 25 项
 python tests/test_tools_ops.py             # 运维工具 backup/reset/config 19 项
 python tests/test_page_router.py           # 大插件多模板页面路由 + 纯 API 无 name 插件调试页回归 21 项
-python tests/test_framework_fixes.py       # 框架小修复：public_page 豁免 + CSRF 单值注入 9 项
+python tests/test_framework_fixes.py       # 框架小修复：public_page 豁免 + CSRF 单值注入 12 项
 python tests/test_file_transfer.py         # 文件传输：全局 413 / 插件级与 route 级上传上限 / 中文名下载 / 下载统计 / Range / on_ready 顺序 12 项
 python tests/test_security.py              # 系统安全：安全响应头 / Cookie 加固 / 空闲超时 / 登录锁定与手动解封 45 项
 python tests/test_plugin_scan.py           # 插件静态扫描（v4.3.1）：危险导入/调用/混淆/网络文件触点 35 项
 python tests/test_capabilities.py          # 插件能力声明（v4.3.2）：解析/匹配/交叉校验/运行时授权 70 项
-python tests/test_root_domain.py            # Root 域与市场铺路（v4.15）：framework 三档 / 插件管理服务层 / 插件级更新源
+python tests/test_root_domain.py            # Root 域与市场铺路（v4.15）：framework 三档 / 插件管理服务层 / 插件级更新源 18 项
 python tests/test_framework_manifest.py     # 框架目录清单（v4.15.1）：核心/用户数据单一清单 + Root 域路径判定 54 项
 python tests/test_root_demo.py              # 示例插件 root_demo（v4.15.1）：framework:core Root 读写 + 对照拒绝 19 项
 python tests/test_audit_hook.py            # 运行时审计钩子（v4.4.0）：事件映射/栈定位/observe/enforce 38 项
 python tests/test_update_checker.py     # 版本检查推送（v4.8.0）：版本比较/数据源缓存 TTL/archive 校验链/zip slip 防护 40 项
-python tests/test_i18n.py                  # i18n（v4.9.0）：语言包/查找链/语言解析/切换路由/模板渲染 28 项
+python tests/test_i18n.py                  # i18n（v4.9.0）：语言包/查找链/语言解析/切换路由/模板渲染 29 项
 python tests/test_data_limit.py            # 插件数据配额（v4.9.0-4.9.2）：路径判定/用量统计/storage:limit 声明/写目录作用域/上传预检/全局总量/TTL/禁用 32 项
 python tests/test_setup.py               # 首次运行向导 + 强制改密（v4.10 M4）17 项
 python tests/test_register.py             # 邀请码自助注册 + 审核（v4.10 M5）25 项
@@ -179,7 +177,7 @@ python tests/test_network.py              # 网络与访问（v4.11）+ 308 跳�
 python tests/test_mdns.py                 # mDNS 服务注册（v4.11，可选 zeroconf）22 项
 python tests/test_ip_watcher.py           # IP 变化检测（v4.11）15 项
 python tests/test_desktop_launcher.py     # 桌面启动器（v4.11）+ HTTPS 复选框（v4.12）36 项
-python tests/test_stats.py                  # 数据统计洞察（v4.14）：时间桶 + 访问画像双维模型 / dashboard 总览化 / 14 天趋势与错误 Top
+python tests/test_stats.py                  # 数据统计洞察（v4.14）：时间桶 + 访问画像双维模型 / dashboard 总览化 / 14 天趋势与错误 Top 55 项
 python tests/test_selfcheck.py              # 启动完整性自检（v4.15）：CORE_FILES 完整性 / 时区探测 / 完整自检 14 项
 python tests/test_events.py                 # 事件总线（v4.16）：priority / once / off / weakref 清理 / 绑定方法强引用 / async 非阻塞 / 异常隔离 / 内置事件 11 项
 python tests/test_dependency.py             # 依赖解析（v4.16）：dep_spec 解析 / semver 含预发布 / Kahn 拓扑 / 环 / 缺失排除 11 项

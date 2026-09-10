@@ -24,23 +24,19 @@ So FlaskToolkit was born: a plugin **framework** — not another run-of-the-mill
 
 Over time it grew into what it is today — a few highlights:
 
-- **Plugin ecosystem**: from single-file plugins to **plugin packages (.zip)** (templates + static assets, install and go); pure-frontend HTML tools as first-class citizens; large plugins split into **multi-template + helper modules + static assets** with their own sub-pages (`page=True`);
-- **Permission & security**: unified three-level permissions, optional auth, audit logs, hot reload; layered defense — **AST static scanning (4.3.1) → capability cross-validation (4.3.2) → runtime audit hooks (4.4.0)**; login-failure lockout with manual unlock; optional HTTPS;
-- **Unified file transfer**: global upload-size ceiling (100MB, per-route overridable) with pre-save streaming checks, RFC 5987 Chinese-safe downloads, download stats & Range resume;
-- **Plugin data quota system**: per-plugin data limit (4.9.0) → declarative `storage:limit` override (4.9.1) → **global total cap + admin storage dashboard** (4.9.2);
-- **i18n**: lightweight JSON language packs (zh-CN + en built-in, extensible by adding `locales/<lang>.json`), unified `t()` across templates/backend/frontend, `LANGUAGE` startup config + per-user cookie switching (4.9.0);
-- **Per-page language switch & translation tooling (4.15.4)**: every page (home, admin backend, plugin default, register, and all error pages) now ships a language switcher (unified `_lang_switch.html` dropdown on dark-navbar pages, inline links on light pages); `tools/i18n_status.py` reports per-language translation progress against `en.json`, surfaces each pack's `__contributors`, and can scaffold a new language pack via `--create` (built-in en/zh-CN are protected);
-- **Accessibility (4.10)**: first-run wizard with forced password change (dismissible, re-prompted on each login until changed); invite-code self-registration (admin issues invite links — holders skip review, others land in the pending queue); optional `pip_dependencies` per plugin (missing packages skip that plugin with a warning instead of breaking startup); per-plugin API doc pages with permission labels, reachable from the admin UI; **per-plugin storage cleanup** — temp-only or all data including declared write dirs, from the admin dashboard or the offline CLI;
-- **Secure (4.12)**: the framework now does the **HTTP→HTTPS redirect** itself (308, keeps POST method & body) whenever self-signed HTTPS mode is on — an extra plain-HTTP entry port (main port + 1) bounces visitors to the HTTPS address, so stale `http://` links never die; **SESSION_COOKIE_SECURE is auto-configured** (turned on automatically under HTTPS / reverse proxy, off on plain-HTTP LAN so browsers do not drop cookies, still forceable via config); `config.py` gained SSL pairing hints and an HTTPS status check; the desktop launcher gained an **HTTPS checkbox** with automatic self-signed cert generation (`--https`);
-- **Reachability (4.11)**: stop re-publishing your access link every time your IP changes — a **Network & Access page** in the admin UI lists every reachable address (share links + QR codes, mDNS switch, IP-change detection with a configurable interval); optional **mDNS** (`pip install zeroconf`) keeps the service reachable at a stable `flasktoolkit.local` name; plus a **desktop launcher** (`tools/desktop_launcher.py`) — double-click friendly, starts/stops the server, switches local-only vs LAN-sharing, and copies the access address for you;
-- **Mobile & Tablet (4.13)**: the whole UI (public pages *and* the admin console) is now phone/tablet-friendly — responsive CSS is kept **separate** from the original styles (`mobile.css` / `admin-mobile.css` / per-plugin `*_mobile.css`), with safe-area insets for notched screens, 44px touch targets, **auto-wrapped scrollable tables**, a hamburger menu on the home navbar, full-screen modals & top-banner toasts on narrow screens — and all five example plugins ship their own mobile styles too;
-- **Statistics (4.14)**: the admin **dashboard** now answers "what is actually going on" at a glance — a runtime badge row (uptime / scheme / addresses / IP-change), **cold-plugin hints** (installed but never called) and a **recent-activity card**; the **Stats page** gains a **14-day request trend** (pure-SVG bar chart, no JS deps), an **error Top list**, and an **access profile** — per-user (logged-in identities, including the admin) and per-IP visitor breakdowns with device classification (bot / tablet / mobile / desktop), plus per-plugin API call tracking for pinpointing individual tools, all backed by a configurable 30-day retention (`STATS_RETENTION_DAYS`);
-- **Root domain & marketplace groundwork (4.15)**: plugins can now declare a **`framework` capability domain** with three tiers — `read` / `manage` / `core` (`core` ≈ Linux **root**, implies `manage` + `read`) for touching the framework's own core files; the **`framework:core`** permission grants explicit semantics for *modifying/deleting* framework internals, surfaces as a loud **⚠️ Root** badge in the admin UI, and every allowed core-path write is stamped with a **root-access audit event** (MIT license — the framework takes no liability). Parallel to that, a **programmatic plugin-management service layer** (`core/plugin_admin.py`) backs the admin routes and paves the way for a **third-party plugin market**; plugins can declare **`repo` / `update_feed`** in `plugin.json` so in-app **per-plugin update checks** (`core/plugin_updates.py`, RSA-signature-verified feeds, silent 3s timeout) reach each plugin's own release channel. The startup **self-check** also gained a **timezone / `tzdata` probe** — APScheduler 3.11 uses `zoneinfo`, which needs `tzdata` on Windows, so a fresh environment now fails loudly at self-check with an actionable hint instead of crashing at scheduler startup;
-- **Framework manifest (4.15.1)**: the "framework core file vs. user data" classification is no longer hardcoded per module — a single manifest `core/framework_manifest.py` now drives startup self-check, the updater, backup, Factory Reset, and the Root-domain path check from one source. A new `root_demo` example plugin demonstrates the `framework:core` **Root** grant end-to-end: read/write the framework core config `data/user_config.json` (audited `root-access`), plus the contrast of a plain `filesystem:write` being rejected on core paths;
-- **Full i18n sweep (4.15.2/4.15.3)**: every admin & public page is now fully translatable — the Statistics pages and all remaining templates (plugin manager, system, logs, network, home, login/register/setup, and the plugin API debug page) had their hardcoded Chinese wrapped into the `t()` / `window.T()` language layer, and `locales/en.json` grew to **485 keys**; a regression assertion scans every framework template so any Chinese key used in a template is guaranteed to be covered by the language pack;
-- **Event bus & true dependency resolution (4.16)**: a lightweight in-process publish–subscribe bus (`core/events.py`, pure stdlib — `on/once/off/emit/has/clear`, weakref-backed handlers that auto-cleanup when the owner is collected, optional `async_=True` background execution) lets plugins talk to each other and to the framework **without knowing who is listening** — built-in events (`plugin.loaded/enabled/disabled/installed/uninstalled`, `user.login/logout`, `request.finished`) plus plugin-namespaced custom events (`plugin:<name>:<event>`); **BasePlugin** gains `on_event` / `emit_event` / `event_name` helpers (auto `plugin:<name>:` prefix, subscriptions auto-cleaned on unload/disable). Parallel to that, `core/plugin_deps.py` brings **real dependency resolution**: `dependencies` / `pip_dependencies` now accept **version constraints** (`auth>=2.0`, `name>=a,<b`, semver with pre-release weights), the loader uses **Kahn topological order with cycle detection** (a loop or a missing/unsatisfied dependency marks the plugin *not loaded* with a reason surfaced in the admin UI instead of aborting startup), and uninstalling a plugin that others still depend on is blocked. The `scheduler_demo` (event demo — subscribe/publish built-in + custom + async events, manual trigger) and `dependent_demo` (cross-plugin event subscription with source attribution) examples were upgraded to demonstrate it end-to-end;
-- **Mobile / desktop page separation (4.17)**: phone views move off the v4.13 "desktop page + `*_mobile.css`/`mobile.js` style patching" approach onto **same-URL, server-side UA-detected dedicated templates** — a new `core/device.py` classifies UA (`mobile`/`tablet`/`desktop`, bots counted as desktop), and `resolve_template()`/`device.render()` hand a phone a slim `templates/mobile/<page>` template (safe fallback to the desktop one if it is missing); tablets still get the desktop responsive template to avoid regression. Framework login & home get dedicated mobile templates plus a touch-friendly `mobile-app.css` layer; **BasePlugin** gains `is_mobile_context()` / `mobile_template()` and auto-dispatches `render()`/`render_plugin_page()`/sub-pages to `templates/plugins/<name>/mobile/` when present — a plugin opts into mobile rendering by simply dropping same-named templates (no view changes). The `corp_tools` example (1.1.0) demonstrates it end-to-end;
-- **Ops & tooling**: version check with a `changelog.json` feed + dual-backend updater (git / archive), Factory Reset, backup/restore, startup self-check, package integrity signing, plugin scaffolding + offline install/uninstall CLI (`scaffold.py` / `install_plugin.py`), plus a **41-script regression suite and GitHub Actions CI**.
+- **Plugin ecosystem**: single-file plugins grow into **`.zip` plugin packages** (templates + static assets, install and go); pure-frontend HTML tools are first-class citizens; large plugins split into multi-template + helper modules + static assets with their own sub-pages.
+- **Permissions & defense in depth**: unified three-level permissions (public / user / admin), optional auth, audit logs, hot reload; layered protection — **AST static scanning → capability cross-validation → runtime audit hooks**; login-failure lockout; optional HTTPS.
+- **Unified file transfer**: global upload-size ceiling with pre-save checks, Chinese-safe downloads (RFC 5987), download stats & Range resume.
+- **Data quota system**: per-plugin quota → declarative `storage:limit` → **global total cap + admin storage dashboard**.
+- **i18n**: lightweight JSON language packs (built-in zh-CN + en, extensible), one `t()` across templates / backend / frontend, and a per-page language switcher with translation tooling.
+- **Low-friction onboarding**: first-run wizard with forced password change, invite-code self-registration, per-plugin API doc pages, per-plugin storage cleanup, and optional `pip_dependencies` that degrade gracefully.
+- **Secure transport**: self-signed HTTPS with automatic **HTTP→HTTPS 308 redirect** and auto-configured Secure cookies — stale `http://` links never die.
+- **Reachability**: an admin **Network & Access** page (share links + QR codes, mDNS, IP-change detection) plus a double-click desktop launcher for local-only vs LAN sharing.
+- **Mobile**: same-URL, server-side UA-detected **dedicated mobile templates** — a plugin opts in by simply dropping same-named templates in a `mobile/` namespace.
+- **Statistics**: a dashboard that answers “what’s actually going on” — runtime badge, cold-plugin hints, 14-day request trend, error Top list, and a per-user / per-IP access profile.
+- **Root domain & marketplace groundwork**: plugins can declare a `framework` capability tier (`read` / `manage` / `core`, `core` ≈ root) with audited writes, backed by a programmatic plugin-management service layer and per-plugin update feeds.
+- **Event bus & true dependency resolution**: a lightweight in-process pub/sub bus lets plugins talk without knowing who’s listening; dependencies resolve with version constraints and cycle detection.
+- **Ops & tooling**: version check + dual-backend updater, Factory Reset, backup/restore, startup self-check, integrity signing, plugin scaffolding & offline install/uninstall CLI, plus a **41-script regression suite and GitHub Actions CI**.
 
 The full feature specification lives in the [development guide](documents/Flask插件框架开发规范-v4.0.md).
 
@@ -50,16 +46,18 @@ My only principle: **need-driven, whatever is convenient**. So what you get is a
 
 ## What It Is
 
-A self-hosted Flask plugin **framework**:
+A self-hosted Flask plugin **framework** that turns scattered Python scripts and pure-frontend HTML tools into a unified, extensible runtime on your own machine:
 
-- **Backend plugins (Python)** and **frontend tools (HTML packages)** are first-class citizens — install / update / uninstall / enable / disable at runtime, as single files or **.zip plugin packages** carrying templates, static assets and even sub-pages;
-- **Auth is an optional plugin** — skip it for guest mode, install it for login / three-level permission control;
-- **File-watching hot reload** — changes take effect immediately, no restart needed;
-- **Built-in admin panel** — dashboard, plugin management, logs, stats, system reset;
-- **Safety rails** — AST static scanning → capability cross-validation → runtime audit hooks, optional HTTPS, per-plugin & global data quotas (see Why above);
-- **Ops tooling** — backup / restore, Factory Reset, startup self-check, dual-backend (git / archive) updates.
+- **Plugins are first-class**: backend **Python plugins** and **frontend HTML toolkits** install / update / uninstall / enable / disable at runtime — as single files or `.zip` packages carrying templates, static assets, and even sub-pages; file-watching **hot reload** applies changes instantly, and a dependency resolver orders plugins with version constraints.
+- **Auth is optional**: skip it for a guest-mode workspace, or install the `auth` plugin for login + three-level permission control (public / user / admin) with audit logs.
+- **Built-in admin panel**: dashboard, plugin management, logs, statistics, network & access, and system reset — plus per-plugin and global **data quotas**.
+- **Unified file transfer**: global upload limits with pre-save checks, Chinese-safe downloads, download stats and Range resume.
+- **Internationalized by design**: JSON language packs, a single `t()` across templates / backend / frontend, and per-page language switching.
+- **Safety rails**: AST static scanning → capability cross-validation → runtime audit hooks, optional HTTPS, login lockout — enough for trusted LANs and intranet teams.
+- **Ops tooling**: backup / restore, Factory Reset, startup self-check, dual-backend (git / archive) updates, plugin scaffolding, and offline install / uninstall.
+- **Run it your way**: local-only (`127.0.0.1`) by default, or LAN-share with `FLASKTOOLKIT_HOST=0.0.0.0`; a desktop launcher, mDNS and one-click HTTPS make it painless.
 
-In one sentence: a **plugin framework** — one unified home for your local mini programs, on a "foundation" you never have to rewrite.
+In one sentence: a **plugin framework** — one unified home for your local mini programs, on a “foundation” you never have to rewrite.
 
 ## Who Is It For
 
@@ -96,7 +94,7 @@ Want to feel the fun of "installing plugins" right away? Install the official ex
 
 ```bash
 pip install -r requirements.txt -r requirements-dev.txt   # install_all.py needs requests
-python examples/install_all.py                            # install all 7 official examples
+python examples/install_all.py                            # install all 8 official examples (7 backend + 1 frontend tool)
 ```
 
 ### Environment Variables
@@ -111,16 +109,16 @@ python examples/install_all.py                            # install all 7 offici
 
 The [`examples/`](examples/README.md) directory ships with a set of one-click installable examples that demonstrate the full framework, and serve as starting templates for new plugin development:
 
-| Example | Type | Highlights |
-|---------|------|-----------|
-| `hello_plugin` | Backend plugin | Lifecycle hooks, three-level permissions, config read/write, custom page |
-| `scheduler_demo` | Backend plugin | APScheduler scheduled jobs (interval/cron) |
-| `async_file_demo` | Backend plugin | Upload limits, async tasks, status polling, result download |
-| `dependent_demo` | Backend plugin | Dependency declaration, cross-plugin calls |
-| `multitool_demo` | Backend plugin | Large plugin multi-template: page routes, helper .py, static assets |
-| `corp_tools` | Backend plugin | Enterprise-intranet kit: scheduled health probing + network-whitelist capabilities, permission-filtered navigation, notice board |
-| `root_demo` | Backend plugin | **Root domain** (`framework:core`): read/write framework core config `data/user_config.json`, contrast plain `filesystem:write` rejected on core paths |
-| `dashboard_demo` | Frontend tool | Admin permission, calls backend APIs, ECharts, static assets |
+| Example | Type | One-liner | Capabilities shown |
+|---------|------|-----------|--------------------|
+| `hello_plugin` | Backend | Scaffold: lifecycle hooks, permissions, config, custom page | hot-reload · permissions · lifecycle · config |
+| `scheduler_demo` | Backend | APScheduler jobs (interval/cron) + the v4.16 event bus | scheduled jobs · event bus · async events |
+| `async_file_demo` | Backend | Async tasks, upload limits, result download, storage quota | async · upload limits · quota |
+| `dependent_demo` | Backend | Dependency resolution, cross-plugin calls & event subscription | dependency resolution · cross-plugin · events |
+| `multitool_demo` | Backend | Large-plugin shape: page-route sub-pages + helper module + static | multi-template · page routes · static assets |
+| `corp_tools` | Backend | Enterprise-intranet kit: health probes, permission-filtered nav, notice board, i18n, mobile templates | scheduled probes · capabilities · i18n · mobile templates |
+| `root_demo` | Backend | Root domain (`framework:core`): read/write core config, audited | root · framework:core · audit |
+| `dashboard_demo` | Frontend tool | Admin panel calling backend APIs, ECharts, static assets | frontend tool · admin · ECharts |
 
 See [examples/README.md](examples/README.md).
 
@@ -140,37 +138,37 @@ Detailed specs live in the [Flask Plugin Framework Development Guide](documents/
 `tests/` contains **41 scripts** of regression tests (isolated-directory mode, no pollution of project files); GitHub Actions runs them automatically on Python 3.10 / 3.11 / 3.12, covering permissions, plugin-package / frontend-tool chains, integrity signatures, uninstall manifests, Factory Reset, large-plugin multi-template page routing, file transfer (upload limits / Chinese-name downloads / Range), static security scanning, capability cross-validation, runtime audit hooks, i18n framework, plugin data quota, event bus & dependency resolution, device detection & mobile template dispatch, plugin scaffolding / offline install-uninstall CLI, per-plugin space cleanup, ops tools, etc.
 
 <details>
-<summary>Expand: 40 test scripts</summary>
+<summary>Expand: 41 test scripts</summary>
 
 ```bash
 cd FlaskToolkit
 python tests/test_permission.py            # permission system 20 assertions
 python tests/test_stage2.py                # security hardening regression 19
 python tests/test_zip_slip.py              # plugin-package zip slip 19
-python tests/test_pack_meta.py             # plugin-package meta consistency 17
+python tests/test_pack_meta.py             # plugin-package meta consistency 22
 python tests/test_reload_race.py           # hot-reload race 1 (20 rounds)
 python tests/test_meta_e2e.py              # plugin-package meta end-to-end 10
 python tests/test_frontend_zip_slip.py     # frontend-tool zip slip 21
 python tests/test_frontend_chain.py        # frontend-tool chain end-to-end 23
-python tests/test_admin_api.py             # admin API 27
-python tests/test_factory_reset.py         # Factory Reset scope 37
+python tests/test_admin_api.py             # admin API 69
+python tests/test_factory_reset.py         # Factory Reset scope 39
 python tests/test_error_pages.py           # error-code pages 12
 python tests/test_package_sign.py          # integrity verification / signing 22
 python tests/test_plugin_cleanup.py        # uninstall installed_files manifest 23
 python tests/test_frontend_permission.py   # frontend-tool access control 25
 python tests/test_tools_ops.py             # ops tools backup/reset/config 19
 python tests/test_page_router.py           # large-plugin multi-template page routing + pure-API no-name plugin debug page regression 21
-python tests/test_framework_fixes.py       # framework small fixes: public_page exemption + CSRF single-injection 9
+python tests/test_framework_fixes.py       # framework small fixes: public_page exemption + CSRF single-injection 12
 python tests/test_file_transfer.py         # file transfer: global 413 / plugin & route upload limits / Chinese-name downloads / download stats / Range / on_ready order 12
 python tests/test_security.py              # system security: headers / cookie hardening / idle timeout / login lockout & manual unlock 45
 python tests/test_plugin_scan.py           # plugin static scanning (v4.3.1): risky imports/calls/obfuscation/network+file touchpoints 35
 python tests/test_capabilities.py          # plugin capability declarations (v4.3.2): parse/match/cross-check/runtime authorization 70
-python tests/test_root_domain.py            # Root domain & marketplace groundwork (v4.15): framework tiers / plugin-admin service layer / per-plugin update feed
+python tests/test_root_domain.py            # Root domain & marketplace groundwork (v4.15): framework tiers / plugin-admin service layer / per-plugin update feed 18
 python tests/test_framework_manifest.py     # framework directory manifest (v4.15.1): single-source core/user-data lists + Root-domain path check 54
 python tests/test_root_demo.py              # example plugin root_demo (v4.15.1): framework:core Root read/write + contrast rejection 19
 python tests/test_audit_hook.py            # runtime audit hooks (v4.4.0): event mapping/stack attribution/observe/enforce 38
 python tests/test_update_checker.py     # update checker (v4.8.0): version compare / feed cache TTL / archive verify chain / zip-slip guard 43
-python tests/test_i18n.py                  # i18n (v4.9.0): language packs / lookup chain / lang resolution / cookie switch / template render 28
+python tests/test_i18n.py                  # i18n (v4.9.0): language packs / lookup chain / lang resolution / cookie switch / template render 29
 python tests/test_data_limit.py            # plugin data quota (v4.9.0-4.9.2): path judge / usage / storage:limit declaration / write-dir scope / upload pre-check / global total / TTL / disable 32
 python tests/test_setup.py               # first-run wizard + forced password change (v4.10 M4) 17
 python tests/test_register.py             # invite-code self-registration + review (v4.10 M5) 25
@@ -179,7 +177,7 @@ python tests/test_network.py              # network & access (v4.11) + 308 redir
 python tests/test_mdns.py                 # mDNS service registration (v4.11, optional zeroconf) 22
 python tests/test_ip_watcher.py           # IP-change detection (v4.11) 15
 python tests/test_desktop_launcher.py     # desktop launcher (v4.11) + HTTPS checkbox (v4.12) 36
-python tests/test_stats.py                  # statistics insight (v4.14): time-bucket + access-profile dual model / dashboard / trend & error top
+python tests/test_stats.py                  # statistics insight (v4.14): time-bucket + access-profile dual model / dashboard / trend & error top 55
 python tests/test_selfcheck.py              # startup self-check (v4.15): CORE_FILES completeness / timezone probe / full check 14
 python tests/test_events.py                 # event bus (v4.16): priority / once / off / weakref cleanup / bound-method strong ref / async non-blocking / exception isolation / built-in emission 11
 python tests/test_dependency.py             # dependency resolution (v4.16): dep-spec parse / semver incl pre-release / Kahn topo / cycles / missing exclusion 11
@@ -208,7 +206,7 @@ MIT License · contribution guidelines in [CONTRIBUTING.md](CONTRIBUTING.md) · 
 
 ### AI-Assisted Development Statement
 
-This project used AI-assisted programming tools during development, including but not limited to: code generation and refactoring, code review, test case authoring, and documentation writing. All AI-assisted content has been manually reviewed by the developer and is only merged after passing the project's own regression suite (`tests/`, 540 assertions) and startup integrity self-check.
+This project used AI-assisted programming tools during development, including but not limited to: code generation and refactoring, code review, test case authoring, and documentation writing. All AI-assisted content has been manually reviewed by the developer and is only merged after passing the project's own regression suite (`tests/`, 41 scripts / 1120 assertions) and startup integrity self-check.
 
 Transparency conventions for contributors:
 
