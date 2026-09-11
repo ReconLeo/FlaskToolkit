@@ -389,8 +389,23 @@ class MyPlugin(BasePlugin):
 | `run_async_task(fn, *args)`                   | 提交耗时任务到后台线程池，返回 `task_id`，不阻塞请求                                                  |
 | `get_async_task_status(task_id)`              | 查询异步任务状态（`running`/`success`/`failed`）                                                      |
 | `check_upload(size_bytes)`                    | 上传前存储配额预检（联动 `storage:limit`，见 10.10），超限返回 `{ok: False, remaining_mb: ...}`       |
+| `sanitize_filename(filename)`                 | 文件名净化（v4.18，路径穿越安全统一策略，比 core.utils.secure_filename_cn 更严），可静态调用            |
+| `upload_dir`                                  | 持久化上传目录（v4.18，相对 BASE_DIR 路径优先），`save_uploads` 的默认落盘目标                          |
+| `save_uploads(file_key='files', dest_dir=None, *, dedup=True, sanitize=True, max_upload_mb=None)` | 同步持久化上传助手（v4.18）：净化 + 重名去重 + 单文件大小预检 + 存储配额预检 + 直接落盘一次完成；返回每文件独立结果列表（部分成功语义） |
 
 **异步处理链路**：上传后立即返回 `task_id`，后台线程处理，前端轮询 `get_async_task_status`，完成后 `send_file_response` 下载结果。官方示例 `async_file_demo` 完整演示（上传限制 + 异步任务 + 状态轮询 + 结果下载 + 声明式存储配额）。
+
+**同步落盘上传助手 `save_uploads`（v4.18）**：面向“文件共享/持久化上传目录”类插件（异步-临时目录链路不适用）。一次调用完成单/多文件 `getlist`、文件名净化、重名加序号、单文件大小与存储配额双预检、直接落盘到持久化目录；返回 `List[dict]`，每文件独立：
+
+```python
+res = self.save_uploads('files')   # 默认落盘到 self.upload_dir（如 'uploads'）
+# res[0] = {'status':'saved'|'rejected', 'original_name', 'saved_name',
+#           'path', 'size_bytes', 'reason', 'limit_mb', 'remaining_mb'}
+```
+
+- `dest_dir`：落盘目录（相对 BASE_DIR 或绝对）；`None` 回退 `self.upload_dir`，两者皆空抛 `ValueError`。
+- `dedup=True` 同名自动加序号 `name_1.ext`；`sanitize=False` 用原始名（自担路径穿越风险）；`max_upload_mb` 沿用既有上限解析链。
+- **enforce 一致性**：落盘目录建议用相对路径并同步在 plugin.json `capabilities` 声明 `filesystem:write:<相对路径>`，否则严格模式扫描交叉校验报“未声明行为”而拒绝安装（见 10.7）。
 
 ### 5.5 路径参数与参数校验
 
@@ -617,7 +632,7 @@ python tools/package.py pack ./my_plugin -o my_plugin.zip --type backend --src-l
 后端插件可声明 `require_framework_version`（`plugin.json` 或插件类属性，非强制），用于声明插件所需的最低框架版本，以支撑框架持续迭代：
 
 - **未声明**：不检查，任意框架版本可用。
-- **声明了**：上传/更新时与 `global_var.FRAMEWORK_VERSION`（当前 `4.17.2`）做点分版本比较（`compare_versions`，修复了前端工具原先字符串比较的缺陷）；插件要求高于框架版本 → 拒绝安装并报告。
+- **声明了**：上传/更新时与 `global_var.FRAMEWORK_VERSION`（当前 `4.18.0`）做点分版本比较（`compare_versions`，修复了前端工具原先字符串比较的缺陷）；插件要求高于框架版本 → 拒绝安装并报告。
 - **运行时双重校验**：`load_plugins` 加载时同样校验（防止手工放置插件绕过上传校验），不满足则跳过加载并报错。
 - 参与描述一致性对齐（冲突拒绝/缺失补全），见 5.6.3。
 
@@ -1294,6 +1309,7 @@ FLASKTOOLKIT_HOST=0.0.0.0 FLASKTOOLKIT_PORT=8000 python app.py
 | `test_page_router.py`         | 大插件多模板（页面路由 page=True：主入口自动检测、dict/Response 分发、路径参数注入、正斜杠模板名、旧式 page() 兼容）+ 纯 API 无 name 插件调试页回归                                                                                                                                                                                                                                                               | 21 项 |
 | `test_framework_fixes.py`     | 框架小修复（v4.2.1）：public_page 豁免（公开页面免登录 200 / 普通插件页面守卫 302）+ plugin_common.js CSRF 单值注入静态断言 + 调试页权限（v4.10）                                                                                                                                                                                                                                                                 | 12 项 |
 | `test_file_transfer.py`       | 文件传输强化（v4.2.2）：全局 413 / 插件级 max_upload_size 预检 / route 级 max_upload 覆盖 / 中文名下载 / 下载统计 / Range / on_ready 顺序                                                                                                                                                                                                                                                                         | 12 项 |
+| `test_plugin_uploads.py`     | 同步持久化上传助手 save_uploads（v4.18）：单/多文件 / 大小与配额预检 / 净化防穿越 / 中文名 / 去重 / 类型拒绝 / 部分成功 / enforce 交叉校验（隔离目录）                                                                                                                                                                                                                                                          | 21 项 |
 | `test_security.py`            | 系统安全回归（v4.3.0）：安全响应头注入与开关 / 指纹头移除 / Cookie HttpOnly+SameSite+Secure 联动 / 会话空闲超时 / 登录失败锁定三档（ip_username/username/off）+ 通用 429 + 成功重置 + 解封（v4.5.1）                                                                                                                                                                                                              | 45 项 |
 | `test_plugin_scan.py`         | 插件静态扫描回归（v4.3.1）：扫描器单元（危险导入/调用/混淆/范围提取/别名归因）/ 插件包扫描 / 前端 HTML 扫描 / enforce 门禁集成（拒绝 400 + 附报告 + 未落盘 + 真实项目未污染）/ 配置预设三套                                                                                                                                                                                                                       | 35 项 |
 | `test_capabilities.py`        | 插件能力声明回归（v4.3.2）：解析器（合法/非法/未知域/裸 * 拒绝）/ 匹配语义（路径前缀递归/URL host·path·端口/子域通配/tcp/env）/ 交叉校验（隐式豁免/跨插件越界/建议声明/unused）/ 运行时授权 API（fail-closed/process 细粒度）/ 安装链路集成（enforce 拒绝与放行/响应附摘要/loader 注册）/ base_plugin data API + hello_plugin 示例端到端 / **storage 域解析与目录推导（v4.9.1）** + **framework 域三档（v4.15）** | 70 项 |
@@ -1341,6 +1357,7 @@ python tests/test_tools_ops.py         # 19 项（backup/reset/config 运维工�
 python tests/test_page_router.py       # 21 项（大插件多模板页面路由 + 纯 API 无 name 插件调试页回归，隔离目录）
 python tests/test_framework_fixes.py    # 12 项（public_page 豁免 + CSRF 单值注入 + 调试页权限，隔离目录）
 python tests/test_file_transfer.py       # 12 项（文件传输强化，隔离目录）
+python tests/test_plugin_uploads.py     # 21 项（save_uploads 同步上传助手，隔离目录）
 python tests/test_security.py            # 45 项（系统安全回归 v4.3.0 + 解封，隔离目录）
 python tests/test_plugin_scan.py           # 35 项（插件静态扫描回归 v4.3.1，隔离目录）
 python tests/test_capabilities.py          # 70 项（插件能力声明回归 v4.3.2 + storage/framework 域，隔离目录）

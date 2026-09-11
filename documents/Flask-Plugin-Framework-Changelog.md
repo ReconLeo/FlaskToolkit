@@ -53,6 +53,7 @@ Kaleido 同样开源（自托管题库系统）：[github.com/ReconLeo/Kaleido](
 | **v4.17.0** | 2026-09-10 | 移动端/桌面端页面分离：core/device.py（UA 检测 + resolve_template 分发）+ templates/mobile/ 独立模板 + mobile-app.css + BasePlugin 移动端能力（is_mobile_context·mobile_template·render 分发）+ corp_tools 1.1.0 移动端独立模板演示，test_device 20 项 | tag `v4.17.0` |
 | **v4.17.1** | 2026-09-11 | 签名功能验证 + 修复自更新/插件更新源验签 bug（_verify_feed_signature 漏传 signature，配公钥后签名永远失败）：新增 test_plugin_updates(8)·test_release_sign(5)，扩展 test_package_sign(25)·test_update_checker(50)，全量回归 43 脚本 1143 项 | tag `v4.17.1` |
 | **v4.17.2** | 2026-09-11 | AirDrop 框架协调 A+C 组：冲突报错附两处值 + 描述文件失效打标与后台徽章 + 源码布局自动映射（--src-layout）+ CRLF 规范提示，新增 test_src_layout(16)，全量回归 44 脚本 1161 项 | tag `v4.17.2` |
+| **v4.18.0** | 2026-09-11 | B 组同步持久化上传助手：BasePlugin 新增 upload_dir + sanitize_filename + save_uploads（单/多文件·净化·去重·大小+配额双预检·直接落盘），AirDrop upload_files/get_safe_filename 迁移，新增 test_plugin_uploads(21)，全量回归 45 脚本 1182 项 | tag `v4.18.0` |
 
 ## 3. 版本详情
 
@@ -324,6 +325,16 @@ P1 安全强化至此全部完成，形成纵深防御：**静态扫描 → 能�
 - **6.6 CRLF 规范提示**（Dev-Guide 5.6.9）：插件文本文件统一 LF 的规范说明 + `.gitattributes` 示例，规避 Windows 下 CRLF/`\r\r\n` 污染。
 - **CI 与文档同步**：CI 测试数组补入 test_src_layout；Dev-Guide 第 12/14 章测试表、工具表、运行命令同步；README 双版测试数 43→44 脚本 / 1143→1161 断言。
 - **全量回归 44 脚本 1161 项 0 失败**。
+
+### 3.31 v4.18.0（2026-09-11，tag `v4.18.0`）
+
+**AirDrop 框架协调清单 B 组——同步持久化上传助手（§6.1/§6.2）**，补齐 `save_uploaded_file` 仅覆盖"异步-临时目录"场景、缺"同步直接落盘"上传助手的空缺，把各插件手写的净化 + 去重 + 双预检 + 落盘收敛为框架一次调用。
+
+- **BasePlugin 新增 3 项**（`plugins/base_plugin.py`）：`upload_dir` 属性（持久化上传目录，相对 BASE_DIR 优先）、`sanitize_filename(filename)` 静态方法（路径穿越安全统一策略，比 core.utils.secure_filename_cn 更严：删危险字符 / 移除 `..` 与前导点 / 空名兜底）、`save_uploads(file_key='files', dest_dir=None, *, dedup=True, sanitize=True, max_upload_mb=None)`（单/多文件 getlist、净化、重名加序号、单文件大小与存储配额双预检、直接落盘，返回每文件独立结果列表，部分成功语义；dest_dir 与 upload_dir 皆空抛 ValueError）。
+- **测试**：新增 tests/test_plugin_uploads.py 21 项（T1 单文件 / T2 多文件 / T3 大小超限 / T4a 配额超限 / T4b 未配配额放行 / T5a-c 净化 / T6a-c 去重与覆盖 / T7 类型拒绝 / T8a-c 缺失·空·跳过 / T9 部分成功 / T10a-b 目录创建与缺省 / T11 enforce 交叉校验未声明目录）。
+- **AirDrop 迁移**：`get_safe_filename`→`self.sanitize_filename`（6 处调用 + 删除手写方法），`upload_files`→`save_uploads`（`dest_dir=self.upload_folder`，保持前端返回格式 200/400/413 等价）；删除多余 import re。
+- **文档**：Dev-Guide 5.4.2 新增 `save_uploads`/`sanitize_filename`/`upload_dir` 表项与同步落盘说明 + enforce 一致性；README 双版"统一文件传输"能力补充同步上传助手；CI 补 test_plugin_uploads。
+- **全量回归 45 脚本 1182 项 0 失败**。
 
 ## 4. 发布实践沉淀
 

@@ -150,6 +150,15 @@ class BasePlugin(ABC):
         return None
 
     @property
+    def upload_dir(self):
+        """持久化上传目录（v4.18，`save_uploads` 的默认落盘目标）。
+        相对 BASE_DIR 的路径（如 `uploads` → `<BASE_DIR>/uploads`）或绝对路径均可。
+        建议用**相对路径**并保持与 plugin.json `capabilities` 声明的
+        `filesystem:write:<相对路径>` 一致，enforce 扫描才放行。
+        未设置时须在调用 `save_uploads` 时显式传 `dest_dir`。"""
+        return None
+
+    @property
     def data_dir(self):
         """插件专属数据目录 `plugins/data/<name>/`（v4.3.2）。
         首次访问自动创建；该目录与 `plugins/configs/<name>.json`、`plugins/temp/<name>/`
@@ -426,7 +435,130 @@ class BasePlugin(ABC):
             'original_name': file.filename
         }
         return temp_path, file.filename
-    
+
+    @staticmethod
+    def sanitize_filename(filename: str) -> str:
+        """文件名净化（v4.18，§6.2）：路径穿越安全统一策略，比 core.utils.secure_filename_cn 更严。
+
+        1. 删除危险字符 `\\ / : * ? " < > |` 及换行制表（保留中文、字母、数字、`-`、`_`、`.`）；
+        2. 移除 `..` 序列并去掉前导点（防路径穿越）；
+        3. 空名兜底 `未命名文件_<epoch>`。
+        可静态调用（`BasePlugin.sanitize_filename(x)`）或实例调用（`self.sanitize_filename(x)`）。"""
+        name = re.sub(r'[\\/:*?"<>|\n\r\t]', '', filename)
+        name = name.replace('..', '').lstrip('.')
+        if not name.strip():
+            return f"未命名文件_{int(datetime.now().timestamp())}"
+        return name
+
+    @staticmethod
+    def _stream_size(file) -> int:
+        """读取上传流当前字节数（基于 seek/tell；失败返回 0）。"""
+        stream = getattr(file, 'stream', None) or file
+        try:
+            stream.seek(0, os.SEEK_END)
+            size = stream.tell()
+            stream.seek(0)
+            return size
+        except (OSError, AttributeError):
+            return 0
+
+    def save_uploads(self, file_key: str = 'files', dest_dir: str = None, *,
+                     dedup: bool = True, sanitize: bool = True,
+                     max_upload_mb: int = None) -> List[Dict[str, Any]]:
+        """同步持久化上传助手（v4.18，§6.1）：把净化 + 重名去重 + 单文件大小预检 +
+        存储配额预检 + 直接落盘收敛为一次调用。
+
+        相对 `save_uploaded_file`（异步-临时目录场景），本方法直接落盘到持久化
+        `dest_dir`（默认 `self.upload_dir`），返回**每文件独立结果列表**（部分成功语义，不整体抛异常）。
+
+        - file_key: request.files 字段名（getlist 读取，天然支持单/多文件）
+        - dest_dir: 落盘目录（相对 BASE_DIR 或绝对）；None 回退 self.upload_dir；两者皆空抛 ValueError
+        - dedup: 重名加序号 `name_1.ext`…；False 同名直接覆盖
+        - sanitize: 文件名净化（统一策略）；False 用原始名（自担路径穿越风险）
+        - max_upload_mb: 单文件上限（MB）；None 沿用 route 级 max_upload > max_upload_mb > 插件 max_upload_size > 全局默认
+
+        严格模式（enforce）联动：写 dest_dir 需在 plugin.json `capabilities` 声明
+        `filesystem:write:<相对 BASE_DIR 路径>`，否则扫描拒绝。
+        """
+        if file_key not in request.files:
+            raise ValueError("缺少上传文件")
+        files = request.files.getlist(file_key)
+        if not files:
+            raise ValueError("未选择文件")
+
+        if not dest_dir and not getattr(self, 'upload_dir', None):
+            raise ValueError("未指定上传目录：需传 dest_dir 或设置 upload_dir")
+        # 相对路径统一相对 BASE_DIR 解析；绝对路径原样
+        target = dest_dir if dest_dir else self.upload_dir
+        dest = os.path.abspath(target) if os.path.isabs(target) else \
+            os.path.abspath(os.path.join(global_var.BASE_DIR, target))
+        os.makedirs(dest, exist_ok=True)
+
+        results = []
+        for file in files:
+            if not file or not file.filename:
+                continue  # 个别空文件名条目跳过，其余照常
+            original = file.filename
+
+            # 1) 单文件大小预检（流 seek/tell 不落盘；超限拒绝）
+            oversize = self.check_upload_limit(file, max_upload_mb)
+            if oversize:
+                results.append({
+                    'status': 'rejected', 'original_name': original,
+                    'saved_name': self.sanitize_filename(original) if sanitize else original,
+                    'path': None, 'size_bytes': 0, 'reason': 'size_exceeded',
+                    'limit_mb': float(self._resolve_upload_limit_mb(max_upload_mb)),
+                    'remaining_mb': None,
+                })
+                continue
+
+            # 2) 存储配额预检（复用流，避免二次 seek）
+            f_size = self._stream_size(file)
+            quota = self.check_upload(f_size)
+            if not quota.get('ok'):
+                results.append({
+                    'status': 'rejected', 'original_name': original,
+                    'saved_name': self.sanitize_filename(original) if sanitize else original,
+                    'path': None, 'size_bytes': 0, 'reason': 'quota_exceeded',
+                    'limit_mb': quota.get('limit_mb'),
+                    'remaining_mb': quota.get('remaining_mb'),
+                })
+                continue
+
+            # 3) 类型校验
+            ext = os.path.splitext(original)[1].lower()
+            if self.allowed_upload_types and ext not in self.allowed_upload_types:
+                results.append({
+                    'status': 'rejected', 'original_name': original,
+                    'saved_name': self.sanitize_filename(original) if sanitize else original,
+                    'path': None, 'size_bytes': 0, 'reason': 'invalid_type',
+                    'limit_mb': None, 'remaining_mb': None,
+                })
+                continue
+
+            # 4) 文件名净化
+            saved_name = self.sanitize_filename(original) if sanitize else original
+
+            # 5) 重名去重 / 覆盖
+            save_path = os.path.join(dest, saved_name)
+            if dedup:
+                base, ext = os.path.splitext(saved_name)
+                n = 1
+                while os.path.exists(save_path):
+                    saved_name = f'{base}_{n}{ext}'
+                    save_path = os.path.join(dest, saved_name)
+                    n += 1
+
+            # 6) 落盘
+            file.save(save_path)
+            results.append({
+                'status': 'saved', 'original_name': original,
+                'saved_name': saved_name, 'path': save_path,
+                'size_bytes': os.path.getsize(save_path),
+                'reason': None, 'limit_mb': None, 'remaining_mb': None,
+            })
+        return results
+
     def send_file_response(self, file_path: str, download_name: str = None,
                         mimetype: str = None, etag: str = None,
                         as_attachment: bool = True, headers: dict = None,

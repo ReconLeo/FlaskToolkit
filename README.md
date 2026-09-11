@@ -4,7 +4,7 @@
   <img src="https://github.com/ReconLeo/FlaskToolkit/actions/workflows/ci.yml/badge.svg" alt="CI">
   <img src="https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB?logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/License-MIT-yellow" alt="License">
-  <img src="https://img.shields.io/badge/version-4.17.2-blue" alt="Version">
+  <img src="https://img.shields.io/badge/version-4.18.0-blue" alt="Version">
 </p>
 
 > A Flask-based plugin **framework**: bring scattered Python plugins and pure-frontend tools into one unified runtime —
@@ -26,7 +26,7 @@ Over time it grew into what it is today — a few highlights:
 
 - **Plugin ecosystem**: single-file plugins grow into **`.zip` plugin packages** (templates + static assets, install and go); pure-frontend HTML tools are first-class citizens; large plugins split into multi-template + helper modules + static assets with their own sub-pages.
 - **Permissions & defense in depth**: unified three-level permissions (public / user / admin), optional auth, audit logs, hot reload; layered protection — **AST static scanning → capability cross-validation → runtime audit hooks**; login-failure lockout; optional HTTPS.
-- **Unified file transfer**: global upload-size ceiling with pre-save checks, Chinese-safe downloads (RFC 5987), download stats & Range resume.
+- **Unified file transfer**: global upload-size ceiling with pre-save checks, Chinese-safe downloads (RFC 5987), download stats & Range resume, and a synchronous persistent upload helper (`save_uploads`: sanitize + dedup + size/quota pre-checks in one call).
 - **Data quota system**: per-plugin quota → declarative `storage:limit` → **global total cap + admin storage dashboard**.
 - **i18n**: lightweight JSON language packs (built-in zh-CN + en, extensible), one `t()` across templates / backend / frontend, and a per-page language switcher with translation tooling.
 - **Low-friction onboarding**: first-run wizard with forced password change, invite-code self-registration, per-plugin API doc pages, per-plugin storage cleanup, and optional `pip_dependencies` that degrade gracefully.
@@ -135,10 +135,10 @@ Detailed specs live in the [Flask Plugin Framework Development Guide](documents/
 
 ## Tests & CI
 
-`tests/` contains **44 scripts** of regression tests (isolated-directory mode, no pollution of project files); GitHub Actions runs them automatically on Python 3.10 / 3.11 / 3.12, covering permissions, plugin-package / frontend-tool chains, integrity signatures, uninstall manifests, Factory Reset, large-plugin multi-template page routing, file transfer (upload limits / Chinese-name downloads / Range), static security scanning, capability cross-validation, runtime audit hooks, i18n framework, plugin data quota, event bus & dependency resolution, device detection & mobile template dispatch, plugin scaffolding / offline install-uninstall CLI, per-plugin space cleanup, ops tools, etc.
+`tests/` contains **45 scripts** of regression tests (isolated-directory mode, no pollution of project files); GitHub Actions runs them automatically on Python 3.10 / 3.11 / 3.12, covering permissions, plugin-package / frontend-tool chains, integrity signatures, uninstall manifests, Factory Reset, large-plugin multi-template page routing, file transfer (upload limits / Chinese-name downloads / Range), static security scanning, capability cross-validation, runtime audit hooks, i18n framework, plugin data quota, event bus & dependency resolution, device detection & mobile template dispatch, plugin scaffolding / offline install-uninstall CLI, per-plugin space cleanup, ops tools, etc.
 
 <details>
-<summary>Expand: 44 test scripts</summary>
+<summary>Expand: 45 test scripts</summary>
 
 ```bash
 cd FlaskToolkit
@@ -160,6 +160,7 @@ python tests/test_tools_ops.py             # ops tools backup/reset/config 19
 python tests/test_page_router.py           # large-plugin multi-template page routing + pure-API no-name plugin debug page regression 21
 python tests/test_framework_fixes.py       # framework small fixes: public_page exemption + CSRF single-injection 12
 python tests/test_file_transfer.py         # file transfer: global 413 / plugin & route upload limits / Chinese-name downloads / download stats / Range / on_ready order 12
+python tests/test_plugin_uploads.py    # sync persistent upload helper (v4.18): sanitize / dedup / size+quota pre-check / save 21
 python tests/test_security.py              # system security: headers / cookie hardening / idle timeout / login lockout & manual unlock 45
 python tests/test_plugin_scan.py           # plugin static scanning (v4.3.1): risky imports/calls/obfuscation/network+file touchpoints 35
 python tests/test_capabilities.py          # plugin capability declarations (v4.3.2): parse/match/cross-check/runtime authorization 70
@@ -186,7 +187,7 @@ python tests/test_events.py                 # event bus (v4.16): priority / once
 python tests/test_dependency.py             # dependency resolution (v4.16): dep-spec parse / semver incl pre-release / Kahn topo / cycles / missing exclusion 11
 python tests/test_plugin_events.py          # BasePlugin event integration + example demos (v4.16): scheduler_demo events & manual trigger / dependent_demo cross-plugin subscription 28
 python tests/test_device.py                 # device detection + mobile template dispatch (v4.17): UA classification / config switches / resolve_template / public-page mobile template / BasePlugin mobile namespace 20
-# total: 44 scripts
+# total: 45 scripts
 ```
 
 </details>
@@ -209,7 +210,7 @@ MIT License · contribution guidelines in [CONTRIBUTING.md](CONTRIBUTING.md) · 
 
 ### AI-Assisted Development Statement
 
-This project used AI-assisted programming tools during development, including but not limited to: code generation and refactoring, code review, test case authoring, and documentation writing. All AI-assisted content has been manually reviewed by the developer and is only merged after passing the project's own regression suite (`tests/`, 44 scripts / 1161 assertions) and startup integrity self-check.
+This project used AI-assisted programming tools during development, including but not limited to: code generation and refactoring, code review, test case authoring, and documentation writing. All AI-assisted content has been manually reviewed by the developer and is only merged after passing the project's own regression suite (`tests/`, 45 scripts / 1182 assertions) and startup integrity self-check.
 
 Transparency conventions for contributors:
 

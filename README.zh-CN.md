@@ -4,7 +4,7 @@
   <img src="https://github.com/ReconLeo/FlaskToolkit/actions/workflows/ci.yml/badge.svg" alt="CI">
   <img src="https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB?logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/License-MIT-yellow" alt="License">
-  <img src="https://img.shields.io/badge/version-4.17.2-blue" alt="Version">
+  <img src="https://img.shields.io/badge/version-4.18.0-blue" alt="Version">
 </p>
 
 > 一个基于 Flask 的插件化**框架**：把散落的 Python 插件与纯前端工具装进统一的运行时，
@@ -26,7 +26,7 @@
 
 - **插件生态**：从单文件插件长成 **.zip 插件包**（模板 + 静态资源，安装即用）；纯前端 HTML 工具是一等公民；大插件可拆成多模板 + 辅助模块 + 静态资源，自带子页面。
 - **权限与纵深防御**：统一三层权限（public/user/admin）、可选鉴权、审计日志、热重载；分层防护——**AST 静态扫描 → 能力声明交叉校验 → 运行时审计钩子**；登录失败锁定；可选 HTTPS。
-- **统一文件传输**：全局上传上限 + 保存前预检、中文文件名下载（RFC 5987）、下载统计与 Range 断点续传。
+- **统一文件传输**：全局上传上限 + 保存前预检、中文文件名下载（RFC 5987）、下载统计与 Range 断点续传，以及同步持久化上传助手（`save_uploads`：净化 + 去重 + 大小/配额预检一次完成）。
 - **数据配额体系**：单插件配额 → 声明式 storage:limit → **全局总量上限 + 后台空间管理**。
 - **国际化**：轻量 JSON 语言包（内置 zh-CN + en，可扩展）、模板/后端/前端统一 t()、每个页面都可切换语言 + 翻译工具。
 - **低门槛上手**：首次运行向导 + 强制改密、邀请码自助注册、带权限标注的插件 API 文档页、单插件空间清理、可选 pip_dependencies 优雅降级。
@@ -36,7 +36,7 @@
 - **统计洞察**：回答"到底发生了什么"的仪表盘——运行徽章、冷门插件提示、14 天请求趋势、错误 Top、按用户/按 IP 的访问画像。
 - **Root 权限域与市场铺路**：插件可声明 framework 能力域三档（read/manage/core，core ≈ root），写核心全程审计；配套程序化插件管理服务层 + 插件级更新源。
 - **事件总线与真依赖解析**：轻量进程内发布-订阅总线，插件间无需知道谁在监听即可通信；依赖解析支持版本约束 + 环检测。
-- **运维与工具链**：版本检查 + 双后端更新、Factory Reset、备份/恢复、启动自检、完整性签名、插件脚手架与离线安装/卸载 CLI，以及 **44 脚本回归套件与 GitHub Actions CI**。
+- **运维与工具链**：版本检查 + 双后端更新、Factory Reset、备份/恢复、启动自检、完整性签名、插件脚手架与离线安装/卸载 CLI，以及 **45 脚本回归套件与 GitHub Actions CI**。
 
 完整功能规格见[开发规范](documents/Flask-Plugin-Framework-Dev-Guide-v4.md)。
 
@@ -135,10 +135,10 @@ python examples/install_all.py                            # 一键安装 8 个�
 
 ## 测试与 CI
 
-`tests/` 44 个回归测试脚本（隔离目录模式，不污染项目文件）；GitHub Actions 在 Python 3.10 / 3.11 / 3.12 上自动执行，覆盖权限、插件包 / 前端工具链路、完整性签名、卸载清单、Factory Reset、大插件多模板页面路由、文件传输（上传限制 / 中文名下载 / Range）、插件静态安全扫描、能力声明交叉校验、运行时审计钩子、i18n 语言框架、插件数据配额、事件总线与依赖解析、设备检测与移动端模板分发、插件脚手架与离线安装/卸载 CLI、单插件空间清理、运维工具等。
+`tests/` 45 个回归测试脚本（隔离目录模式，不污染项目文件）；GitHub Actions 在 Python 3.10 / 3.11 / 3.12 上自动执行，覆盖权限、插件包 / 前端工具链路、完整性签名、卸载清单、Factory Reset、大插件多模板页面路由、文件传输（上传限制 / 中文名下载 / Range）、插件静态安全扫描、能力声明交叉校验、运行时审计钩子、i18n 语言框架、插件数据配额、事件总线与依赖解析、设备检测与移动端模板分发、插件脚手架与离线安装/卸载 CLI、单插件空间清理、运维工具等。
 
 <details>
-<summary>展开：44 个测试脚本</summary>
+<summary>展开：45 个测试脚本</summary>
 
 ```bash
 cd FlaskToolkit
@@ -160,6 +160,7 @@ python tests/test_tools_ops.py             # 运维工具 backup/reset/config 19
 python tests/test_page_router.py           # 大插件多模板页面路由 + 纯 API 无 name 插件调试页回归 21 项
 python tests/test_framework_fixes.py       # 框架小修复：public_page 豁免 + CSRF 单值注入 12 项
 python tests/test_file_transfer.py         # 文件传输：全局 413 / 插件级与 route 级上传上限 / 中文名下载 / 下载统计 / Range / on_ready 顺序 12 项
+python tests/test_plugin_uploads.py    # 同步持久化上传助手（v4.18）：净化/去重/大小+配额预检/落盘 21 项
 python tests/test_security.py              # 系统安全：安全响应头 / Cookie 加固 / 空闲超时 / 登录锁定与手动解封 45 项
 python tests/test_plugin_scan.py           # 插件静态扫描（v4.3.1）：危险导入/调用/混淆/网络文件触点 35 项
 python tests/test_capabilities.py          # 插件能力声明（v4.3.2）：解析/匹配/交叉校验/运行时授权 70 项
@@ -186,14 +187,14 @@ python tests/test_events.py                 # 事件总线（v4.16）：priority
 python tests/test_dependency.py             # 依赖解析（v4.16）：dep_spec 解析 / semver 含预发布 / Kahn 拓扑 / 环 / 缺失排除 11 项
 python tests/test_plugin_events.py          # BasePlugin 事件集成 + 示例演示（v4.16）：scheduler_demo 事件与手动触发 / dependent_demo 跨插件订阅 28 项
 python tests/test_device.py                 # 设备检测 + 移动端模板分发（v4.17）：UA 分类 / 配置开关 / resolve_template / 公开页移动端模板 / BasePlugin 移动端命名空间 20 项
-# 合计 44 个回归脚本
+# 合计 45 个回归脚本
 ```
 
 </details>
 
 ## 版本状态
 
-- **Community Edition（v4.x）**：功能开发持续进行，但架构规模有意识控制——专注小型局域网/个人用户场景，我们定期维护与发布（44 脚本回归套件 + CI）。
+- **Community Edition（v4.x）**：功能开发持续进行，但架构规模有意识控制——专注小型局域网/个人用户场景，我们定期维护与发布（45 脚本回归套件 + CI）。
 - **Enterprise Edition（v5.x）**：规划承载远期路线（权限模型细化、进程级沙箱、CSP 收紧、企业身份对接等）。因当前小团队开发能力有限，公开寻求接手者——详见 [Enterprise Edition 交接与路线](documents/Enterprise-Edition-Handover-Roadmap.md)。
 
 ## 已知局限
@@ -209,7 +210,7 @@ MIT License · 贡献指南见 [CONTRIBUTING.md](CONTRIBUTING.md) · 开发过�
 
 ### 人工智能辅助开发声明
 
-本项目在开发过程中使用了 AI 辅助编程工具，包括但不限于：代码生成与重构、代码审查、测试用例编写、文档撰写。所有 AI 辅助生成或修改的内容，均已由开发者人工审查，并通过项目自身的回归测试套件（`tests/`，44 脚本）与启动完整性自检验证后才会合入。
+本项目在开发过程中使用了 AI 辅助编程工具，包括但不限于：代码生成与重构、代码审查、测试用例编写、文档撰写。所有 AI 辅助生成或修改的内容，均已由开发者人工审查，并通过项目自身的回归测试套件（`tests/`，45 脚本）与启动完整性自检验证后才会合入。
 
 对贡献者的透明性约定：
 

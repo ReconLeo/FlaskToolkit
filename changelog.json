@@ -1,12 +1,10 @@
 {
-  "latest_version": "4.17.2",
+  "latest_version": "4.18.0",
   "published_at": "2026-09-11",
-  "download_url": "https://github.com/ReconLeo/FlaskToolkit/releases/download/v4.17.2/FlaskToolkit-4.17.2-runtime.zip",
-  "sha256": "aacd97c79bd9e09789e3c6f824f5928b0ac0ea89dd6062b959fe52d5fb131be1",
+  "download_url": "https://github.com/ReconLeo/FlaskToolkit/releases/download/v4.18.0/FlaskToolkit-4.18.0-runtime.zip",
+  "sha256": "8fbaee9540910423e22d9f7cb3a928f9ec172a8efc336d35eb237c9166be3a3b",
   "changes": [
-    "描述一致性冲突报错附两处值",
-    "描述文件失效打标+后台徽章",
-    "源码布局自动映射 --src-layout",
-    "CRLF 规范提示"
+    "BasePlugin 新增 save_uploads/sanitize_filename/upload_dir 同步持久化上传助手",
+    "AirDrop upload_files/get_safe_filename 迁移"
   ]
 }
