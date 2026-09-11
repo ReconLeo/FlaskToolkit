@@ -51,14 +51,15 @@
     },
     {
       "name": "multitool_demo",
-      "title": "示例：大插件多模板",
+      "title": "示例：大插件多模板 + 深色模式",
       "path": "plugins/multitool_demo",
       "type": "backend",
       "focus": [
         "多模板：主入口 index.html + 页面路由 page=True 子页",
         "辅助 .py：multitool_utils 纯函数模块复用",
         "静态资源：css/js 经 /plugin-static/ 访问",
-        "render_index 主入口数据钩子"
+        "render_index 主入口数据钩子",
+        "深色模式接入（v4.19）：theme.css 复用语义变量 + theme.js 跟随系统 + demo.css dark 覆盖"
       ]
     },
     {

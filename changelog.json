@@ -1,12 +1,14 @@
 {
-  "latest_version": "4.19.0",
+  "latest_version": "4.19.1",
   "published_at": "2026-09-11",
-  "download_url": "https://github.com/ReconLeo/FlaskToolkit/releases/download/v4.19.0/FlaskToolkit-4.19.0-runtime.zip",
-  "sha256": "1e89de4df956b720fb3a7cdd338d6db1976a0d1974a87e58de20ae93f4dad893",
+  "download_url": "https://github.com/ReconLeo/FlaskToolkit/releases/download/v4.19.1/FlaskToolkit-4.19.1-runtime.zip",
+  "sha256": "9c133b7d860c332c647405b32f03952994963022e8b4845db220502d598638c3",
   "changes": [
-    "全量界面深色模式：core/theme.py 主题能力 + theme.js（auto/light/dark，跟随系统+手动覆盖）",
-    "setup.html 双语并显（主次语言切换）",
-    "main.css/error.css/admin/plugin_default 深色变量化，16 模板接入主题入口",
-    "新增 test_theme(10)，全量回归 46 脚本 1194 项"
+    "插件主题接入便利化（AirDrop 协调清单 6.7）：core/theme.py 新增 resolve_effective_theme（light/dark 实际值，auto/非法交前端解析）",
+    "app.py inject_i18n 注入 theme_effective 到所有模板（含插件页面），插件模板可直接 data-theme-init",
+    "新增独立 static/css/theme.css（:root 语义变量 + dark 覆盖集），main.css 改 @import 共享",
+    "示例 multitool_demo 升 1.1.0（4 模板主题三件套样板），Dev-Guide 5.11 插件接入文档",
+    "框架防御修复：migrate_legacy_config 旧版路径与 FRONTEND_CONFIG_FILE 同路径时不误删配置（修复 test_frontend_permission 隔离环境工具 404，25/25）",
+    "test_theme 扩展 A4（11/11），全量回归 46 脚本 1195 项 0 失败"
   ]
 }

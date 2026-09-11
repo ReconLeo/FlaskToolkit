@@ -55,3 +55,20 @@ def get_theme():
     if _is_valid_theme(cfg_theme):
         return cfg_theme
     return DEFAULT_THEME
+
+
+def resolve_effective_theme(candidate=None):
+    """解析“实际生效深浅色”（供后端/模板渲染用）：
+
+    - ``light`` → ``light``
+    - ``dark``  → ``dark``
+    - ``auto`` / 非法 → ``auto``（跟随系统，实际深浅色只能由前端 theme.js 经
+      ``prefers-color-scheme`` 解析，后端拿不到浏览器偏好）
+
+    参数 ``candidate`` 省略时取 ``get_theme()``（Cookie > 用户配置 > auto）。
+    用于插件/后端在需要“当前是浅色还是深色”做条件渲染时，避免手写白名单分支。
+    """
+    theme = candidate if candidate is not None else get_theme()
+    if _is_valid_theme(theme) and theme != DEFAULT_THEME:
+        return theme
+    return DEFAULT_THEME  # auto（跟随系统，交前端解析）

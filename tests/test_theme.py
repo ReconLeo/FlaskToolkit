@@ -6,6 +6,7 @@ A. core.theme 能力
   A1 available_themes 含 auto/light/dark
   A2 resolve_theme 白名单：合法主题原样，非法/未知回退 auto
   A3 resolve_theme 防注入：hack/../auto 之类非法值回退 auto
+  A4 resolve_effective_theme：light/dark 实际值，auto/非法交前端解析
 
 B. /theme 路由
   B1 GET /theme/dark?next=/ → 302 到 /，设置 theme=dark Cookie
@@ -72,6 +73,12 @@ def main():
           theme.resolve_theme('dark') == 'dark' and theme.resolve_theme('xxx') == 'auto', '')
     check("A3 resolve_theme 防注入",
           theme.resolve_theme('../dark') == 'auto' and theme.resolve_theme('hack') == 'auto', '')
+    check("A4 resolve_effective_theme light/dark/auto/非法",
+          theme.resolve_effective_theme('light') == 'light'
+          and theme.resolve_effective_theme('dark') == 'dark'
+          and theme.resolve_effective_theme('auto') == 'auto'
+          and theme.resolve_effective_theme('hack') == 'auto',
+          'light/dark 实际值，auto/非法交前端')
 
     r = client.get('/theme/dark?next=/', follow_redirects=False)
     ck = client.get_cookie('theme')

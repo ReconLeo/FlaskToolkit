@@ -15,6 +15,11 @@ LEGACY_CONFIG_FILE = os.path.join(global_var.BASE_DIR, 'frontend_tools.json')
 def migrate_legacy_config():
     """将根目录旧版 frontend_tools.json 原子迁移至 data/ 目录（v4.5.0）"""
     new_path = global_var.FRONTEND_CONFIG_FILE
+    # v4.19.1 防御：旧版路径与新版配置解析到同一路径（如隔离测试将 FRONTEND_CONFIG_FILE
+    # mock 到 BASE_DIR 根，或人为配置重合）时，并非“旧版冗余”，直接跳过迁移/清理，
+    # 避免把唯一一份有效配置当冗余旧版误删导致前端工具丢失。
+    if os.path.normpath(LEGACY_CONFIG_FILE) == os.path.normpath(new_path):
+        return
     if os.path.exists(LEGACY_CONFIG_FILE) and not os.path.exists(new_path):
         os.makedirs(os.path.dirname(new_path), exist_ok=True)
         os.replace(LEGACY_CONFIG_FILE, new_path)

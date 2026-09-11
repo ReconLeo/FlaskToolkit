@@ -4,7 +4,7 @@
   <img src="https://github.com/ReconLeo/FlaskToolkit/actions/workflows/ci.yml/badge.svg" alt="CI">
   <img src="https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB?logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/License-MIT-yellow" alt="License">
-  <img src="https://img.shields.io/badge/version-4.19.0-blue" alt="Version">
+  <img src="https://img.shields.io/badge/version-4.19.1-blue" alt="Version">
 </p>
 
 > A Flask-based plugin **framework**: bring scattered Python plugins and pure-frontend tools into one unified runtime —
@@ -212,7 +212,7 @@ MIT License · contribution guidelines in [CONTRIBUTING.md](CONTRIBUTING.md) · 
 
 ### AI-Assisted Development Statement
 
-This project used AI-assisted programming tools during development, including but not limited to: code generation and refactoring, code review, test case authoring, and documentation writing. All AI-assisted content has been manually reviewed by the developer and is only merged after passing the project's own regression suite (`tests/`, 46 scripts / 1194 assertions) and startup integrity self-check.
+This project used AI-assisted programming tools during development, including but not limited to: code generation and refactoring, code review, test case authoring, and documentation writing. All AI-assisted content has been manually reviewed by the developer and is only merged after passing the project's own regression suite (`tests/`, 46 scripts / 1195 assertions) and startup integrity self-check.
 
 Transparency conventions for contributors:
 

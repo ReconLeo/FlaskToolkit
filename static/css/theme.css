@@ -1,0 +1,74 @@
+/* ============================================================
+   FlaskToolkit 主题语义变量层（v4.19，插件可复用）
+   ------------------------------------------------------------
+   用途：把公开页深色模式的颜色语义变量抽成独立可复用文件，供：
+   - 框架页面（main.css 顶部 @import 引用）
+   - 插件自包含独立模板（<link href="/static/css/theme.css">）
+   插件只需引入本文件，即可在自包含 CSS 中用 :root 语义变量
+   （--bg/--card-bg/--text/--muted/--input-bg/--chip-bg 等），
+   并写 :root[data-theme="dark"] 覆盖集即可跟随主题，无需自备深浅两套。
+
+   切换机制：<html data-theme="dark|light"> 由 static/js/theme.js 设置
+   （auto 经 prefers-color-scheme 解析），本文件只提供变量与深浅覆盖。
+   维护：与 main.css 同源（改动变量时两者同步，本文件为变量唯一权威）。
+   ============================================================ */
+:root {
+    --primary: #3498db;
+    --primary-dark: #2980b9;
+    --success: #27ae60;
+    --success-dark: #229954;
+    --danger: #e74c3c;
+    --warning: #ffa500;
+    --dark: #343a40;
+    --bg: #f5f7fa;
+    --card-bg: #ffffff;
+    --border: #e9ecef;
+    --text: #2c3e50;
+    --text-light: #7f8c8d;
+    --radius: 8px;
+    --shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+    /* v4.19 深色模式补充语义变量（公开页通用） */
+    --input-bg: #ffffff;
+    --input-border: #ddd;
+    --muted: #666;
+    --muted-light: #888;
+    --muted-lighter: #999;
+    --faint: #95a5a6;
+    --chip-bg: #f0f1f3;
+    --panel-tint: #f0f6fc;
+    --req-bg: #fffbe6;
+    --req-border: #ffe58f;
+    --req-text: #8c6d1f;
+    --th-bg: #f8f9fa;
+    --status-ok-bg: #f0f9f0;
+    --code-bg: #1e1e1e;
+    --code-text: #d4d4d4;
+}
+
+/* v4.19 深色模式（跟随系统 auto / 手动 dark）：覆盖公开页配色 */
+:root[data-theme="dark"] {
+    --bg: #1a1d21;
+    --card-bg: #24282d;
+    --border: #343a40;
+    --text: #e4e6eb;
+    --text-light: #9aa0a6;
+    --dark: #181b1f;
+    --shadow: 0 2px 12px rgba(0, 0, 0, 0.45);
+    --input-bg: #2c3136;
+    --input-border: #3a4046;
+    --muted: #a0a6ac;
+    --muted-light: #8a9096;
+    --muted-lighter: #7a8086;
+    --faint: #6b7177;
+    --chip-bg: #2f343a;
+    --panel-tint: #1f2a33;
+    --req-bg: #3a3320;
+    --req-border: #6b5d24;
+    --req-text: #e0c98a;
+    --th-bg: #2a2f34;
+    --status-ok-bg: #1e2b22;
+    --code-bg: #14161a;
+    --code-text: #c8ccd0;
+    /* 类型/权限徽标深色（保持可读性，白底文本翻转） */
+    color-scheme: dark;
+}

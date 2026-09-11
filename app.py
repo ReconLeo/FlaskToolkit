@@ -80,9 +80,11 @@ def inject_i18n():
         'lang': lang,
         'available_langs': i18n.available_languages(),
         't_json': tr.table,          # 当前语言完整翻译表（前端 window.T 使用）
-        # v4.19：界面主题上下文（theme 当前主题 + available_themes 可扩展主题表）
+        # v4.19：界面主题上下文（theme 当前主题 + available_themes 可扩展主题表 +
+        #        theme_effective 解析后实际深浅色，供插件/模板条件渲染）
         'theme': theme.get_theme(),
         'available_themes': theme.available_themes(),
+        'theme_effective': theme.resolve_effective_theme(),
     }
 
 # v4.17：设备上下文注入（is_mobile / device），供模板条件渲染移动端独立模板

@@ -10,6 +10,10 @@
 
 安装后可访问（功能点到为止，文本分析工具示例）：
 - 页面   /plugin/multitool_demo                        （主入口 index.html，引用静态资源）
+
+深色模式（v4.19，1.1.0）：页面接入框架主题——<html data-theme-init> + 引
+theme.css（复用语义变量）+ theme.js（跟随系统/手动切换）+ demo.css 的
+:root[data-theme="dark"] 覆盖，多模板所有页面共享主题感知。
 - 子页面 /plugin/multitool_demo/text                   （文本统计：静态 JS 调 API）
 - 子页面 /plugin/multitool_demo/topwords               （词频 Top-N：辅助模块服务端渲染）
 - 子页面 /plugin/multitool_demo/hello/小明             （路径参数子页）
@@ -26,12 +30,12 @@ from plugins import multitool_utils  # 辅助模块（插件包内多 .py，复�
 class MultiToolDemo(BasePlugin):
     name = "multitool_demo"
     title = "示例：大插件多模板"
-    description = "大插件三要素演示：多模板（主入口 + 3 子页）+ 辅助 .py（multitool_utils）+ 静态资源（css/js）。文本分析小工具。"
-    version = "1.0.0"
+    description = "大插件三要素演示：多模板（主入口 + 3 子页）+ 辅助 .py（multitool_utils）+ 静态资源（css/js）+ 深色模式接入（theme.css/theme.js，v4.19）。文本分析小工具。"
+    version = "1.1.0"
     author = "FlaskToolkit Examples"
     category = "示例"
     permission = "user"
-    require_framework_version = "4.2.0"  # 页面路由 page=True 为 v4.2 能力
+    require_framework_version = "4.19.0"  # 页面路由 page=True(v4.2) + 主题能力(v4.19)
 
     @property
     def routes(self) -> List[Dict]:

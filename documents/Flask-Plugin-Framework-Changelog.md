@@ -55,6 +55,7 @@ Kaleido 同样开源（自托管题库系统）：[github.com/ReconLeo/Kaleido](
 | **v4.17.2** | 2026-09-11 | AirDrop 框架协调 A+C 组：冲突报错附两处值 + 描述文件失效打标与后台徽章 + 源码布局自动映射（--src-layout）+ CRLF 规范提示，新增 test_src_layout(16)，全量回归 44 脚本 1161 项 | tag `v4.17.2` |
 | **v4.18.0** | 2026-09-11 | B 组同步持久化上传助手：BasePlugin 新增 upload_dir + sanitize_filename + save_uploads（单/多文件·净化·去重·大小+配额双预检·直接落盘），AirDrop upload_files/get_safe_filename 迁移，新增 test_plugin_uploads(21)，全量回归 45 脚本 1182 项 | tag `v4.18.0` |
 | **v4.19.0** | 2026-09-11 | 全量界面深色模式 + setup 双语并显：core/theme.py（auto/light/dark 注册表 + Cookie 与用户配置双存）+ theme.js（auto 解析与监听）+ main.css/error.css/admin 深色变量化 + 16 模板接入 + setup.html 双语主次切换，新增 test_theme(10)，全量回归 46 脚本 1194 项 | tag `v4.19.0` |
+| **v4.19.1** | 2026-09-11 | 插件主题接入便利化（AirDrop 协调清单 6.7）：core/theme.py 新增 resolve_effective_theme（light/dark 实际值、auto/非法交前端）+ inject_i18n 注入 theme_effective 到所有模板 + 独立 static/css/theme.css（:root 语义变量 + dark 覆盖，main.css 改 @import）+ multitool_demo 1.1.0 模板主题三件套样板，test_theme 扩展 A4（11/11），端到端渲染验证 17/17 + migrate_legacy_config 同路径防误删修复（test_frontend_permission 25/25），全量回归 46 脚本 1195 项 | tag `v4.19.1` |
 
 ## 3. 版本详情
 
@@ -350,6 +351,16 @@ P1 安全强化至此全部完成，形成纵深防御：**静态扫描 → 能�
 - **测试**：新增 tests/test_theme.py 10 项（A 白名单解析 / B Cookie 与用户配置优先级 / C auto 深浅解析与模板注入）；扩展 test_setup（双语断言 + 隔离目录复制语言包）；test_i18n 29 / test_setup 19 / test_page_router 21 / test_error_pages 12 / test_admin_api 69 / test_permission 20 全绿；浏览器端到端（setup/首页/登录/注册/登出/404/plugin_default）深色全部生效；plugin_default 截图确认。
 - **发布清单**：framework_manifest.py CORE_FILES 登记 core/theme.py；CI 补 test_theme。
 - **全量回归 46 脚本 1194 项 0 失败**。
+
+### 3.33 v4.19.1（2026-09-11，插件主题接入便利化）
+
+**插件主题便利化**（响应 AirDrop 主题协调清单 6.7）：此前插件页面默认不含主题接入、CSS 语义变量集内联在 main.css、BasePlugin 无主题辅助、主题切换组件仅框架页面 include。本次以"上下文 + 后端解析 API + 独立 theme.css"最小侵入方案补齐，示例插件展示多页面深色接入。
+
+- **后端解析 API**（`core/theme.py` 新增 `resolve_effective_theme(candidate=None)`）：`light`→light、`dark`→dark、`auto`/非法→`auto`（实际深浅交前端 `theme.js` 解析）；省略入参取 `get_theme()`（Cookie > 用户配置 > auto）。`auto` 语义诚实——后端无法读浏览器 `prefers-color-scheme`，只返回 `'auto'`。`app.py` inject_i18n 注入 `theme_effective` 到所有模板（含插件页面），插件模板可直接 `data-theme-init="{{ theme_effective }}"`。
+- **独立 theme.css**（`static/css/theme.css` 新增）：`:root` 浅色语义变量集 + `:root[data-theme="dark"]` 深色覆盖集；main.css 顶部改 `@import "theme.css";`（删除内联变量定义）。框架页面与插件共享同一套语义变量，深色覆盖单点维护。
+- **插件接入样板**（`examples/plugins/multitool_demo` 升 1.1.0，require 4.19.0）：4 个模板加主题三件套——`<html data-theme-init="{{ theme_effective }}">` + `<link /static/css/theme.css>` + `<script /static/js/theme.js>`；demo.css 末尾补 `:root[data-theme="dark"]` 覆盖映射到 theme.css 变量。manifest.json / examples/README.md 补深色接入说明。
+- **框架防御修复**（`core/frontend_tools.py` migrate_legacy_config）：旧版路径 `BASE_DIR/frontend_tools.json` 与新版 `FRONTEND_CONFIG_FILE` 解析到同一路径时（如隔离测试将 FRONTEND_CONFIG_FILE mock 到 BASE_DIR 根，或人为配置重合），不再把唯一一份有效配置当“冗余旧版”误删——新增同路径 normpath 判断直接跳过。修复前 test_frontend_permission 在隔离目录下 15 项工具 404（配置被 migrate 误删），修复后 25/25 全过。
+- **测试**：test_theme 扩展 A4（`resolve_effective_theme`：light/dark 实际值、auto/非法交前端），删冗余 C4/C5，11/11；主题相关回归子集全绿（theme 11 / i18n 29 / setup 19 / page_router 21 / error_pages 12 / admin_api 69）；示例插件打包验证（zip 内 version 1.1.0 与 require 4.19.0 一致）+ 模板 Jinja 可编译 + 端到端渲染验证 17/17（隔离目录加载 multitool_demo，主入口/子页默认 `data-theme-init="auto"`、Cookie dark 时 `="dark"`、theme.css/theme.js 注入、`/static/css/theme.css` 可访问、main.css 含 `@import`）。全量回归 46 脚本 1195 项 0 失败。
 
 ## 4. 发布实践沉淀
 

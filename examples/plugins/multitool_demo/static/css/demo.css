@@ -25,3 +25,29 @@
     background: #f8f9fa; border: 1px solid #e1e4e8; border-radius: 6px;
     padding: 10px; overflow-x: auto; font-size: 13px;
 }
+
+/* ============ v4.19 深色模式：复用 theme.css 语义变量 ============ */
+/* 插件页面跟随框架主题：theme.css 提供 :root 变量 + dark 覆盖，
+   此处只把 demo 组件映射到变量，无需自备深浅两套。 */
+:root[data-theme="dark"] body {
+    background: var(--bg);
+    color: var(--text);
+}
+:root[data-theme="dark"] .ftk-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+}
+:root[data-theme="dark"] .ftk-card h1 { color: var(--text); }
+:root[data-theme="dark"] .ftk-card h3 { color: var(--primary); }
+:root[data-theme="dark"] .ftk-muted { color: var(--muted); }
+:root[data-theme="dark"] .ftk-list a { color: var(--primary); }
+:root[data-theme="dark"] .ftk-card button { background: var(--primary); }
+:root[data-theme="dark"] .ftk-card textarea {
+    background: var(--input-bg); color: var(--text);
+    border-color: var(--input-border);
+}
+:root[data-theme="dark"] .ftk-card pre {
+    background: var(--code-bg); color: var(--code-text);
+    border-color: var(--border);
+}

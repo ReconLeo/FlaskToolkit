@@ -148,6 +148,14 @@ class MultiToolDemo(BasePlugin):
 - 子页 `/plugin/multitool_demo/text` 页面内静态 JS 调 `POST /api/multitool_demo/analyze`（user 权限，`plugin_common.js` 自动注入 CSRF）；
 - 子页 `/plugin/multitool_demo/hello/小明` 演示路径参数注入。
 
+**深色模式接入（v4.19，1.1.0）**：多模板页面演示插件如何跟随框架主题——
+
+- `<html lang="{{ lang }}" data-theme-init="{{ theme_effective }}">`（渲染上下文 `theme_effective` 由 context processor 注入，`auto`/`light`/`dark`）；
+- `<head>` 引 `theme.css`（`/static/css/theme.css`，复用 `:root` 语义变量）后再引自身 `demo.css`；
+- `<script src="/static/js/theme.js"></script>` 负责设 `<html data-theme>`（auto 跟随系统，可经 `/theme/<code>` 手动切换）；
+- `demo.css` 末尾写 `:root[data-theme="dark"]` 覆盖，把组件颜色映射到 theme.css 变量（`--card-bg`/`--border`/`--input-bg` 等），无需自备深浅两套。
+- 切换主题入口演示：导航栏框架主题切换组件（`_theme_switch.html`）或直接访问 `/theme/dark?next=/plugin/multitool_demo`。
+
 ### 6. corp_tools —— 企业内网工具箱（综合示例）
 
 面向企业内网生产环境的综合示例，系统性组合框架能力（详见 `documents/archive/Plugin-Design-corp_tools.md`）：
