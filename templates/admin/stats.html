@@ -48,18 +48,18 @@
 </div>
 
 <div class="card">
-    <div class="card-title">🖥️ {{ t('访问画像') }}<span style="font-size:12px; color:#95a5a6; font-weight:400; margin-left:8px;">（{{ t('登录用户记身份，游客记 IP') }}）</span></div>
+    <div class="card-title">🖥️ {{ t('访问画像') }}<span style="font-size:12px; color: var(--adm-text-light); font-weight:400; margin-left:8px;">（{{ t('登录用户记身份，游客记 IP') }}）</span></div>
     <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:16px; padding:4px 2px;">
         <div>
-            <div style="font-weight:600; margin-bottom:6px; color:#34495e;">👤 {{ t('用户 Top 10') }}</div>
+            <div style="font-weight:600; margin-bottom:6px; color: var(--adm-form-label);">👤 {{ t('用户 Top 10') }}</div>
             <div id="profileUsers" style="font-size:13px; line-height:2;"><span class="loading">{{ t('加载中...') }}</span></div>
         </div>
         <div>
-            <div style="font-weight:600; margin-bottom:6px; color:#34495e;">🌐 {{ t('来源 IP Top 10') }}</div>
+            <div style="font-weight:600; margin-bottom:6px; color: var(--adm-form-label);">🌐 {{ t('来源 IP Top 10') }}</div>
             <div id="profileIps" style="font-size:13px; line-height:2;"><span class="loading">{{ t('加载中...') }}</span></div>
         </div>
         <div>
-            <div style="font-weight:600; margin-bottom:6px; color:#34495e;">📱 {{ t('设备分布') }}</div>
+            <div style="font-weight:600; margin-bottom:6px; color: var(--adm-form-label);">📱 {{ t('设备分布') }}</div>
             <div id="profileDevices" style="font-size:13px; line-height:2.2;"><span class="loading">{{ t('加载中...') }}</span></div>
         </div>
     </div>
@@ -89,7 +89,7 @@
 </div>
 
 <div class="card">
-    <div class="card-title">🛡️ {{ t('运行期未授权行为') }}<span style="font-size:12px; color:#95a5a6; font-weight:400; margin-left:8px;">（{{ t('按插件聚合，点击建议声明可复制') }}）</span>
+    <div class="card-title">🛡️ {{ t('运行期未授权行为') }}<span style="font-size:12px; color: var(--adm-text-light); font-weight:400; margin-left:8px;">（{{ t('按插件聚合，点击建议声明可复制') }}）</span>
         <input type="text" id="auditFilter" placeholder="{{ t('搜索插件/建议声明...') }}" style="max-width:240px; margin-left:auto; font-size:13px;"
                oninput="renderAuditTable()">
     </div>
@@ -175,7 +175,7 @@
             return;
         }
         if (!series.length) {
-            box.innerHTML = '<span style="color:#95a5a6;">' + window.T('暂无数据') + '</span>';
+            box.innerHTML = '<span style="color: var(--adm-text-light);">' + window.T('暂无数据') + '</span>';
             return;
         }
         // 保证存在 canvas 容器（含稳定高度，Chart.js responsive 需要）
@@ -246,13 +246,13 @@
         document.getElementById('profileUsers').innerHTML = users.length
             ? users.map(u => `<div style="display:flex; justify-content:space-between; border-bottom:1px dashed #ecf0f1;">` +
                 `<span>👤 ${esc(u.username)}</span><b>${fmt(u.count)}</b></div>`).join('')
-            : '<span style="color:#95a5a6;">' + window.T('暂无登录用户访问') + '</span>';
+            : '<span style="color: var(--adm-text-light);">' + window.T('暂无登录用户访问') + '</span>';
         document.getElementById('profileIps').innerHTML = ips.length
             ? ips.map(u => `<div style="display:flex; justify-content:space-between; border-bottom:1px dashed #ecf0f1;">` +
                 `<span style="font-family:monospace; font-size:12px;">${esc(u.ip)}` +
-                (u.users && u.users.length ? ` <span style="color:#95a5a6; font-size:11px;">(${u.users.join('/')})</span>` : '') +
+                (u.users && u.users.length ? ` <span style="color: var(--adm-text-light); font-size:11px;">(${u.users.join('/')})</span>` : '') +
                 `</span><b>${fmt(u.count)}</b></div>`).join('')
-            : '<span style="color:#95a5a6;">' + window.T('暂无来源 IP') + '</span>';
+            : '<span style="color: var(--adm-text-light);">' + window.T('暂无来源 IP') + '</span>';
         document.getElementById('profileDevices').innerHTML = devNames.map(d => {
             const v = dev[d[0]] || 0;
             const w = Math.max(2, v / maxDev * 100);
@@ -312,7 +312,7 @@
             `<tr><td>${i + 1}</td><td><span class="badge badge-red">${esc(r.plugin)}</span></td>
              <td><code style="cursor:pointer;" onclick="copyCapability('${esc(r.capability)}')" title="${window.T('点击复制')}">${esc(r.capability)}</code></td>
              <td><b>${fmt(r.count)}</b></td>
-             <td style="font-family:monospace; font-size:12px; color:#888;">${esc(r.example)}</td></tr>`
+             <td style="font-family:monospace; font-size:12px; color: var(--adm-text-light);">${esc(r.example)}</td></tr>`
         ).join('');
     }
 

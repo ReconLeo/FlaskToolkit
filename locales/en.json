@@ -71,7 +71,10 @@
   "确认重置": "Confirm Reset",
   "__name__": "English",
   "__contributors": [
-    {"name": "ReconLeo", "url": "https://github.com/ReconLeo"}
+    {
+      "name": "ReconLeo",
+      "url": "https://github.com/ReconLeo"
+    }
   ],
   "显示": "Show",
   "记住用户名": "Remember username",
@@ -501,5 +504,11 @@
   "未加载": "Not loaded",
   "未加载原因": "Not loaded reason",
   "描述文件失效": "Broken descriptor",
-  "描述 json 非法，已回退插件类属性，capabilities 等声明被忽略": "Broken plugin descriptor JSON, fell back to class attrs; capabilities etc. ignored"
+  "描述 json 非法，已回退插件类属性，capabilities 等声明被忽略": "Broken plugin descriptor JSON, fell back to class attrs; capabilities etc. ignored",
+  "跟随系统": "System",
+  "浅色": "Light",
+  "深色": "Dark",
+  "主题": "Theme",
+  "切换主题": "Switch theme",
+  "自动": "Auto"
 }

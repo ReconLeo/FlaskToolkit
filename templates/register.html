@@ -1,17 +1,23 @@
 <!DOCTYPE html>
-<html lang="{{ lang }}">
+<html lang="{{lang}}" data-theme-init="{{ theme }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>{{ system_name }} · {{ t('用户注册') }}</title>
     <link rel="stylesheet" href="/static/css/main.css">
     <link rel="stylesheet" href="/static/css/mobile.css">
+<script src="/static/js/theme.js"></script>
 </head>
 <body>
     <div class="auth-page">
         <div class="auth-card">
         <div class="auth-lang" style="text-align:right; margin-bottom:10px;">
             {% for code, name in available_langs.items() %}{% if code != lang %}<a href="/lang/{{ code }}?next={{ request.path }}" style="font-size:13px; color:#666; text-decoration:none; margin-left:10px;">{{ name }}</a>{% endif %}{% endfor %}
+
+            <span style="color:#999; margin:0 6px;">|</span>
+            <a href="/theme/auto?next={{ request.path }}" style="font-size:13px; color:#666; text-decoration:none;">{{ t('跟随系统') }}</a>
+            <a href="/theme/light?next={{ request.path }}" style="font-size:13px; color:#666; text-decoration:none; margin-left:10px;">☀️ {{ t('浅色') }}</a>
+            <a href="/theme/dark?next={{ request.path }}" style="font-size:13px; color:#666; text-decoration:none; margin-left:10px;">🌙 {{ t('深色') }}</a>
         </div>
             <h2 class="auth-title">📝 {{ t('用户注册') }}</h2>
             <div id="registerForm">

@@ -2,7 +2,7 @@
 {% block title %}{{ t('插件管理') }} · {{ system_name }} {{ t('管理后台') }}{% endblock %}
 {% block head %}
 <style>
-    .file-info { font-size: 13px; color: #7f8c8d; margin-top: 8px; }
+    .file-info { font-size: 13px; color: var(--adm-text-muted); margin-top: 8px; }
     .file-info.error { color: #e74c3c; }
     .hidden { display: none !important; } /* v4.15.4：通用隐藏类（修复安装前确认区初始可见） */
     .drop-zone {
@@ -10,7 +10,7 @@
         text-align: center; cursor: pointer; transition: all 0.2s; background: #fafbfc;
     }
     .drop-zone:hover, .drop-zone.dragover { border-color: #3498db; background: #eef6fd; }
-    .drop-zone .drop-hint { font-size: 14px; color: #7f8c8d; }
+    .drop-zone .drop-hint { font-size: 14px; color: var(--adm-text-muted); }
     .drop-zone.dragover .drop-hint { color: #2980b9; }
     .upload-progress { height: 8px; background: #ecf0f1; border-radius: 4px; margin-top: 10px; overflow: hidden; }
     .upload-progress.hidden { display: none; }
@@ -60,7 +60,7 @@
 <div id="confirm-modal" class="modal">
     <div class="modal-content">
         <h3 id="modal-title" style="margin-bottom:12px;">{{ t('确认操作') }}</h3>
-        <p id="modal-message" style="color:#34495e; line-height:1.7;"></p>
+        <p id="modal-message" style="color: var(--adm-form-label); line-height:1.7;"></p>
         <div class="modal-buttons">
             <button class="btn btn-info" onclick="closeModal()">{{ t('取消') }}</button>
             <button class="btn btn-danger" id="modal-confirm-btn">{{ t('确认') }}</button>
@@ -96,7 +96,7 @@
                 </div>
             </div>
         </div>
-        <div class="form-group" style="font-size:13px; color:#7f8c8d;">
+        <div class="form-group" style="font-size:13px; color: var(--adm-text-muted);">
             <p id="upload-tip">{{ t('上传的 .zip 插件包需包含 plugin.json 和主插件 .py（可附带 templates/static 资源）。后端插件包将先展示安装前能力清单，确认后安装。') }}</p>
         </div>
         <!-- v4.10 安装前能力清单确认区 -->
@@ -331,8 +331,8 @@
             <div class="card" style="border-left:4px solid ${plugin.enabled ? '#3498db' : '#95a5a6'}; opacity:${plugin.enabled ? 1 : 0.7};">
                 <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px; margin-bottom:10px;">
                     <div>
-                        <h3 style="font-size:17px; color:#2c3e50; margin-bottom:6px;">
-                            ${plugin.title ? plugin.title : plugin.name} <span style="color:#95a5a6; font-weight:400; font-size:13px;">v${plugin.version}</span>
+                        <h3 style="font-size:17px; color: var(--adm-text); margin-bottom:6px;">
+                            ${plugin.title ? plugin.title : plugin.name} <span style="color: var(--adm-text-light); font-weight:400; font-size:13px;">v${plugin.version}</span>
                             ${plugin.builtin ? '<span class="badge badge-orange" style="margin-left:8px;">' + window.T('内置') + '</span>' : ''}
                             ${plugin.type === 'frontend' ? '<span class="badge badge-blue" style="margin-left:8px;">' + window.T('前端工具') + '</span>' : ''}
                             ${plugin.enabled ? '<span class="badge badge-green" style="margin-left:8px;">' + window.T('已启用') + '</span>' : '<span class="badge badge-red" style="margin-left:8px;">' + window.T('已禁用') + '</span>'}
@@ -342,7 +342,7 @@
                             ${pluginFrameworkBadge(plugin)}
                             ${pluginUpdateBadge(plugin)}
                         </h3>
-                        <div style="font-size:13px; color:#7f8c8d;">
+                        <div style="font-size:13px; color: var(--adm-text-muted);">
                             ${window.T('标识符')}：${plugin.name} ｜ ${window.T('分类')}：${plugin.category || '-'} ｜ ${window.T('作者')}：${plugin.author || '-'} ｜
                             ${plugin.require_framework_version ? `${window.T('要求框架')}：v${plugin.require_framework_version} ｜ ` : ''}
                             ${window.T('依赖')}：${(plugin.dependencies && plugin.dependencies.length) ? plugin.dependencies.join(', ') : window.T('无')} ｜
@@ -372,15 +372,15 @@
                         <button class="btn btn-danger btn-sm" onclick="confirmUninstall('${plugin.name}', '${plugin.type || 'backend'}')">${window.T('卸载')}</button>
                     </div>
                 </div>
-                <p style="font-size:14px; color:#34495e; margin-bottom:14px;">${plugin.description || ''}</p>
+                <p style="font-size:14px; color: var(--adm-form-label); margin-bottom:14px;">${plugin.description || ''}</p>
 
                 ${plugin.type !== 'frontend' ? `
                 <div style="display:none;" id="config-${plugin.name}">
                     <div style="border-top:1px solid #eee; padding-top:16px;">
-                        <h4 style="margin-bottom:14px; font-size:15px; color:#2c3e50;">${window.T('插件配置')}</h4>
+                        <h4 style="margin-bottom:14px; font-size:15px; color: var(--adm-text);">${window.T('插件配置')}</h4>
                         <div id="config-form-${plugin.name}" class="form-grid"
                              style="display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:12px;">
-                            <div style="color:#95a5a6; padding:10px;">${window.T('加载中')}...</div>
+                            <div style="color: var(--adm-text-light); padding:10px;">${window.T('加载中')}...</div>
                         </div>
                         <div style="text-align:right; margin-top:12px;">
                             <button class="btn btn-success btn-sm" onclick="saveConfig('${plugin.name}')">${window.T('保存配置')}</button>
@@ -583,7 +583,7 @@
                 const vs = typeof v === 'object' ? JSON.stringify(v) : String(v);
                 return '<div>· <code>' + escapeHtml(k) + '</code>: <code>' + escapeHtml(vs) + '</code></div>';
               }).join('')
-            : '<div style="color:#7f8c8d;">' + window.T('未声明 capabilities（默认按插件级权限执行）') + '</div>';
+            : '<div style="color: var(--adm-text-muted);">' + window.T('未声明 capabilities（默认按插件级权限执行）') + '</div>';
         const depHtml = (pv.dependencies || []).length
             ? (pv.dependencies || []).map(d => '<code>' + escapeHtml(d) + '</code>').join(', ')
             : window.T('无');
@@ -596,7 +596,7 @@
             ? '<span style="color:#e74c3c; font-weight:600;">' + window.T('静态扫描发现') + ' ' + sum.high + ' ' + window.T('项高风险') + '</span>'
             : '<span style="color:#27ae60;">' + window.T('静态扫描未发现高风险行为') + '</span>';
         const scopeHtml = (scope.paths_written && scope.paths_written.length) || (scope.network_endpoints && scope.network_endpoints.length)
-            ? '<div style="margin-top:4px; color:#7f8c8d;">' + window.T('写入路径') + ': ' + escapeHtml((scope.paths_written || []).join(', ')) + '<br>' + window.T('网络端点') + ': ' + escapeHtml((scope.network_endpoints || []).join(', ')) + '</div>'
+            ? '<div style="margin-top:4px; color: var(--adm-text-muted);">' + window.T('写入路径') + ': ' + escapeHtml((scope.paths_written || []).join(', ')) + '<br>' + window.T('网络端点') + ': ' + escapeHtml((scope.network_endpoints || []).join(', ')) + '</div>'
             : '';
         const missingHtml = (pv.cap_missing && pv.cap_missing.length)
             ? '<div style="color:#e67e22;">' + window.T('未声明行为') + ' ' + pv.cap_missing.length + ' ' + window.T('项') + ': ' + escapeHtml(pv.cap_missing.slice(0, 6).join(', ')) + '</div>'
@@ -614,7 +614,7 @@
             fwHtml +
             '<div><strong>' + escapeHtml(pv.title || pv.name) + '</strong> v' + escapeHtml(pv.version) +
             ' · ' + window.T('作者') + ' ' + escapeHtml(pv.author) + ' · ' + window.T('权限') + ' ' + escapeHtml(pv.permission) + '</div>' +
-            '<div style="color:#7f8c8d; margin-top:2px;">' + escapeHtml(pv.description || '') + '</div>' +
+            '<div style="color: var(--adm-text-muted); margin-top:2px;">' + escapeHtml(pv.description || '') + '</div>' +
             '<hr style="border:none; border-top:1px solid #e5e7eb; margin:8px 0;">' +
             '<div>' + window.T('依赖插件') + ': ' + depHtml + '</div>' +
             '<div>' + window.T('pip 依赖') + ': ' + pipHtml + '</div>' +

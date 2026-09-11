@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="{{ lang }}">
+<html lang="{{lang}}" data-theme-init="{{ theme }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
@@ -57,8 +57,22 @@
         header.navbar .auth-btn.login-btn:hover { color: #fff; background: rgba(255,255,255,0.1); border-color: #7f8c8d; }
         /* 公开页无后台菜单，隐藏 mobile.js 可能注入的汉堡按钮 */
         header.navbar .nav-toggle { display: none !important; }
+    
+        /* v4.19 深色模式：权限徽标 / 类型徽标深色底翻色（main.css 变量已生效于 body） */
+        :root[data-theme="dark"] .perm-public { background: #153a2c; color: #6fd39b; border-color: #2c5a44; }
+        :root[data-theme="dark"] .perm-user   { background: #16293a; color: #6cb5e8; border-color: #2a4a6b; }
+        :root[data-theme="dark"] .perm-admin  { background: #3a1f1e; color: #f2918c; border-color: #6b3230; }
+        :root[data-theme="dark"] .type-badge { background: #2f343a; color: #c8ccd0; border-color: #3a4046; }
+        :root[data-theme="dark"] .type-badge.string, :root[data-theme="dark"] .type-badge.text { background: #16293a; color: #6cb5e8; border-color: #2a4a6b; }
+        :root[data-theme="dark"] .type-badge.boolean, :root[data-theme="dark"] .type-badge.bool, :root[data-theme="dark"] .type-badge.boolbean { background: #2a1f3a; color: #c69fe8; border-color: #4a3a6b; }
+        :root[data-theme="dark"] .type-badge.integer, :root[data-theme="dark"] .type-badge.int, :root[data-theme="dark"] .type-badge.number { background: #3a3216; color: #e8c66f; border-color: #6b5c2a; }
+        :root[data-theme="dark"] .type-badge.float, :root[data-theme="dark"] .type-badge.double { background: #3a2816; color: #e8a36f; border-color: #6b4a2a; }
+        :root[data-theme="dark"] .type-badge.file { background: #3a1f1e; color: #f2918c; border-color: #6b3230; }
+        :root[data-theme="dark"] .type-badge.array, :root[data-theme="dark"] .type-badge.list { background: #153a2c; color: #6fd39b; border-color: #2c5a44; }
+        :root[data-theme="dark"] .type-badge.object, :root[data-theme="dark"] .type-badge.json, :root[data-theme="dark"] .type-badge.dict { background: #153a2f; color: #6fd3b4; border-color: #2c5a4a; }
     </style>
     <link rel="stylesheet" href="/static/css/mobile.css">
+<script src="/static/js/theme.js"></script>
 </head>
 <body>
     <!-- 顶部导航栏（与首页一致） -->
@@ -66,6 +80,7 @@
         <div class="container">
             <a class="navbar-brand" href="/">{{ system_name }}</a>
             <div class="navbar-right">
+                {% include '_theme_switch.html' %}
                 {% include '_lang_switch.html' %}
                 <a href="/" class="auth-btn login-btn">← {{ t('返回首页') }}</a>
             </div>

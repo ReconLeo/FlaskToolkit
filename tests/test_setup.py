@@ -50,6 +50,14 @@ _path_patches = {
 for _k, _v in _path_patches.items():
     setattr(global_var, _k, _v)
 os.makedirs(os.path.join(_tmp, 'data'), exist_ok=True)
+# 隔离目录补语言包，保证双语渲染能读到真实词条（i18n 按 BASE_DIR/locales 加载）
+import shutil
+_ld = os.path.join(_tmp, 'locales')
+os.makedirs(_ld, exist_ok=True)
+for _lf in ('en.json', 'zh-CN.json'):
+    _src = os.path.join(_PROJECT_ROOT, 'locales', _lf)
+    if os.path.isfile(_src):
+        shutil.copy(_src, os.path.join(_ld, _lf))
 
 import app as appmod
 app = appmod.app
@@ -78,6 +86,9 @@ def main():
         body = r.get_data(as_text=True)
         check("A2 GET /setup → 200", r.status_code == 200, f"status={r.status_code}")
         check("A3 向导页含框架版本号", global_var.FRAMEWORK_VERSION in body, '')
+        # 双语并显：默认简体中文为主显示（data-lang-active=zh-CN），同时含英文次要文本
+        check("A3b 默认主语言为简体中文", 'data-lang-active="zh-CN"' in body, '')
+        check("A3c 同时含英文次要文本", 'data-lang-active' in body and 'Welcome to FlaskToolkit' in body and 'en_t(' not in body, '')
 
         # POST /setup 完成初始化（选择简体中文）
         r = client.post('/setup', data={'lang': 'zh-CN'})

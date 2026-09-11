@@ -60,7 +60,18 @@ def register(app):
             return redirect('/')
         if os.path.exists(done_file):
             return redirect('/')
-        return render_template('setup.html', FRAMEWORK_VERSION=global_var.FRAMEWORK_VERSION)
+        # 双语并显：分别取简中/英文翻译器，以当前主语言高亮（默认简中为主、英文为次）
+        primary = i18n.get_lang() if i18n.get_lang() in ('zh-CN', 'en') else 'zh-CN'
+        secondary = 'en' if primary == 'zh-CN' else 'zh-CN'
+        return render_template(
+            'setup.html',
+            FRAMEWORK_VERSION=global_var.FRAMEWORK_VERSION,
+            zh_t=i18n.make_translator('zh-CN'),
+            en_t=i18n.make_translator('en'),
+            primary_lang=primary,
+            secondary_lang=secondary,
+            available_langs=i18n.available_languages(),
+        )
     @app.route('/login')
     def login_page():
         """全局登录页面"""
@@ -96,6 +107,22 @@ def register(app):
             next_url = '/'
         response = make_response(redirect(next_url))
         response.set_cookie(i18n.LANG_COOKIE, target, max_age=31536000, samesite='Lax')
+        return response
+
+    @app.route('/theme/<code>')
+    def switch_theme(code):
+        """切换界面主题（v4.19.0）：GET /theme/<code>?next=<redirect>，设置 theme Cookie 后跳转。
+
+        主题名须通过白名单校验（core.theme 注册表），防止路径注入。
+        """
+        from core import theme
+        target = theme.resolve_theme(code)
+        next_url = request.args.get('next', '/')
+        # 仅允许站内相对路径重定向，防开放重定向
+        if next_url.startswith('//') or '://' in next_url:
+            next_url = '/'
+        response = make_response(redirect(next_url))
+        response.set_cookie(theme.THEME_COOKIE, target, max_age=31536000, samesite='Lax')
         return response
 
     @app.route('/logout')

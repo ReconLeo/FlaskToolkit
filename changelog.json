@@ -1,10 +1,12 @@
 {
-  "latest_version": "4.18.0",
+  "latest_version": "4.19.0",
   "published_at": "2026-09-11",
-  "download_url": "https://github.com/ReconLeo/FlaskToolkit/releases/download/v4.18.0/FlaskToolkit-4.18.0-runtime.zip",
-  "sha256": "8fbaee9540910423e22d9f7cb3a928f9ec172a8efc336d35eb237c9166be3a3b",
+  "download_url": "https://github.com/ReconLeo/FlaskToolkit/releases/download/v4.19.0/FlaskToolkit-4.19.0-runtime.zip",
+  "sha256": "1e89de4df956b720fb3a7cdd338d6db1976a0d1974a87e58de20ae93f4dad893",
   "changes": [
-    "BasePlugin 新增 save_uploads/sanitize_filename/upload_dir 同步持久化上传助手",
-    "AirDrop upload_files/get_safe_filename 迁移"
+    "全量界面深色模式：core/theme.py 主题能力 + theme.js（auto/light/dark，跟随系统+手动覆盖）",
+    "setup.html 双语并显（主次语言切换）",
+    "main.css/error.css/admin/plugin_default 深色变量化，16 模板接入主题入口",
+    "新增 test_theme(10)，全量回归 46 脚本 1194 项"
   ]
 }

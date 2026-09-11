@@ -1,11 +1,12 @@
 <!DOCTYPE html>
-<html lang="{{ lang }}">
+<html lang="{{lang}}" data-theme-init="{{ theme }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>{{ t('Flask 工具集') }}</title>
     <link rel="stylesheet" href="/static/css/main.css">
     <link rel="stylesheet" href="/static/css/mobile.css">
+<script src="/static/js/theme.js"></script>
 </head>
 <body>
     <!-- 顶部导航栏 -->
@@ -21,6 +22,7 @@
                 <div id="authButton">
                     <!-- 动态显示登录/退出按钮 -->
                 </div>
+                {% include '_theme_switch.html' %}
                 {% include '_lang_switch.html' %}
             </div>
         </div>

@@ -49,6 +49,8 @@ CORE_FILES = [
     'core/events.py', 'core/plugin_deps.py',
     # v4.17 设备检测 + 移动端模板分发（app/routes/BasePlugin 引用，缺失即 import 崩）
     'core/device.py',
+    # v4.19 界面主题能力（app inject_i18n / routes public 引用 get_theme，缺失即 import 崩）
+    'core/theme.py',
     'plugins/__init__.py', 'plugins/base_plugin.py',
     'plugins/auth.py', 'plugins/user_manage.py',
 ]

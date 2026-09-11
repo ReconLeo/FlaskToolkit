@@ -51,7 +51,7 @@
     <!-- 版本更新 -->
     <div class="card">
         <h3 class="card-title">🔄 {{ t('版本更新') }}</h3>
-        <div id="updateBox" style="font-size:14px; line-height:1.9; color:#2c3e50;">
+        <div id="updateBox" style="font-size:14px; line-height:1.9; color: var(--adm-text);">
             <span class="loading">{{ t('检查中...') }}</span>
         </div>
         <div style="margin-top:12px;">
@@ -62,7 +62,7 @@
     <!-- v4.14 最近动态（审计日志最近 8 条） -->
     <div class="card">
         <h3 class="card-title">🕒 {{ t('最近动态') }}</h3>
-        <div id="recentAudit" style="font-size:13px; line-height:1.9; color:#2c3e50;">
+        <div id="recentAudit" style="font-size:13px; line-height:1.9; color: var(--adm-text);">
             <span class="loading">{{ t('加载中...') }}</span>
         </div>
         <div style="margin-top:10px;">
@@ -118,17 +118,17 @@
             .then(res => {
                 if (res.code !== 200) { box.innerHTML = `<span style="color:#c0392b;">${window.T('检查失败')}：${res.message || window.T('未知错误')}</span>`; return; }
                 const d = res.data || {};
-                if (!d.checked) { box.innerHTML = `<span style="color:#7f8c8d;">${d.message || window.T('暂无结果')}</span>`; return; }
+                if (!d.checked) { box.innerHTML = `<span style="color: var(--adm-text-muted);">${d.message || window.T('暂无结果')}</span>`; return; }
                 let html = `<p><strong>${window.T('当前版本')}</strong>：<span class="badge badge-blue">v${d.current_version}</span></p>`;
                 if (d.has_update) {
                     html += `<p><strong>${window.T('最新版本')}</strong>：<span class="badge badge-orange">v${d.latest_version}</span> <span style="color:#e74c3c; font-weight:600;">（${window.T('有新版本')}）</span></p>`;
-                    html += `<p style="font-size:12px; color:#7f8c8d;">${window.T('发布于')} ${d.published_at || "-"}</p>`;
+                    html += `<p style="font-size:12px; color: var(--adm-text-muted);">${window.T('发布于')} ${d.published_at || "-"}</p>`;
                     if (d.changes && d.changes.length) {
-                        html += `<ul style="margin:6px 0 0 18px; font-size:12px; color:#34495e;">` +
+                        html += `<ul style="margin:6px 0 0 18px; font-size:12px; color: var(--adm-form-label);">` +
                             d.changes.map(c => `<li>${c}</li>`).join("") + `</ul>`;
                     }
                     if (d.download_url) { html += `<p style="margin-top:8px;"><a href="${d.download_url}" target="_blank" rel="noopener" style="color:#2980b9;">${window.T('下载更新包')}</a> · <a href="https://github.com/ReconLeo/FlaskToolkit/blob/main/documents/%E6%9B%B4%E6%96%B0%E6%9C%BA%E5%88%B6%E8%AE%BE%E8%AE%A1-v4.8.0.md" target="_blank" rel="noopener" style="color:#2980b9;">${window.T('更新说明')}</a></p>`; }
-                    html += `<p style="margin-top:6px; font-size:12px; color:#95a5a6;">${window.T('升级操作请运行')} <code>python tools/update.py --check</code>（${window.T('详见设计文档')} / tools/update.py --help）</p>`;
+                    html += `<p style="margin-top:6px; font-size:12px; color: var(--adm-text-light);">${window.T('升级操作请运行')} <code>python tools/update.py --check</code>（${window.T('详见设计文档')} / tools/update.py --help）</p>`;
                 } else {
                     html += `<p><strong>${window.T('最新版本')}</strong>：<span class="badge badge-green">v${d.latest_version}</span> <span style="color:#27ae60;">${window.T('已是最新')}</span></p>`;
                 }
@@ -208,7 +208,7 @@
             .then(r => r.json()).then(res => {
                 const box = document.getElementById('recentAudit');
                 if (res.code !== 200 || !res.data || res.data.length === 0) {
-                    box.innerHTML = '<span style="color:#95a5a6;">' + window.T('暂无管理操作记录') + '</span>';
+                    box.innerHTML = '<span style="color: var(--adm-text-light);">' + window.T('暂无管理操作记录') + '</span>';
                     return;
                 }
                 box.innerHTML = res.data.map(a => {
@@ -218,13 +218,13 @@
                     const target = a.target ? '· ' + a.target : '';
                     const mark = a.result === 'ok' ? '✅' : (a.result === 'fail' ? '❌' : '');
                     return `<div style="border-bottom:1px dashed #ecf0f1; padding:4px 0;">` +
-                        `<span style="color:#95a5a6; font-size:12px;">${t}</span> ` +
+                        `<span style="color: var(--adm-text-light); font-size:12px;">${t}</span> ` +
                         `<strong>${actor}</strong> ${action} ${target} ${mark}` +
                         (a.ip ? ` <span style="color:#bdc3c7; font-size:12px;">(${a.ip})</span>` : '') +
                         `</div>`;
                 }).join('');
             }).catch(() => {
-                document.getElementById('recentAudit').innerHTML = '<span style="color:#95a5a6;">' + window.T('加载失败') + '</span>';
+                document.getElementById('recentAudit').innerHTML = '<span style="color: var(--adm-text-light);">' + window.T('加载失败') + '</span>';
             });
     }
 
@@ -249,7 +249,7 @@
                     [window.T('前端工具'), fmt(d.total_frontend_tools) + ' ' + window.T('项')],
                 ];
                 document.getElementById('sysInfoBody').innerHTML = rows.map(r =>
-                    `<tr><td style="width:130px; color:#7f8c8d; font-weight:600;">${r[0]}</td><td>${r[1]}</td></tr>`
+                    `<tr><td style="width:130px; color: var(--adm-text-muted); font-weight:600;">${r[0]}</td><td>${r[1]}</td></tr>`
                 ).join('');
                 // 内置插件
                 const builtins = (d.builtin_plugins || []).map(name =>

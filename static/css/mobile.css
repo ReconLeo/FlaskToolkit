@@ -113,3 +113,31 @@ body {
 @media (min-width: 481px) and (max-width: 768px) {
     .tools-grid { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* ---------- v4.19 plugin_default 移动端适配补全 ---------- */
+@media (max-width: 768px) {
+    /* 导航栏紧凑化 */
+    header.navbar { padding: 0 16px; }
+    header.navbar .navbar-brand { font-size: 15px; }
+    header.navbar .auth-btn.login-btn { padding: 5px 10px; font-size: 12px; }
+    /* 插件信息换行 */
+    .plugin-meta p { word-break: break-all; }
+    /* 权限/类型徽标窄屏：允许折行避免溢出 */
+    .perm-badge, .type-badge { white-space: nowrap; }
+    /* API 卡片内边距收紧 */
+    .api-card { padding: 14px; }
+    .api-title { font-size: 15px; flex-wrap: wrap; gap: 4px; }
+    /* 参数字段间距 */
+    .param-input { margin: 10px 0; }
+    .param-input label { font-size: 13px; word-break: break-all; }
+    /* 请求历史表格窄屏：压缩列 + 关键列截断 */
+    .history-table th:nth-child(1), .history-table td:nth-child(1) { display: none; }
+    .history-table th:nth-child(2), .history-table td:nth-child(2) { display: none; }
+    .history-table th, .history-table td { padding: 6px 8px; }
+    .history-path { max-width: 110px; }
+}
+@media (max-width: 400px) {
+    .api-path { font-size: 12px; }
+    .result-toolbar .btn { font-size: 11px; padding: 5px 8px; }
+    header.navbar .navbar-brand { font-size: 14px; }
+}

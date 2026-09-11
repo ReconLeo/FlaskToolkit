@@ -1,10 +1,52 @@
 <!DOCTYPE html>
-<html lang="{{ lang }}">
+<html lang="{{lang}}" data-theme-init="{{ theme }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>{% block title %}{{ system_name }} · {{ t('管理后台') }}{% endblock %}</title>
     <style>
+        :root {
+            --adm-bg: #f5f7fa;
+            --adm-nav-bg: #2c3e50;
+            --adm-nav-text: #fff;
+            --adm-nav-sub: #bdc3c7;
+            --adm-primary: #3498db;
+            --adm-primary-dark: #2980b9;
+            --adm-card-bg: #fff;
+            --adm-border: #e9ecef;
+            --adm-border-light: #f0f2f5;
+            --adm-text: #2c3e50;
+            --adm-text-light: #95a5a6;
+            --adm-text-muted: #7f8c8d;
+            --adm-form-label: #34495e;
+            --adm-input-bg: #fff;
+            --adm-input-border: #dde2e6;
+            --adm-th-bg: #f8f9fa;
+            --adm-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            --adm-shadow-hover: 0 6px 16px rgba(0,0,0,0.08);
+        }
+        /* v4.19 后台深色模式 */
+        :root[data-theme="dark"] {
+            --adm-bg: #1a1d21;
+            --adm-nav-bg: #181b1f;
+            --adm-nav-text: #e4e6eb;
+            --adm-nav-sub: #8a9096;
+            --adm-primary: #3498db;
+            --adm-primary-dark: #5dade2;
+            --adm-card-bg: #24282d;
+            --adm-border: #343a40;
+            --adm-border-light: #2a2f34;
+            --adm-text: #e4e6eb;
+            --adm-text-light: #6b7177;
+            --adm-text-muted: #9aa0a6;
+            --adm-form-label: #c8ccd0;
+            --adm-input-bg: #2c3136;
+            --adm-input-border: #3a4046;
+            --adm-th-bg: #2a2f34;
+            --adm-shadow: 0 2px 8px rgba(0,0,0,0.5);
+            --adm-shadow-hover: 0 6px 16px rgba(0,0,0,0.6);
+            color-scheme: dark;
+        }
         * {
             box-sizing: border-box;
             margin: 0;
@@ -13,7 +55,7 @@
                 "Microsoft YaHei", Arial, sans-serif;
         }
         body {
-            background: #f5f7fa;
+            background: var(--adm-bg);
             min-height: 100vh;
             display: flex;
             flex-direction: column;
@@ -143,29 +185,29 @@
         .page-title {
             font-size: 22px;
             font-weight: 700;
-            color: #2c3e50;
+            color: var(--adm-text);
         }
         .page-subtitle {
             font-size: 13px;
-            color: #95a5a6;
+            color: var(--adm-text-light);
             margin-top: 4px;
         }
         /* ---------- 通用卡片 ---------- */
         .card {
-            background: #fff;
+            background: var(--adm-card-bg);
             border-radius: 12px;
-            border: 1px solid #e9ecef;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            border: 1px solid var(--adm-border);
+            box-shadow: var(--adm-shadow);
             padding: 20px;
             margin-bottom: 20px;
         }
         .card-title {
             font-size: 16px;
             font-weight: 600;
-            color: #2c3e50;
+            color: var(--adm-text);
             margin-bottom: 16px;
             padding-bottom: 10px;
-            border-bottom: 2px solid #f0f2f5;
+            border-bottom: 2px solid var(--adm-border-light);
             display: flex;
             align-items: center;
             gap: 8px;
@@ -202,16 +244,17 @@
             margin-bottom: 6px;
             font-weight: 600;
             font-size: 13px;
-            color: #34495e;
+            color: var(--adm-form-label);
         }
         input[type="text"], input[type="number"], input[type="password"],
         select, textarea {
             width: 100%;
             padding: 8px 10px;
-            border: 1px solid #dde2e6;
+            border: 1px solid var(--adm-input-border);
             border-radius: 6px;
             font-size: 14px;
-            background: #fff;
+            background: var(--adm-input-bg);
+            color: var(--adm-text);
             transition: border-color 0.2s;
         }
         input:focus, select:focus, textarea:focus {
@@ -228,18 +271,18 @@
         table.data-table th {
             text-align: left;
             padding: 10px 12px;
-            background: #f8f9fa;
-            color: #34495e;
+            background: var(--adm-th-bg);
+            color: var(--adm-form-label);
             font-weight: 600;
-            border-bottom: 2px solid #e9ecef;
+            border-bottom: 2px solid var(--adm-border);
             white-space: nowrap;
         }
         table.data-table td {
             padding: 10px 12px;
-            border-bottom: 1px solid #f0f2f5;
-            color: #2c3e50;
+            border-bottom: 1px solid var(--adm-border-light);
+            color: var(--adm-text);
         }
-        table.data-table tr:hover td { background: #f8f9fa; }
+        table.data-table tr:hover td { background: var(--adm-th-bg); }
         /* ---------- 徽标 ---------- */
         .badge {
             display: inline-block;
@@ -262,25 +305,25 @@
             margin-bottom: 20px;
         }
         .stat-card {
-            background: #fff;
+            background: var(--adm-card-bg);
             border-radius: 12px;
             padding: 20px;
-            border: 1px solid #e9ecef;
-            border-left: 4px solid #3498db;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            border: 1px solid var(--adm-border);
+            border-left: 4px solid var(--adm-primary);
+            box-shadow: var(--adm-shadow);
             transition: all 0.25s ease;
         }
-        .stat-card:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,0.08); }
+        .stat-card:hover { transform: translateY(-2px); box-shadow: var(--adm-shadow-hover); }
         .stat-card .stat-value {
             display: block;
             font-size: 30px;
             font-weight: 800;
-            color: #2c3e50;
+            color: var(--adm-text);
             margin-bottom: 6px;
         }
         .stat-card .stat-label {
             font-size: 13px;
-            color: #7f8c8d;
+            color: var(--adm-text-muted);
         }
         .stat-card.c-blue { border-left-color: #3498db; }
         .stat-card.c-purple { border-left-color: #9b59b6; }
@@ -301,7 +344,7 @@
         }
         .modal.active { display: flex; }
         .modal-content {
-            background: #fff;
+            background: var(--adm-card-bg);
             padding: 28px;
             border-radius: 12px;
             width: 90%;
@@ -328,9 +371,9 @@
         .toast.error { background: #e74c3c; }
         .toast.warning { background: #f39c12; }
         /* ---------- 空状态 ---------- */
-        .empty-state { text-align: center; padding: 40px 20px; color: #95a5a6; }
+        .empty-state { text-align: center; padding: 40px 20px; color: var(--adm-text-light); }
         /* ---------- 加载 ---------- */
-        .loading { text-align: center; padding: 40px; color: #95a5a6; }
+        .loading { text-align: center; padding: 40px; color: var(--adm-text-light); }
         /* ---------- 响应式 ---------- */
         @media (max-width: 768px) {
             .navbar { flex-wrap: wrap; height: auto; padding: 8px 16px; }
@@ -341,6 +384,7 @@
     </style>
     {% block head %}{% endblock %}
     <link rel="stylesheet" href="/static/css/admin-mobile.css">
+<script src="/static/js/theme.js"></script>
 </head>
 <body>
     <nav class="navbar">
@@ -356,6 +400,7 @@
             </ul>
         </div>
         <div class="navbar-right">
+            {% include '_theme_switch.html' %}
             {% include '_lang_switch.html' %}
             <div class="user-box" id="userBox">
                 <div class="user-avatar" id="userAvatar">A</div>

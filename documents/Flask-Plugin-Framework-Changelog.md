@@ -54,6 +54,7 @@ Kaleido 同样开源（自托管题库系统）：[github.com/ReconLeo/Kaleido](
 | **v4.17.1** | 2026-09-11 | 签名功能验证 + 修复自更新/插件更新源验签 bug（_verify_feed_signature 漏传 signature，配公钥后签名永远失败）：新增 test_plugin_updates(8)·test_release_sign(5)，扩展 test_package_sign(25)·test_update_checker(50)，全量回归 43 脚本 1143 项 | tag `v4.17.1` |
 | **v4.17.2** | 2026-09-11 | AirDrop 框架协调 A+C 组：冲突报错附两处值 + 描述文件失效打标与后台徽章 + 源码布局自动映射（--src-layout）+ CRLF 规范提示，新增 test_src_layout(16)，全量回归 44 脚本 1161 项 | tag `v4.17.2` |
 | **v4.18.0** | 2026-09-11 | B 组同步持久化上传助手：BasePlugin 新增 upload_dir + sanitize_filename + save_uploads（单/多文件·净化·去重·大小+配额双预检·直接落盘），AirDrop upload_files/get_safe_filename 迁移，新增 test_plugin_uploads(21)，全量回归 45 脚本 1182 项 | tag `v4.18.0` |
+| **v4.19.0** | 2026-09-11 | 全量界面深色模式 + setup 双语并显：core/theme.py（auto/light/dark 注册表 + Cookie 与用户配置双存）+ theme.js（auto 解析与监听）+ main.css/error.css/admin 深色变量化 + 16 模板接入 + setup.html 双语主次切换，新增 test_theme(10)，全量回归 46 脚本 1194 项 | tag `v4.19.0` |
 
 ## 3. 版本详情
 
@@ -335,6 +336,20 @@ P1 安全强化至此全部完成，形成纵深防御：**静态扫描 → 能�
 - **AirDrop 迁移**：`get_safe_filename`→`self.sanitize_filename`（6 处调用 + 删除手写方法），`upload_files`→`save_uploads`（`dest_dir=self.upload_folder`，保持前端返回格式 200/400/413 等价）；删除多余 import re。
 - **文档**：Dev-Guide 5.4.2 新增 `save_uploads`/`sanitize_filename`/`upload_dir` 表项与同步落盘说明 + enforce 一致性；README 双版"统一文件传输"能力补充同步上传助手；CI 补 test_plugin_uploads。
 - **全量回归 45 脚本 1182 项 0 失败**。
+
+### 3.32 v4.19.0（2026-09-11，tag `v4.19.0`）
+
+**全量界面深色模式 + setup.html 双语并显**，主题能力收敛到 core/theme.py，前端经 `data-theme` + 语义 CSS 变量实现深浅切换，无独立主题文件、可向多主题扩展。
+
+- **后端主题能力**（`core/theme.py` 新增）：`available_themes()` 返回 auto/light/dark 注册表；`resolve_theme(candidate)` 白名单校验防注入、非法回退 auto；`get_theme()` 优先级 Cookie `theme` > 用户配置 `THEME` > auto。`global_var.py` CONFIG_ITEMS 新增 `THEME`（default auto）；`routes/public.py` 新增 `GET /theme/<code>` 路由（白名单 + next 开放重定向防护）；`app.py` inject_i18n 注入 `theme`/`available_themes`。
+- **前端**（`static/js/theme.js` 新增）：设置 `<html data-theme>`（dark/light）；auto 用 `matchMedia('(prefers-color-scheme: dark)')` 解析并监听变化；暴露 `window.Theme`（apply/switch/declared/current）；从 `<html data-theme-init>` 读初始主题。`templates/_theme_switch.html` 导航栏主题下拉组件（auto/light/dark 三链接）。
+- **CSS 深色**：main.css 补充 `:root` 语义变量（--input-bg/--muted/--chip-bg/--panel-tint/--req-*/--th-bg/--code-*）+ `:root[data-theme="dark"]` 覆盖集；error.css 自包含变量 + dark 覆盖；admin/base.html 插入 `--adm-*` 变量 + dark 覆盖（6 子页正文色变量化）；mobile.css 追加 plugin_default 移动端适配。
+- **模板接入**：16 个模板加 data-theme-init + theme.js；三导航栏页/login/register/setup/mobile 加入主题入口。
+- **setup.html 双语并显**：routes/public.py 注入 zh_t/en_t/primary_lang/secondary_lang/available_langs；模板每处文本 `.bi-zh`/`.bi-en` 双份渲染 + `<body data-lang-active>` + CSS 主次控制，内联 JS 切换主次语言与 `<html lang>`（迎合国际化）。
+- **语言包**：en.json 新增 6 主题词条（跟随系统/浅色/深色/主题/切换主题/自动）。
+- **测试**：新增 tests/test_theme.py 10 项（A 白名单解析 / B Cookie 与用户配置优先级 / C auto 深浅解析与模板注入）；扩展 test_setup（双语断言 + 隔离目录复制语言包）；test_i18n 29 / test_setup 19 / test_page_router 21 / test_error_pages 12 / test_admin_api 69 / test_permission 20 全绿；浏览器端到端（setup/首页/登录/注册/登出/404/plugin_default）深色全部生效；plugin_default 截图确认。
+- **发布清单**：framework_manifest.py CORE_FILES 登记 core/theme.py；CI 补 test_theme。
+- **全量回归 46 脚本 1194 项 0 失败**。
 
 ## 4. 发布实践沉淀
 

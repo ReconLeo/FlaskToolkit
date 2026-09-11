@@ -18,6 +18,50 @@
     --text-light: #7f8c8d;
     --radius: 8px;
     --shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+    /* v4.19 深色模式补充语义变量（公开页通用） */
+    --input-bg: #ffffff;
+    --input-border: #ddd;
+    --muted: #666;
+    --muted-light: #888;
+    --muted-lighter: #999;
+    --faint: #95a5a6;
+    --chip-bg: #f0f1f3;
+    --panel-tint: #f0f6fc;
+    --req-bg: #fffbe6;
+    --req-border: #ffe58f;
+    --req-text: #8c6d1f;
+    --th-bg: #f8f9fa;
+    --status-ok-bg: #f0f9f0;
+    --code-bg: #1e1e1e;
+    --code-text: #d4d4d4;
+}
+
+/* v4.19 深色模式（跟随系统 auto / 手动 dark）：覆盖公开页配色 */
+:root[data-theme="dark"] {
+    --bg: #1a1d21;
+    --card-bg: #24282d;
+    --border: #343a40;
+    --text: #e4e6eb;
+    --text-light: #9aa0a6;
+    --dark: #181b1f;
+    --shadow: 0 2px 12px rgba(0, 0, 0, 0.45);
+    --input-bg: #2c3136;
+    --input-border: #3a4046;
+    --muted: #a0a6ac;
+    --muted-light: #8a9096;
+    --muted-lighter: #7a8086;
+    --faint: #6b7177;
+    --chip-bg: #2f343a;
+    --panel-tint: #1f2a33;
+    --req-bg: #3a3320;
+    --req-border: #6b5d24;
+    --req-text: #e0c98a;
+    --th-bg: #2a2f34;
+    --status-ok-bg: #1e2b22;
+    --code-bg: #14161a;
+    --code-text: #c8ccd0;
+    /* 类型/权限徽标深色（保持可读性，白底文本翻转） */
+    color-scheme: dark;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -142,19 +186,19 @@ body {
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .tool-heat {
-    font-size: 12px; color: var(--text-light); background: #f0f1f3;
+    font-size: 12px; color: var(--text-light); background: var(--chip-bg);
     padding: 2px 7px; border-radius: 10px; margin-right: 6px; white-space: nowrap;
 }
 .tool-author {
-    font-size: 12px; color: var(--text-light); background: #f0f1f3;
+    font-size: 12px; color: var(--text-light); background: var(--chip-bg);
     padding: 2px 6px; border-radius: 3px; min-height: 20px;
     max-width: 80px; align-content: center; text-align: left;
 }
-.tool-description { color: #666; margin-bottom: 15px; line-height: 1.5; min-height: 40px; font-size: 14px; }
+.tool-description { color: var(--muted); margin-bottom: 15px; line-height: 1.5; min-height: 40px; font-size: 14px; }
 .tool-footer { display: flex; justify-content: space-between; align-items: center; }
 .tool-version { font-size: 12px; color: var(--text-light); }
-.empty-state { text-align: center; padding: 60px 20px; color: #95a5a6; }
-.empty-state h2 { margin-bottom: 8px; color: #7f8c8d; }
+.empty-state { text-align: center; padding: 60px 20px; color: var(--faint); }
+.empty-state h2 { margin-bottom: 8px; color: var(--text-light); }
 
 /* ---------------- 调试页（plugin_default） ---------------- */
 .page-header { margin-bottom: 24px; padding-bottom: 15px; border-bottom: 1px solid var(--border); }
@@ -181,15 +225,15 @@ body {
 .param-input label { display: block; font-weight: 500; margin-bottom: 4px; }
 .param-input input, .param-input textarea, .param-input select {
     padding: 8px 10px; width: 100%; border: 1px solid var(--border);
-    border-radius: 4px; font-size: 14px; background: #fff;
+    border-radius: 4px; font-size: 14px; background: var(--input-bg); color: var(--text);
 }
 .param-input input:focus, .param-input textarea:focus, .param-input select:focus {
     outline: none; border-color: var(--primary);
 }
 .param-input textarea { min-height: 60px; font-family: 'Consolas', 'Courier New', monospace; resize: vertical; }
-.param-hint { font-size: 12px; color: #888; margin-top: 4px; }
+.param-hint { font-size: 12px; color: var(--muted-light); margin-top: 4px; }
 .result {
-    margin-top: 12px; background: #1e1e1e; color: #d4d4d4; padding: 12px;
+    margin-top: 12px; background: var(--code-bg); color: var(--code-text); padding: 12px;
     border-radius: 4px; font-family: 'Consolas', 'Courier New', monospace;
     white-space: pre-wrap; overflow-x: auto;
 }
@@ -206,11 +250,11 @@ body {
 }
 .auth-title { text-align: center; margin-bottom: 24px; color: var(--text); font-size: 24px; }
 .form-item { margin-bottom: 18px; }
-.form-item label { display: block; margin-bottom: 8px; color: #666; font-size: 14px; }
+.form-item label { display: block; margin-bottom: 8px; color: var(--muted); font-size: 14px; }
 .input-wrap { position: relative; }
 .input-wrap input {
-    width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 4px;
-    font-size: 16px; background: #fff; transition: border-color 0.2s;
+    width: 100%; padding: 10px 12px; border: 1px solid var(--input-border); border-radius: 4px;
+    font-size: 16px; background: var(--input-bg); color: var(--text); transition: border-color 0.2s;
 }
 .input-wrap input:focus { outline: none; border-color: var(--primary); }
 .pwd-toggle {
@@ -219,15 +263,15 @@ body {
     font-size: 13px; cursor: pointer; padding: 4px 6px;
 }
 .pwd-toggle:hover { color: var(--primary); }
-.auth-tip { margin-top: 15px; text-align: center; color: #999; font-size: 12px; }
+.auth-tip { margin-top: 15px; text-align: center; color: var(--muted-lighter); font-size: 12px; }
 .auth-error { margin-top: 12px; color: var(--danger); text-align: center; font-size: 14px; display: none; }
 .auth-success { display: none; text-align: center; padding: 20px 0; }
 .status-icon {
     width: 56px; height: 56px; line-height: 56px; border-radius: 50%;
-    background: #f0f9f0; color: var(--success); font-size: 30px; margin: 0 auto 15px;
+    background: var(--status-ok-bg); color: var(--success); font-size: 30px; margin: 0 auto 15px;
 }
 .status-title { font-size: 20px; color: var(--text); margin-bottom: 10px; }
-.status-tip { font-size: 14px; color: #666; margin-bottom: 20px; }
+.status-tip { font-size: 14px; color: var(--muted); margin-bottom: 20px; }
 .auth-card .btn { width: 100%; }
 
 /* ---------------- 响应式 ---------------- */
@@ -239,7 +283,7 @@ body {
 
 /* ---------------- 裸插件调试页增强（v4.2 UI） ---------------- */
 .path-params {
-    background: #f0f6fc; border: 1px dashed var(--primary);
+    background: var(--panel-tint); border: 1px dashed var(--primary);
     border-radius: 6px; padding: 12px 14px; margin-bottom: 12px;
 }
 .path-params-title {
@@ -248,10 +292,10 @@ body {
 .path-param .param-input { margin: 8px 0; }
 
 .request-url {
-    margin-top: 10px; padding: 8px 12px; background: #fffbe6;
-    border: 1px solid #ffe58f; border-radius: 4px;
+    margin-top: 10px; padding: 8px 12px; background: var(--req-bg);
+    border: 1px solid var(--req-border); border-radius: 4px;
     font-family: 'Consolas', 'Courier New', monospace;
-    font-size: 13px; color: #8c6d1f; word-break: break-all;
+    font-size: 13px; color: var(--req-text); word-break: break-all;
 }
 .result-toolbar { margin-top: 10px; display: flex; gap: 8px; }
 .result-toolbar .btn { font-size: 12px; }
@@ -270,5 +314,5 @@ body {
 .history-table th, .history-table td {
     padding: 7px 10px; border-bottom: 1px solid var(--border); text-align: left;
 }
-.history-table th { color: var(--text-light); font-weight: 500; background: #f8f9fa; }
+.history-table th { color: var(--text-light); font-weight: 500; background: var(--th-bg); }
 .history-path { max-width: 480px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: 'Consolas', 'Courier New', monospace; }

@@ -13,12 +13,12 @@
     <!-- 关于项目 -->
     <div class="card">
         <h3 class="card-title">🚀 {{ t('关于项目') }}</h3>
-        <div style="font-size:14px; line-height:1.9; color:#2c3e50;">
+        <div style="font-size:14px; line-height:1.9; color: var(--adm-text);">
             <p style="margin-bottom:8px;"><strong style="font-size:15px;">{{ system_name }} {{ system_version }}</strong></p>
-            <p style="color:#7f8c8d; margin-bottom:8px;">{{ project_slogan }} —— {{ t('基于 Flask 的插件化全栈工具集，支持插件热重载、生命周期管理、前后端工具混合展示、可选鉴权与安全预设') }}。</p>
+            <p style="color: var(--adm-text-muted); margin-bottom:8px;">{{ project_slogan }} —— {{ t('基于 Flask 的插件化全栈工具集，支持插件热重载、生命周期管理、前后端工具混合展示、可选鉴权与安全预设') }}。</p>
             <p style="margin-bottom:8px;">👤 {{ t('作者') }}：<a href="{{ project_github }}" target="_blank" rel="noopener" style="color:#2980b9; font-weight:600; text-decoration:none;">{{ project_author }}</a></p>
             <p style="margin-bottom:8px;">⭐ {{ t('项目主页') }}：<a href="{{ project_github }}" target="_blank" rel="noopener" style="text-decoration:none; font-weight:600; color:#2980b9;">{{ t('GitHub 仓库') }}</a></p>
-            <p style="font-size:12px; color:#95a5a6; margin-bottom:0;">{{ t('系统名称/版本标签可经') }} <code>tools/config.py</code> {{ t('的') }} <code>SYSTEM_NAME</code> / <code>SYSTEM_VERSION_LABEL</code> {{ t('自定义，仅影响展示不影响内部逻辑') }}。</p>
+            <p style="font-size:12px; color: var(--adm-text-light); margin-bottom:0;">{{ t('系统名称/版本标签可经') }} <code>tools/config.py</code> {{ t('的') }} <code>SYSTEM_NAME</code> / <code>SYSTEM_VERSION_LABEL</code> {{ t('自定义，仅影响展示不影响内部逻辑') }}。</p>
         </div>
     </div>
 
@@ -57,7 +57,7 @@
     <!-- Factory Reset -->
     <div class="card">
         <h3 class="card-title">♻️ Factory Reset（{{ t('恢复出厂设置') }}）</h3>
-        <p style="font-size:13px; color:#7f8c8d; margin-bottom:16px;">
+        <p style="font-size:13px; color: var(--adm-text-muted); margin-bottom:16px;">
             {{ t('将部分/全部框架数据还原至安装初始状态') }}。<strong style="color:#e74c3c;">{{ t('重置操作不可撤销') }}</strong>，{{ t('请谨慎操作') }}。
         </p>
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:16px;">
@@ -107,7 +107,7 @@
                 </tbody>
             </table>
         </div>
-        <p style="font-size:12px; color:#95a5a6; margin-top:8px;">
+        <p style="font-size:12px; color: var(--adm-text-light); margin-top:8px;">
             {{ t('审计日志记录管理后台敏感操作（安装/更新/卸载/启用/禁用/重置）') }}，{{ t('存储于') }} <code>data/audit.log</code>，{{ t('Factory Reset 各范围均不会清除') }}。
         </p>
     </div>
@@ -116,7 +116,7 @@
 <div id="reset-modal" class="modal">
     <div class="modal-content">
         <h3 id="reset-modal-title" style="margin-bottom:12px;">{{ t('确认重置') }}</h3>
-        <p id="reset-modal-message" style="color:#34495e; line-height:1.7;"></p>
+        <p id="reset-modal-message" style="color: var(--adm-form-label); line-height:1.7;"></p>
         <div class="modal-buttons">
             <button class="btn btn-info" onclick="hideModal('reset-modal')">{{ t('取消') }}</button>
             <button class="btn btn-danger" id="reset-modal-confirm" onclick="doReset()">{{ t('确认重置') }}</button>
@@ -140,7 +140,7 @@
                 const d = res.data;
                 const rows = [
                     [window.T('系统名称'), d.system_name],
-                    [window.T('版本检查'), '<span id="sysVerLine" style="color:#7f8c8d;">' + window.T('待检查') + '</span>'],
+                    [window.T('版本检查'), '<span id="sysVerLine" style="color: var(--adm-text-muted);">' + window.T('待检查') + '</span>'],
                     [window.T('系统版本'), '<span class="badge badge-blue">' + d.system_version + '</span>'],
                     [window.T('框架版本'), '<span class="badge badge-blue">v' + d.framework_version + '</span>'],
                     [window.T('Python 版本'), d.python_version],
@@ -154,7 +154,7 @@
                         `<span class="badge badge-orange" style="margin-right:4px;">${n}</span>`).join('') || window.T('无')],
                 ];
                 document.getElementById('sysInfoBody').innerHTML = rows.map(r =>
-                    `<tr><td style="width:150px; color:#7f8c8d; font-weight:600;">${r[0]}</td><td>${r[1]}</td></tr>`
+                    `<tr><td style="width:150px; color: var(--adm-text-muted); font-weight:600;">${r[0]}</td><td>${r[1]}</td></tr>`
                 ).join('');
             }).catch(() => {});
     }
@@ -193,7 +193,7 @@
                         <td><span class="badge badge-blue">${a.action}</span></td>
                         <td>${a.target || '-'}</td>
                         <td>${a.result === 'ok' ? '<span class="badge badge-green">' + window.T('成功') + '</span>' : '<span class="badge badge-red">' + window.T('失败') + '</span>'}</td>
-                        <td style="font-size:12px; color:#7f8c8d;">${a.detail || ''}</td>
+                        <td style="font-size:12px; color: var(--adm-text-muted);">${a.detail || ''}</td>
                     </tr>`).join('');
             }).catch(() => {});
     }

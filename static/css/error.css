@@ -3,6 +3,38 @@
    设计风格：居中卡片 + 大号渐变错误码 + 状态图标 + 操作按钮
    ========================================================================== */
 
+:root {
+    --err-bg-top: #f5f7fa;
+    --err-bg-bottom: #eef2f7;
+    --err-card-bg: #ffffff;
+    --err-card-border: #e9ecef;
+    --err-shadow: 0 12px 40px rgba(0, 0, 0, 0.08);
+    --err-title: #2c3e50;
+    --err-message: #7f8c8d;
+    --err-footer: #95a5a6;
+    --err-btn-secondary-bg: #ecf0f1;
+    --err-btn-secondary-text: #34495e;
+    --err-btn-secondary-hover: #dfe6e9;
+    --err-lang-link: #7f8c8d;
+}
+
+/* v4.19 深色模式覆盖 */
+:root[data-theme="dark"] {
+    --err-bg-top: #1a1d21;
+    --err-bg-bottom: #121418;
+    --err-card-bg: #24282d;
+    --err-card-border: #343a40;
+    --err-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+    --err-title: #e4e6eb;
+    --err-message: #9aa0a6;
+    --err-footer: #6b7177;
+    --err-btn-secondary-bg: #2f343a;
+    --err-btn-secondary-text: #c8ccd0;
+    --err-btn-secondary-hover: #3a4046;
+    --err-lang-link: #9aa0a6;
+    color-scheme: dark;
+}
+
 * {
     box-sizing: border-box;
     margin: 0;
@@ -12,7 +44,7 @@
 body {
     font-family: system-ui, -apple-system, "Segoe UI", "PingFang SC",
         "Microsoft YaHei", Arial, sans-serif;
-    background: linear-gradient(135deg, #f5f7fa 0%, #eef2f7 100%);
+    background: linear-gradient(135deg, var(--err-bg-top) 0%, var(--err-bg-bottom) 100%);
     min-height: 100vh;
     display: flex;
     align-items: center;
@@ -27,11 +59,11 @@ body {
 }
 
 .error-card {
-    background: #ffffff;
+    background: var(--err-card-bg);
     border-radius: 16px;
     padding: 56px 40px 44px;
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.08);
-    border: 1px solid #e9ecef;
+    box-shadow: var(--err-shadow);
+    border: 1px solid var(--err-card-border);
 }
 
 .error-icon {
@@ -63,14 +95,14 @@ body {
 .error-title {
     font-size: 24px;
     font-weight: 600;
-    color: #2c3e50;
+    color: var(--err-title);
     margin-bottom: 14px;
 }
 
 .error-message {
     font-size: 15px;
     line-height: 1.7;
-    color: #7f8c8d;
+    color: var(--err-message);
     margin-bottom: 30px;
     word-break: break-word;
 }
@@ -106,12 +138,12 @@ body {
 }
 
 .error-btn-secondary {
-    background: #ecf0f1;
-    color: #34495e;
+    background: var(--err-btn-secondary-bg);
+    color: var(--err-btn-secondary-text);
 }
 
 .error-btn-secondary:hover {
-    background: #dfe6e9;
+    background: var(--err-btn-secondary-hover);
 }
 
 .error-btn-success {
@@ -126,7 +158,7 @@ body {
 
 .error-footer {
     margin-top: 20px;
-    color: #95a5a6;
+    color: var(--err-footer);
     font-size: 12px;
 }
 

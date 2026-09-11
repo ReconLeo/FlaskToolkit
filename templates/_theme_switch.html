@@ -1,0 +1,22 @@
+<!-- v4.19 界面主题切换（导航栏下拉式）：跟随系统 auto / 浅色 light / 深色 dark -->
+<div class="theme-switch" title="{{ t('切换主题') }}">
+    <button type="button" class="theme-btn">
+        {% if theme == 'dark' %}🌙{% elif theme == 'light' %}☀️{% else %}🌓{% endif %}
+        <span class="theme-label">{{ {'auto': t('自动'), 'light': t('浅色'), 'dark': t('深色')}[theme] }}</span> ▾
+    </button>
+    <div class="theme-menu">
+        <a href="/theme/auto?next={{ request.path }}" data-theme-code="auto">{{ t('跟随系统') }}</a>
+        <a href="/theme/light?next={{ request.path }}" data-theme-code="light">☀️ {{ t('浅色') }}</a>
+        <a href="/theme/dark?next={{ request.path }}" data-theme-code="dark">🌙 {{ t('深色') }}</a>
+    </div>
+</div>
+<style>
+.theme-switch{position:relative;display:inline-block;vertical-align:middle}
+.theme-btn{background:rgba(255,255,255,0.08);color:#fff;border:1px solid #7f8c8d;padding:6px 12px;border-radius:6px;font-size:13px;cursor:pointer;line-height:1.4;font-family:inherit}
+.theme-btn:hover{background:rgba(255,255,255,0.15);border-color:#95a5a6}
+.theme-menu{display:none;position:absolute;right:0;top:calc(100% + 6px);min-width:130px;background:#2c3e50;border:1px solid rgba(255,255,255,0.15);border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,0.3);z-index:1000;overflow:hidden;padding:4px 0}
+.theme-switch:hover .theme-menu,.theme-switch:focus-within .theme-menu{display:block}
+.theme-menu a{display:block;padding:8px 14px;color:#ecf0f1;text-decoration:none;font-size:13px;white-space:nowrap}
+.theme-menu a:hover{background:rgba(255,255,255,0.12);color:#fff}
+.theme-menu a.active{background:rgba(52,152,219,0.25);color:#fff}
+</style>
