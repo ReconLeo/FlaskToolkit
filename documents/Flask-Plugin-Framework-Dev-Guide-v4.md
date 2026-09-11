@@ -19,6 +19,8 @@
 - **Root 权限域与市场铺路（v4.15）**：framework 能力域三档（read/manage/core）、程序化插件管理服务层、插件级更新源。
 - **事件总线与真依赖解析（v4.16）**：进程内发布-订阅总线（插件间松耦合通信）、依赖版本约束 + Kahn 拓扑排序。
 - **移动端（v4.13/4.17）**：手机/平板/桌面自适应；v4.17 服务端 UA 检测分发独立移动端模板。
+- **统一文件传输（v4.18）**：BasePlugin 同步持久化上传助手 `save_uploads`（净化 + 去重 + 大小/配额双预检 + 直接落盘，单/多文件）。
+- **深色模式 + 双语并显（v4.19）**：全量界面深色适配（桌面 + 移动），auto/light/dark 跟随系统 + 手动覆盖；setup 双语主次切换。
 
 ---
 
@@ -59,6 +61,7 @@ FlaskToolkit/
 │   ├── events.py           #   事件总线（进程内发布-订阅，纯 stdlib，v4.16）
 │   ├── plugin_deps.py      #   插件依赖解析（semver + Kahn 拓扑 + 环检测，v4.16）
 │   ├── device.py           #   设备检测 + 移动端模板分发（UA 分类 / resolve_template，v4.17）
+│   ├── theme.py            #   界面主题能力（auto/light/dark 注册表 + 防注入解析，v4.19）
 
 │   └── utils.py               #   通用工具（端口、路径参数、上传大小校验、跨插件调用等）
 ├── routes/                    # 路由层（register(app) 注入）
@@ -83,12 +86,12 @@ FlaskToolkit/
 │   ├── desktop_launcher.py  #   桌面启动器（tkinter GUI，subprocess 启动服务，v4.11 M5；HTTPS 复选框 + 证书自动生成，v4.12）
 
 │   └── reset.py               #   深度重置工具（服务停止时使用，绕过运行时文件锁定）
-├── tests/                     # 回归测试套件（43 脚本 1143 项 + 端到端链路验证）
+├── tests/                     # 回归测试套件（46 脚本 1194 项 + 端到端链路验证）
 ├── templates/                 # 页面模板（首页/登录/错误码页 400-500/admin 管理后台/插件页）
 │   ├── admin/                 #   管理后台（dashboard / plugins / logs / stats / system）
 │   ├── frontend_tools/        #   前端工具模板
 │   └── plugins/               #   插件页面模板
-├── static/                    # 静态资源（css/main.css 统一设计体系 + error.css 错误页；js/plugin_common.js 统一鉴权前端 + main.js 公共脚本 + index/login/plugin_default/logout 页面脚本）
+├── static/                    # 静态资源（css/main.css 统一设计体系含深色变量集 + error.css 错误页；js/plugin_common.js 统一鉴权前端 + main.js 公共脚本 + theme.js 主题脚本 + _theme_switch.html 主题切换组件 + index/login/plugin_default/logout 页面脚本）
 ├── .github/workflows/ci.yml   # GitHub Actions CI 工作流
 ├── data/                      # 运行时数据（统计/审计/用户配置，已 gitignore）
 ├── logs/                      # 运行日志（已 gitignore）
@@ -512,13 +515,15 @@ def get_item(self, item_id):
 | 规则          | 说明                                                                                                                                                      |
 | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | name 三处一致 | `plugin.json.name` == 主 `.py` 文件名 == 插件类 `name`（AST 可提取时），任一不一致拒绝上传                                                                |
-| 冲突字段拒绝  | `version`/`title`/`author`/`permission`/`category`/`description`/`dependencies`/`require_framework_version` 两处同时声明且不一致 → 拒绝并报告具体冲突字段 |
+| 冲突字段拒绝  | `version`/`title`/`author`/`permission`/`category`/`description`/`dependencies`/`require_framework_version` 两处同时声明且不一致 → 拒绝并报告具体冲突字段及两处各自的值（v4.17.2，便于定位改哪边） |
 | 缺失补全      | `plugin.json` 缺失字段回退插件类属性（`version` 缺失用类兜底并告警）                                                                                      |
 | 对齐落盘      | 对齐后的完整描述落盘为 `plugins/<name>.json`，为运行时唯一权威                                                                                            |
 
 > **对开发者**：修改插件元信息（版本/标题/权限等）时，需同步更新 `plugin.json` 与插件类属性，否则上传/更新会被拒绝。
 >
 > 运行时插件扫描以落盘描述文件为权威（缺失字段保留类属性兜底，兼容存量无描述文件插件）；若描述文件 `name` 与类 `name` 不一致则跳过加载并报错。
+>
+> **描述文件失效打标（v4.17.2）**：运行时若插件落盘描述文件（`plugins/<name>.json`）**解析失败/损坏**（`JSONDecodeError`/`UnicodeDecodeError`/`OSError`），`core/plugin_cache` 会给该插件打 `meta_invalid` 标记（后台/调试页提示），并回退插件类属性兜底——否则 json 内 `capabilities`/`require_framework_version` 等声明会静默丢失，在 enforce 严格模式下莫名失败。`test_meta_e2e` 的“描述文件失效打标”用例固化该行为。
 
 #### 5.6.4 解压映射
 
@@ -718,6 +723,57 @@ python tools/package.py pack ./my_plugin -o my_plugin.zip --type backend --src-l
 3. 保持 JS 所需 DOM id（如 corp_tools 的 `#corp-health` 等），前端逻辑复用。
 4. `require_framework_version` 声明 `4.17.0`（使用移动端能力）。
 5. 平板/桌面仍渲染桌面端模板；不提供移动端模板的插件自动回退桌面端模板（兼容）。
+
+### 5.11 界面主题 / 深色模式（v4.19）
+
+**目标**：全量界面深色模式适配（桌面端 + 移动端），夜间使用友好；支持**跟随系统 + 手动覆盖**，并向多主题可扩展。纯 stdlib，无新增运行时依赖。
+
+#### 5.11.1 主题能力 core/theme.py
+
+| 函数/常量                          | 说明                                                                                                      |
+| --------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `THEME_COOKIE`                    | 主题 Cookie 名 `theme`                                                                                    |
+| `DEFAULT_THEME`                   | 默认主题 `auto`（跟随系统 prefers-color-scheme）                                                           |
+| `available_themes()`              | 返回可用主题映射 `{code: name}`（目前 `auto`/`light`/`dark`；在注册表新增即可扩展，前端 CSS 按 `[data-theme="<name>"]` 生效） |
+| `resolve_theme(candidate)`        | 白名单校验防注入：合法主题名原样返回，非法回退 `auto`（防路径注入 / 未知值）                              |
+| `get_theme()`                     | 解析当前请求主题：**Cookie `theme` > 用户配置 `THEME` > `auto`**（镜像 i18n 语言机制）                   |
+
+**优先级**（`get_theme`）：用户本次会话手动选择（Cookie `theme`，白名单校验）> 持久化用户配置 `THEME` > 跟随系统 `auto`。
+
+**路由**：`GET /theme/<code>`（`routes/public.py`）切换主题，仿 `/lang/<code>`：白名单校验 + `next` 开放重定向防护（`next_url.startswith('//') or '://' in next_url` → 回 `/`），成功写 `theme` Cookie 并跳转。`app.py` `inject_i18n` context_processor 注入 `theme` / `available_themes` 供模板使用。
+
+#### 5.11.2 前端主题脚本 theme.js
+
+`static/js/theme.js` 在页面加载时把 `<html data-theme>` 设为 `dark`/`light`（从 `<html data-theme-init>` 读初始主题）：
+
+- `auto`：用 `matchMedia('(prefers-color-scheme: dark)')` 解析当前系统偏好并**监听变化**（系统切换自动跟随）；
+- `light`/`dark`：固定浅色/深色，不随系统变化。
+- 暴露 `window.Theme`：`apply()`（应用）、`switch(code)`（切换并跳转 `/theme/<code>?next=`）、`declared`/`current`（声明/当前主题）。
+
+模板接入：页面 `<html data-theme-init="{{ theme }}">` + 引入 `theme.js` + （可选）导航栏主题切换组件 `_theme_switch.html`（auto/light/dark 三链接）。各页面独立入口（导航栏 / 认证页 / setup / mobile）。
+
+#### 5.11.3 深色 CSS 变量化
+
+- **main.css**：`:root` 补语义变量（`--input-bg`/`--muted`/`--chip-bg`/`--panel-tint`/`--req-*`/`--th-bg`/`--code-*` 等）+ `:root[data-theme="dark"]` 覆盖集，正文硬编码颜色变量化。
+- **error.css**：自包含 `:root` 变量 + `[data-theme="dark"]` 覆盖（错误页深色）。
+- **admin/base.html**：插入 `--adm-*` 变量 + `[data-theme="dark"]` 覆盖（后台 6 子页正文色变量化）。
+- **mobile.css / plugin_default.html**：深色徽标覆盖 + 移动端适配补全。
+- **可扩展**：新增主题只需在 `available_themes()` 注册名 + 补一份 `[data-theme="<name>"]` CSS 变量集，无需改 JS / 后端逻辑。
+
+> **范围约定**：深色适配覆盖框架公开页/后台/错误页/插件默认页（plugin_default）与移动端；**示例插件**（`templates/plugins/*`）不在框架深色范围，示例插件可自行提供深色样式。
+
+#### 5.11.4 setup.html 双语并显（v4.19）
+
+`/setup`（首次运行向导）支持**双语并显**（迎合国际化）：简体中文为主显示、英文为次显示；用户切换界面语言后自动把该语言设为主显示、另一语言为次显示。
+
+- 后端（`routes/public.py` setup_page GET）注入 `zh_t`/`en_t`（`make_translator('zh-CN'/'en')`）、`primary_lang`/`secondary_lang`/`available_langs`。
+- 模板每处文本 `.bi-zh`/`.bi-en` 双份渲染，`<body data-lang-active>` + CSS 控制主次（主实色、次淡灰小字）；内联 JS 切换 `data-lang-active` 与 `<html lang>`。
+
+#### 5.11.5 主题相关配置项
+
+| 配置项 | 默认值 | 说明 |
+| ------ | ------ | ---- |
+| `THEME` | `auto` | 界面主题（v4.19，可选 `auto`/`light`/`dark`，可扩展；`auto`=跟随系统 prefers-color-scheme；Cookie `theme` 可覆盖） |
 
 ---
 
@@ -1326,7 +1382,7 @@ FLASKTOOLKIT_HOST=0.0.0.0 FLASKTOOLKIT_PORT=8000 python app.py
 | `test_mdns.py`                | mDNS 服务注册（v4.11）：ServiceInfo 构造（新旧参数兼容）/ 启动停止幂等 / 依赖缺失降级                                                                                                                                                                                                                                                                                                                             | 22 项 |
 | `test_ip_watcher.py`          | IP 变化检测（v4.11）：快照比较 / 首次不报 / 启停与间隔控制                                                                                                                                                                                                                                                                                                                                                        | 15 项 |
 | `test_desktop_launcher.py`    | 桌面启动器（v4.11/v4.12）：配置写入/访问信息生成/启动与端口解析/**HTTPS 复选框与证书自动生成（v4.12）**                                                                                                                                                                                                                                                                                                           | 36 项 |
-| `test_setup.py`               | 首次运行向导 + 强制改密（v4.10 M4）：/setup 路由与标记 / 改密校验与踢会话 / must_change_pwd 标记                                                                                                                                                                                                                                                                                                                  | 17 项 |
+| `test_setup.py`               | 首次运行向导 + 强制改密（v4.10 M4）+ setup 双语并显（v4.19）：/setup 路由与标记 / 改密校验与踢会话 / must_change_pwd 标记 / 双语并显主次切换                                                                                                                                                                                                                                                                   | 19 项 |
 | `test_register.py`            | 邀请码自助注册（v4.10 M5）：邀请码生成消费 / pending 拦截 / 审核 API                                                                                                                                                                                                                                                                                                                                              | 25 项 |
 | `test_scaffold_tools.py`      | 脚手架 + 离线安装/卸载闭环（v4.10 M6）：scaffold 骨架 / install_plugin 安装升级降级拒绝 / uninstall 清理                                                                                                                                                                                                                                                                                                          | 53 项 |
 | `test_stats.py`               | 数据统计洞察（v4.14）：时间桶 + 访问画像双维数据模型 / dashboard 总览化 / 14 天趋势 + 错误 Top + 画像卡                                                                                                                                                                                                                                                                                                           | 55 项 |
@@ -1335,6 +1391,7 @@ FLASKTOOLKIT_HOST=0.0.0.0 FLASKTOOLKIT_PORT=8000 python app.py
 | `test_dependency.py`          | 依赖解析（v4.16）：dep_spec 解析 / semver 含预发布 / Kahn 拓扑 / 环 / 缺失排除                                                                                                                                                                                                                                                                                                                                    | 11 项 |
 | `test_plugin_events.py`       | BasePlugin 事件集成 + 示例演示（v4.16）：scheduler_demo 事件订阅/定时/手动发布/清空/清理防泄漏 + dependent_demo 跨插件事件来源归因                                                                                                                                                                                                                                                                                | 28 项 |
 | `test_device.py`              | 设备检测 + 移动端模板分发（v4.17）：UA 分类 / 配置开关 / resolve_template 分发 / 公开页移动端模板 / BasePlugin 移动端命名空间                                                                                                                                                                                                                                                                                     | 20 项 |
+| `test_theme.py`               | 界面主题（v4.19）：主题白名单解析与非法回退 / Cookie 与用户配置优先级 / auto 深浅解析 / 公开页 data-theme-init / 主题入口链接 / 开放重定向防护 / setup 双语主次切换                                                                                                                                                                                                                                            | 10 项 |
 
 ```bash
 cd FlaskToolkit   # 在项目根目录执行
@@ -1374,7 +1431,7 @@ python tests/test_network.py            # 41 项（网络与访问 v4.11 + 308 �
 python tests/test_mdns.py               # 22 项（mDNS 服务注册 v4.11，mock zeroconf，隔离目录）
 python tests/test_ip_watcher.py         # 15 项（IP 变化检测 v4.11，隔离目录）
 python tests/test_desktop_launcher.py   # 36 项（桌面启动器 v4.11 + HTTPS v4.12，隔离目录）
-python tests/test_setup.py             # 17 项（首次运行向导 + 强制改密 v4.10，隔离目录）
+python tests/test_setup.py             # 19 项（首次运行向导 + 强制改密 v4.10 + 双语并显 v4.19，隔离目录）
 python tests/test_register.py             # 25 项（自助注册 + 邀请码 + 审核 v4.10 M5，隔离目录）
 python tests/test_scaffold_tools.py  # 53 项（M6 脚手架 + 离线安装/卸载闭环，subprocess 驱动 CLI，隔离目录）
 python tests/test_stats.py               # 55 项（数据统计洞察 v4.14，隔离目录）
@@ -1383,7 +1440,8 @@ python tests/test_events.py              # 11 项（事件总线 v4.16，隔离�
 python tests/test_dependency.py          # 11 项（依赖解析 v4.16，隔离目录）
 python tests/test_plugin_events.py       # 28 项（BasePlugin 事件集成 + 示例演示 v4.16，隔离目录）
 python tests/test_device.py              # 20 项（设备检测 + 移动端模板分发 v4.17，隔离目录）
-# 合计 43 个脚本（本地全量实测）
+python tests/test_theme.py               # 10 项（界面主题 v4.19：主题解析/Cookie 优先级/setup 双语，隔离目录）
+# 合计 46 个脚本（本地全量实测）
 # （AirDrop 插件加载回归 test_airdrop_loader.py 8 项已移交 AirDrop 子项目维护，不入主仓库）
 ```
 
@@ -1436,8 +1494,9 @@ python tools/config.py profile <daily|strict|lan-open>   # 套用安全配置预
 | `UPDATE_CHECK_INTERVAL`      | 24                                | 版本检查间隔（小时，v4.8.0）                                                                                                                   |
 | `UPDATE_PUBLIC_KEY_PEM`      | （空）                            | 版本数据源签名公钥路径（配置后强制验签，v4.8.0）                                                                                               |
 | `LANGUAGE`                   | zh-CN                             | 系统显示语言（v4.9.0，可选值由 locales/ 语言包决定，Cookie `lang` 可覆盖）                                                                     |
+| `THEME`                      | auto                              | 界面主题（v4.19，可选 auto/light/dark，可扩展；auto=跟随系统 prefers-color-scheme；Cookie `theme` 可覆盖，见 5.11）                            |
 | `SYSTEM_NAME`                | FlaskToolkit                      | 系统显示名称（v4.7.0，仅装饰，不影响内部标识）                                                                                                 |
-| `SYSTEM_VERSION_LABEL`       | v4.17.0                           | 系统版本显示标签（v4.7.0，仅装饰，升级框架时建议同步更新）                                                                                     |
+| `SYSTEM_VERSION_LABEL`       | v4.19.0                           | 系统版本显示标签（v4.7.0，仅装饰，升级框架时建议同步更新）                                                                                     |
 | `PLUGIN_DATA_LIMIT_MB`       | 50                                | 单插件数据目录配额（MB，0=禁用，v4.9.0 见 10.10）                                                                                              |
 | `PLUGIN_DATA_TOTAL_LIMIT_MB` | 0                                 | 全部插件数据总量配额（MB，0=无限制，v4.9.2 见 10.11）                                                                                          |
 | `MDNS_ENABLED`               | false                             | mDNS 服务注册开关（v4.11，需重启生效，需 pip install zeroconf）                                                                                |

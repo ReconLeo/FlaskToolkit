@@ -36,7 +36,8 @@ Over time it grew into what it is today — a few highlights:
 - **Statistics**: a dashboard that answers “what’s actually going on” — runtime badge, cold-plugin hints, 14-day request trend, error Top list, and a per-user / per-IP access profile.
 - **Root domain & marketplace groundwork**: plugins can declare a `framework` capability tier (`read` / `manage` / `core`, `core` ≈ root) with audited writes, backed by a programmatic plugin-management service layer and per-plugin update feeds.
 - **Event bus & true dependency resolution**: a lightweight in-process pub/sub bus lets plugins talk without knowing who’s listening; dependencies resolve with version constraints and cycle detection.
-- **Ops & tooling**: version check + dual-backend updater, Factory Reset, backup/restore, startup self-check, integrity signing, plugin scaffolding & offline install/uninstall CLI, plus a **43-script regression suite and GitHub Actions CI**.
+- **Dark mode**: full-interface light/dark themes with `auto` (follow the OS) plus manual override — CSS variables keep it extensible to more themes; the first-run `setup` page also renders bilingual side by side.
+- **Ops & tooling**: version check + dual-backend updater, Factory Reset, backup/restore, startup self-check, integrity signing, plugin scaffolding & offline install/uninstall CLI, plus a **46-script regression suite and GitHub Actions CI**.
 
 The full feature specification lives in the [development guide](documents/Flask-Plugin-Framework-Dev-Guide-v4.md).
 
@@ -52,7 +53,7 @@ A self-hosted Flask plugin **framework** that turns scattered Python scripts and
 - **Auth is optional**: skip it for a guest-mode workspace, or install the `auth` plugin for login + three-level permission control (public / user / admin) with audit logs.
 - **Built-in admin panel**: dashboard, plugin management, logs, statistics, network & access, and system reset — plus per-plugin and global **data quotas**.
 - **Unified file transfer**: global upload limits with pre-save checks, Chinese-safe downloads, download stats and Range resume.
-- **Internationalized by design**: JSON language packs, a single `t()` across templates / backend / frontend, and per-page language switching.
+- **Internationalized by design**: JSON language packs, a single `t()` across templates / backend / frontend, per-page language switching, and a full light/dark **theme system** (follow the OS or override manually).
 - **Safety rails**: AST static scanning → capability cross-validation → runtime audit hooks, optional HTTPS, login lockout — enough for trusted LANs and intranet teams.
 - **Ops tooling**: backup / restore, Factory Reset, startup self-check, dual-backend (git / archive) updates, plugin scaffolding, and offline install / uninstall.
 - **Run it your way**: local-only (`127.0.0.1`) by default, or LAN-share with `FLASKTOOLKIT_HOST=0.0.0.0`; a desktop launcher, mDNS and one-click HTTPS make it painless.
@@ -195,7 +196,7 @@ python tests/test_theme.py                 # interface theme (v4.19): theme regi
 
 ## Edition Status
 
-- **Community Edition (v4.x)**: feature development continues with a deliberately controlled architectural scale, focused on small-LAN / personal-use scenarios; we maintain and release regularly (43-script regression suite + CI).
+- **Community Edition (v4.x)**: feature development continues with a deliberately controlled architectural scale, focused on small-LAN / personal-use scenarios; we maintain and release regularly (46-script regression suite + CI).
 - **Enterprise Edition (v5.x)**: planned to carry the long-term roadmap (refined permission model, process-level sandboxing, stricter CSP, enterprise identity integration, etc.). Due to limited team capacity, we are openly looking for maintainers to take over — see the [Enterprise Edition handover & roadmap](documents/Enterprise-Edition-Handover-Roadmap.md).
 
 ## Known Limitations
@@ -211,7 +212,7 @@ MIT License · contribution guidelines in [CONTRIBUTING.md](CONTRIBUTING.md) · 
 
 ### AI-Assisted Development Statement
 
-This project used AI-assisted programming tools during development, including but not limited to: code generation and refactoring, code review, test case authoring, and documentation writing. All AI-assisted content has been manually reviewed by the developer and is only merged after passing the project's own regression suite (`tests/`, 45 scripts / 1182 assertions) and startup integrity self-check.
+This project used AI-assisted programming tools during development, including but not limited to: code generation and refactoring, code review, test case authoring, and documentation writing. All AI-assisted content has been manually reviewed by the developer and is only merged after passing the project's own regression suite (`tests/`, 46 scripts / 1194 assertions) and startup integrity self-check.
 
 Transparency conventions for contributors:
 
