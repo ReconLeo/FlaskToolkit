@@ -1,12 +1,9 @@
 {
-  "latest_version": "4.17.0",
-  "published_at": "2026-09-10",
-  "download_url": "https://github.com/ReconLeo/FlaskToolkit/releases/download/v4.17.0/FlaskToolkit-4.17.0-runtime.zip",
-  "sha256": "a0ffc1f793928097c75ad480744fb14ffd663383469bc6b87ee27633ee7e01f4",
+  "latest_version": "4.17.1",
+  "published_at": "2026-09-11",
+  "download_url": "https://github.com/ReconLeo/FlaskToolkit/releases/download/v4.17.1/FlaskToolkit-4.17.1-runtime.zip",
+  "sha256": "99eb9e0e3e3c0927e94a5f220e7b3be3ba6553dbe870284e855ccd2cc654126c",
   "changes": [
-    "移动端/桌面端页面分离：core/device.py（UA 检测 detect_device/get_device/is_mobile + resolve_template/render 分发 + MOBILE_ENABLED/FORCE_MOBILE 配置），同 URL + 服务端 UA 分发独立模板，脱离 v4.13 桌面端 xxx_mobile.css 样式补充模式。",
-    "框架公开页移动端独立模板：templates/mobile/login.html·index.html + static/css/mobile-app.css 精简移动端布局层（触屏友好、单列卡片、大按钮）；登录页/首页 routes/public.py 改用 device.render 分发；错误页沿用响应式 base。后台 _admin_page 开放 mobile/admin/<template> 独立分发，后台沿用响应式保底。",
-    "BasePlugin 移动端能力：_resolve_template(template, mobile=True) 优先 plugins/<name>/mobile/ 命名空间；is_mobile_context()/mobile_template()；render()/render_plugin_page()/子页面路由移动端自动分发。插件接入移动端独立渲染只需放同名模板，无需改视图。",
-    "示例插件 corp_tools 1.1.0：新增 templates/plugins/corp_tools/mobile/ 下 4 个同名移动端独立模板（主入口 + health/links/notices），精简 DOM、触屏友好、脱离 corp_mobile.css；require_framework_version 4.17.0。新增 test_device 20 项，回归 41 脚本。"
+    "签名功能验证 + 修复自更新/插件更新源验签 bug"
   ]
 }

@@ -251,6 +251,37 @@ def main():
         check('路由：warn 缺清单包上传 200（放行）', r.status_code == 200,
               f"status={r.status_code} {r.get_data(as_text=True)[:80]}")
 
+        # 路由：签名包端到端（配置 PLUGIN_PUBLIC_KEY_PEM 后）
+        def sig_tool_zip(name, sign_key=None, tamper_sig=False):
+            """构造前端工具包（带 manifest，可选签名 / 可伪造签名）。"""
+            cfg = json.dumps({'name': name, 'version': '1.0.0', 'category': '测试'},
+                             ensure_ascii=False).encode('utf-8')
+            members = {'config.json': cfg, f'{name}.html': b'<html>x</html>'}
+            buf = make_zip(members)
+            with zipfile.ZipFile(io.BytesIO(buf), 'r') as _zf:
+                man = ps.make_manifest(_zf, 'frontend')
+            if sign_key is None:
+                return make_zip(members, man)
+            signed = ps.sign_manifest(man, sign_key, signer='路由测试')
+            if tamper_sig:
+                signed = dict(signed, signature={'algorithm': 'RSA-SHA256', 'value': 'AAAA',
+                                                 'signer': ''})
+            return make_zip(members, signed)
+
+        global_var.PACKAGE_INTEGRITY_MODE = 'strict'
+        global_var.PLUGIN_PUBLIC_KEY_PEM = pub
+        r = upload(sig_tool_zip('demo_sig', sign_key=priv), 'sig_ok')
+        check('路由：签名包+公钥上传 200', r.status_code == 200,
+              f"status={r.status_code} {r.get_data(as_text=True)[:80]}")
+        r = upload(sig_tool_zip('demo_sig2', sign_key=priv, tamper_sig=True), 'sig_tamper')
+        _bs = json.loads(r.get_data(as_text=True))
+        check('路由：签名被篡改上传 400（签名失败）',
+              r.status_code == 400 and '签名' in (_bs.get('message') or ''),
+              f"status={r.status_code} {r.get_data(as_text=True)[:80]}")
+        r = upload(sig_tool_zip('demo_sig3', sign_key=None), 'sig_nosig')
+        check('路由：未签名包+公钥上传 200（不强制签名）', r.status_code == 200,
+              f"status={r.status_code} {r.get_data(as_text=True)[:80]}")
+
         # 清理隔离目录
         for a, v in _saved_paths.items():
             if v is None:

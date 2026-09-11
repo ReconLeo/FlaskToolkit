@@ -198,6 +198,107 @@ try:
     r2 = check_for_update(force=True, feed_url='file:///' + ch_ok.replace('\\', '/'))
     check('合法数据源返回信息', r2 is not None and r2.latest_version == '9.9.9', repr(r2.latest_version if r2 else None))
     global_var.BASE_DIR = saved2
+
+    # ---------- 7. changelog 签名验证（UPDATE_PUBLIC_KEY_PEM） ----------
+    from cryptography.hazmat.primitives.asymmetric import rsa
+    from cryptography.hazmat.primitives import serialization
+    from core.package_sign import sign_manifest
+
+    _priv = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    priv_pem = _priv.private_bytes(
+        serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8,
+        serialization.NoEncryption())
+    pub_pem = _priv.public_key().public_bytes(
+        serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo)
+    priv_path = os.path.join(iso, 'sig_private.pem')
+    pub_path = os.path.join(iso, 'sig_public.pem')
+    with open(priv_path, 'wb') as f:
+        f.write(priv_pem)
+    with open(pub_path, 'wb') as f:
+        f.write(pub_pem)
+
+    def _sig_feed(path, sign=True):
+        """构造 changelog feed；feed 字段恰为 SIGNED_FIELDS 覆盖子集，签名摘要对齐。"""
+        feed = {'latest_version': '9.9.9', 'published_at': '2026-09-05',
+                'download_url': '', 'sha256': 'x', 'changes': ['签名变更']}
+        if sign:
+            s = sign_manifest(feed, priv_path, signer='test')
+            feed['signature'] = s['signature']
+        with io.open(path, 'w', encoding='utf-8') as f:
+            json.dump(feed, f, ensure_ascii=False)
+
+    saved3 = global_var.BASE_DIR
+    saved_upd_key = global_var._user_config.get('UPDATE_PUBLIC_KEY_PEM')
+    global_var.BASE_DIR = iso
+    cf = _cache_file()
+
+    # 未配置公钥 + 无签名 → 放行
+    sig1 = os.path.join(iso, 'feed_nosig.json')
+    _sig_feed(sig1, sign=False)
+    global_var._user_config['UPDATE_PUBLIC_KEY_PEM'] = ''
+    r3 = check_for_update(force=True, feed_url='file:///' + sig1.replace('\\', '/'))
+    check('自更新签名：未配置公钥无签名放行', r3 is not None and r3.latest_version == '9.9.9')
+
+    # 配置公钥 + 有效签名 → 通过
+    sig2 = os.path.join(iso, 'feed_ok.json')
+    _sig_feed(sig2, sign=True)
+    global_var._user_config['UPDATE_PUBLIC_KEY_PEM'] = pub_path
+    if os.path.exists(cf):
+        os.remove(cf)
+    r4 = check_for_update(force=True, feed_url='file:///' + sig2.replace('\\', '/'))
+    check('自更新签名：公钥+有效签名通过', r4 is not None and r4.latest_version == '9.9.9')
+
+    # 配置公钥 + 篡改字段 → 拒绝（返回 None，不写缓存）
+    sig3 = os.path.join(iso, 'feed_tamper.json')
+    _sig_feed(sig3, sign=True)
+    _tampered = json.load(io.open(sig3, encoding='utf-8'))
+    _tampered['latest_version'] = '10.0.0'
+    with io.open(sig3, 'w', encoding='utf-8') as f:
+        json.dump(_tampered, f, ensure_ascii=False)
+    if os.path.exists(cf):
+        os.remove(cf)
+    r5 = check_for_update(force=True, feed_url='file:///' + sig3.replace('\\', '/'))
+    check('自更新签名：公钥+篡改字段拒绝', r5 is None)
+    _cache5 = _read_cache() if os.path.exists(cf) else None
+    check('自更新签名：签名失败不写缓存', _cache5 is None or _cache5.get('latest_version') != '10.0.0')
+
+    # 配置公钥 + 无签名 → 拒绝
+    sig4 = os.path.join(iso, 'feed_nosig2.json')
+    _sig_feed(sig4, sign=False)
+    if os.path.exists(cf):
+        os.remove(cf)
+    r6 = check_for_update(force=True, feed_url='file:///' + sig4.replace('\\', '/'))
+    check('自更新签名：公钥+无签名拒绝', r6 is None)
+
+    # 配置公钥 + 公钥文件不存在 → 拒绝
+    sig5 = os.path.join(iso, 'feed_ok2.json')
+    _sig_feed(sig5, sign=True)
+    global_var._user_config['UPDATE_PUBLIC_KEY_PEM'] = os.path.join(iso, 'nope.pem')
+    if os.path.exists(cf):
+        os.remove(cf)
+    r7 = check_for_update(force=True, feed_url='file:///' + sig5.replace('\\', '/'))
+    check('自更新签名：公钥文件不存在拒绝', r7 is None)
+
+    # 配置错误公钥（另一对密钥）→ 拒绝
+    _other = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    wrong_pub = _other.public_key().public_bytes(
+        serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo)
+    wrong_path = os.path.join(iso, 'wrong.pem')
+    with open(wrong_path, 'wb') as f:
+        f.write(wrong_pub)
+    sig6 = os.path.join(iso, 'feed_ok3.json')
+    _sig_feed(sig6, sign=True)
+    global_var._user_config['UPDATE_PUBLIC_KEY_PEM'] = wrong_path
+    if os.path.exists(cf):
+        os.remove(cf)
+    r8 = check_for_update(force=True, feed_url='file:///' + sig6.replace('\\', '/'))
+    check('自更新签名：错误公钥拒绝', r8 is None)
+
+    global_var.BASE_DIR = saved3
+    if saved_upd_key is None:
+        global_var._user_config.pop('UPDATE_PUBLIC_KEY_PEM', None)
+    else:
+        global_var._user_config['UPDATE_PUBLIC_KEY_PEM'] = saved_upd_key
 finally:
     shutil.rmtree(iso, ignore_errors=True)
 

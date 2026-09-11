@@ -4,7 +4,7 @@
   <img src="https://github.com/ReconLeo/FlaskToolkit/actions/workflows/ci.yml/badge.svg" alt="CI">
   <img src="https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB?logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/License-MIT-yellow" alt="License">
-  <img src="https://img.shields.io/badge/version-4.17.0-blue" alt="Version">
+  <img src="https://img.shields.io/badge/version-4.17.1-blue" alt="Version">
 </p>
 
 > A Flask-based plugin **framework**: bring scattered Python plugins and pure-frontend tools into one unified runtime —
@@ -36,7 +36,7 @@ Over time it grew into what it is today — a few highlights:
 - **Statistics**: a dashboard that answers “what’s actually going on” — runtime badge, cold-plugin hints, 14-day request trend, error Top list, and a per-user / per-IP access profile.
 - **Root domain & marketplace groundwork**: plugins can declare a `framework` capability tier (`read` / `manage` / `core`, `core` ≈ root) with audited writes, backed by a programmatic plugin-management service layer and per-plugin update feeds.
 - **Event bus & true dependency resolution**: a lightweight in-process pub/sub bus lets plugins talk without knowing who’s listening; dependencies resolve with version constraints and cycle detection.
-- **Ops & tooling**: version check + dual-backend updater, Factory Reset, backup/restore, startup self-check, integrity signing, plugin scaffolding & offline install/uninstall CLI, plus a **41-script regression suite and GitHub Actions CI**.
+- **Ops & tooling**: version check + dual-backend updater, Factory Reset, backup/restore, startup self-check, integrity signing, plugin scaffolding & offline install/uninstall CLI, plus a **43-script regression suite and GitHub Actions CI**.
 
 The full feature specification lives in the [development guide](documents/Flask-Plugin-Framework-Dev-Guide-v4.md).
 
@@ -135,10 +135,10 @@ Detailed specs live in the [Flask Plugin Framework Development Guide](documents/
 
 ## Tests & CI
 
-`tests/` contains **41 scripts** of regression tests (isolated-directory mode, no pollution of project files); GitHub Actions runs them automatically on Python 3.10 / 3.11 / 3.12, covering permissions, plugin-package / frontend-tool chains, integrity signatures, uninstall manifests, Factory Reset, large-plugin multi-template page routing, file transfer (upload limits / Chinese-name downloads / Range), static security scanning, capability cross-validation, runtime audit hooks, i18n framework, plugin data quota, event bus & dependency resolution, device detection & mobile template dispatch, plugin scaffolding / offline install-uninstall CLI, per-plugin space cleanup, ops tools, etc.
+`tests/` contains **43 scripts** of regression tests (isolated-directory mode, no pollution of project files); GitHub Actions runs them automatically on Python 3.10 / 3.11 / 3.12, covering permissions, plugin-package / frontend-tool chains, integrity signatures, uninstall manifests, Factory Reset, large-plugin multi-template page routing, file transfer (upload limits / Chinese-name downloads / Range), static security scanning, capability cross-validation, runtime audit hooks, i18n framework, plugin data quota, event bus & dependency resolution, device detection & mobile template dispatch, plugin scaffolding / offline install-uninstall CLI, per-plugin space cleanup, ops tools, etc.
 
 <details>
-<summary>Expand: 41 test scripts</summary>
+<summary>Expand: 43 test scripts</summary>
 
 ```bash
 cd FlaskToolkit
@@ -153,7 +153,7 @@ python tests/test_frontend_chain.py        # frontend-tool chain end-to-end 23
 python tests/test_admin_api.py             # admin API 69
 python tests/test_factory_reset.py         # Factory Reset scope 39
 python tests/test_error_pages.py           # error-code pages 12
-python tests/test_package_sign.py          # integrity verification / signing 22
+python tests/test_package_sign.py          # integrity verification / signing 25
 python tests/test_plugin_cleanup.py        # uninstall installed_files manifest 23
 python tests/test_frontend_permission.py   # frontend-tool access control 25
 python tests/test_tools_ops.py             # ops tools backup/reset/config 19
@@ -167,7 +167,9 @@ python tests/test_root_domain.py            # Root domain & marketplace groundwo
 python tests/test_framework_manifest.py     # framework directory manifest (v4.15.1): single-source core/user-data lists + Root-domain path check 54
 python tests/test_root_demo.py              # example plugin root_demo (v4.15.1): framework:core Root read/write + contrast rejection 19
 python tests/test_audit_hook.py            # runtime audit hooks (v4.4.0): event mapping/stack attribution/observe/enforce 38
-python tests/test_update_checker.py     # update checker (v4.8.0): version compare / feed cache TTL / archive verify chain / zip-slip guard 43
+python tests/test_update_checker.py     # update checker (v4.8.0): version compare / feed cache TTL / archive verify chain / zip-slip guard / update-feed signature verify 50
+python tests/test_plugin_updates.py    # plugin update-feed signing (v4.15/v4.17.1): signed verified / tampered·unsigned rejected 8
+python tests/test_release_sign.py      # release --sign → update_checker verify chain (v4.17.1) 5
 python tests/test_i18n.py                  # i18n (v4.9.0): language packs / lookup chain / lang resolution / cookie switch / template render 29
 python tests/test_data_limit.py            # plugin data quota (v4.9.0-4.9.2): path judge / usage / storage:limit declaration / write-dir scope / upload pre-check / global total / TTL / disable 32
 python tests/test_setup.py               # first-run wizard + forced password change (v4.10 M4) 17
@@ -183,14 +185,14 @@ python tests/test_events.py                 # event bus (v4.16): priority / once
 python tests/test_dependency.py             # dependency resolution (v4.16): dep-spec parse / semver incl pre-release / Kahn topo / cycles / missing exclusion 11
 python tests/test_plugin_events.py          # BasePlugin event integration + example demos (v4.16): scheduler_demo events & manual trigger / dependent_demo cross-plugin subscription 28
 python tests/test_device.py                 # device detection + mobile template dispatch (v4.17): UA classification / config switches / resolve_template / public-page mobile template / BasePlugin mobile namespace 20
-# total: 41 scripts
+# total: 43 scripts
 ```
 
 </details>
 
 ## Edition Status
 
-- **Community Edition (v4.x)**: feature development continues with a deliberately controlled architectural scale, focused on small-LAN / personal-use scenarios; we maintain and release regularly (41-script regression suite + CI).
+- **Community Edition (v4.x)**: feature development continues with a deliberately controlled architectural scale, focused on small-LAN / personal-use scenarios; we maintain and release regularly (43-script regression suite + CI).
 - **Enterprise Edition (v5.x)**: planned to carry the long-term roadmap (refined permission model, process-level sandboxing, stricter CSP, enterprise identity integration, etc.). Due to limited team capacity, we are openly looking for maintainers to take over — see the [Enterprise Edition handover & roadmap](documents/Enterprise-Edition-Handover-Roadmap.md).
 
 ## Known Limitations
@@ -206,7 +208,7 @@ MIT License · contribution guidelines in [CONTRIBUTING.md](CONTRIBUTING.md) · 
 
 ### AI-Assisted Development Statement
 
-This project used AI-assisted programming tools during development, including but not limited to: code generation and refactoring, code review, test case authoring, and documentation writing. All AI-assisted content has been manually reviewed by the developer and is only merged after passing the project's own regression suite (`tests/`, 41 scripts / 1120 assertions) and startup integrity self-check.
+This project used AI-assisted programming tools during development, including but not limited to: code generation and refactoring, code review, test case authoring, and documentation writing. All AI-assisted content has been manually reviewed by the developer and is only merged after passing the project's own regression suite (`tests/`, 43 scripts / 1143 assertions) and startup integrity self-check.
 
 Transparency conventions for contributors:
 

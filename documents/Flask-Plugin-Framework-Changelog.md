@@ -51,6 +51,7 @@ Kaleido 同样开源（自托管题库系统）：[github.com/ReconLeo/Kaleido](
 | **v4.15.4** | 2026-09-09 | 稳定版体验优化：各页面语言切换 + 翻译工具 i18n_status.py（__contributors）+ 健壮性修复（HTTP 跳转端口容错/统计孤儿清理/汉堡隐藏等），全量回归 37 脚本 988 项 | tag `v4.15.4` |
 | **v4.16.0** | 2026-09-10 | 事件总线 + 插件真依赖解析：自研 core/events.py（发布-订阅 weakref 防泄漏 async 线程池）+ core/plugin_deps.py（版本约束 + Kahn 拓扑 + 环检测）+ BasePlugin 事件集成（on_event·emit_event·event_name·_cleanup_events）+ 卸载反向依赖检查 + scheduler_demo 1.2.0·dependent_demo 2.0.0 事件演示，全量回归 40 脚本 | tag `v4.16.0` |
 | **v4.17.0** | 2026-09-10 | 移动端/桌面端页面分离：core/device.py（UA 检测 + resolve_template 分发）+ templates/mobile/ 独立模板 + mobile-app.css + BasePlugin 移动端能力（is_mobile_context·mobile_template·render 分发）+ corp_tools 1.1.0 移动端独立模板演示，test_device 20 项 | tag `v4.17.0` |
+| **v4.17.1** | 2026-09-11 | 签名功能验证 + 修复自更新/插件更新源验签 bug（_verify_feed_signature 漏传 signature，配公钥后签名永远失败）：新增 test_plugin_updates(8)·test_release_sign(5)，扩展 test_package_sign(25)·test_update_checker(50)，全量回归 43 脚本 1143 项 | tag `v4.17.1` |
 
 ## 3. 版本详情
 
@@ -301,6 +302,16 @@ P1 安全强化至此全部完成，形成纵深防御：**静态扫描 → 能�
 - **BasePlugin 移动端能力（plugins/base_plugin.py）**：`_resolve_template(template, mobile=False)`（mobile=True 优先查找 `plugins/<name>/mobile/<template>`）；`is_mobile_context()`/`mobile_template()`；`render()`/`render_plugin_page()` 移动端自动分发；`routes/plugin.py` 子页面分发接入。插件接入移动端独立渲染只需放 `templates/plugins/<name>/mobile/` 同名模板。
 - **示例插件 corp_tools 升级 1.1.0**：新增 `templates/plugins/corp_tools/mobile/` 下 4 个同名移动端独立模板（主入口 + health/links/notices），精简 DOM、触屏友好、复用 mobile-app.css，脱离 corp_mobile.css 样式补充；require_framework_version 4.17.0；真实移动/桌面 UA 端到端验证通过。
 - **测试**：新增 tests/test_device.py 20 项（UA 分类 / 配置开关 / resolve_template 分发 / 公开页移动端模板 / BasePlugin 移动端命名空间，用 DictLoader 注入避免写工作区）；framework_manifest 登记 core/device.py；ci.yml 加 test_device；开发规范/README/examples 同步。
+
+### 3.29 v4.17.1（2026-09-11，tag `v4.17.1`）
+
+**签名功能验证 + 自更新/插件更新源验签 bug 修复**——补全"密钥存在时"签名特性测试，暴露并修复 `_verify_feed_signature` 构造验签 manifest 漏传 signature 字段的缺陷。
+
+- **修复（2 处）**：`core/update_checker.py`、`core/plugin_updates.py` 的 `_verify_feed_signature` 构造验签 manifest 时只取 SIGNED_FIELDS 字段、漏传 `signature`，导致 `verify_signature` 永远返回『未签名』拒绝——配置 `UPDATE_PUBLIC_KEY_PEM` 后自更新/插件更新源签名实际永远无法通过验证。修复：两处各补 `manifest['signature'] = d.get('signature')`。
+- **新增签名专项测试（2 个脚本）**：tests/test_plugin_updates.py（8 项，插件更新源签名：未配公钥放行 / 有效签名通过 / 篡改·无签名·错误公钥·公钥文件不存在拒绝 / 未声明更新源）；tests/test_release_sign.py（5 项，发布签名联动：release write_changelog --sign 产出含 signature / 配公钥验证通过 / 篡改拒绝 / 签名失败不写缓存 / 错误公钥拒绝）。
+- **扩展签名测试**：test_package_sign.py 22→25 项（路由端到端：配公钥后签名包 200 / 签名被篡改 400 / 未签名包 200）；test_update_checker.py 43→50 项（自更新签名验签 7 场景）。
+- **工具链实操**：tools/package.py genkey→pack --sign→verify 全流程验证（正确公钥通过 / 错误公钥拒绝 / 加料篡改拒绝）。
+- **全量回归 43 脚本 1143 项 0 失败**。
 
 ## 4. 发布实践沉淀
 

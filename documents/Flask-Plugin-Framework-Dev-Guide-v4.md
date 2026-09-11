@@ -83,7 +83,7 @@ FlaskToolkit/
 │   ├── desktop_launcher.py  #   桌面启动器（tkinter GUI，subprocess 启动服务，v4.11 M5；HTTPS 复选框 + 证书自动生成，v4.12）
 
 │   └── reset.py               #   深度重置工具（服务停止时使用，绕过运行时文件锁定）
-├── tests/                     # 回归测试套件（41 脚本 1120 项 + 端到端链路验证）
+├── tests/                     # 回归测试套件（43 脚本 1143 项 + 端到端链路验证）
 ├── templates/                 # 页面模板（首页/登录/错误码页 400-500/admin 管理后台/插件页）
 │   ├── admin/                 #   管理后台（dashboard / plugins / logs / stats / system）
 │   ├── frontend_tools/        #   前端工具模板
@@ -1240,7 +1240,7 @@ FLASKTOOLKIT_HOST=0.0.0.0 FLASKTOOLKIT_PORT=8000 python app.py
 | `test_admin_api.py`           | 管理端 API 单测（system/info、plugins、stats、logs、factory-reset scope 校验、上传 413/400、空间管理、能力预览两段式、单插件空间清理 purge-data v4.10、网络与访问页接口 v4.11）                                                                                                                                                                                                                                   | 69 项 |
 | `test_factory_reset.py`       | Factory Reset 范围测试（部分/全部删除与保留、内置插件保护、插件数据目录清理 v4.10 M6-Extra、空/非法 scope 无副作用）                                                                                                                                                                                                                                                                                              | 39 项 |
 | `test_error_pages.py`         | 统一错误码页面渲染（404/405 真实触发 + 400/401/403/500 模板，双环境无 auth/带 auth）                                                                                                                                                                                                                                                                                                                              | 12 项 |
-| `test_package_sign.py`        | 插件包完整性校验与签名专项（篡改/加料/缺失检测、签名验证、strict/warn/off 模式、路由集成）                                                                                                                                                                                                                                                                                                                        | 22 项 |
+| `test_package_sign.py`        | 插件包完整性校验与签名专项（篡改/加料/缺失检测、签名验证、strict/warn/off 模式、路由集成、配公钥后签名端到端（v4.17.1）                                                                                                                                                                                                                                                                                                                        | 25 项 |
 | `test_plugin_cleanup.py`      | 插件卸载 installed_files 清单专项（多 .py 包安装清单完整/卸载全清/clean_old 更新清理/越界路径防御）                                                                                                                                                                                                                                                                                                               | 23 项 |
 | `test_frontend_permission.py` | 前端工具访问控制（三层权限 + 改权限 API 鉴权/边界 + 静态资源一致 + update 保留 permission）                                                                                                                                                                                                                                                                                                                       | 25 项 |
 | `test_tools_ops.py`           | 开发运维工具回归（backup 创建/恢复、reset 范围、config 设置/非法值/unset）                                                                                                                                                                                                                                                                                                                                        | 19 项 |
@@ -1254,7 +1254,9 @@ FLASKTOOLKIT_HOST=0.0.0.0 FLASKTOOLKIT_PORT=8000 python app.py
 | `test_framework_manifest.py`  | 框架目录清单统一（v4.15.1）：selfcheck/update/backup 复用同一对象 + CORE_FILES/CORE_DIRS 完整性 + Root 域路径判定边界（含插件内容/自属目录豁免）+ is_user_data_path 语义 + BACKUP_ITEMS 派生                                                                                                                                                                                                                      | 54 项 |
 | `test_root_demo.py`           | 示例插件 root_demo（v4.15.1）：plugin.json 声明一致 + framework:core 授权/写核心放行/读核心/对照拒绝/自属豁免/模块可加载                                                                                                                                                                                                                                                                                          | 19 项 |
 | `test_audit_hook.py`          | 运行时审计钩子回归（v4.4.0）：事件映射（open 读写/删除族/sqlite/socket）/ 栈定位（plugins 帧/框架放行/嵌套归因）/ observe 聚合（按插件/建议声明/事件样本）/ enforce 阻断（异常传播/授权放行/自属豁免/fail-closed）/ 隔离集成（真实钩子+栈归因端到端/stats 按插件分组/重载清零/审计落盘/未污染）                                                                                                                   | 38 项 |
-| `test_update_checker.py`      | 版本检查推送（v4.8.0）：版本比较（parse_version/is_newer）/ 用户数据路径判定（v4.9.2 补 users/locales）/ zip slip 防护 / archive 校验链（sha256 必选 + 签名可选）/ 数据源缓存 TTL / 数据源结构校验                                                                                                                                                                                                                | 43 项 |
+| `test_update_checker.py`      | 版本检查推送（v4.8.0）：版本比较（parse_version/is_newer）/ 用户数据路径判定（v4.9.2 补 users/locales）/ zip slip 防护 / archive 校验链（sha256 必选 + 签名可选）/ 数据源缓存 TTL / 数据源结构校验 / 自更新签名验签（v4.17.1）                                                                                                                                                                                                                | 50 项 |
+| `test_plugin_updates.py`      | 插件级更新源签名（v4.15/v4.17.1）：未配公钥放行 / 有效签名通过 / 篡改·无签名·错误公钥·公钥文件不存在拒绝 / 未声明更新源 | 8 项 |
+| `test_release_sign.py`        | 发布签名联动（v4.17.1）：release --sign 产出含 signature / 配公钥验证通过 / 篡改拒绝 / 签名失败不写缓存 / 错误公钥拒绝 | 5 项 |
 | `test_i18n.py`                | i18n（v4.9.0）：语言包加载 / 查找链（插件合并与覆盖）/ 语言解析优先级 / 切换路由 / 模板渲染（中英） / 缺省回退 / 参数插值                                                                                                                                                                                                                                                                                         | 29 项 |
 | `test_data_limit.py`          | 插件数据配额（v4.9.0-4.9.2）：路径判定（data/temp/边界）/ 用量统计 / enforce 超限拒绝 / observe 记录 / TTL 缓存刷新 / 0 禁用 / **storage:limit 覆盖全局 / write 声明目录推导（uploads/ 场景）/ check_upload 预检 / 全局总量配额**                                                                                                                                                                                 | 32 项 |
 | `test_network.py`             | 网络与访问（v4.11/v4.12）：局域网地址发现/端口三级优先/访问地址组合/mDNS 集成/**HTTP→HTTPS 308 跳转与 Secure Cookie 四态（v4.12）**                                                                                                                                                                                                                                                                               | 41 项 |
@@ -1284,7 +1286,7 @@ python tests/test_frontend_chain.py   # 23 项（前端工具链路，隔离目�
 python tests/test_admin_api.py        # 69 项（管理端 API + purge-data + 网络接口，隔离目录）
 python tests/test_factory_reset.py    # 39 项（Factory Reset 范围，隔离目录）
 python tests/test_error_pages.py      # 12 项（错误码页面，隔离目录）
-python tests/test_package_sign.py     # 22 项（完整性校验/签名，隔离目录）
+python tests/test_package_sign.py     # 25 项（完整性校验/签名/配公钥签名端到端，隔离目录）
 python tests/test_plugin_cleanup.py    # 23 项（插件卸载 installed_files 清单，隔离目录）
 python tests/test_frontend_permission.py # 25 项（前端工具访问控制，隔离目录）
 python tests/test_tools_ops.py         # 19 项（backup/reset/config 运维工具，隔离目录）
@@ -1298,7 +1300,9 @@ python tests/test_root_domain.py         # 18 项（Root 域与市场骨架 v4.1
 python tests/test_framework_manifest.py   # 54 项（框架目录清单 v4.15.1，隔离目录）
 python tests/test_root_demo.py            # 19 项（示例插件 root_demo v4.15.1，隔离目录）
 python tests/test_audit_hook.py            # 38 项（运行时审计钩子回归 v4.4.0，隔离目录）
-python tests/test_update_checker.py     # 43 项（版本检查推送回归 v4.8.0，隔离目录）
+python tests/test_update_checker.py     # 50 项（版本检查推送回归 v4.8.0 + 自更新签名验签，隔离目录）
+python tests/test_plugin_updates.py    # 8 项（插件级更新源签名 v4.15/v4.17.1，隔离目录）
+python tests/test_release_sign.py      # 5 项（发布签名联动 v4.17.1，隔离目录）
 python tests/test_i18n.py                  # 29 项（i18n 回归 v4.9.0，隔离目录）
 python tests/test_data_limit.py            # 32 项（插件数据配额回归 v4.9.0-4.9.2，隔离目录）
 python tests/test_network.py            # 41 项（网络与访问 v4.11 + 308 跳转/Secure 判定 v4.12，隔离目录）
@@ -1314,7 +1318,7 @@ python tests/test_events.py              # 11 项（事件总线 v4.16，隔离�
 python tests/test_dependency.py          # 11 项（依赖解析 v4.16，隔离目录）
 python tests/test_plugin_events.py       # 28 项（BasePlugin 事件集成 + 示例演示 v4.16，隔离目录）
 python tests/test_device.py              # 20 项（设备检测 + 移动端模板分发 v4.17，隔离目录）
-# 合计 41 个脚本（本地全量实测）
+# 合计 43 个脚本（本地全量实测）
 # （AirDrop 插件加载回归 test_airdrop_loader.py 8 项已移交 AirDrop 子项目维护，不入主仓库）
 ```
 

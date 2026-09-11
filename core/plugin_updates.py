@@ -71,6 +71,7 @@ def _verify_feed_signature(d: dict) -> tuple:
     if not os.path.exists(pem):
         return False, f'公钥文件不存在: {pem}'
     manifest = {k: d.get(k) for k in SIGNED_FIELDS if k in d}
+    manifest['signature'] = d.get('signature')  # 必须带上 signature，否则 verify_signature 判为未签名
     try:
         from core.package_sign import verify_signature
         ok, msg = verify_signature(manifest, pem)
