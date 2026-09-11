@@ -113,7 +113,7 @@ workspace/
 temp/            # 框架临时（更新下载包也放这里，替换时自然跳过）
 ```
 
-**实现**：清单定义在 `tools/update.py` 单处（`USER_DATA_PATHS` 常量），git 后端以注释对齐 gitignore、archive 后端实际执行跳过；文档（开发规范/版本收尾-checklist）引用该常量，避免两份清单漂移。
+**实现**：清单定义在 `tools/update.py` 单处（`USER_DATA_PATHS` 常量），git 后端以注释对齐 gitignore、archive 后端实际执行跳过；文档（Dev-Guide-v4/Release-Wrapup-Checklist）引用该常量，避免两份清单漂移。
 
 ### 2.5 安全边界
 
@@ -141,7 +141,7 @@ temp/            # 框架临时（更新下载包也放这里，替换时自然�
 
 | 版本 | 内容 |
 |------|------|
-| **v4.8.0（本次）** | F1 全部（changelog.json + update_checker + 展示 + 配置项/预设）+ F4 archive 后端 + git 后端 + tools/release.py + 测试固化（update_checker 版本比较/缓存 TTL/校验链/archive 替换保留配置）+ 文档（开发规范/README 双版/Roadmap/版本收尾-checklist 增补） |
+| **v4.8.0（本次）** | F1 全部（changelog.json + update_checker + 展示 + 配置项/预设）+ F4 archive 后端 + git 后端 + tools/release.py + 测试固化（update_checker 版本比较/缓存 TTL/校验链/archive 替换保留配置）+ 文档（Dev-Guide-v4/README 双版/Roadmap-v4/Release-Wrapup-Checklist 增补） |
 
 ## 五、待办提醒（实施前勘察）
 

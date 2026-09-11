@@ -38,7 +38,7 @@
 - **事件总线与真依赖解析**：轻量进程内发布-订阅总线，插件间无需知道谁在监听即可通信；依赖解析支持版本约束 + 环检测。
 - **运维与工具链**：版本检查 + 双后端更新、Factory Reset、备份/恢复、启动自检、完整性签名、插件脚手架与离线安装/卸载 CLI，以及 **41 脚本回归套件与 GitHub Actions CI**。
 
-完整功能规格见[开发规范](documents/Flask插件框架开发规范-v4.0.md)。
+完整功能规格见[开发规范](documents/Flask-Plugin-Framework-Dev-Guide-v4.md)。
 
 坦白说，这框架的目标不是"再造一个 Django"：它站在 Flask、APScheduler、Werkzeug 这些巨人的肩膀上，把我需要的那部分想法落了地。它的信任模型是朴素的——**安装插件即信任其作者**：插件与框架同进程、无沙箱隔离（详见开发规范 10.1）。v4.15 的 **framework:core** 权限是"安装即信任"之上的唯一显式升级——一个可审计的 **root** 授予，允许插件修改/删除框架自身核心文件，后台用醒目标识并全程审计，且置于 MIT 协议之下（作者对高风险操作造成的损失概不负责）。在"安装即信任"之上，框架又叠加了纵深防御——静态扫描、能力声明交叉校验、运行时审计钩子——并支持可选鉴权 / HTTPS 与数据配额管控，足以支撑**可信局域网 / 企业内网**的日常工具运行；若要对公网对抗性环境开放，仍需自行评估风险（插件仍无沙箱）。
 
@@ -124,14 +124,14 @@ python examples/install_all.py                            # 一键安装 8 个�
 
 ## 文档
 
-详细规格都在 [Flask 插件框架开发规范](documents/Flask插件框架开发规范-v4.0.md)（插件开发、权限模型、前端工具规范、插件包格式、安全设计、运维工具）：
+详细规格都在 [Flask 插件框架开发规范](documents/Flask-Plugin-Framework-Dev-Guide-v4.md)（插件开发、权限模型、前端工具规范、插件包格式、安全设计、运维工具）：
 
 - [官方示例说明](examples/README.md)
-- [版本演进记录](documents/Flask插件框架-版本演进记录.md)
-- [Flask 插件框架 Roadmap](documents/Flask插件框架-Roadmap-v4.1.md)
-- [版本收尾 checklist](documents/版本收尾-checklist.md)
-- [GitHub Actions 上手与开源发布指南](documents/GitHub-Actions-上手与开源发布指南.md)
-- [Enterprise Edition 交接与路线（v5.x）](documents/Enterprise-Edition-交接与路线.md)
+- [版本演进记录](documents/Flask-Plugin-Framework-Changelog.md)
+- [Flask 插件框架 Roadmap](documents/Flask-Plugin-Framework-Roadmap-v4.md)
+- [版本收尾 checklist](documents/Release-Wrapup-Checklist.md)
+- [GitHub Actions 上手与开源发布指南](documents/GitHub-Actions-Guide.md)
+- [Enterprise Edition 交接与路线（v5.x）](documents/Enterprise-Edition-Handover-Roadmap.md)
 
 ## 测试与 CI
 
@@ -191,7 +191,7 @@ python tests/test_device.py                 # 设备检测 + 移动端模板分�
 ## 版本状态
 
 - **Community Edition（v4.x）**：功能开发持续进行，但架构规模有意识控制——专注小型局域网/个人用户场景，我们定期维护与发布（41 脚本回归套件 + CI）。
-- **Enterprise Edition（v5.x）**：规划承载远期路线（权限模型细化、进程级沙箱、CSP 收紧、企业身份对接等）。因当前小团队开发能力有限，公开寻求接手者——详见 [Enterprise Edition 交接与路线](documents/Enterprise-Edition-交接与路线.md)。
+- **Enterprise Edition（v5.x）**：规划承载远期路线（权限模型细化、进程级沙箱、CSP 收紧、企业身份对接等）。因当前小团队开发能力有限，公开寻求接手者——详见 [Enterprise Edition 交接与路线](documents/Enterprise-Edition-Handover-Roadmap.md)。
 
 ## 已知局限
 

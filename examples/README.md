@@ -150,7 +150,7 @@ class MultiToolDemo(BasePlugin):
 
 ### 6. corp_tools —— 企业内网工具箱（综合示例）
 
-面向企业内网生产环境的综合示例，系统性组合框架能力（详见 `documents/插件设计-corp_tools.md`）：
+面向企业内网生产环境的综合示例，系统性组合框架能力（详见 `documents/archive/Plugin-Design-corp_tools.md`）：
 
 - **服务健康检查**：`scheduled_tasks` 每 60s 定时探测内网服务（HTTP HEAD→GET，超时 3s），结果缓存至 `plugins/data/corp_tools/health.json`（`get_data_path` 自属路径，capabilities 隐式豁免）；网络出站经 `network:http` capabilities 白名单授权（审计钩子"防火墙"语义）；
 - **内部工具导航**：配置驱动链接列表（`load_config/save_config`），按当前用户角色（public/user/admin）过滤展示；

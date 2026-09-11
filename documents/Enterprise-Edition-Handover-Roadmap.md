@@ -69,7 +69,7 @@ Community 在推进中已将若干偏企业/生态的能力落地，可直接作
 
 ## 三、架构地图（接手必读）
 
-> 详细规格以 `documents/Flask插件框架开发规范-v4.0.md` 为唯一权威出处（目录树、API、插件格式），本节为模块职责速览。
+> 详细规格以 `documents/Flask-Plugin-Framework-Dev-Guide-v4.md` 为唯一权威出处（目录树、API、插件格式），本节为模块职责速览。
 
 ### 3.1 顶层结构与启动链路
 
@@ -158,7 +158,7 @@ for t in tests/test_*.py; do python "$t"; done
 ### 4.2 发布流程（版本收尾）
 
 1. 功能/修复合入 → 全量回归 988 项；
-2. 按 `documents/版本收尾-checklist.md` 逐项核对（版本号三处同步 / 配置核对 / 数据路径迁移 / 检修一致性 / 示例同步 / 行尾 / 回归 / **文档双同步** / 提交推送 / 记忆沉淀）；
+2. 按 `documents/Release-Wrapup-Checklist.md` 逐项核对（版本号三处同步 / 配置核对 / 数据路径迁移 / 检修一致性 / 示例同步 / 行尾 / 回归 / **文档双同步** / 提交推送 / 记忆沉淀）；
 3. 发布包：`python tools/release.py --bump-version X.Y.Z` → `--build`（精简包）或 `--build-full`（全量包）/ `--include src:dest`（定制包）→ 上传 GitHub Release → `write_changelog --sign` 重新生成 changelog.json；
 4. 企业内网升级：`python tools/update.py check/backup/apply/rollback`（archive 后端自动跳过 USER_DATA_PATHS）。
 
@@ -174,7 +174,7 @@ for t in tests/test_*.py; do python "$t"; done
 **如果你是潜在接手者（个人或团队）**：
 
 1. 先通读：README（门面）→ 本文件（交接/路线/架构）→ 开发规范（规格）→ Roadmap（历史路线）；
-2. 运行测试与启动服务，动手尝试插件开发（参考 `examples/` 官方示例与 `documents/插件设计-corp_tools.md`）；
+2. 运行测试与启动服务，动手尝试插件开发（参考 `examples/` 官方示例与 `documents/archive/Plugin-Design-corp_tools.md`）；
 3. 对 Enterprise 路线（第二章）中感兴趣的能力，通过 GitHub Issue 发起讨论或直接提交设计提案；
 4. 若希望 fork 独立演进：请保留 Community 分支的维护通道（建议上游 Community 继续回 PR），并保持 LICENSE 兼容（MIT 允许商业使用，保留署名）。
 

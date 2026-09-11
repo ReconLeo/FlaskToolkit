@@ -1,6 +1,6 @@
 # test_server/ — FlaskToolkit 压力与多机归因测试工具
 
-承接 `documents/HTTPS与反向代理稳定性评估-2026-09-06.md` 的 **阶段 3（并发/大文件/长稳压力）** 与 **阶段 4（多机 IP 归因复测）**。本目录为测试脚手架，与框架运行时隔离，不进入框架 core/plugins 目录。
+承接 `documents/archive/HTTPS-RevProxy-Stability-Evaluation.md` 的 **阶段 3（并发/大文件/长稳压力）** 与 **阶段 4（多机 IP 归因复测）**。本目录为测试脚手架，与框架运行时隔离，不进入框架 core/plugins 目录。
 
 ## 目录结构
 

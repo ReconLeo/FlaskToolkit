@@ -38,7 +38,7 @@ Over time it grew into what it is today — a few highlights:
 - **Event bus & true dependency resolution**: a lightweight in-process pub/sub bus lets plugins talk without knowing who’s listening; dependencies resolve with version constraints and cycle detection.
 - **Ops & tooling**: version check + dual-backend updater, Factory Reset, backup/restore, startup self-check, integrity signing, plugin scaffolding & offline install/uninstall CLI, plus a **41-script regression suite and GitHub Actions CI**.
 
-The full feature specification lives in the [development guide](documents/Flask插件框架开发规范-v4.0.md).
+The full feature specification lives in the [development guide](documents/Flask-Plugin-Framework-Dev-Guide-v4.md).
 
 To be honest, this framework's goal is not to "reinvent Django": it stands on the shoulders of giants like Flask, APScheduler, and Werkzeug, and lands the parts I needed. Its trust model is blunt — **installing a plugin means trusting its author**: plugins run in-process with the framework, without sandboxing (see dev guide 10.1). The **`framework:core`** permission (v4.15) is the one explicit escalation beyond that — an explicit, audited **root** grant for plugins that need to modify/delete the framework's own files, marked with a loud badge and shipped under the MIT license (author takes no responsibility for damage caused by such high-risk operations). Beyond "bare trust", the framework layers on defense — static scanning, capability cross-validation, runtime audit hooks — plus optional auth / HTTPS and data-quota controls, enough for trusted LANs and intranet teams running daily tools. Exposing it to an adversarial public network still needs your own risk assessment (plugins remain unsandboxed).
 
@@ -124,14 +124,14 @@ See [examples/README.md](examples/README.md).
 
 ## Documentation
 
-Detailed specs live in the [Flask Plugin Framework Development Guide](documents/Flask插件框架开发规范-v4.0.md) (plugin development, permission model, frontend-tool spec, plugin-package format, security design, ops tools):
+Detailed specs live in the [Flask Plugin Framework Development Guide](documents/Flask-Plugin-Framework-Dev-Guide-v4.md) (plugin development, permission model, frontend-tool spec, plugin-package format, security design, ops tools):
 
 - [Official examples guide](examples/README.md)
-- [Version history & evolution](documents/Flask插件框架-版本演进记录.md)
-- [Flask Plugin Framework Roadmap](documents/Flask插件框架-Roadmap-v4.1.md)
-- [Version wrap-up checklist](documents/版本收尾-checklist.md)
-- [GitHub Actions setup & open-source publishing guide](documents/GitHub-Actions-上手与开源发布指南.md)
-- [Enterprise Edition handover & roadmap (v5.x)](documents/Enterprise-Edition-交接与路线.md)
+- [Version history & evolution](documents/Flask-Plugin-Framework-Changelog.md)
+- [Flask Plugin Framework Roadmap](documents/Flask-Plugin-Framework-Roadmap-v4.md)
+- [Version wrap-up checklist](documents/Release-Wrapup-Checklist.md)
+- [GitHub Actions setup & open-source publishing guide](documents/GitHub-Actions-Guide.md)
+- [Enterprise Edition handover & roadmap (v5.x)](documents/Enterprise-Edition-Handover-Roadmap.md)
 
 ## Tests & CI
 
@@ -191,7 +191,7 @@ python tests/test_device.py                 # device detection + mobile template
 ## Edition Status
 
 - **Community Edition (v4.x)**: feature development continues with a deliberately controlled architectural scale, focused on small-LAN / personal-use scenarios; we maintain and release regularly (41-script regression suite + CI).
-- **Enterprise Edition (v5.x)**: planned to carry the long-term roadmap (refined permission model, process-level sandboxing, stricter CSP, enterprise identity integration, etc.). Due to limited team capacity, we are openly looking for maintainers to take over — see the [Enterprise Edition handover & roadmap](documents/Enterprise-Edition-交接与路线.md).
+- **Enterprise Edition (v5.x)**: planned to carry the long-term roadmap (refined permission model, process-level sandboxing, stricter CSP, enterprise identity integration, etc.). Due to limited team capacity, we are openly looking for maintainers to take over — see the [Enterprise Edition handover & roadmap](documents/Enterprise-Edition-Handover-Roadmap.md).
 
 ## Known Limitations
 

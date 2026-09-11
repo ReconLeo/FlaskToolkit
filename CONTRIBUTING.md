@@ -1,7 +1,7 @@
 # 参与贡献指南（Contributing Guide）
 
 欢迎为 **FlaskToolkit**（基于 Flask 的插件化全栈工具集）贡献代码、文档、测试或反馈问题。
-在提交贡献前，请阅读本指南与《[Flask插件框架开发规范](documents/Flask插件框架开发规范-v4.0.md)》。
+在提交贡献前，请阅读本指南与《[Flask插件框架开发规范](documents/Flask-Plugin-Framework-Dev-Guide-v4.md)》。
 
 ## 一、环境准备
 

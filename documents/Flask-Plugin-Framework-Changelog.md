@@ -124,7 +124,7 @@ P1 安全强化至此全部完成，形成纵深防御：**静态扫描 → 能�
 **企业环境优化更新**：
 - **F1 版本检查推送**：`core/update_checker.py`（`changelog.json` 数据源、24h TTL 缓存、可选签名校验）+ 管理后台版本卡片 + 启动横幅提示（仅展示引导，不做一键更新）。
 - **F4 双后端更新机制**：`tools/update.py`（git 后端 fetch/stash/reset + archive 后端下载校验/备份/替换/自动回滚，`USER_DATA_PATHS` 用户数据清单单处定义，git/archive 共用）+ `tools/release.py` 发布工具链（版本同步、精简/全量/定制三档包、changelog 生成与签名）。
-- **首个分割 Release**：Community v4.x 与 Enterprise v5.x 分界点（`documents/Enterprise-Edition-交接与路线.md`，Enterprise 公开寻求接手者）。
+- **首个分割 Release**：Community v4.x 与 Enterprise v5.x 分界点（`documents/Enterprise-Edition-Handover-Roadmap.md`，Enterprise 公开寻求接手者）。
 
 ### 3.11 v4.9.0（2026-09-05，`b1cf31d`）
 
@@ -180,7 +180,7 @@ P1 安全强化至此全部完成，形成纵深防御：**静态扫描 → 能�
 
 ### 3.17 v4.12.0（2026-09-06，tag `v4.12.0`）
 
-**Secure（安全传输）**——承接 v4.11 Reachability，补齐 HTTPS/反代部署链路（阶段 1-2 反代支持 + 本批四模块）；HTTPS 稳定性经五阶段评估（见 `documents/HTTPS与反向代理稳定性评估-2026-09-06.md`）。
+**Secure（安全传输）**——承接 v4.11 Reachability，补齐 HTTPS/反代部署链路（阶段 1-2 反代支持 + 本批四模块）；HTTPS 稳定性经五阶段评估（见 `documents/archive/HTTPS-RevProxy-Stability-Evaluation.md`）。
 
 - **M1 HTTP→HTTPS 自动跳转**：`core/network.start_http_redirect`——直连 HTTPS 模式下主端口+1 起 **308** 跳转端口（保留 POST 方法与 body，Host 头兼容 IPv6，daemon 线程）；反向代理场景不启用（Nginx 负责）。
 - **M2 SESSION_COOKIE_SECURE 自动配置**：默认 **None=自动**——`is_secure_cookie_mode()`：HTTPS 直连或 `EXTERNAL_SCHEME=https` 自动 True，纯 HTTP 局域网自动 False（防浏览器丢 Cookie）；true/false 可显式强制；auth 两处 set_cookie（token/csrf_token）统一接入。
@@ -194,7 +194,7 @@ P1 安全强化至此全部完成，形成纵深防御：**静态扫描 → 能�
 **Secure 修复（登录回归）**——v4.12.0 的 `SESSION_COOKIE_SECURE` 自动判定被 `EXTERNAL_SCHEME` 全局联动：反代场景配置 `EXTERNAL_SCHEME=https` 后，内部 HTTP 直连（http://IP:端口）的登录 cookie 也被加 Secure，被浏览器/客户端按标准丢弃 → 登录后会话立即失效（登录态 API 全部 401）。压力与多机归因评估真机复现并修复。
 
 - **`core/network.is_secure_cookie_mode()` 跟随请求实际协议**：自动模式优先取 `request.scheme`（反代场景经 ProxyFix 已反映外部协议 https、内部 http 直连为 http），不再受 `EXTERNAL_SCHEME` 联动；无请求上下文（启动横幅/CLI）回退 `get_scheme()`；显式 `true/false` 强制不受影响。test_network J 组 41/41 兼容。
-- **压力与多机归因评估（阶段 3/4）落地**：`test_server/` 测试脚手架（android_client 三模式 + pc_stress + pc_collect + pc_audit_lookup + echo-upload 测试插件）入库；评估报告 `documents/HTTPS与反向代理稳定性评估-补充-压力与多机归因-2026-09-06.md`。
+- **压力与多机归因评估（阶段 3/4）落地**：`test_server/` 测试脚手架（android_client 三模式 + pc_stress + pc_collect + pc_audit_lookup + echo-upload 测试插件）入库；评估报告 `documents/archive/HTTPS-RevProxy-Stability-Evaluation-Stress.md`。
 - **评估结论（部署建议）**：dev server 保持单线程（threaded 高并发会假死，F7）；大文件路由声明 `max_upload` 突破全局 100MB（F9）且反代需同步调大 Nginx `client_max_body_size`（F11）；多机 IP 归因直连/反代均验证正确（R6 闭环）。
 - runtime 82 文件（sha256 `e855d173...`）。
 

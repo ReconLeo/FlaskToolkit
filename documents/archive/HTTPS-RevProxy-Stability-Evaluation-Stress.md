@@ -3,7 +3,7 @@
 - 评估日期：2026-09-06
 - 评估版本：v4.12.0（含 v4.12.1 F10 修复增量）
 - 评估环境：PC Windows 11（框架反代模式：内部 HTTP 5010 + Nginx 1.30.4 TLS 8443）、Android 真机（Pydroid Python 3.13.2 + requests 2.34.2，局域网 IP 10.17.17.174）
-- 关联：documents/HTTPS与反向代理稳定性评估-2026-09-06.md（阶段 1-2，本文为其阶段 3-4 续篇）
+- 关联：HTTPS-RevProxy-Stability-Evaluation.md（阶段 1-2，本文为其阶段 3-4 续篇）
 - 测试工具：test_server/（android_client / pc_stress / pc_collect / pc_audit_lookup / echo-upload 测试插件）
 
 ## 一、测试拓扑
