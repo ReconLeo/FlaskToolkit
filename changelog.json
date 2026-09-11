@@ -1,9 +1,12 @@
 {
-  "latest_version": "4.17.1",
+  "latest_version": "4.17.2",
   "published_at": "2026-09-11",
-  "download_url": "https://github.com/ReconLeo/FlaskToolkit/releases/download/v4.17.1/FlaskToolkit-4.17.1-runtime.zip",
-  "sha256": "99eb9e0e3e3c0927e94a5f220e7b3be3ba6553dbe870284e855ccd2cc654126c",
+  "download_url": "https://github.com/ReconLeo/FlaskToolkit/releases/download/v4.17.2/FlaskToolkit-4.17.2-runtime.zip",
+  "sha256": "aacd97c79bd9e09789e3c6f824f5928b0ac0ea89dd6062b959fe52d5fb131be1",
   "changes": [
-    "签名功能验证 + 修复自更新/插件更新源验签 bug"
+    "描述一致性冲突报错附两处值",
+    "描述文件失效打标+后台徽章",
+    "源码布局自动映射 --src-layout",
+    "CRLF 规范提示"
   ]
 }

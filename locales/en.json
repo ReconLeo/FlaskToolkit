@@ -499,5 +499,7 @@
   "点击选择或拖拽 .zip 文件到此处": "Click or drag a .zip file here",
   "切换语言": "Switch language",
   "未加载": "Not loaded",
-  "未加载原因": "Not loaded reason"
+  "未加载原因": "Not loaded reason",
+  "描述文件失效": "Broken descriptor",
+  "描述 json 非法，已回退插件类属性，capabilities 等声明被忽略": "Broken plugin descriptor JSON, fell back to class attrs; capabilities etc. ignored"
 }

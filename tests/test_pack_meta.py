@@ -189,6 +189,22 @@ def test_conflicts():
             ok = 'version' in msg and 'author' in msg
             check('多字段冲突报告全部', ok, msg[:60])
 
+    # 10. 冲突报错须附两处值（v4.17.2）：plugin.json 值 vs 类属性值
+    d = dict(GOOD_JSON)
+    d['version'] = '2.0.0'          # 类属性=1.0.1
+    d['dependencies'] = ['other']   # 类属性=['auth']
+    with TmpBase() as root:
+        zp = os.path.join(root, 'p.zip')
+        make_zip(zp, d, GOOD_PY)
+        try:
+            parse_plugin_pack(zp)
+            check('冲突报错附两处值', False, '未抛异常')
+        except ValueError as e:
+            msg = str(e)
+            ok = ("version" in msg and "2.0.0" in msg and "1.0.1" in msg
+                  and "dependencies" in msg and "other" in msg and "auth" in msg)
+            check('冲突报错附 plugin.json 值与类属性值', ok, msg[:120])
+
 
 def test_name_consistency():
     # 10. 类 name 与 plugin.json name 不一致 → 拒绝

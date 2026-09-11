@@ -52,6 +52,7 @@ Kaleido 同样开源（自托管题库系统）：[github.com/ReconLeo/Kaleido](
 | **v4.16.0** | 2026-09-10 | 事件总线 + 插件真依赖解析：自研 core/events.py（发布-订阅 weakref 防泄漏 async 线程池）+ core/plugin_deps.py（版本约束 + Kahn 拓扑 + 环检测）+ BasePlugin 事件集成（on_event·emit_event·event_name·_cleanup_events）+ 卸载反向依赖检查 + scheduler_demo 1.2.0·dependent_demo 2.0.0 事件演示，全量回归 40 脚本 | tag `v4.16.0` |
 | **v4.17.0** | 2026-09-10 | 移动端/桌面端页面分离：core/device.py（UA 检测 + resolve_template 分发）+ templates/mobile/ 独立模板 + mobile-app.css + BasePlugin 移动端能力（is_mobile_context·mobile_template·render 分发）+ corp_tools 1.1.0 移动端独立模板演示，test_device 20 项 | tag `v4.17.0` |
 | **v4.17.1** | 2026-09-11 | 签名功能验证 + 修复自更新/插件更新源验签 bug（_verify_feed_signature 漏传 signature，配公钥后签名永远失败）：新增 test_plugin_updates(8)·test_release_sign(5)，扩展 test_package_sign(25)·test_update_checker(50)，全量回归 43 脚本 1143 项 | tag `v4.17.1` |
+| **v4.17.2** | 2026-09-11 | AirDrop 框架协调 A+C 组：冲突报错附两处值 + 描述文件失效打标与后台徽章 + 源码布局自动映射（--src-layout）+ CRLF 规范提示，新增 test_src_layout(16)，全量回归 44 脚本 1161 项 | tag `v4.17.2` |
 
 ## 3. 版本详情
 
@@ -312,6 +313,17 @@ P1 安全强化至此全部完成，形成纵深防御：**静态扫描 → 能�
 - **扩展签名测试**：test_package_sign.py 22→25 项（路由端到端：配公钥后签名包 200 / 签名被篡改 400 / 未签名包 200）；test_update_checker.py 43→50 项（自更新签名验签 7 场景）。
 - **工具链实操**：tools/package.py genkey→pack --sign→verify 全流程验证（正确公钥通过 / 错误公钥拒绝 / 加料篡改拒绝）。
 - **全量回归 43 脚本 1143 项 0 失败**。
+
+### 3.30 v4.17.2（2026-09-11，tag `v4.17.2`）
+
+**AirDrop 框架协调清单 A+C 组**——插件包/工具包开发体验与健壮性收口（不含 B 组新功能 save_uploads，缓置 v4.18）。
+
+- **6.3 描述一致性冲突报错附两处值**（`core/plugin_pack.py`）：冲突拒绝时逐字段附 `plugin.json值 vs 类属性值`（list/dict 用 JSON 序列化，如 `dependencies`/`pip_dependencies`），替代原先仅列字段名、需手工 diff 定位；test_pack_meta.py 22→23 项（新增断言验证两处值都出现）。
+- **6.4 描述文件失效打标 + 后台标注**（`core/plugin_cache.py` / `core/plugin_loader.py` / `templates/admin/plugins.html` / `locales/en.json`）：插件描述 json 非法时告警由 warning 升级为 error 并给 `info` 打标 `meta_invalid`，经 plugin_loader 透传进插件目录与 `/api/admin/plugins`；后台插件列表新增红色『描述文件失效』徽章 + tooltip（说明 capabilities 等声明被忽略）；test_meta_e2e.py 10→11 项。
+- **6.5 源码→分发包自动映射**（`tools/package.py` / Dev-Guide 5.6.9）：pack 新增 `--src-layout`（backend）把源码布局（`<name>.json + <name>.py + frontend/`）自动映射为分发布局（`plugin.json + 主.py + templates/static`），自动排除 `configs/`/`__pycache__` 等；新增 tests/test_src_layout.py 16 项（映射规则 + cmd_pack 产物 + parse 可解析）。
+- **6.6 CRLF 规范提示**（Dev-Guide 5.6.9）：插件文本文件统一 LF 的规范说明 + `.gitattributes` 示例，规避 Windows 下 CRLF/`\r\r\n` 污染。
+- **CI 与文档同步**：CI 测试数组补入 test_src_layout；Dev-Guide 第 12/14 章测试表、工具表、运行命令同步；README 双版测试数 43→44 脚本 / 1143→1161 断言。
+- **全量回归 44 脚本 1161 项 0 失败**。
 
 ## 4. 发布实践沉淀
 

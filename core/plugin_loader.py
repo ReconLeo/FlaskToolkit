@@ -384,6 +384,7 @@ def load_plugins():
             'loaded': _name in global_var.plugins,
             'api_calls': sum(v for k, v in global_var.call_stats.items() if k.startswith(f"{_name}:")),
             'page_url': f'/plugin/{_name}',
+            'meta_invalid': info.get('meta_invalid', False),
         }
         # 已加载插件用实例属性覆盖（更准确）
         _inst = global_var.plugins.get(_name)

@@ -75,7 +75,7 @@ FlaskToolkit/
 ├── tools/                     # 开发运维命令行工具（python tools/xxx.py）
 │   ├── config.py              #   配置管理 CLI（show/set/unset/reset/check/env/profile 预设）
 │   ├── scan.py                #   插件静态扫描 CLI（.py / .zip / 目录，--json）
-│   ├── package.py             #   插件包打包/签名/校验 CLI（genkey/pack/verify/show）
+│   ├── package.py             #   插件包打包/签名/校验 CLI（genkey/pack/verify/show；pack --src-layout 源码布局自动映射）
 │   ├── backup.py              #   手动备份/恢复工具（Factory Reset 前备份关键数据）
 │   ├── gen_cert.py             #   HTTPS 自签名证书生成工具（v4.5.0，openssl）
 │   ├── scaffold.py            #   插件脚手架 CLI（backend/frontend 骨架生成，v4.10 M6）
@@ -568,12 +568,56 @@ UserManage/
 
 **framework 能力域（core/capabilities.py）**：插件声明 `framework:read` / `framework:manage` / `framework:core` 可操作**框架自身核心文件**（core/routes/templates 框架部分/app.py/global_var.py/data/user_config.json/plugins/status.json，豁免 templates/plugins/、templates/frontend_tools/、plugins/data|temp|configs）。`core` 为最高档（隐含 manage/read，≈Linux **root**，可修改/删除核心文件）。运行时由 `check_framework(plugin_name, level)` 判定；`filesystem:write` 命中核心路径会被拒绝并要求改用 `framework:core`；放行的核心路径写自动落 **root-access 审计事件**。⚠️ **MIT 协议下框架概不负责**，仅应在充分信任的可信插件上使用。
 
+#### 5.6.9 源码→分发包目录约定与统一 LF（v4.17.2）
+
+插件仓库可采用**开发友好的源码布局**（描述文件用 `<name>.json`、浏览器端资源放 `frontend/`），与**分发包布局**（`plugin.json` + `templates/static/`）异构。为避免两套布局靠手工组装防漂移，框架约定标准映射，并支持 `tools/package.py pack --src-layout` 从源码布局自动生成分发包。
+
+**源码布局（backend 约定，AirDrop 形态）**：
+
+```
+my_plugin/                   # 源码目录
+├── my_plugin.json           # 描述文件（开发形态，文件名=插件名）→ plugin.json
+├── my_plugin.py             # 主插件文件 → 原样
+├── frontend/                # 浏览器端资源
+│   ├── index.html           # 页面模板 → templates/index.html
+│   └── static/              # 静态资源 → static/
+├── locales/                 # i18n（→ locales/，进包）
+└── configs/                 # 配置样例（不打包）
+```
+
+**映射规则（源码 → 分发包）**：
+
+| 源码路径            | 分发包路径              |
+| ------------------- | ----------------------- |
+| `<name>.json`       | `plugin.json`           |
+| `<name>.py`         | `<name>.py`             |
+| `frontend/*.html`   | `templates/*.html`      |
+| `frontend/static/*` | `static/*`              |
+| `locales/*`         | `locales/*`             |
+| `configs/` 等       | （排除，不打包）        |
+
+`tools/package.py` 提供自动映射（仅 backend）：
+
+```bash
+python tools/package.py pack ./my_plugin -o my_plugin.zip --type backend --src-layout
+```
+
+自动识别 `<name>.py`（根目录非 `__init__/base_plugin` 的 `.py`）与其同名 `<name>.json` 描述文件，按上表映射；自动排除 `configs/`、`__pycache__/`、`temp/`、`.git/`、`node_modules/`、`tests/`。
+
+**统一 LF 行尾**：插件仓库文本文件（`.py`/`.json`/`.html`/`.css`/`.js`/`.md`）统一使用 **LF** 行尾。Windows 下 Python 文本写入或文件复制易引入 `CRLF`（甚至 `\r\r\n` 双 CR+LF），可能导致 Markdown 表格不渲染、git 行尾噪声。建议仓库根放置 `.gitattributes` 强制 LF：
+
+```gitattributes
+* text=auto eol=lf
+```
+
+---
+
 ### 5.7 最低框架版本要求（require_framework_version）
 
 后端插件可声明 `require_framework_version`（`plugin.json` 或插件类属性，非强制），用于声明插件所需的最低框架版本，以支撑框架持续迭代：
 
 - **未声明**：不检查，任意框架版本可用。
-- **声明了**：上传/更新时与 `global_var.FRAMEWORK_VERSION`（当前 `4.17.0`）做点分版本比较（`compare_versions`，修复了前端工具原先字符串比较的缺陷）；插件要求高于框架版本 → 拒绝安装并报告。
+- **声明了**：上传/更新时与 `global_var.FRAMEWORK_VERSION`（当前 `4.17.2`）做点分版本比较（`compare_versions`，修复了前端工具原先字符串比较的缺陷）；插件要求高于框架版本 → 拒绝安装并报告。
 - **运行时双重校验**：`load_plugins` 加载时同样校验（防止手工放置插件绕过上传校验），不满足则跳过加载并报错。
 - 参与描述一致性对齐（冲突拒绝/缺失补全），见 5.6.3。
 
@@ -960,6 +1004,8 @@ python tools/package.py genkey -o private.pem --pub public.pem
 # 2. 打包（自动生成 manifest.json；--sign 用私钥签名）
 python tools/package.py pack ./demo_tool -o demo_tool.zip --type frontend
 python tools/package.py pack ./my_plugin -o my_plugin.zip --type backend --sign private.pem --signer "张三"
+#    源码布局自动映射（v4.17.2）：<name>.json+<name>.py+frontend/ → plugin.json+主.py+templates/static（见 5.6.9）
+python tools/package.py pack ./my_plugin -o my_plugin.zip --type backend --src-layout
 
 # 3. 校验（完整性 + 可选签名）
 python tools/package.py verify my_plugin.zip --public-key public.pem
@@ -1232,15 +1278,16 @@ FLASKTOOLKIT_HOST=0.0.0.0 FLASKTOOLKIT_PORT=8000 python app.py
 | `test_permission.py`          | 权限体系（游客/登录/管理员三层 + CSRF）                                                                                                                                                                                                                                                                                                                                                                           | 20 项 |
 | `test_stage2.py`              | 安全加固回归                                                                                                                                                                                                                                                                                                                                                                                                      | 19 项 |
 | `test_zip_slip.py`            | 插件包 zip slip 防路径穿越专项（`..`/绝对路径/盘符拒绝 + 正常落位）                                                                                                                                                                                                                                                                                                                                               | 19 项 |
-| `test_pack_meta.py`           | 插件包描述一致性（一致/缺失兜底/冲突拒绝/动态 name 不误伤/落盘对齐）+ pip_dependencies（v4.10）                                                                                                                                                                                                                                                                                                                   | 22 项 |
+| `test_pack_meta.py`           | 插件包描述一致性（一致/缺失兜底/冲突拒绝/动态 name 不误伤/落盘对齐/冲突报错附两处值）+ pip_dependencies（v4.10）                                                                                                                                                                                                                                                                                                                   | 23 项 |
 | `test_reload_race.py`         | 热加载重载竞态回归（test client，20 轮重载后会话保持，验证 auth 会话原子写）                                                                                                                                                                                                                                                                                                                                      | 1 项  |
-| `test_meta_e2e.py`            | 插件包元信息端到端（上传/冲突/已存在/update 刷新/降级拒绝/require 拒绝，隔离目录模式可重复运行）                                                                                                                                                                                                                                                                                                                  | 10 项 |
+| `test_meta_e2e.py`            | 插件包元信息端到端（上传/冲突/已存在/update 刷新/降级拒绝/require 拒绝/描述文件失效打标，隔离目录模式可重复运行）                                                                                                                                                                                                                                                                                                                  | 11 项 |
 | `test_frontend_zip_slip.py`   | 前端工具包安全解压 zip slip 专项（`..`/绝对路径/盘符拒绝 + 正常落位 + clean_static 更新清理 + 卸载资源清理）                                                                                                                                                                                                                                                                                                      | 21 项 |
 | `test_frontend_chain.py`      | 前端工具上传/更新/卸载端到端（含页面/静态资源渲染、clean_static、413 上传大小限制）                                                                                                                                                                                                                                                                                                                               | 23 项 |
 | `test_admin_api.py`           | 管理端 API 单测（system/info、plugins、stats、logs、factory-reset scope 校验、上传 413/400、空间管理、能力预览两段式、单插件空间清理 purge-data v4.10、网络与访问页接口 v4.11）                                                                                                                                                                                                                                   | 69 项 |
 | `test_factory_reset.py`       | Factory Reset 范围测试（部分/全部删除与保留、内置插件保护、插件数据目录清理 v4.10 M6-Extra、空/非法 scope 无副作用）                                                                                                                                                                                                                                                                                              | 39 项 |
 | `test_error_pages.py`         | 统一错误码页面渲染（404/405 真实触发 + 400/401/403/500 模板，双环境无 auth/带 auth）                                                                                                                                                                                                                                                                                                                              | 12 项 |
 | `test_package_sign.py`        | 插件包完整性校验与签名专项（篡改/加料/缺失检测、签名验证、strict/warn/off 模式、路由集成、配公钥后签名端到端（v4.17.1）                                                                                                                                                                                                                                                                                                                        | 25 项 |
+| `test_src_layout.py`         | tools/package.py 源码布局自动映射专项（v4.17.2）：<name>.json+<name>.py+frontend/ → plugin.json+主.py+templates/static 映射、configs/__pycache__ 排除、cmd_pack 产物、parse 可解析                                                                                                                                                                                                                                                             | 16 项 |
 | `test_plugin_cleanup.py`      | 插件卸载 installed_files 清单专项（多 .py 包安装清单完整/卸载全清/clean_old 更新清理/越界路径防御）                                                                                                                                                                                                                                                                                                               | 23 项 |
 | `test_frontend_permission.py` | 前端工具访问控制（三层权限 + 改权限 API 鉴权/边界 + 静态资源一致 + update 保留 permission）                                                                                                                                                                                                                                                                                                                       | 25 项 |
 | `test_tools_ops.py`           | 开发运维工具回归（backup 创建/恢复、reset 范围、config 设置/非法值/unset）                                                                                                                                                                                                                                                                                                                                        | 19 项 |
@@ -1278,9 +1325,10 @@ cd FlaskToolkit   # 在项目根目录执行
 python tests/test_permission.py       # 20 项（权限体系）
 python tests/test_stage2.py           # 19 项（安全加固回归）
 python tests/test_zip_slip.py         # 19 项
-python tests/test_pack_meta.py        # 22 项
+python tests/test_pack_meta.py        # 23 项
 python tests/test_reload_race.py      # 1 项
-python tests/test_meta_e2e.py         # 10 项（隔离目录模式）
+python tests/test_meta_e2e.py         # 11 项（隔离目录模式）
+python tests/test_src_layout.py       # 16 项（package.py 源码布局自动映射）
 python tests/test_frontend_zip_slip.py# 21 项
 python tests/test_frontend_chain.py   # 23 项（前端工具链路，隔离目录）
 python tests/test_admin_api.py        # 69 项（管理端 API + purge-data + 网络接口，隔离目录）

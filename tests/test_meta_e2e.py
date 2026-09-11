@@ -42,6 +42,7 @@ global_var.BASE_DIR = _isolated
 
 import app as appmod
 from core.plugin_loader import load_plugins
+from core.plugin_cache import scan_plugin_metadata
 
 app = appmod.app
 app.config["TESTING"] = True
@@ -177,6 +178,30 @@ def main():
     check('demo_req 未落盘',
           not os.path.isfile(os.path.join(global_var.BASE_DIR, 'plugins', 'demo_req.py')),
           f"exists={os.path.isfile(os.path.join(global_var.BASE_DIR, 'plugins', 'demo_req.py'))}")
+
+    # 9b. 描述文件失效（非法 json）→ 扫描打标 meta_invalid（v4.17.2）
+    invalid_py = ('from plugins.base_plugin import BasePlugin\n'
+                  'class InvalidMetaPlugin(BasePlugin):\n'
+                  '    name = "invalid_meta"\n    version = "1.0.0"\n'
+                  '    title = "Invalid Meta"\n    author = "Test"\n'
+                  '    category = "测试"\n    description = "描述文件失效测试\"\n'
+                  '    permission = "user"\n'
+                  '    @property\n    def routes(self):\n        return []\n')
+    with io.open(os.path.join(global_var.BASE_DIR, 'plugins', 'invalid_meta.py'), 'w',
+                 encoding='utf-8') as f:
+        f.write(invalid_py)
+    # 非法 json 描述文件（历史注释 JSON 场景）
+    with io.open(os.path.join(global_var.BASE_DIR, 'plugins', 'invalid_meta.json'), 'w',
+                 encoding='utf-8') as f:
+        f.write('// not json\n{ "capabilities": ["read"] }\n')
+    discovered = scan_plugin_metadata(os.path.join(global_var.BASE_DIR, 'plugins'))
+    inv = next((d for d in discovered if d.get('name') == 'invalid_meta'), None)
+    check('描述文件失效打标 meta_invalid',
+          inv is not None and inv.get('meta_invalid') is True,
+          f"meta_invalid={inv.get('meta_invalid') if inv else None}")
+    # 清掉临时插件，避免后续污染
+    os.remove(os.path.join(global_var.BASE_DIR, 'plugins', 'invalid_meta.py'))
+    os.remove(os.path.join(global_var.BASE_DIR, 'plugins', 'invalid_meta.json'))
 
     # 10. 隔离目录无越界文件（未污染真实项目）
     check('真实项目未被污染',

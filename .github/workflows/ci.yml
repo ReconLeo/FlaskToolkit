@@ -54,7 +54,7 @@ jobs:
           set -e
           TESTS=(test_permission test_stage2 test_zip_slip test_pack_meta test_reload_race \
                  test_meta_e2e test_frontend_zip_slip test_frontend_chain test_admin_api \
-                 test_factory_reset test_error_pages test_package_sign \
+                 test_factory_reset test_error_pages test_package_sign test_src_layout \
                  test_plugin_cleanup test_frontend_permission test_tools_ops test_page_router \
                  test_framework_fixes test_file_transfer test_security test_plugin_scan test_capabilities test_audit_hook test_update_checker test_plugin_updates test_release_sign \
                  test_events test_dependency test_plugin_events test_device)

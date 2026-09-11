@@ -8,6 +8,8 @@
   2. 打包目录为可安装包（自动生成 manifest.json 哈希清单）
      python tools/package.py pack ./demo_tool -o demo_tool.zip --type frontend
      python tools/package.py pack ./demo_plugin -o demo_plugin.zip --type backend --sign private.pem --signer "张三"
+     # 源码布局自动映射（v4.17.2）：<name>.json+<name>.py+frontend/ 目录 → 分发布局
+     python tools/package.py pack ./plugin -o airdrop.zip --type backend --src-layout
 
   3. 校验包（完整性 + 可选签名）
      python tools/package.py verify demo_tool.zip
@@ -61,29 +63,99 @@ def cmd_genkey(args):
     print("提示：将公钥配置到框架 global_var.PLUGIN_PUBLIC_KEY_PEM 以启用签名验证；私钥务必妥善保管。")
 
 
+def _src_to_dist(name, rel):
+    """源码布局文件 → 分发包路径映射（v4.17.2）。不打包返回 None。"""
+    if rel == f"{name}.json":
+        return 'plugin.json'
+    if rel == f"{name}.py":
+        return rel
+    if rel.startswith('frontend/'):
+        rest = rel[len('frontend/'):]
+        if rest.startswith('static/'):
+            return 'static/' + rest[len('static/'):]
+        if rest.endswith('.html'):
+            return 'templates/' + rest
+        return None  # frontend 下非 static/非 .html 的资源不打包
+    if rel.startswith('locales/'):
+        return rel
+    return None  # configs/、README、__pycache__ 等不进分发包
+
+
+def _collect_src_layout(src):
+    """源码布局（v4.17.2）：把开发友好的源码目录映射为分发包布局。
+
+    AirDrop 约定：
+      <name>.json（描述文件）+ <name>.py（主插件）
+      frontend/index.html + frontend/static/...（浏览器端资源）
+      locales/...（i18n，进包）   configs/...（配置样例，不打包）
+    返回 [(分发包相对路径, 绝对路径), ...]
+    """
+    # 定位主插件 .py 与描述文件：根目录下同名 <name>.py + <name>.json
+    root_py = [f for f in os.listdir(src)
+               if f.endswith('.py') and f not in ('__init__.py', 'base_plugin.py')]
+    name = None
+    for f in root_py:
+        cand = os.path.splitext(f)[0]
+        if os.path.isfile(os.path.join(src, cand + '.json')):
+            name = cand
+            break
+    if name is None and root_py:
+        name = os.path.splitext(root_py[0])[0]
+    if name is None:
+        return [], None
+
+    file_list = []
+    skip_dirs = {'configs', '__pycache__', 'temp', '.git', 'node_modules', 'tests'}
+    for root, dirs, files in os.walk(src):
+        dirs[:] = [d for d in dirs if d not in skip_dirs]
+        for fn in sorted(files):
+            full = os.path.join(root, fn)
+            rel = os.path.relpath(full, src).replace('\\', '/')
+            zrel = _src_to_dist(name, rel)
+            if zrel:
+                file_list.append((zrel, full))
+    return file_list, name
+
+
 def cmd_pack(args):
     src = os.path.abspath(args.src_dir)
     if not os.path.isdir(src):
         print(f"错误：源目录不存在: {src}", file=sys.stderr)
         sys.exit(1)
 
-    # 按类型校验必备清单文件
-    manifest_file = 'plugin.json' if args.type == 'backend' else 'config.json'
-    if not os.path.exists(os.path.join(src, manifest_file)):
-        print(f"错误：{args.type} 包缺少清单文件 {manifest_file}（应在源目录根下）", file=sys.stderr)
-        sys.exit(1)
-
-    # 收集全部文件（相对路径）
-    file_list = []
-    for root, dirs, files in os.walk(src):
-        dirs.sort()
-        for fn in sorted(files):
-            full = os.path.join(root, fn)
-            rel = os.path.relpath(full, src).replace('\\', '/')
-            file_list.append((rel, full))
-    if not file_list:
-        print("错误：源目录为空", file=sys.stderr)
-        sys.exit(1)
+    # 源码布局：把开发友好目录（<name>.json + <name>.py + frontend/）映射为分发包布局
+    src_layout = getattr(args, 'src_layout', '')
+    if src_layout:
+        if args.type != 'backend':
+            print("错误：--src-layout 目前仅支持 backend 类型", file=sys.stderr)
+            sys.exit(1)
+        file_list, name = _collect_src_layout(src)
+        if not file_list:
+            print(f"错误：源码目录未识别到 <name>.py + <name>.json 描述文件: {src}", file=sys.stderr)
+            sys.exit(1)
+        has_desc = any(zrel == 'plugin.json' for zrel, _ in file_list)
+        has_main = any(zrel == f'{name}.py' for zrel, _ in file_list)
+        if not (has_desc and has_main):
+            print(f"错误：源码布局须含 <name>.json 描述与 <name>.py 主插件（识别 name={name}）", file=sys.stderr)
+            sys.exit(1)
+        print(f"源码布局映射（backend，name={name}）：{len(file_list)} 个文件")
+    else:
+        # 按类型校验必备清单文件
+        manifest_file = 'plugin.json' if args.type == 'backend' else 'config.json'
+        if not os.path.exists(os.path.join(src, manifest_file)):
+            print(f"错误：{args.type} 包缺少清单文件 {manifest_file}（应在源目录根下）", file=sys.stderr)
+            sys.exit(1)
+        # 收集全部文件（相对路径）
+        file_list = []
+        for root, dirs, files in os.walk(src):
+            dirs.sort()
+            for fn in sorted(files):
+                full = os.path.join(root, fn)
+                rel = os.path.relpath(full, src).replace('\\', '/')
+                file_list.append((rel, full))
+        if not file_list:
+            print("错误：源目录为空", file=sys.stderr)
+            sys.exit(1)
 
     # 计算哈希 → manifest
     files_map = {rel: sha256_hex(open(full, 'rb').read()) for rel, full in file_list}
@@ -162,6 +234,8 @@ def main():
     p.add_argument('-o', '--output', required=True, help='输出 .zip 路径')
     p.add_argument('--type', choices=['backend', 'frontend'], default='frontend',
                    help='包类型（默认 frontend）')
+    p.add_argument('--src-layout', action='store_const', const='backend',
+                   help='源码布局自动映射（backend）：把 <name>.json+<name>.py+frontend/ 目录映射为分发包布局')
     p.add_argument('--sign', metavar='PRIVATE_KEY', help='用该私钥对清单签名（需先 genkey）')
     p.add_argument('--signer', default='', help='签名者署名（随签名记录）')
     p.set_defaults(func=cmd_pack)

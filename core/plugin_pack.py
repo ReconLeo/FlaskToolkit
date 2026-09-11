@@ -94,13 +94,17 @@ def parse_plugin_pack(zip_path: str) -> dict:
 
         # 2) 冲突字段拒绝：两处同时声明且不一致
         conflicts = []
+        details = []
         for f in COMPARE_FIELDS:
             if f in desc and f in class_meta and desc[f] != class_meta[f]:
                 conflicts.append(f)
+                details.append(
+                    f"{f}: plugin.json={_fmt_field_val(desc[f])}，类属性={_fmt_field_val(class_meta[f])}"
+                )
         if conflicts:
             raise ValueError(
-                f"plugin.json 与插件类属性冲突字段: {', '.join(conflicts)}"
-                "（请保持 plugin.json 与插件类属性一致后重新打包）"
+                "plugin.json 与插件类属性冲突字段:\n  - " + "\n  - ".join(details)
+                + "\n（请保持 plugin.json 与插件类属性一致后重新打包）"
             )
 
         # 3) 缺失补全：plugin.json 缺失字段回退类属性
@@ -121,6 +125,13 @@ def parse_plugin_pack(zip_path: str) -> dict:
                 raise ValueError(msg)
 
         return aligned
+
+
+def _fmt_field_val(val) -> str:
+    """字段值可读格式化：list/dict 用 json 序列化，其余用 str（保证控制台/异常信息可读）"""
+    if isinstance(val, (list, tuple, dict)):
+        return json.dumps(val, ensure_ascii=False)
+    return str(val)
 
 
 def _const_eval(node) -> any:

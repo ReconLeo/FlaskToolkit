@@ -224,7 +224,15 @@ def scan_plugin_metadata(plugin_dir: str) -> list[dict]:
                                         if _k in meta:
                                             info[_k] = meta[_k]
                             except (json.JSONDecodeError, UnicodeDecodeError, OSError):
-                                logger.warning(f"读取插件描述文件失败，忽略: {meta_file}", extra={'plugin': 'system'})
+                                # v4.17.2：描述文件失效时告警升级并打标，供后台/调试页提示（否则 json 内
+                                # capabilities/require_framework_version 等声明静默丢失，enforce 下莫名失败）
+                                info['meta_invalid'] = True
+                                logger.error(
+                                    f"插件描述文件失效，已回退插件类属性（json 内 capabilities/"
+                                    f"require_framework_version 等声明将被忽略）: {meta_file}",
+                                    extra={'plugin': 'system'})
+                            else:
+                                info.pop('meta_invalid', None)
                         discovered.append(info)
         except Exception as e:
             logger.error(f"扫描插件 {filename} 元信息失败: {str(e)}", extra={'plugin': 'system'})
