@@ -1,14 +1,13 @@
 {
-  "latest_version": "4.19.2",
+  "latest_version": "4.20.0",
   "published_at": "2026-09-12",
-  "download_url": "https://github.com/ReconLeo/FlaskToolkit/releases/download/v4.19.2/FlaskToolkit-4.19.2-runtime.zip",
-  "sha256": "9e1d07f5c7e91a4cd511b4d1ab7cc1fb02ae3cdde9a9bb8054e3d53c8726d16b",
+  "download_url": "https://github.com/ReconLeo/FlaskToolkit/releases/download/v4.20.0/FlaskToolkit-4.20.0-runtime.zip",
+  "sha256": "07656b1dd8f33986f50d03a85002e50f3ecef6bb073c0420f601b300e3bce043",
   "changes": [
-    "可扩展主题（themes/ 目录扫描，AirDrop 交接）：core/theme.py available_themes 扫描 THEMES_DIR（mtime 缓存，运行期增删生效）+ 新增 get_theme_css + /theme-static/<name>/theme.css 路由",
-    "前端 theme.js KNOWN 动态化（<html data-themes> 读取）+ 自定义主题 data-theme 设置 + /theme-static CSS 按需挂载 + CSS 404 回退 auto 兜底",
-    "16 框架模板 + multitool_demo 样板统一加 data-themes；切换器 _theme_switch.html 动态渲染 available_themes（内建保留翻译/图标，自定义显示 title）",
-    "被删主题全链路兜底：后端 get_theme/resolve_theme/resolve_effective_theme 自动回退 auto（不清 Cookie 保留偏好），前端 CSS 404 回退 auto",
-    "自带 sepia 示例主题（完整语义变量覆盖集）",
-    "test_theme 11→25、前端 jsdom 11、multitool+sepia 端到端集成 21，全量回归 46 脚本 1209 项"
+    "用户中心（审核符合 Community 原则）：登录用户自助修改昵称与密码，用户名不可改，仅本人自助",
+    "auth.py 新增 update_nickname + update_nickname_api（POST /api/auth/user/update-nickname，非空/≤20/去空白，同步 request.user.nickname）",
+    "新增独立页面 /user-center（interceptor LOGIN_GUARD_PREFIXES 守卫需登录）+ templates/user_center.html + static/js/user_center.js（主题三件套，改昵称+改密码聚合）",
+    "导航入口：后台导航栏 + 公开页导航（index.js 登录态）加用户中心链接；v4.10 强制改密弹窗保留并提示可前往用户中心完整修改",
+    "新增 test_user_center（13 项）+ jsdom 前端（12 项），全量回归 47 脚本 1222 项"
   ]
 }

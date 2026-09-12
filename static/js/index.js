@@ -22,7 +22,7 @@
                     <div class="user-name">${escapeHtml(userName)}</div>
                     <div class="user-role">${escapeHtml(user.role || 'user')}</div>
                 </div>`;
-            authButtonEl.innerHTML = `<button id="logoutBtn" class="auth-btn logout-btn">退出登录</button>`;
+            authButtonEl.innerHTML = `<a href="/user-center" class="auth-btn user-center-btn">用户中心</a> <button id="logoutBtn" class="auth-btn logout-btn">退出登录</button>`;
             adminBarEl.classList.toggle('hidden', user.role !== 'admin');
         } else {
             userInfoEl.innerHTML = '';

@@ -57,6 +57,7 @@ Kaleido 同样开源（自托管题库系统）：[github.com/ReconLeo/Kaleido](
 | **v4.19.0** | 2026-09-11 | 全量界面深色模式 + setup 双语并显：core/theme.py（auto/light/dark 注册表 + Cookie 与用户配置双存）+ theme.js（auto 解析与监听）+ main.css/error.css/admin 深色变量化 + 16 模板接入 + setup.html 双语主次切换，新增 test_theme(10)，全量回归 46 脚本 1194 项 | tag `v4.19.0` |
 | **v4.19.1** | 2026-09-11 | 插件主题接入便利化（AirDrop 协调清单 6.7）：core/theme.py 新增 resolve_effective_theme（light/dark 实际值、auto/非法交前端）+ inject_i18n 注入 theme_effective 到所有模板 + 独立 static/css/theme.css（:root 语义变量 + dark 覆盖，main.css 改 @import）+ multitool_demo 1.1.0 模板主题三件套样板，test_theme 扩展 A4（11/11），端到端渲染验证 17/17 + migrate_legacy_config 同路径防误删修复（test_frontend_permission 25/25），全量回归 46 脚本 1195 项 | tag `v4.19.1` |
 | **v4.19.2** | 2026-09-12 | 可扩展主题（themes/ 目录扫描，AirDrop 交接）：core/theme.py available_themes 扫描 THEMES_DIR（mtime 缓存，运行期生效）+ 新增 get_theme_css + /theme-static 路由 + theme.js KNOWN 动态化（data-themes + 自定义 CSS 按需加载/404 回退）+ 16 框架模板/4 插件样板加 data-themes + 切换器动态渲染 + 被删主题全链路兜底（后端回退 auto 不清 Cookie，前端 CSS 404 回退）+ 自带 sepia 示例；test_theme 11→25、前端 jsdom 11、端到端集成 21 | tag `v4.19.2` |
+| **v4.20.0** | 2026-09-12 | 用户中心（审核符合 Community）：登录用户自助改昵称/改密码，用户名不可改；auth.py 新增 update_nickname + update_nickname_api（POST /api/auth/user/update-nickname）+ 独立页面 /user-center（interceptor 守卫，需登录）+ user_center.html/js + 后台/公开页导航入口 + 强制改密弹窗提示；新增 test_user_center 13 + jsdom 12 | tag `v4.20.0` |
 
 ## 3. 版本详情
 
@@ -373,6 +374,15 @@ P1 安全强化至此全部完成，形成纵深防御：**静态扫描 → 能�
 - **兜底（自定义主题运行期被删）**：后端 `get_theme`/`resolve_theme`/`resolve_effective_theme` 经 `_is_valid_theme`（动态 available_themes）自动回退 `auto`，且**不清 Cookie**（偏好保留，重放回目录自动恢复）；前端 CSS 404 回退 `auto`。
 - **示例主题**：框架自带 `themes/sepia/`（完整语义变量覆盖集）。
 - **测试**：test_theme 扩展可扩展主题场景（扫描发现/非法名忽略/运行期新增生效/get_theme_css/动态白名单解析/被删兜底/theme-static 白名单/data-themes 注入），11→25 项；前端 jsdom 验证（KNOWN 动态/切换自定义/CSS 挂载/404 回退）11 项；multitool_demo + sepia 端到端集成 21 项。全量回归见发布记录。
+
+### 3.35 v4.20.0（2026-09-12，用户中心）
+
+**用户中心（审核符合 Community 原则）**：登录用户可自助修改自己的昵称与密码，用户名（登录名）不可改；仅本人自助，管理员管理他人账号仍走内置 user_manage（不新增角色层级，避免触碰 RBAC 细化，归 Enterprise）。
+
+- **后端自助改昵称**（`plugins/auth.py`）：新增 `update_nickname(user_id, nickname)`（非空、≤20、去空白）+ `update_nickname_api()`（POST `/api/auth/user/update-nickname`，需登录，仅本人，同步 `request.user.nickname`）。
+- **页面**：新增 `GET /user-center`（`routes/public.py`），经 interceptor `LOGIN_GUARD_PREFIXES` 守卫（未登录 302 `/login`）；前端 `templates/user_center.html` + `static/js/user_center.js`（主题三件套，改昵称 + 改密码聚合）。
+- **入口**：后台导航栏 + 公开页导航（`index.js` 登录态）加"用户中心"链接；v4.10 强制改密弹窗保留并提示可前往用户中心完整修改。
+- **测试**：新增 test_user_center（改昵称仅本人/空/超长/成功/去空白 + 用户名不可改 + /user-center 未登录 302/登录 200 渲染，13 项）+ jsdom 前端（改昵称/改密校验与请求体，12 项）；test_setup 强制改密 19 项不回归。全量回归见发布记录。
 
 ## 4. 发布实践沉淀
 

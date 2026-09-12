@@ -510,5 +510,19 @@
   "深色": "Dark",
   "主题": "Theme",
   "切换主题": "Switch theme",
-  "自动": "Auto"
+  "自动": "Auto",
+  "用户中心": "User Center",
+  "修改昵称": "Change Nickname",
+  "修改密码": "Change Password",
+  "账号信息": "Account Info",
+  "不可修改": "Not editable",
+  "用户名是登录凭证，创建后不可更改。": "The username is your login credential and cannot be changed after creation.",
+  "新昵称": "New Nickname",
+  "输入新昵称": "Enter a new nickname",
+  "保存昵称": "Save Nickname",
+  "新密码": "New Password",
+  "至少 6 位": "at least 6 characters",
+  "确认修改密码": "Confirm Password Change",
+  "亦可前往": "You may also go to",
+  "完整修改昵称与密码": "to fully update your nickname and password"
 }

@@ -4,7 +4,7 @@
   <img src="https://github.com/ReconLeo/FlaskToolkit/actions/workflows/ci.yml/badge.svg" alt="CI">
   <img src="https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB?logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/License-MIT-yellow" alt="License">
-  <img src="https://img.shields.io/badge/version-4.19.2-blue" alt="Version">
+  <img src="https://img.shields.io/badge/version-4.20.0-blue" alt="Version">
 </p>
 
 > 一个基于 Flask 的插件化**框架**：把散落的 Python 插件与纯前端工具装进统一的运行时，
@@ -37,7 +37,8 @@
 - **Root 权限域与市场铺路**：插件可声明 framework 能力域三档（read/manage/core，core ≈ root），写核心全程审计；配套程序化插件管理服务层 + 插件级更新源。
 - **事件总线与真依赖解析**：轻量进程内发布-订阅总线，插件间无需知道谁在监听即可通信；依赖解析支持版本约束 + 环检测。
 - **深色模式**：全量界面浅色/深色主题，支持 auto（跟随系统）+ 手动覆盖——CSS 变量体系可**通过放入 `themes/<名字>/` 目录扩展主题**（自带 sepia 示例）；首次运行 setup 页还支持双语并显。
-- **运维与工具链**：版本检查 + 双后端更新、Factory Reset、备份/恢复、启动自检、完整性签名、插件脚手架与离线安装/卸载 CLI，以及 **46 脚本回归套件与 GitHub Actions CI**。
+- **用户中心**：登录用户可在 `/user-center` **自助修改自己的昵称与密码**（用户名不可改；仅本人自助）。
+- **运维与工具链**：版本检查 + 双后端更新、Factory Reset、备份/恢复、启动自检、完整性签名、插件脚手架与离线安装/卸载 CLI，以及 **47 脚本回归套件与 GitHub Actions CI**。
 
 完整功能规格见[开发规范](documents/Flask-Plugin-Framework-Dev-Guide-v4.md)。
 
@@ -189,14 +190,15 @@ python tests/test_dependency.py             # 依赖解析（v4.16）：dep_spec
 python tests/test_plugin_events.py          # BasePlugin 事件集成 + 示例演示（v4.16）：scheduler_demo 事件与手动触发 / dependent_demo 跨插件订阅 28 项
 python tests/test_device.py                 # 设备检测 + 移动端模板分发（v4.17）：UA 分类 / 配置开关 / resolve_template / 公开页移动端模板 / BasePlugin 移动端命名空间 20 项
 python tests/test_theme.py                 # 界面主题（v4.19）：主题注册白名单 / 非法回退 / Cookie 与用户配置优先级 / auto 深浅解析 / 后台+公开页深色变量 / plugin_default 移动端适配 / themes/ 扫描+自定义主题兑底 25 项
-# 合计 46 个回归脚本
+python tests/test_user_center.py            # 用户中心（v4.20）：自助改昵称 / 用户名不可改 / /user-center 守卫 13 项
+# 合计 47 个回归脚本
 ```
 
 </details>
 
 ## 版本状态
 
-- **Community Edition（v4.x）**：功能开发持续进行，但架构规模有意识控制——专注小型局域网/个人用户场景，我们定期维护与发布（46 脚本回归套件 + CI）。
+- **Community Edition（v4.x）**：功能开发持续进行，但架构规模有意识控制——专注小型局域网/个人用户场景，我们定期维护与发布（47 脚本回归套件 + CI）。
 - **Enterprise Edition（v5.x）**：规划承载远期路线（权限模型细化、进程级沙箱、CSP 收紧、企业身份对接等）。因当前小团队开发能力有限，公开寻求接手者——详见 [Enterprise Edition 交接与路线](documents/Enterprise-Edition-Handover-Roadmap.md)。
 
 ## 已知局限
@@ -212,7 +214,7 @@ MIT License · 贡献指南见 [CONTRIBUTING.md](CONTRIBUTING.md) · 开发过�
 
 ### 人工智能辅助开发声明
 
-本项目在开发过程中使用了 AI 辅助编程工具，包括但不限于：代码生成与重构、代码审查、测试用例编写、文档撰写。所有 AI 辅助生成或修改的内容，均已由开发者人工审查，并通过项目自身的回归测试套件（`tests/`，46 脚本）与启动完整性自检验证后才会合入。
+本项目在开发过程中使用了 AI 辅助编程工具，包括但不限于：代码生成与重构、代码审查、测试用例编写、文档撰写。所有 AI 辅助生成或修改的内容，均已由开发者人工审查，并通过项目自身的回归测试套件（`tests/`，47 脚本）与启动完整性自检验证后才会合入。
 
 对贡献者的透明性约定：
 

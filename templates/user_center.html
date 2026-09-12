@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}" data-theme-init="{{ theme }}" data-themes='{{ available_themes|tojson }}'>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>{{ t('用户中心') }}</title>
+    <link rel="stylesheet" href="/static/css/main.css">
+    <link rel="stylesheet" href="/static/css/theme.css">
+    <script src="/static/js/theme.js"></script>
+    <style>
+        /* v4.20 用户中心：基于 theme.css 语义变量，随主题自适应 */
+        .uc-top { display: flex; justify-content: space-between; align-items: center;
+                  padding: 14px 22px; border-bottom: 1px solid var(--border); background: var(--card-bg); }
+        .uc-top a { color: var(--text); text-decoration: none; font-size: 14px; }
+        .uc-top a:hover { color: var(--primary); }
+        .uc-main { max-width: 560px; margin: 28px auto; padding: 0 18px; }
+        .uc-main h1 { font-size: 22px; margin-bottom: 20px; color: var(--text); }
+        .uc-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius);
+                   padding: 20px 22px; margin-bottom: 18px; box-shadow: var(--shadow); }
+        .uc-card h2 { font-size: 16px; margin-bottom: 16px; color: var(--text); }
+        .uc-card label { display: block; font-size: 13px; color: var(--text-light); margin: 10px 0 4px; }
+        .uc-card input { width: 100%; padding: 8px 10px; border: 1px solid var(--input-border); border-radius: 6px;
+                         background: var(--input-bg); color: var(--text); font-size: 14px; box-sizing: border-box; }
+        .uc-card input:disabled { background: var(--chip-bg); color: var(--muted); }
+        .uc-err { color: var(--danger); font-size: 13px; margin-top: 8px; min-height: 18px; }
+        .uc-ok { color: var(--success); font-size: 13px; margin-top: 8px; min-height: 18px; }
+        .uc-hint { font-size: 12px; color: var(--muted); margin-top: 4px; }
+        .uc-card .btn { margin-top: 10px; }
+        .uc-avatar { display: inline-flex; width: 30px; height: 30px; border-radius: 50%; align-items: center;
+                     justify-content: center; background: var(--primary); color: #fff; font-weight: bold; margin-right: 8px; }
+    </style>
+</head>
+<body>
+    <header class="uc-top">
+        <a href="/">← {{ t('返回首页') }}</a>
+        <div style="display:flex; align-items:center;">
+            <span class="uc-avatar" id="uc-avatar">A</span>
+            <span id="uc-name" style="margin-right:14px; font-size:14px;"></span>
+            <a href="#" onclick="doLogout();return false;">{{ t('退出登录') }}</a>
+        </div>
+    </header>
+
+    <main class="uc-main">
+        <h1>{{ t('用户中心') }}</h1>
+
+        <section class="uc-card">
+            <h2>{{ t('账号信息') }}</h2>
+            <label>{{ t('用户名') }}（{{ t('不可修改') }}）</label>
+            <input type="text" id="uc-username" disabled>
+            <div class="uc-hint">{{ t('用户名是登录凭证，创建后不可更改。') }}</div>
+        </section>
+
+        <section class="uc-card">
+            <h2>{{ t('修改昵称') }}</h2>
+            <label>{{ t('新昵称') }}</label>
+            <input type="text" id="uc-nickname" maxlength="20" placeholder="{{ t('输入新昵称') }}">
+            <div class="uc-ok" id="uc-nickname-ok"></div>
+            <div class="uc-err" id="uc-nickname-err"></div>
+            <button class="btn" onclick="submitNickname()">{{ t('保存昵称') }}</button>
+        </section>
+
+        <section class="uc-card">
+            <h2>{{ t('修改密码') }}</h2>
+            <label>{{ t('原密码') }}</label>
+            <input type="password" id="uc-old-pwd" autocomplete="current-password">
+            <label>{{ t('新密码') }}（{{ t('至少 6 位') }}）</label>
+            <input type="password" id="uc-new-pwd" autocomplete="new-password">
+            <label>{{ t('确认新密码') }}</label>
+            <input type="password" id="uc-confirm-pwd" autocomplete="new-password">
+            <div class="uc-err" id="uc-pwd-err"></div>
+            <button class="btn" onclick="submitPassword()">{{ t('确认修改密码') }}</button>
+        </section>
+    </main>
+
+    <div id="toast" class="toast"></div>
+
+    <script src="/static/js/plugin_common.js"></script>
+    <script src="/static/js/user_center.js"></script>
+</body>
+</html>

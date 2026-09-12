@@ -35,7 +35,7 @@ def register(app):
         # 注意：插件 API（/api/<plugin>/...）的权限由插件自身的 @permission / require_role 装饰器决定，此处不做强制。
         # /__plugin_api__/ 调试页仅管理员可见（v4.10）：普通用户无需看到 API 文档/调试界面
         ADMIN_GUARD_PREFIXES = ['/admin/', '/api/admin/', '/debug/', '/api/reload', '/__plugin_api__/']
-        LOGIN_GUARD_PREFIXES = ['/plugin/']
+        LOGIN_GUARD_PREFIXES = ['/plugin/', '/user-center']  # /user-center: v4.20 用户中心（需登录）
 
         path = request.path
 

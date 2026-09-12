@@ -760,6 +760,22 @@ To do this well: keep a **coordination list** (one page linking every framework 
 instead of working around them. That loop is what turns a plugin project into a
 framework collaborator.
 
+### 9.5 User account self-service (v4.20)
+
+Log-in users can self-manage their own account at **`/user-center`** (page guarded by
+the framework so the un-logged-in are redirected to `/login`):
+
+- **Change nickname** — `POST /api/auth/user/update-nickname` with `{nickname}`
+  (non-empty, ≤20 chars, whitespace-trimmed).
+- **Change password** — `POST /api/auth/change-password` with
+  `{old_password, new_password}` (old must match, new ≥6 chars, other sessions kicked).
+
+**Usernames are immutable** (the login id is fixed after creation) and it is **self-service
+only** — an admin manages other users through the built-in `user_manage` plugin. The
+framework ships a `user_center.html` + `user_center.js` you can link to from your own
+navigation; the admin navbar and the public navbar already link to it. If your plugin
+needs the current user's nickname, read it from `/api/auth/user/info`.
+
 ---
 
 ## Appendix A — Pitfalls cheat-sheet

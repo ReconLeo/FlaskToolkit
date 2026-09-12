@@ -408,6 +408,7 @@
             </div>
             <a href="{{ project_github }}" target="_blank" rel="noopener" class="nav-link" title="{{ t('项目主页（GitHub）') }}">⭐ GitHub</a>
             <a href="/" class="nav-link">{{ t('首页') }}</a>
+            <a href="/user-center" class="nav-link">{{ t('用户中心') }}</a>
             <a href="javascript:;" class="nav-link logout-btn" onclick="handleLogout()">{{ t('退出') }}</a>
         </div>
     </nav>
@@ -425,6 +426,7 @@
             <p style="font-size:13px; color:#7f8c8d; margin-bottom:14px;">
                 {{ t('当前仍在使用默认密码 admin123，为保障后台安全请尽快修改。') }}
                 {{ t('选择“下次再说”可稍后修改，但每次登录后台都会提醒。') }}
+                {{ t('亦可前往') }} <a href="/user-center" style="color:#3498db;">{{ t('用户中心') }}</a> {{ t('完整修改昵称与密码') }}
             </p>
             <div class="form-group">
                 <label>{{ t('原密码') }}</label>

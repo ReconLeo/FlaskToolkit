@@ -86,7 +86,7 @@ FlaskToolkit/
 │   ├── desktop_launcher.py  #   桌面启动器（tkinter GUI，subprocess 启动服务，v4.11 M5；HTTPS 复选框 + 证书自动生成，v4.12）
 
 │   └── reset.py               #   深度重置工具（服务停止时使用，绕过运行时文件锁定）
-├── tests/                     # 回归测试套件（46 脚本 1209 项 + 端到端链路验证）
+├── tests/                     # 回归测试套件（47 脚本 1222 项 + 端到端链路验证）
 ├── templates/                 # 页面模板（首页/登录/错误码页 400-500/admin 管理后台/插件页）
 │   ├── admin/                 #   管理后台（dashboard / plugins / logs / stats / system）
 │   ├── frontend_tools/        #   前端工具模板
@@ -832,6 +832,21 @@ themes/
 | ------ | ------ | ---- |
 | `THEME` | `auto` | 界面主题（v4.19，可选 `auto`/`light`/`dark`，可扩展；`auto`=跟随系统 prefers-color-scheme；Cookie `theme` 可覆盖） |
 
+#### 5.11.7 用户中心配置项（v4.20）
+
+`/user-center` 用户中心页面与 `POST /api/auth/user/update-nickname`、`POST /api/auth/change-password` 均为登录用户自助能力，无新增配置项；昵称规则：非空、≤20 字符，用户名不可改。
+
+### 5.12 用户中心（v4.20）
+
+**能力**：登录用户自助修改**自己**昵称与密码；**用户名（登录名）不可改**（创建后固定）；仅本人自助，管理员管理他人账号仍走内置 `user_manage` 插件（不新增角色层级，避免触碰 RBAC 细化，归 Enterprise）。
+
+- **页面**：`GET /user-center`（`routes/public.py`），经 interceptor `LOGIN_GUARD_PREFIXES` 守卫（未登录自动 302 `/login?redirect=...`）；前端 `templates/user_center.html` + `static/js/user_center.js`，主题三件套随框架主题。
+- **API**（`plugins/auth.py`，均为 POST、需登录）：
+  - `POST /api/auth/user/update-nickname` `{nickname}`：改自己昵称（非空、≤20、去空白），成功同步 `request.user.nickname`（后续 `/api/auth/user/info` 立即返回新值）。
+  - `POST /api/auth/change-password` `{old_password, new_password}`：改自己密码（校验旧密码，≥6 位，踢除其他登录会话保留当前）。
+- **入口**：后台导航栏（`admin/base.html`）+ 公开页导航（`index.js` 登录态渲染）加"用户中心"链接；v4.10 强制改密弹窗保留为提醒入口，并提示可前往用户中心完整修改。
+- **安全**：未登录访问页面/API 均 401/302；CSRF 由插件装饰器统一校验；改密码后旧会话被踢（`keep_token` 保留当前）。
+
 ---
 
 ## 六、前端工具开发规范
@@ -1449,6 +1464,7 @@ FLASKTOOLKIT_HOST=0.0.0.0 FLASKTOOLKIT_PORT=8000 python app.py
 | `test_plugin_events.py`       | BasePlugin 事件集成 + 示例演示（v4.16）：scheduler_demo 事件订阅/定时/手动发布/清空/清理防泄漏 + dependent_demo 跨插件事件来源归因                                                                                                                                                                                                                                                                                | 28 项 |
 | `test_device.py`              | 设备检测 + 移动端模板分发（v4.17）：UA 分类 / 配置开关 / resolve_template 分发 / 公开页移动端模板 / BasePlugin 移动端命名空间                                                                                                                                                                                                                                                                                     | 20 项 |
 | `test_theme.py`               | 界面主题（v4.19）：主题白名单解析与非法回退 / Cookie 与用户配置优先级 / auto 深浅解析 / 公开页 data-theme-init / 主题入口链接 / 开放重定向防护 / setup 双语主次切换 / resolve_effective_theme 解析 / themes/ 扫描与自定义主题兑底                                                                                                                                                                                                                                            | 25 项 |
+| `test_user_center.py`   | 用户中心（v4.20）：自助改昵称（仅本人/空/超长/成功/去空白）+ 用户名不可改 + /user-center 未登录 302/登录 200 渲染                                                                                                                                                                                                                                                    | 13 项 |
 
 ```bash
 cd FlaskToolkit   # 在项目根目录执行
@@ -1553,7 +1569,7 @@ python tools/config.py profile <daily|strict|lan-open>   # 套用安全配置预
 | `LANGUAGE`                   | zh-CN                             | 系统显示语言（v4.9.0，可选值由 locales/ 语言包决定，Cookie `lang` 可覆盖）                                                                     |
 | `THEME`                      | auto                              | 界面主题（v4.19，可选 auto/light/dark，可扩展；auto=跟随系统 prefers-color-scheme；Cookie `theme` 可覆盖，见 5.11）                            |
 | `SYSTEM_NAME`                | FlaskToolkit                      | 系统显示名称（v4.7.0，仅装饰，不影响内部标识）                                                                                                 |
-| `SYSTEM_VERSION_LABEL`       | v4.19.2                           | 系统版本显示标签（v4.7.0，仅装饰，升级框架时建议同步更新）                                                                                     |
+| `SYSTEM_VERSION_LABEL`       | v4.20.0                           | 系统版本显示标签（v4.7.0，仅装饰，升级框架时建议同步更新）                                                                                     |
 | `PLUGIN_DATA_LIMIT_MB`       | 50                                | 单插件数据目录配额（MB，0=禁用，v4.9.0 见 10.10）                                                                                              |
 | `PLUGIN_DATA_TOTAL_LIMIT_MB` | 0                                 | 全部插件数据总量配额（MB，0=无限制，v4.9.2 见 10.11）                                                                                          |
 | `MDNS_ENABLED`               | false                             | mDNS 服务注册开关（v4.11，需重启生效，需 pip install zeroconf）                                                                                |

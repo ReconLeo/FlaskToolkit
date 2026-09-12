@@ -238,6 +238,23 @@ class AuthPlugin(BasePlugin):
                 return {k:v for k,v in user.items() if k != "password"}
         return None
 
+    def update_nickname(self, user_id: int, nickname: str):
+        """自助修改昵称（v4.20）：仅本人调用，更新当前用户 nickname，用户名不可改。
+
+        返回 (ok, message)。
+        """
+        if not nickname or not str(nickname).strip():
+            return False, "昵称不能为空"
+        nickname = str(nickname).strip()
+        if len(nickname) > 20:
+            return False, "昵称长度不能超过 20 个字符"
+        for user in self.config["users"]:
+            if user["id"] == user_id:
+                user["nickname"] = nickname
+                self.save_config()
+                return True, "昵称修改成功"
+        return False, "用户不存在"
+
     def reset_password(self, user_id: int, new_password: str) -> bool:
         """重置用户密码（user_manage调用）"""
         for user in self.config["users"]:
@@ -294,6 +311,21 @@ class AuthPlugin(BasePlugin):
         if not ok:
             return self.error_response(msg, 400)
         return self.success_response(data={"message": msg})
+
+    def update_nickname_api(self):
+        """自助修改昵称接口（v4.20）：POST {nickname}，需登录，仅本人。用户名不可改。"""
+        data = request.get_json(silent=True) or {}
+        nickname = data.get("nickname") or ""
+        user = getattr(request, 'user', None)
+        if not user:
+            return self.error_response("未登录", 401)
+        ok, msg = self.update_nickname(user["id"], nickname)
+        if not ok:
+            return self.error_response(msg, 400)
+        # 同步当前请求上下文用户昵称（后续 user/info 直接取 request.user）；用 strip 后值
+        stripped = str(nickname).strip()
+        user["nickname"] = stripped
+        return self.success_response(data={"message": msg, "nickname": stripped})
 
     # ------------------------------
     # 邀请码自助注册（v4.10 M5）
@@ -678,6 +710,15 @@ class AuthPlugin(BasePlugin):
                     {"name": "new_password", "type": "string", "required": True, "description": "新密码（至少 6 位）"}
                 ],
                 "view_func": self.change_password_api
+            },
+            {
+                "path": "/user/update-nickname",
+                "name": "修改我的昵称",
+                "methods": ["POST"],
+                "params": [
+                    {"name": "nickname", "type": "string", "required": True, "description": "新昵称（非空，≤20 字符）"}
+                ],
+                "view_func": self.update_nickname_api
             },
             {
                 "path": "/config",

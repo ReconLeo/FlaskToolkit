@@ -141,6 +141,15 @@ def register(app):
         response.headers['Cache-Control'] = 'public, max-age=300'
         return response
 
+    @app.route('/user-center')
+    def user_center():
+        """用户中心（v4.20）：登录用户自助修改昵称/密码（用户名不可改）。
+
+        页面本身经 interceptor LOGIN_GUARD_PREFIXES 守卫，未登录自动重定向 /login；
+        当前用户信息由页面 JS 经 /api/auth/user/info 获取并填充。
+        """
+        return render_template('user_center.html')
+
     @app.route('/logout')
     def logout_page():
         """全局登出页面"""
