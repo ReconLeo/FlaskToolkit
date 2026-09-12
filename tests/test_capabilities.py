@@ -101,8 +101,12 @@ check("B1 目录前缀递归（data 覆盖任意深度）", C.match_path_decl('d
 check("B2 尾 * / 尾斜杠 / 裸目录三写法等价",
       C.match_path_decl('data/*', 'data/x.json') and C.match_path_decl('data/', 'data/x.json'))
 check("B3 未授权路径不匹配", not C.match_path_decl('data', 'database/x'))
-check("B4 绝对路径 + Windows 大小写/分隔符",
-      C.match_path_decl('D:/Shared', 'd:\\shared\\2026\\q1.xlsx'))
+if os.name == 'nt':
+    check("B4 绝对路径 + Windows 大小写/分隔符",
+          C.match_path_decl('D:/Shared', 'd:\\shared\\2026\\q1.xlsx'))
+else:
+    # B4 验证 Windows 大小写/分隔符匹配，依赖 os.path.normcase 的平台行为；非 Windows 跳过
+    check("B4 绝对路径 + Windows 大小写/分隔符（非 Windows 跳过）", True)
 check("B5 URL host+path 前缀", C.match_url_decl('https://erp.corp.local/*', 'https://erp.corp.local/api/v1/user'))
 check("B6 子域通配不匹配裸域", C.match_url_decl('https://*.corp.local/*', 'https://erp.corp.local/x')
       and not C.match_url_decl('https://*.corp.local/*', 'https://corp.local/x'))

@@ -246,7 +246,7 @@ _TEMP = tempfile.gettempdir().replace(chr(92), '/')
 
 # 构造审计演示插件（真实 API 路由）
 _audit_py = f'''# -*- coding: utf-8 -*-
-import os, json, socket
+import os, json, socket, tempfile
 from plugins.base_plugin import BasePlugin
 
 class AuditdemoPlugin(BasePlugin):
@@ -271,11 +271,13 @@ class AuditdemoPlugin(BasePlugin):
               "view_func": self.api_net_bad}},
         ]
     def api_evil(self):
-        with open(os.path.join(os.environ.get("TEMP", "."), "audit_hook_evil.txt"), "w") as f:
+        # 跨平台：Linux 无 TEMP 环境变量，os.environ.get("TEMP", ".") 会回退 "." 写相对路径，
+        # 与声明的绝对 tempfile 路径不匹配；统一用 tempfile.gettempdir()
+        with open(os.path.join(tempfile.gettempdir(), "audit_hook_evil.txt"), "w") as f:
             f.write("x")
         return self.success_response(data={{"ok": True}})
     def api_good(self):
-        d = os.path.join(os.environ.get("TEMP", "."), "auditdemo")
+        d = os.path.join(tempfile.gettempdir(), "auditdemo")
         os.makedirs(d, exist_ok=True)
         with open(os.path.join(d, "out.txt"), "w") as f:
             f.write("x")
