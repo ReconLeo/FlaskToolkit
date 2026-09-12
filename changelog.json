@@ -1,13 +1,10 @@
 {
-  "latest_version": "4.20.0",
+  "latest_version": "4.20.1",
   "published_at": "2026-09-12",
-  "download_url": "https://github.com/ReconLeo/FlaskToolkit/releases/download/v4.20.0/FlaskToolkit-4.20.0-runtime.zip",
-  "sha256": "07656b1dd8f33986f50d03a85002e50f3ecef6bb073c0420f601b300e3bce043",
+  "download_url": "https://github.com/ReconLeo/FlaskToolkit/releases/download/v4.20.1/FlaskToolkit-4.20.1-runtime.zip",
+  "sha256": "0784e42b8facf2235250620371d6e709df67e27d51f5d733ccce65b174019826",
   "changes": [
-    "用户中心（审核符合 Community 原则）：登录用户自助修改昵称与密码，用户名不可改，仅本人自助",
-    "auth.py 新增 update_nickname + update_nickname_api（POST /api/auth/user/update-nickname，非空/≤20/去空白，同步 request.user.nickname）",
-    "新增独立页面 /user-center（interceptor LOGIN_GUARD_PREFIXES 守卫需登录）+ templates/user_center.html + static/js/user_center.js（主题三件套，改昵称+改密码聚合）",
-    "导航入口：后台导航栏 + 公开页导航（index.js 登录态）加用户中心链接；v4.10 强制改密弹窗保留并提示可前往用户中心完整修改",
-    "新增 test_user_center（13 项）+ jsdom 前端（12 项），全量回归 47 脚本 1222 项"
+    "修复 update_checker：有缓存时重启框架后未重新远程获取更新版本——background_check 改为 force=True 绕过缓存 TTL（默认 24h），每次启动强制拉取最新版本并写缓存；TTL 缓存仍用于抑制运行中手动非强制检查",
+    "新增 test_update_checker 背景检查强制测试（旧缓存 + 新版本源 → 缓存更新），52 项；全量回归 47 脚本 1224 项"
   ]
 }

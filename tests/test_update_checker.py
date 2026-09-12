@@ -33,7 +33,7 @@ sys.path.insert(0, REAL_BASE)
 
 import global_var
 from core.update_checker import (
-    parse_version, is_newer, UpdateInfo, check_for_update,
+    parse_version, is_newer, UpdateInfo, check_for_update, background_check,
     _cache_file, _read_cache, _write_cache, _cache_fresh,
 )
 from tools.update import (
@@ -179,6 +179,26 @@ try:
     global_var._user_config['UPDATE_CHECK_INTERVAL'] = 24
     global_var.BASE_DIR = saved_base
     global_var._user_config = saved_user_cfg
+
+    # ---------- 5b. 后台检查：有缓存时启动仍强制重新获取（v4.20.1 修复） ----------
+    bg_feed = os.path.join(iso, 'bg_feed.json')
+    build_changelog(bg_feed, version='8.8.8', sha256='x')
+    saved3 = global_var.BASE_DIR
+    old_cfg3 = dict(global_var._user_config or {})
+    global_var.BASE_DIR = iso
+    global_var._user_config['UPDATE_CHECK_INTERVAL'] = 24
+    global_var._user_config['UPDATE_FEED_URL'] = 'file:///' + bg_feed.replace('\\', '/')
+    # 写入未过期旧缓存（1.0.0）
+    _write_cache(UpdateInfo(latest_version='1.0.0', changes=['旧缓存']))
+    check('背景检查前置：旧缓存存在且未过期',
+          _cache_fresh() and _cache_fresh().latest_version == '1.0.0')
+    background_check()  # 有缓存也强制重新远程获取
+    after_bg = _read_cache()
+    check('背景检查强制重新获取远程（缓存更新为新版本 8.8.8）',
+          after_bg and after_bg['latest_version'] == '8.8.8',
+          repr(after_bg['latest_version'] if after_bg else None))
+    global_var.BASE_DIR = saved3
+    global_var._user_config = old_cfg3
 
     # ---------- 6. changelog 数据源结构校验 ----------
     ch_bad = os.path.join(iso, 'bad_feed.json')

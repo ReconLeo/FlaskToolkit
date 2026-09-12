@@ -187,9 +187,14 @@ def check_for_update(force: bool = False, feed_url: str = None) -> Optional[Upda
 
 
 def background_check():
-    """后台线程入口：检查后仅日志（结果由下次启动横幅/后台 API 读取缓存）"""
+    """后台线程入口：启动时强制重新获取（force=True，每次重启都拉最新版本并写缓存）。
+
+    v4.20.1 修复：此前用 check_for_update() 会命中缓存 TTL（默认 24h），导致"有缓存时
+    重启框架后未重新远程获取"。启动是低频事件，应绕过 TTL 缓存强制检查；TTL 缓存仍用于
+    抑制运行中手动非强制检查（如后台 /api/.../check 不带 force）。
+    """
     try:
-        info = check_for_update()
+        info = check_for_update(force=True)
         if info is None:
             return
         current = global_var.FRAMEWORK_VERSION

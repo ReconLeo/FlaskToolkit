@@ -58,6 +58,7 @@ Kaleido 同样开源（自托管题库系统）：[github.com/ReconLeo/Kaleido](
 | **v4.19.1** | 2026-09-11 | 插件主题接入便利化（AirDrop 协调清单 6.7）：core/theme.py 新增 resolve_effective_theme（light/dark 实际值、auto/非法交前端）+ inject_i18n 注入 theme_effective 到所有模板 + 独立 static/css/theme.css（:root 语义变量 + dark 覆盖，main.css 改 @import）+ multitool_demo 1.1.0 模板主题三件套样板，test_theme 扩展 A4（11/11），端到端渲染验证 17/17 + migrate_legacy_config 同路径防误删修复（test_frontend_permission 25/25），全量回归 46 脚本 1195 项 | tag `v4.19.1` |
 | **v4.19.2** | 2026-09-12 | 可扩展主题（themes/ 目录扫描，AirDrop 交接）：core/theme.py available_themes 扫描 THEMES_DIR（mtime 缓存，运行期生效）+ 新增 get_theme_css + /theme-static 路由 + theme.js KNOWN 动态化（data-themes + 自定义 CSS 按需加载/404 回退）+ 16 框架模板/4 插件样板加 data-themes + 切换器动态渲染 + 被删主题全链路兜底（后端回退 auto 不清 Cookie，前端 CSS 404 回退）+ 自带 sepia 示例；test_theme 11→25、前端 jsdom 11、端到端集成 21 | tag `v4.19.2` |
 | **v4.20.0** | 2026-09-12 | 用户中心（审核符合 Community）：登录用户自助改昵称/改密码，用户名不可改；auth.py 新增 update_nickname + update_nickname_api（POST /api/auth/user/update-nickname）+ 独立页面 /user-center（interceptor 守卫，需登录）+ user_center.html/js + 后台/公开页导航入口 + 强制改密弹窗提示；新增 test_user_center 13 + jsdom 12 | tag `v4.20.0` |
+| **v4.20.1** | 2026-09-12 | update_checker 修复：background_check 改 force=True（有缓存重启后仍重新远程获取），test_update_checker 50→52，全量 47 脚本 1224 项 | tag `v4.20.1` |
 
 ## 3. 版本详情
 
@@ -383,6 +384,12 @@ P1 安全强化至此全部完成，形成纵深防御：**静态扫描 → 能�
 - **页面**：新增 `GET /user-center`（`routes/public.py`），经 interceptor `LOGIN_GUARD_PREFIXES` 守卫（未登录 302 `/login`）；前端 `templates/user_center.html` + `static/js/user_center.js`（主题三件套，改昵称 + 改密码聚合）。
 - **入口**：后台导航栏 + 公开页导航（`index.js` 登录态）加"用户中心"链接；v4.10 强制改密弹窗保留并提示可前往用户中心完整修改。
 - **测试**：新增 test_user_center（改昵称仅本人/空/超长/成功/去空白 + 用户名不可改 + /user-center 未登录 302/登录 200 渲染，13 项）+ jsdom 前端（改昵称/改密校验与请求体，12 项）；test_setup 强制改密 19 项不回归。全量回归见发布记录。
+
+### 3.36 v4.20.1（2026-09-12，update_checker 重启后未重新获取修复）
+
+**修复**：`core/update_checker.py` `background_check()` 改为 `check_for_update(force=True)`——此前启动后台线程调 `check_for_update()`（无 force）会命中缓存 TTL（`UPDATE_CHECK_INTERVAL` 默认 24h），导致"有缓存时重启框架后未重新远程获取更新版本"。启动是低频事件，每次重启强制拉取最新版本并写缓存；TTL 缓存仍用于抑制运行中手动非强制检查（后台不带 force 的刷新）。
+
+**测试**：`test_update_checker` 新增 5b 段（写入未过期旧缓存 1.0.0 → 设 `UPDATE_FEED_URL` 为新版本源 8.8.8 → 调 `background_check()` → 断言缓存更新为新版本），50→52 项；`test_release_sign` 5、`test_plugin_updates` 8 不回归。全量回归 47 脚本 1224 项。
 
 ## 4. 发布实践沉淀
 
