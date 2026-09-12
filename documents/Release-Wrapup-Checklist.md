@@ -65,8 +65,9 @@
 
 ## 7. 回归与验证
 
-- [ ] 全量回归：`for t in tests/test_*.py; do python $t; done`（当前 25 脚本 602 项）
+- [ ] 全量回归：`for t in tests/test_*.py; do python $t; done`（当前 47 脚本）
 - [ ] **Python 3.10 语法体检**（v4.9.2 教训：f-string 嵌套同引号为 PEP 701 仅 3.12+，本地 3.12 不暴露）：`ast.parse(src, feature_version=(3,10))` 全项目 .py 扫描零错误（注意 f-string 内 `_tr()("...")` 嵌套双引号写法）
+- [ ] **ci.yml 核查**：`.github/workflows/ci.yml` 的 TESTS 数组覆盖全部 `tests/test_*.py`（新增脚本须同步，勿漏，当前 47 个）；前端工具真实 HTTP 端到端 step（`tests/verify_frontend_chain.py` + `ci_prepare_frontend_demo.py`，上传/更新/卸载链路）保留可用；新增 `verify_*.py`/辅助脚本注意路径随框架演进同步（`frontend_tools.json` 在 `data/` 下，非项目根）
 - [ ] 新增功能专项测试通过（如 test_capabilities / test_security / test_page_router）
 - [ ] `python examples/install_all.py --pack-only` 打包校验
 - [ ] `python tools/selfcheck.py`（或等价）启动自检通过
