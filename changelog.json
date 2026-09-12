@@ -1,14 +1,14 @@
 {
-  "latest_version": "4.19.1",
-  "published_at": "2026-09-11",
-  "download_url": "https://github.com/ReconLeo/FlaskToolkit/releases/download/v4.19.1/FlaskToolkit-4.19.1-runtime.zip",
-  "sha256": "9c133b7d860c332c647405b32f03952994963022e8b4845db220502d598638c3",
+  "latest_version": "4.19.2",
+  "published_at": "2026-09-12",
+  "download_url": "https://github.com/ReconLeo/FlaskToolkit/releases/download/v4.19.2/FlaskToolkit-4.19.2-runtime.zip",
+  "sha256": "9e1d07f5c7e91a4cd511b4d1ab7cc1fb02ae3cdde9a9bb8054e3d53c8726d16b",
   "changes": [
-    "插件主题接入便利化（AirDrop 协调清单 6.7）：core/theme.py 新增 resolve_effective_theme（light/dark 实际值，auto/非法交前端解析）",
-    "app.py inject_i18n 注入 theme_effective 到所有模板（含插件页面），插件模板可直接 data-theme-init",
-    "新增独立 static/css/theme.css（:root 语义变量 + dark 覆盖集），main.css 改 @import 共享",
-    "示例 multitool_demo 升 1.1.0（4 模板主题三件套样板），Dev-Guide 5.11 插件接入文档",
-    "框架防御修复：migrate_legacy_config 旧版路径与 FRONTEND_CONFIG_FILE 同路径时不误删配置（修复 test_frontend_permission 隔离环境工具 404，25/25）",
-    "test_theme 扩展 A4（11/11），全量回归 46 脚本 1195 项 0 失败"
+    "可扩展主题（themes/ 目录扫描，AirDrop 交接）：core/theme.py available_themes 扫描 THEMES_DIR（mtime 缓存，运行期增删生效）+ 新增 get_theme_css + /theme-static/<name>/theme.css 路由",
+    "前端 theme.js KNOWN 动态化（<html data-themes> 读取）+ 自定义主题 data-theme 设置 + /theme-static CSS 按需挂载 + CSS 404 回退 auto 兜底",
+    "16 框架模板 + multitool_demo 样板统一加 data-themes；切换器 _theme_switch.html 动态渲染 available_themes（内建保留翻译/图标，自定义显示 title）",
+    "被删主题全链路兜底：后端 get_theme/resolve_theme/resolve_effective_theme 自动回退 auto（不清 Cookie 保留偏好），前端 CSS 404 回退 auto",
+    "自带 sepia 示例主题（完整语义变量覆盖集）",
+    "test_theme 11→25、前端 jsdom 11、multitool+sepia 端到端集成 21，全量回归 46 脚本 1209 项"
   ]
 }

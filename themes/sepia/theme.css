@@ -1,0 +1,44 @@
+/* ============================================================
+   FlaskToolkit 示例自定义主题 Sepia（v4.19.2）
+   ------------------------------------------------------------
+   自定义主题 = 完整语义变量覆盖集（无需改 JS / 后端逻辑）。
+   复制 themes/sepia/ 为 themes/<你的主题名>/，改写 theme.json 的
+   name/title 与 theme.css 的 :root[data-theme="<主题名>"] 覆盖集即可。
+   主题名须匹配 ^[a-zA-Z0-9_-]+$；theme.css 视为不可信样式只读加载。
+   ============================================================ */
+:root[data-theme="sepia"] {
+    /* 主色：暖棕金 */
+    --primary: #a17917;
+    --primary-dark: #8a6412;
+    --success: #6f8f3a;
+    --success-dark: #5d7a2f;
+    --danger: #a4552f;
+    --warning: #c08a2d;
+    --dark: #4a4438;
+    /* 页面/卡片：米白暖调 */
+    --bg: #f4ecd8;
+    --card-bg: #faf3e3;
+    --border: #e0d3b6;
+    --text: #3b3a36;
+    --text-light: #6f6757;
+    --radius: 8px;
+    --shadow: 0 2px 12px rgba(80, 60, 20, 0.10);
+    /* 表单/辅助 */
+    --input-bg: #fffdf5;
+    --input-border: #cbbfa0;
+    --muted: #7a725f;
+    --muted-light: #8b8371;
+    --muted-lighter: #9a9280;
+    --faint: #a89f89;
+    --chip-bg: #ece1c8;
+    --panel-tint: #f0e7ce;
+    --req-bg: #f5ead0;
+    --req-border: #e0c98a;
+    --req-text: #8c6d1f;
+    --th-bg: #efe6d0;
+    --status-ok-bg: #eef2e0;
+    --code-bg: #3a352c;
+    --code-text: #e8dfc8;
+    /* 浅色暖调 */
+    color-scheme: light;
+}

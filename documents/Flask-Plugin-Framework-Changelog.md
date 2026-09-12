@@ -56,6 +56,7 @@ Kaleido 同样开源（自托管题库系统）：[github.com/ReconLeo/Kaleido](
 | **v4.18.0** | 2026-09-11 | B 组同步持久化上传助手：BasePlugin 新增 upload_dir + sanitize_filename + save_uploads（单/多文件·净化·去重·大小+配额双预检·直接落盘），AirDrop upload_files/get_safe_filename 迁移，新增 test_plugin_uploads(21)，全量回归 45 脚本 1182 项 | tag `v4.18.0` |
 | **v4.19.0** | 2026-09-11 | 全量界面深色模式 + setup 双语并显：core/theme.py（auto/light/dark 注册表 + Cookie 与用户配置双存）+ theme.js（auto 解析与监听）+ main.css/error.css/admin 深色变量化 + 16 模板接入 + setup.html 双语主次切换，新增 test_theme(10)，全量回归 46 脚本 1194 项 | tag `v4.19.0` |
 | **v4.19.1** | 2026-09-11 | 插件主题接入便利化（AirDrop 协调清单 6.7）：core/theme.py 新增 resolve_effective_theme（light/dark 实际值、auto/非法交前端）+ inject_i18n 注入 theme_effective 到所有模板 + 独立 static/css/theme.css（:root 语义变量 + dark 覆盖，main.css 改 @import）+ multitool_demo 1.1.0 模板主题三件套样板，test_theme 扩展 A4（11/11），端到端渲染验证 17/17 + migrate_legacy_config 同路径防误删修复（test_frontend_permission 25/25），全量回归 46 脚本 1195 项 | tag `v4.19.1` |
+| **v4.19.2** | 2026-09-12 | 可扩展主题（themes/ 目录扫描，AirDrop 交接）：core/theme.py available_themes 扫描 THEMES_DIR（mtime 缓存，运行期生效）+ 新增 get_theme_css + /theme-static 路由 + theme.js KNOWN 动态化（data-themes + 自定义 CSS 按需加载/404 回退）+ 16 框架模板/4 插件样板加 data-themes + 切换器动态渲染 + 被删主题全链路兜底（后端回退 auto 不清 Cookie，前端 CSS 404 回退）+ 自带 sepia 示例；test_theme 11→25、前端 jsdom 11、端到端集成 21 | tag `v4.19.2` |
 
 ## 3. 版本详情
 
@@ -361,6 +362,17 @@ P1 安全强化至此全部完成，形成纵深防御：**静态扫描 → 能�
 - **插件接入样板**（`examples/plugins/multitool_demo` 升 1.1.0，require 4.19.0）：4 个模板加主题三件套——`<html data-theme-init="{{ theme_effective }}">` + `<link /static/css/theme.css>` + `<script /static/js/theme.js>`；demo.css 末尾补 `:root[data-theme="dark"]` 覆盖映射到 theme.css 变量。manifest.json / examples/README.md 补深色接入说明。
 - **框架防御修复**（`core/frontend_tools.py` migrate_legacy_config）：旧版路径 `BASE_DIR/frontend_tools.json` 与新版 `FRONTEND_CONFIG_FILE` 解析到同一路径时（如隔离测试将 FRONTEND_CONFIG_FILE mock 到 BASE_DIR 根，或人为配置重合），不再把唯一一份有效配置当“冗余旧版”误删——新增同路径 normpath 判断直接跳过。修复前 test_frontend_permission 在隔离目录下 15 项工具 404（配置被 migrate 误删），修复后 25/25 全过。
 - **测试**：test_theme 扩展 A4（`resolve_effective_theme`：light/dark 实际值、auto/非法交前端），删冗余 C4/C5，11/11；主题相关回归子集全绿（theme 11 / i18n 29 / setup 19 / page_router 21 / error_pages 12 / admin_api 69）；示例插件打包验证（zip 内 version 1.1.0 与 require 4.19.0 一致）+ 模板 Jinja 可编译 + 端到端渲染验证 17/17（隔离目录加载 multitool_demo，主入口/子页默认 `data-theme-init="auto"`、Cookie dark 时 `="dark"`、theme.css/theme.js 注入、`/static/css/theme.css` 可访问、main.css 含 `@import`）。全量回归 46 脚本 1195 项 0 失败。
+
+### 3.34 v4.19.2（2026-09-12，可扩展主题：themes/ 目录扫描）
+
+实现 AirDrop 交接方案的 themes/ 目录扫描（可扩展主题），在 v4.19.1 语义变量体系之上，让用户通过 `themes/<name>/{theme.json,theme.css}` 自定义主题，本地目录发现（Community 边界内）。
+
+- **后端扫描**（`core/theme.py`）：新增 `THEMES_DIR`（global_var 可配置，默认 `BASE_DIR/themes`）+ 主题名白名单正则 `^[a-zA-Z0-9_-]+$`；`available_themes()` 内建 auto/light/dark + 扫描 themes/ 子目录（读 theme.json，name 须与目录名一致），带 mtime 缓存，**运行期增删主题/改 theme.json 即失效**；新增 `get_theme_css(name)` 读自定义主题 CSS（白名单 + 非内建 + 存在才返回）。
+- **前端**（`static/js/theme.js`）：`KNOWN` 从 `<html data-themes>`（available_themes 的 tojson）动态读取；自定义主题直接设 `data-theme=<name>` 并动态挂载 `/theme-static/<name>/theme.css`，CSS 加载失败（404，主题被删）回退 `auto` 作视觉兜底。
+- **路由与注入**：新增 `/theme-static/<name>/theme.css`（白名单 + 只读，不存在 404）；框架 16 模板 + multitool_demo 4 模板统一追加 `data-themes`；切换器 `_theme_switch.html` 改为从 available_themes 动态渲染下拉（内建保留翻译/图标，自定义显示 title）。
+- **兜底（自定义主题运行期被删）**：后端 `get_theme`/`resolve_theme`/`resolve_effective_theme` 经 `_is_valid_theme`（动态 available_themes）自动回退 `auto`，且**不清 Cookie**（偏好保留，重放回目录自动恢复）；前端 CSS 404 回退 `auto`。
+- **示例主题**：框架自带 `themes/sepia/`（完整语义变量覆盖集）。
+- **测试**：test_theme 扩展可扩展主题场景（扫描发现/非法名忽略/运行期新增生效/get_theme_css/动态白名单解析/被删兜底/theme-static 白名单/data-themes 注入），11→25 项；前端 jsdom 验证（KNOWN 动态/切换自定义/CSS 挂载/404 回退）11 项；multitool_demo + sepia 端到端集成 21 项。全量回归见发布记录。
 
 ## 4. 发布实践沉淀
 

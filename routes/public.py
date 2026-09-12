@@ -125,6 +125,22 @@ def register(app):
         response.set_cookie(theme.THEME_COOKIE, target, max_age=31536000, samesite='Lax')
         return response
 
+    @app.route('/theme-static/<name>/theme.css')
+    def theme_static_css(name):
+        """自定义主题 CSS（v4.19.2）：GET /theme-static/<name>/theme.css。
+
+        供前端 theme.js 为自定义主题按需挂载样式；主题名白名单正则校验，
+        CSS 视为不可信样式只读返回，不存在返回 404。
+        """
+        from core import theme
+        css = theme.get_theme_css(name)
+        if css is None:
+            return '', 404
+        response = make_response(css)
+        response.headers['Content-Type'] = 'text/css; charset=utf-8'
+        response.headers['Cache-Control'] = 'public, max-age=300'
+        return response
+
     @app.route('/logout')
     def logout_page():
         """全局登出页面"""

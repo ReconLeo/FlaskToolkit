@@ -86,7 +86,7 @@ FlaskToolkit/
 │   ├── desktop_launcher.py  #   桌面启动器（tkinter GUI，subprocess 启动服务，v4.11 M5；HTTPS 复选框 + 证书自动生成，v4.12）
 
 │   └── reset.py               #   深度重置工具（服务停止时使用，绕过运行时文件锁定）
-├── tests/                     # 回归测试套件（46 脚本 1195 项 + 端到端链路验证）
+├── tests/                     # 回归测试套件（46 脚本 1209 项 + 端到端链路验证）
 ├── templates/                 # 页面模板（首页/登录/错误码页 400-500/admin 管理后台/插件页）
 │   ├── admin/                 #   管理后台（dashboard / plugins / logs / stats / system）
 │   ├── frontend_tools/        #   前端工具模板
@@ -734,26 +734,30 @@ python tools/package.py pack ./my_plugin -o my_plugin.zip --type backend --src-l
 | --------------------------------- | --------------------------------------------------------------------------------------------------------- |
 | `THEME_COOKIE`                    | 主题 Cookie 名 `theme`                                                                                    |
 | `DEFAULT_THEME`                   | 默认主题 `auto`（跟随系统 prefers-color-scheme）                                                           |
-| `available_themes()`              | 返回可用主题映射 `{code: name}`（目前 `auto`/`light`/`dark`；在注册表新增即可扩展，前端 CSS 按 `[data-theme="<name>"]` 生效） |
+| `available_themes()`              | 返回可用主题映射 `{code: title}`：内建 `auto`/`light`/`dark` + **扫描 `themes/` 目录发现的自定义主题**（v4.19.2），带 mtime 缓存，运行期增删/改 theme.json 即失效 |
 | `resolve_theme(candidate)`        | 白名单校验防注入：合法主题名原样返回，非法回退 `auto`（防路径注入 / 未知值）                              |
 | `get_theme()`                     | 解析当前请求主题：**Cookie `theme` > 用户配置 `THEME` > `auto`**（镜像 i18n 语言机制）                   |
-| `resolve_effective_theme(candidate=None)` | 解析“实际生效深浅色”（v4.19.x）：`light`→`light`、`dark`→`dark`、`auto`/非法→`auto`（跟随系统交前端解析）；省略入参取 `get_theme()`。供后端/视图需要“当前是浅还是深”做条件渲染 |
+| `resolve_effective_theme(candidate=None)` | 解析“实际生效主题”（v4.19.x）：`light`→`light`、`dark`→`dark`、有效自定义主题→主题名、`auto`/非法→`auto`；省略入参取 `get_theme()`。供后端/视图需要“当前主题/深浅”做条件渲染 |
+| `get_theme_css(name)`               | 读取自定义主题 CSS（v4.19.2）：白名单 + 非内建 + `themes/<name>/theme.css` 存在才返回，供 `/theme-static` 路由用；否则 `None` |
 
 **优先级**（`get_theme`）：用户本次会话手动选择（Cookie `theme`，白名单校验）> 持久化用户配置 `THEME` > 跟随系统 `auto`。
 
 **auto 语义（诚实说明）**：后端无法读取浏览器 `prefers-color-scheme`（仅前端可感知），故 `resolve_effective_theme()` 对 `auto` 返回 `'auto'` 而非解析后的深浅色；实际深浅色由前端 `theme.js` 经 `matchMedia` 解析并设 `<html data-theme>`。需要“运行时实际深浅”时用前端 `window.Theme.current()` 或 CSS `[data-theme="dark"]` 覆盖。
 
-**路由**：`GET /theme/<code>`（`routes/public.py`）切换主题，仿 `/lang/<code>`：白名单校验 + `next` 开放重定向防护（`next_url.startswith('//') or '://' in next_url` → 回 `/`），成功写 `theme` Cookie 并跳转。`app.py` `inject_i18n` context_processor 注入 `theme` / `available_themes` / `theme_effective` 供模板使用。
+**路由**：`GET /theme/<code>`（`routes/public.py`）切换主题，仿 `/lang/<code>`：白名单校验 + `next` 开放重定向防护（`next_url.startswith('//') or '://' in next_url` → 回 `/`），成功写 `theme` Cookie 并跳转。`GET /theme-static/<name>/theme.css`（v4.19.2）服务自定义主题 CSS（白名单 + 只读，不存在 404）。`app.py` `inject_i18n` context_processor 注入 `theme` / `available_themes` / `theme_effective` 供模板使用（`available_themes` 在 `data-themes` 属性中供前端读取）。
+
+**主题发现与兜底（v4.19.2）**：自定义主题目录为 `global_var.THEMES_DIR`（默认 `BASE_DIR/themes`），结构 `themes/<name>/{theme.json,theme.css}`；主题名须匹配 `^[a-zA-Z0-9_-]+$`（防路径注入），`theme.json` 声明 `name`（须与目录名一致）与 `title`（UI 展示）。**自定义主题被删（Cookie/配置仍指向它）的兜底**：`get_theme`/`resolve_theme`/`resolve_effective_theme` 均经 `_is_valid_theme`（依赖动态 `available_themes`）校验，被删主题自动回退 `auto`，且**不清除 Cookie**（偏好保留，重放回目录自动恢复）；前端 theme.js 对自定义主题 CSS 加载失败（404）回退 `auto` 作视觉兜底。
 
 #### 5.11.2 前端主题脚本 theme.js
 
-`static/js/theme.js` 在页面加载时把 `<html data-theme>` 设为 `dark`/`light`（从 `<html data-theme-init>` 读初始主题）：
+`static/js/theme.js` 在页面加载时把 `<html data-theme>` 设为 `dark`/`light`（内建）或**自定义主题名**（从 `<html data-theme-init>` 读初始主题）：
 
 - `auto`：用 `matchMedia('(prefers-color-scheme: dark)')` 解析当前系统偏好并**监听变化**（系统切换自动跟随）；
 - `light`/`dark`：固定浅色/深色，不随系统变化。
+- **自定义主题（v4.19.2）**：从 `<html data-themes>`（`available_themes` 的 tojson）动态读可选主题表 `KNOWN`；自定义主题直接设 `data-theme=<name>`，并按需动态挂载 `<link href="/theme-static/<name>/theme.css">`；CSS 加载失败（404，如主题被删）回退 `auto` 作视觉兜底。
 - 暴露 `window.Theme`：`apply()`（应用）、`switch(code)`（切换并跳转 `/theme/<code>?next=`）、`declared`/`current`（声明/当前主题）。
 
-模板接入：页面 `<html data-theme-init="{{ theme }}">` + 引入 `theme.js` + （可选）导航栏主题切换组件 `_theme_switch.html`（auto/light/dark 三链接）。各页面独立入口（导航栏 / 认证页 / setup / mobile）。
+模板接入：页面 `<html data-theme-init="{{ theme }}" data-themes='{{ available_themes|tojson }}'>` + 引入 `theme.js` + （可选）导航栏主题切换组件 `_theme_switch.html`（内建 auto/light/dark + 自定义主题动态渲染）。各页面独立入口（导航栏 / 认证页 / setup / mobile）。
 
 #### 5.11.3 深色 CSS 变量化
 
@@ -762,7 +766,7 @@ python tools/package.py pack ./my_plugin -o my_plugin.zip --type backend --src-l
 - **error.css**：自包含 `:root` 变量 + `[data-theme="dark"]` 覆盖（错误页深色）。
 - **admin/base.html**：插入 `--adm-*` 变量 + `[data-theme="dark"]` 覆盖（后台 6 子页正文色变量化）。
 - **mobile.css / plugin_default.html**：深色徽标覆盖 + 移动端适配补全。
-- **可扩展**：新增主题只需在 `available_themes()` 注册名 + 补一份 `[data-theme="<name>"]` CSS 变量集，无需改 JS / 后端逻辑。
+- **可扩展（v4.19.2 落地）**：自定义主题不再需要改代码，只需在 `themes/<name>/` 放 `theme.json` + `theme.css`（`[data-theme="<name>"]` 完整语义变量覆盖集）即被发现并生效，无需改 JS / 后端逻辑。
 
 > **范围约定**：深色适配覆盖框架公开页/后台/错误页/插件默认页（plugin_default）与移动端；**示例插件**（`templates/plugins/*`）不在框架深色范围，示例插件可自行提供深色样式。
 
@@ -777,13 +781,13 @@ python tools/package.py pack ./my_plugin -o my_plugin.zip --type backend --src-l
 
 自包含独立模板插件（如 AirDrop / multitool_demo）接入框架深色，按**三件套**即可跟随主题：
 
-1. **`<html data-theme-init="{{ theme_effective }}">`**：渲染上下文 `theme_effective` 由 `inject_i18n` 注入（对所有模板含插件模板可用）；`light`/`dark` 为实际值，`auto` 交前端解析。
+1. **`<html data-theme-init="{{ theme_effective }}" data-themes='{{ available_themes|tojson }}'>`**：渲染上下文 `theme_effective` 由 `inject_i18n` 注入（对所有模板含插件模板可用）；有效自定义主题返回主题名、`light`/`dark` 为实际值、`auto` 交前端解析；`data-themes` 供前端动态读可选主题表（自定义主题自动受益）。
 2. **引 `theme.css` 复用语义变量**：`<link rel="stylesheet" href="/static/css/theme.css">`，插件自包含 CSS 直接写 `:root[data-theme="dark"]` 覆盖映射到 `--card-bg`/`--border`/`--input-bg` 等变量，无需自备深浅两套。
 3. **引 `theme.js`**：`<script src="/static/js/theme.js"></script>`，负责设 `<html data-theme>`（auto 跟随系统 + 监听变化，`window.Theme.switch(code)` 可手动切换）。
 
 ```html
 <!DOCTYPE html>
-<html lang="{{ lang }}" data-theme-init="{{ theme_effective }}">
+<html lang="{{ lang }}" data-theme-init="{{ theme_effective }}" data-themes='{{ available_themes|tojson }}'>
 <head>
     <link rel="stylesheet" href="/static/css/theme.css">   <!-- 语义变量 -->
     <link rel="stylesheet" href="/plugin-static/{{ plugin.name }}/css/demo.css"> <!-- 自身样式 -->
@@ -802,7 +806,25 @@ python tools/package.py pack ./my_plugin -o my_plugin.zip --type backend --src-l
 
 - 切换主题入口：可直接访问 `/theme/dark?next=<当前路径>`（或 `/theme/auto`、`/theme/light`），或复用框架 `_theme_switch.html` 组件。
 - 官方示例 `multitool_demo` 1.1.0 完整演示了多模板插件接入（四个页面三件套 + demo.css dark 覆盖），可作样板。
-- **后端条件渲染**：视图/服务端需判断当前深浅色时用 `theme.resolve_effective_theme()`（`light`/`dark`/`auto`）；需真实运行时深浅（auto 下）用前端 `window.Theme.current()`。
+- **后端条件渲染**：视图/服务端需判断当前深浅色时用 `theme.resolve_effective_theme()`（`light`/`dark`/`auto`/自定义主题名）；需真实运行时深浅（auto 下）用前端 `window.Theme.current()`。
+
+#### 5.11.6 自定义主题（themes/ 目录扫描，v4.19.2）
+
+用户可在 `themes/` 目录放置自定义主题，无需改代码即被发现并生效（本地目录发现，Community 边界内）。
+
+**目录结构**（默认 `global_var.THEMES_DIR` = `BASE_DIR/themes`）：
+
+```
+themes/
+└── sepia/                 # 主题名 = 目录名，须匹配 ^[a-zA-Z0-9_-]+$
+    ├── theme.json         # { "name": "sepia", "title": "Sepia" }（name 须与目录名一致）
+    └── theme.css          # [data-theme="sepia"] 完整语义变量覆盖集
+```
+
+- **发现**：`available_themes()` 内建 `auto`/`light`/`dark` + 扫描 `themes/` 子目录（读 theme.json）；带 mtime 缓存，运行期增删目录或改 theme.json 即失效。非法目录名 / 缺 theme.json / 声明 name 与目录名不一致被忽略。
+- **生效**：切换器 `_theme_switch.html` 从 `available_themes` 动态渲染下拉；`theme.js` 从 `data-themes` 读主题表，自定义主题设 `data-theme=<name>` 并动态挂载 `/theme-static/<name>/theme.css`；主题 CSS 引用框架 `theme.css` 语义变量，插件引用语义变量自动跟随。
+- **兜底**：自定义主题运行期被删（Cookie/配置仍指向它）时，后端 `get_theme`/`resolve_theme`/`resolve_effective_theme` 自动回退 `auto`（不清 Cookie，偏好保留，重放回目录自动恢复）；前端 theme.js 对自定义 CSS 加载失败（404）回退 `auto` 作视觉兜底。
+- **安全**：主题仅声明 + CSS 变量集，不执行 Python；`/theme-static/<name>/theme.css` 白名单正则 + 只读，视为不可信样式。官方自带 `themes/sepia/` 示例可作模板。
 
 #### 5.11.6 主题相关配置项
 
@@ -1426,7 +1448,7 @@ FLASKTOOLKIT_HOST=0.0.0.0 FLASKTOOLKIT_PORT=8000 python app.py
 | `test_dependency.py`          | 依赖解析（v4.16）：dep_spec 解析 / semver 含预发布 / Kahn 拓扑 / 环 / 缺失排除                                                                                                                                                                                                                                                                                                                                    | 11 项 |
 | `test_plugin_events.py`       | BasePlugin 事件集成 + 示例演示（v4.16）：scheduler_demo 事件订阅/定时/手动发布/清空/清理防泄漏 + dependent_demo 跨插件事件来源归因                                                                                                                                                                                                                                                                                | 28 项 |
 | `test_device.py`              | 设备检测 + 移动端模板分发（v4.17）：UA 分类 / 配置开关 / resolve_template 分发 / 公开页移动端模板 / BasePlugin 移动端命名空间                                                                                                                                                                                                                                                                                     | 20 项 |
-| `test_theme.py`               | 界面主题（v4.19）：主题白名单解析与非法回退 / Cookie 与用户配置优先级 / auto 深浅解析 / 公开页 data-theme-init / 主题入口链接 / 开放重定向防护 / setup 双语主次切换 / resolve_effective_theme 解析                                                                                                                                                                                                                                            | 11 项 |
+| `test_theme.py`               | 界面主题（v4.19）：主题白名单解析与非法回退 / Cookie 与用户配置优先级 / auto 深浅解析 / 公开页 data-theme-init / 主题入口链接 / 开放重定向防护 / setup 双语主次切换 / resolve_effective_theme 解析 / themes/ 扫描与自定义主题兑底                                                                                                                                                                                                                                            | 25 项 |
 
 ```bash
 cd FlaskToolkit   # 在项目根目录执行
@@ -1475,7 +1497,7 @@ python tests/test_events.py              # 11 项（事件总线 v4.16，隔离�
 python tests/test_dependency.py          # 11 项（依赖解析 v4.16，隔离目录）
 python tests/test_plugin_events.py       # 28 项（BasePlugin 事件集成 + 示例演示 v4.16，隔离目录）
 python tests/test_device.py              # 20 项（设备检测 + 移动端模板分发 v4.17，隔离目录）
-python tests/test_theme.py               # 11 项（界面主题 v4.19：主题解析/Cookie 优先级/setup 双语/resolve_effective_theme，隔离目录）
+python tests/test_theme.py               # 25 项（界面主题 v4.19：主题解析/Cookie 优先级/setup 双语/resolve_effective_theme + themes 扫描兑底，隔离目录）
 # 合计 46 个脚本（本地全量实测）
 # （AirDrop 插件加载回归 test_airdrop_loader.py 8 项已移交 AirDrop 子项目维护，不入主仓库）
 ```
@@ -1531,7 +1553,7 @@ python tools/config.py profile <daily|strict|lan-open>   # 套用安全配置预
 | `LANGUAGE`                   | zh-CN                             | 系统显示语言（v4.9.0，可选值由 locales/ 语言包决定，Cookie `lang` 可覆盖）                                                                     |
 | `THEME`                      | auto                              | 界面主题（v4.19，可选 auto/light/dark，可扩展；auto=跟随系统 prefers-color-scheme；Cookie `theme` 可覆盖，见 5.11）                            |
 | `SYSTEM_NAME`                | FlaskToolkit                      | 系统显示名称（v4.7.0，仅装饰，不影响内部标识）                                                                                                 |
-| `SYSTEM_VERSION_LABEL`       | v4.19.1                           | 系统版本显示标签（v4.7.0，仅装饰，升级框架时建议同步更新）                                                                                     |
+| `SYSTEM_VERSION_LABEL`       | v4.19.2                           | 系统版本显示标签（v4.7.0，仅装饰，升级框架时建议同步更新）                                                                                     |
 | `PLUGIN_DATA_LIMIT_MB`       | 50                                | 单插件数据目录配额（MB，0=禁用，v4.9.0 见 10.10）                                                                                              |
 | `PLUGIN_DATA_TOTAL_LIMIT_MB` | 0                                 | 全部插件数据总量配额（MB，0=无限制，v4.9.2 见 10.11）                                                                                          |
 | `MDNS_ENABLED`               | false                             | mDNS 服务注册开关（v4.11，需重启生效，需 pip install zeroconf）                                                                                |

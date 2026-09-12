@@ -21,6 +21,7 @@ C. 上下文注入
 
 运行：python tests/test_theme.py
 """
+import json
 import os
 import sys
 import tempfile
@@ -41,11 +42,15 @@ _path_patches = {
     'UPLOAD_TEMP_DIR': os.path.join(_tmp, 'temp'),
     'PLUGIN_CACHE_DIR': os.path.join(_tmp, '.plugin_cache'),
     'PLUGIN_CACHE_FILE': os.path.join(_tmp, '.plugin_cache', 'plugin_discovery_cache.json'),
+    'THEMES_DIR': os.path.join(_tmp, 'themes'),  # v4.19.2 可扩展主题目录
 }
 for _k, _v in _path_patches.items():
     setattr(global_var, _k, _v)
 os.makedirs(os.path.join(_tmp, 'data'), exist_ok=True)
 import shutil
+# 隔离主题目录 + 内置 sepia 示例主题（v4.19.2）
+shutil.copytree(os.path.join(_PROJECT_ROOT, 'themes', 'sepia'),
+                os.path.join(_tmp, 'themes', 'sepia'))
 _ld = os.path.join(_tmp, 'locales')
 os.makedirs(_ld, exist_ok=True)
 for _lf in ('en.json', 'zh-CN.json'):
@@ -110,6 +115,66 @@ def main():
     r = client.get('/login')
     lb = r.get_data(as_text=True)
     check("C3 登录页含主题入口链接", '/theme/dark' in lb and '跟随系统' in lb, '')
+
+    # ===== v4.19.2 可扩展主题（themes/ 目录扫描）=====
+    av = theme.available_themes()
+    check("A5 available_themes 扫描到自定义 sepia", 'sepia' in av and av['sepia'] == 'Sepia',
+          f"keys={sorted(av)}")
+    # 非法目录名 / 缺 theme.json 不纳入
+    os.makedirs(os.path.join(global_var.THEMES_DIR, 'bad dir'), exist_ok=True)
+    os.makedirs(os.path.join(global_var.THEMES_DIR, 'nodata'), exist_ok=True)
+    theme._scan_cache = {'key': None, 'themes': None}
+    av2 = theme.available_themes()
+    check("A6 非法名/缺声明目录被忽略",
+          'sepia' in av2 and 'bad dir' not in av2 and 'nodata' not in av2,
+          f"keys={sorted(av2)}")
+    # 运行期新增主题生效（mtime 缓存失效）
+    os.makedirs(os.path.join(global_var.THEMES_DIR, 'ocean'), exist_ok=True)
+    with open(os.path.join(global_var.THEMES_DIR, 'ocean', 'theme.json'), 'w', encoding='utf-8') as f:
+        json.dump({'name': 'ocean', 'title': 'Ocean'}, f)
+    theme._scan_cache = {'key': None, 'themes': None}
+    check("A7 运行期新增主题生效", 'ocean' in theme.available_themes(),
+          f"keys={sorted(theme.available_themes())}")
+    # get_theme_css
+    css = theme.get_theme_css('sepia')
+    check("A8 get_theme_css 读自定义主题", css is not None and 'sepia' in css and 'color-scheme' in css, '')
+    check("A8b get_theme_css 白名单/内建/不存在拒绝",
+          theme.get_theme_css('../dark') is None and theme.get_theme_css('dark') is None
+          and theme.get_theme_css('nope') is None, '')
+    # 动态白名单解析
+    check("A9 resolve_theme 动态含自定义",
+          theme.resolve_theme('sepia') == 'sepia' and theme.resolve_theme('ocean') == 'ocean'
+          and theme.resolve_theme('deleted') == 'auto', '')
+    check("A10 resolve_effective_theme 自定义返回声明名，被删回退 auto",
+          theme.resolve_effective_theme('sepia') == 'sepia'
+          and theme.resolve_effective_theme('deleted') == 'auto'
+          and theme.resolve_effective_theme('auto') == 'auto', '')
+    # get_theme 兜底：Cookie=自定义有效返回；被删回退 auto 且 Cookie 保留
+    with app.test_request_context('/', headers={'Cookie': 'theme=sepia'}):
+        check("A11 get_theme Cookie 自定义有效返回", theme.get_theme() == 'sepia',
+              f"got={theme.get_theme()}")
+    with app.test_request_context('/', headers={'Cookie': 'theme=deleted'}):
+        check("A11b get_theme 被删主题回退 auto（Cookie 保留）",
+              theme.get_theme() == 'auto', f"got={theme.get_theme()}")
+    # /theme/<code> 切换自定义 + /theme-static 服务
+    client.set_cookie('theme', 'sepia', domain='localhost', path='/')
+    r = client.get('/theme/sepia?next=/', follow_redirects=False)
+    ck = client.get_cookie('theme')
+    check("B5 /theme/sepia → Cookie=sepia", r.status_code == 302 and ck and ck.value == 'sepia',
+          f"cookie={ck.value if ck else None}")
+    client.set_cookie('theme', 'auto', domain='localhost', path='/')
+    r = client.get('/theme-static/sepia/theme.css')
+    check("B6 /theme-static/sepia/theme.css 200 + CSS",
+          r.status_code == 200 and 'sepia' in r.get_data(as_text=True), f"status={r.status_code}")
+    r = client.get('/theme-static/hack/theme.css')
+    check("B7 /theme-static 非法名 404", r.status_code == 404, f"status={r.status_code}")
+    r = client.get('/theme-static/dark/theme.css')
+    check("B7b /theme-static 内建主题 404", r.status_code == 404, f"status={r.status_code}")
+    # 上下文注入 data-themes（含自定义主题）
+    client.set_cookie('theme', 'auto', domain='localhost', path='/')
+    r = client.get('/login')
+    body = r.get_data(as_text=True)
+    check("C4 登录页 data-themes 含 sepia", 'data-themes' in body and 'sepia' in body, '')
 
     print(f'\n==== 界面主题回归：共 {len(results)} 项，'
           f'通过 {sum(1 for _, c, _ in results if c)}，'
