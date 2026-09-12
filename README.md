@@ -5,6 +5,7 @@
   <img src="https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB?logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/License-MIT-yellow" alt="License">
   <img src="https://img.shields.io/badge/version-4.20.0-blue" alt="Version">
+  <a href="https://github.com/ReconLeo/FlaskToolkit-Lite"><img src="https://img.shields.io/badge/Lite%20Edition-v4.2.2-lightgrey" alt="Lite Edition"></a>
 </p>
 
 > A Flask-based plugin **framework**: bring scattered Python plugins and pure-frontend tools into one unified runtime —
@@ -199,6 +200,7 @@ python tests/test_user_center.py            # user center (v4.20): self update-n
 ## Edition Status
 
 - **Community Edition (v4.x)**: feature development continues with a deliberately controlled architectural scale, focused on small-LAN / personal-use scenarios; we maintain and release regularly (46-script regression suite + CI).
+- **Lite Edition (v4.2.2)**: a lightweight single-machine sibling repo for personal developers and small self-hosted setups — a minimal, readable subset of FlaskToolkit (anything that runs on Lite also runs on the main framework). First release: [FlaskToolkit-Lite v4.2.2](https://github.com/ReconLeo/FlaskToolkit-Lite).
 - **Enterprise Edition (v5.x)**: planned to carry the long-term roadmap (refined permission model, process-level sandboxing, stricter CSP, enterprise identity integration, etc.). Due to limited team capacity, we are openly looking for maintainers to take over — see the [Enterprise Edition handover & roadmap](documents/Enterprise-Edition-Handover-Roadmap.md).
 
 ## Known Limitations

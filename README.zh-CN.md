@@ -5,6 +5,7 @@
   <img src="https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB?logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/License-MIT-yellow" alt="License">
   <img src="https://img.shields.io/badge/version-4.20.0-blue" alt="Version">
+  <a href="https://github.com/ReconLeo/FlaskToolkit-Lite"><img src="https://img.shields.io/badge/Lite%20Edition-v4.2.2-lightgrey" alt="Lite Edition"></a>
 </p>
 
 > 一个基于 Flask 的插件化**框架**：把散落的 Python 插件与纯前端工具装进统一的运行时，
@@ -199,6 +200,7 @@ python tests/test_user_center.py            # 用户中心（v4.20）：自助�
 ## 版本状态
 
 - **Community Edition（v4.x）**：功能开发持续进行，但架构规模有意识控制——专注小型局域网/个人用户场景，我们定期维护与发布（47 脚本回归套件 + CI）。
+- **Lite Edition（v4.2.2）**：面向个人开发者与小型自托管场景的单机精简版兄弟仓库——FlaskToolkit 的最小可读子集（凡在 Lite 上可运行的插件，主框架都能运行）。首版发布于 [FlaskToolkit-Lite v4.2.2](https://github.com/ReconLeo/FlaskToolkit-Lite)。
 - **Enterprise Edition（v5.x）**：规划承载远期路线（权限模型细化、进程级沙箱、CSP 收紧、企业身份对接等）。因当前小团队开发能力有限，公开寻求接手者——详见 [Enterprise Edition 交接与路线](documents/Enterprise-Edition-Handover-Roadmap.md)。
 
 ## 已知局限
