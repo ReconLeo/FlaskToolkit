@@ -125,7 +125,7 @@
         const btn = document.getElementById('pwdToggle');
         const show = pwd.type === 'password';
         pwd.type = show ? 'text' : 'password';
-        btn.textContent = show ? '隐藏' : '显示';
+        if (btn) btn.textContent = show ? '隐藏' : '显示';
         pwd.focus();
     }
 
@@ -148,7 +148,9 @@
         document.getElementById('username').addEventListener('keydown', function (e) {
             if (e.key === 'Enter' && !loginBtn.disabled) handleLogin();
         });
-        document.getElementById('pwdToggle').addEventListener('click', togglePwd);
+        // P1#5 修复：移动端 login 模板无 #pwdToggle 元素，判空避免 getElementById 返回 null 崩溃（init 中断致无法登录）
+        const pwdToggle = document.getElementById('pwdToggle');
+        if (pwdToggle) pwdToggle.addEventListener('click', togglePwd);
         loginBtn.addEventListener('click', handleLogin);
     }
 

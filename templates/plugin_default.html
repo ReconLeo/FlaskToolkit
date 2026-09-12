@@ -70,6 +70,26 @@
         :root[data-theme="dark"] .type-badge.file { background: #3a1f1e; color: #f2918c; border-color: #6b3230; }
         :root[data-theme="dark"] .type-badge.array, :root[data-theme="dark"] .type-badge.list { background: #153a2c; color: #6fd39b; border-color: #2c5a44; }
         :root[data-theme="dark"] .type-badge.object, :root[data-theme="dark"] .type-badge.json, :root[data-theme="dark"] .type-badge.dict { background: #153a2f; color: #6fd3b4; border-color: #2c5a4a; }
+
+        /* v4.20.1 窄屏溢出修复：公开页无后台菜单、隐藏汉堡；
+           mobile.css 会把 .navbar-right 折叠（display:none）导致右侧
+           "返回首页/主题/语言" 在窄屏不可达。这里覆盖为始终可见、横向可换行。 */
+        @media (max-width: 640px) {
+            header.navbar .navbar-right {
+                display: flex;
+                flex-direction: row;
+                align-items: center;
+                flex-wrap: wrap;
+                gap: 8px;
+                border-top: none;
+                margin-top: 0;
+                padding: 0;
+                background: none;
+            }
+            header.navbar .nav-toggle { display: none !important; }
+            /* 长 API 路径 / 结果 / 请求 URL 防水平溢出 */
+            .request-url, .result { overflow-x: auto; }
+        }
     </style>
     <link rel="stylesheet" href="/static/css/mobile.css">
 <script src="/static/js/theme.js"></script>

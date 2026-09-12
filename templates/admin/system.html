@@ -140,7 +140,7 @@
                 const d = res.data;
                 const rows = [
                     [window.T('系统名称'), d.system_name],
-                    [window.T('版本检查'), '<span id="sysVerLine" style="color: var(--adm-text-muted);">' + window.T('待检查') + '</span>'],
+                    [window.T('版本检查'), '<span id="sysVerLine" style="cursor:pointer; color: var(--adm-text-muted);" title="' + window.T('点击检查更新') + '" onclick="loadSysVer(true)">' + window.T('待检查') + '</span>'],
                     [window.T('系统版本'), '<span class="badge badge-blue">' + d.system_version + '</span>'],
                     [window.T('框架版本'), '<span class="badge badge-blue">v' + d.framework_version + '</span>'],
                     [window.T('Python 版本'), d.python_version],
@@ -159,12 +159,12 @@
             }).catch(() => {});
     }
 
-    function loadSysVer() {
+    function loadSysVer(force) {
         fetch('/api/admin/update/check', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': _getCsrfCookie() },
             credentials: 'include',
-            body: JSON.stringify({ force: false })
+            body: JSON.stringify({ force: !!force })
         })
             .then(r => r.json())
             .then(res => {

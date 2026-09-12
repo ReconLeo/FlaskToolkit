@@ -2,37 +2,38 @@
 
 {% block content %}
 <style>
-    .net-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 18px 20px; margin-bottom: 16px; }
+    .net-card { background: var(--adm-card-bg); border: 1px solid var(--adm-border); border-radius: 10px; padding: 18px 20px; margin-bottom: 16px; }
     .net-card h3 { margin: 0 0 10px; font-size: 15px; }
-    .net-hint { color: #6b7280; font-size: 12.5px; line-height: 1.7; }
-    .url-row { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px dashed #eee; flex-wrap: wrap; }
+    .net-hint { color: var(--adm-text-muted); font-size: 12.5px; line-height: 1.7; }
+    .url-row { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px dashed var(--adm-border-light); flex-wrap: wrap; }
     .url-row:last-child { border-bottom: none; }
     .url-row .url { font-family: Consolas, Monaco, monospace; font-size: 13.5px; word-break: break-all; flex: 1; min-width: 180px; }
     .url-row .badge { font-size: 11px; padding: 2px 8px; border-radius: 10px; }
     .badge-mdns { background: #dbeafe; color: #1d4ed8; }
     .badge-lan { background: #dcfce7; color: #15803d; }
-    .badge-local { background: #f3f4f6; color: #374151; }
-    .btn-mini { font-size: 12px; padding: 3px 10px; border-radius: 6px; cursor: pointer; border: 1px solid #d1d5db; background: #fff; }
-    .btn-mini:hover { background: #f3f4f6; }
+    .badge-local { background: var(--adm-th-bg); color: var(--adm-text); }
+    .btn-mini { font-size: 12px; padding: 3px 10px; border-radius: 6px; cursor: pointer; border: 1px solid var(--adm-input-border); background: var(--adm-input-bg); color: var(--adm-text); }
+    .btn-mini:hover { background: var(--adm-th-bg); }
     .btn-mini.primary { background: #2563eb; color: #fff; border-color: #2563eb; }
     .btn-mini.primary:hover { background: #1d4ed8; }
     .btn-mini.success { background: #16a34a; color: #fff; border-color: #16a34a; }
     .btn-mini.success:hover { background: #15803d; }
     .qr-box { display: flex; gap: 20px; align-items: center; margin-top: 10px; flex-wrap: wrap; }
-    .qr-canvas { border: 1px solid #e5e7eb; border-radius: 8px; padding: 8px; background: #fff; }
+    .qr-canvas { border: 1px solid var(--adm-border); border-radius: 8px; padding: 8px; background: var(--adm-card-bg); }
     .kv { display: grid; grid-template-columns: 96px 1fr; gap: 6px 12px; font-size: 13px; }
-    .kv .k { color: #6b7280; }
+    .kv .k { color: var(--adm-text-muted); }
     .kv .v { font-family: Consolas, Monaco, monospace; }
-    .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px dashed #eee; gap: 12px; }
+    .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px dashed var(--adm-border-light); gap: 12px; }
     .toggle-row:last-child { border-bottom: none; }
     .switch { position: relative; width: 44px; height: 22px; flex-shrink: 0; }
     .switch input { opacity: 0; width: 0; height: 0; }
-    .slider { position: absolute; cursor: pointer; inset: 0; background: #d1d5db; border-radius: 22px; transition: .2s; }
-    .slider:before { content: ""; position: absolute; width: 16px; height: 16px; left: 3px; top: 3px; background: #fff; border-radius: 50%; transition: .2s; }
+    .slider { position: absolute; cursor: pointer; inset: 0; background: var(--adm-input-border); border-radius: 22px; transition: .2s; }
+    .slider:before { content: ""; position: absolute; width: 16px; height: 16px; left: 3px; top: 3px; background: var(--adm-input-bg); border-radius: 50%; transition: .2s; }
     .switch input:checked + .slider { background: #16a34a; }
     .switch input:checked + .slider:before { transform: translateX(22px); }
-    .inline-input { border: 1px solid #d1d5db; border-radius: 6px; padding: 5px 10px; font-size: 13px; width: 220px; }
+    .inline-input { border: 1px solid var(--adm-input-border); border-radius: 6px; padding: 5px 10px; font-size: 13px; width: 220px; background: var(--adm-input-bg); color: var(--adm-text); }
     .notice-warn { background: #fffbeb; border: 1px solid #fde68a; color: #92400e; border-radius: 8px; padding: 10px 14px; font-size: 12.5px; line-height: 1.7; margin-top: 10px; }
+    :root[data-theme="dark"] .notice-warn { background: #3a3216; border-color: #6b5c2a; color: #e8c66f; }
 </style>
 
 <div class="card">

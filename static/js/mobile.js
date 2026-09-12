@@ -71,11 +71,42 @@
         document.body.classList.toggle('mobile-narrow', MOBILE_768.matches);
     }
 
+    /* ---------- ⑤ theme/lang 点击 toggle（点按出现，再按收起；点外部关闭） ---------- */
+    var _dropdownBound = false;
+    function closeDropdowns() {
+        document.querySelectorAll('.theme-menu, .lang-menu').forEach(function (m) { m.style.display = ''; });
+    }
+    function setupDropdown() {
+        if (_dropdownBound) return;
+        _dropdownBound = true;
+        document.addEventListener('click', function (e) {
+            var t = e.target;
+            var btn = t && t.closest ? t.closest('.theme-btn, .lang-btn') : null;
+            var sw = btn ? btn.closest('.theme-switch, .lang-switch') : null;
+            if (sw) {
+                e.preventDefault();
+                var menu = sw.querySelector('.theme-menu, .lang-menu');
+                var wasOpen = menu && menu.style.display === 'block';
+                if (wasOpen) {
+                    /* 二次点击收起：inline none 优先于 hover block，避免移不出菜单 */
+                    menu.style.display = 'none';
+                    return;
+                }
+                closeDropdowns();
+                if (menu) menu.style.display = 'block';
+                return;
+            }
+            if (t && t.closest && (t.closest('.theme-menu') || t.closest('.lang-menu'))) return;
+            closeDropdowns();
+        });
+    }
+
     function applyAll() {
         wrapTables(document);
         setupBurger();
         setupModalFull();
         setupToast();
+        setupDropdown();
     }
 
     /* 初始应用 + 媒体查询变化响应 + 动态内容（后台 JS 渲染表格/弹窗）监听 */

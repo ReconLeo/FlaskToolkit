@@ -165,14 +165,16 @@ def check_upload(plugin, new_size_bytes, global_limit_mb=None):
 
 
 def all_plugins_quota():
-    """按插件批量配额信息（4.9.2 后台"插件空间管理"页铺垫）。"""
+    """按插件批量配额信息（4.9.2 后台"插件空间管理"页铺垫）。
+
+    遍历全局插件注册表 global_var.plugins（含已禁用插件，由 plugin_loader 维护），
+    而非仅扫 plugins/data/ 现有目录——未建 data 目录的插件（如 AirDrop、自带
+    user_manage）也会按各自 storage:limit 声明或全局默认配额列出；用量由
+    _quota_usage 累加其自属 data/temp 目录 + filesystem:write 声明的外部路径。
+    """
     out = []
-    base = os.path.join(global_var.BASE_DIR, 'plugins', 'data')
-    if os.path.isdir(base):
-        for n in sorted(os.listdir(base)):
-            d = os.path.join(base, n)
-            if os.path.isdir(d):
-                limit, usage = get_plugin_quota(n)
-                out.append({'plugin': n, 'limit_mb': limit, 'usage_mb': usage,
-                            'remaining_mb': None if not limit else max(0.0, limit - usage)})
+    for n in sorted(global_var.plugins.keys()):
+        limit, usage = get_plugin_quota(n)
+        out.append({'plugin': n, 'limit_mb': limit, 'usage_mb': usage,
+                    'remaining_mb': None if not limit else max(0.0, limit - usage)})
     return out

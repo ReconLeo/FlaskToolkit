@@ -46,10 +46,13 @@ body {
 .auth-btn {
     display: inline-block; padding: 6px 14px; border-radius: 4px;
     font-size: 14px; text-decoration: none; transition: all 0.3s;
+    font-family: inherit; cursor: pointer;
 }
 .login-btn { background: var(--success); color: #fff; border: 1px solid var(--success); }
 .login-btn:hover { background: var(--success-dark); border-color: var(--success-dark); }
-.logout-btn { background: transparent; color: #fff; border: 1px solid #fff; cursor: pointer; }
+.user-center-btn { background: transparent; color: #fff; border: 1px solid var(--primary); }
+.user-center-btn:hover { background: var(--primary); color: #fff; }
+.logout-btn { background: transparent; color: #fff; border: 1px solid #fff; }
 .logout-btn:hover { background: #fff; color: var(--dark); }
 
 /* ---------------- 按钮 ---------------- */
@@ -93,6 +96,7 @@ body {
 .search-box input {
     width: 100%; padding: 9px 12px 9px 34px;
     border: 1px solid var(--border); border-radius: 4px; font-size: 14px;
+    background: var(--input-bg); color: var(--text);
     transition: border-color 0.2s;
 }
 .search-box input:focus { outline: none; border-color: var(--primary); }
@@ -102,7 +106,7 @@ body {
 }
 .sort-select {
     padding: 9px 12px; border: 1px solid var(--border); border-radius: 4px;
-    font-size: 14px; background: #fff; cursor: pointer;
+    font-size: 14px; background: var(--input-bg); color: var(--text); cursor: pointer;
 }
 .sort-select:focus { outline: none; border-color: var(--primary); }
 .toolbar-count { font-size: 13px; color: var(--text-light); white-space: nowrap; }
@@ -260,3 +264,43 @@ body {
 }
 .history-table th { color: var(--text-light); font-weight: 500; background: var(--th-bg); }
 .history-path { max-width: 480px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: 'Consolas', 'Courier New', monospace; }
+
+/* ============================================================
+   v4.20.1：index 页桌面端用户中心/退出 收纳到 userInfo 悬浮卡片
+   （移动端保持原 authButton 布局）
+   ============================================================ */
+@media (min-width: 769px) {
+    /* 桌面登录后：隐藏 authButton 的“用户中心/退出”按钮，由悬浮卡片接管 */
+    body.ftk-logged .navbar-right #authButton { display: none; }
+    .user-info { position: relative; cursor: pointer; }
+    /* 悬停桥梁：覆盖 user-info 与卡片间 gap，移向卡片时卡片不消失 */
+    .user-info::after {
+        content: '';
+        position: absolute;
+        top: 100%; left: 0; right: 0;
+        height: 10px;
+    }
+    .index-user-menu {
+        display: none;
+        position: absolute; top: calc(100% + 10px); right: 0;
+        min-width: 180px; background: var(--card-bg);
+        border: 1px solid var(--border); border-radius: 10px;
+        box-shadow: 0 6px 16px rgba(0,0,0,0.14);
+        padding: 8px; z-index: 300;
+    }
+    .user-info:hover .index-user-menu,
+    .user-info:focus-within .index-user-menu { display: block; }
+    .index-user-menu .um-nick { font-weight: 600; font-size: 14px; color: var(--text); }
+    .index-user-menu .um-role { font-size: 12px; color: var(--text-light); margin-top: 2px; }
+    .index-user-menu .um-sep { border-top: 1px solid var(--border); margin: 8px 0; }
+    .index-user-menu a {
+        display: block; padding: 8px 10px; border-radius: 6px;
+        color: var(--text); text-decoration: none; font-size: 13px;
+    }
+    .index-user-menu a:hover { background: rgba(127, 127, 127, 0.14); }
+    .index-user-menu #indexLogout { color: #e74c3c; }
+}
+/* 移动端：悬浮卡片隐藏，保持原 authButton 布局 */
+@media (max-width: 768px) {
+    .index-user-menu { display: none !important; }
+}

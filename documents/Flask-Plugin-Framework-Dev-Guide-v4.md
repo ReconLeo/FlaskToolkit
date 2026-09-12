@@ -637,7 +637,7 @@ python tools/package.py pack ./my_plugin -o my_plugin.zip --type backend --src-l
 后端插件可声明 `require_framework_version`（`plugin.json` 或插件类属性，非强制），用于声明插件所需的最低框架版本，以支撑框架持续迭代：
 
 - **未声明**：不检查，任意框架版本可用。
-- **声明了**：上传/更新时与 `global_var.FRAMEWORK_VERSION`（当前 `4.18.0`）做点分版本比较（`compare_versions`，修复了前端工具原先字符串比较的缺陷）；插件要求高于框架版本 → 拒绝安装并报告。
+- **声明了**：上传/更新时与 `global_var.FRAMEWORK_VERSION`（当前 `4.20.2`）做点分版本比较（`compare_versions`，修复了前端工具原先字符串比较的缺陷）；插件要求高于框架版本 → 拒绝安装并报告。
 - **运行时双重校验**：`load_plugins` 加载时同样校验（防止手工放置插件绕过上传校验），不满足则跳过加载并报错。
 - 参与描述一致性对齐（冲突拒绝/缺失补全），见 5.6.3。
 
@@ -1514,7 +1514,7 @@ python tests/test_dependency.py          # 11 项（依赖解析 v4.16，隔离�
 python tests/test_plugin_events.py       # 28 项（BasePlugin 事件集成 + 示例演示 v4.16，隔离目录）
 python tests/test_device.py              # 20 项（设备检测 + 移动端模板分发 v4.17，隔离目录）
 python tests/test_theme.py               # 25 项（界面主题 v4.19：主题解析/Cookie 优先级/setup 双语/resolve_effective_theme + themes 扫描兑底，隔离目录）
-# 合计 46 个脚本（本地全量实测）
+# 合计 47 个脚本（本地全量实测）
 # （AirDrop 插件加载回归 test_airdrop_loader.py 8 项已移交 AirDrop 子项目维护，不入主仓库）
 ```
 
@@ -1569,7 +1569,7 @@ python tools/config.py profile <daily|strict|lan-open>   # 套用安全配置预
 | `LANGUAGE`                   | zh-CN                             | 系统显示语言（v4.9.0，可选值由 locales/ 语言包决定，Cookie `lang` 可覆盖）                                                                     |
 | `THEME`                      | auto                              | 界面主题（v4.19，可选 auto/light/dark，可扩展；auto=跟随系统 prefers-color-scheme；Cookie `theme` 可覆盖，见 5.11）                            |
 | `SYSTEM_NAME`                | FlaskToolkit                      | 系统显示名称（v4.7.0，仅装饰，不影响内部标识）                                                                                                 |
-| `SYSTEM_VERSION_LABEL`       | v4.20.1                           | 系统版本显示标签（v4.7.0，仅装饰，升级框架时建议同步更新）                                                                                     |
+| `SYSTEM_VERSION_LABEL`       | v4.20.2                           | 系统版本显示标签（v4.7.0，仅装饰，升级框架时建议同步更新）                                                                                     |
 | `PLUGIN_DATA_LIMIT_MB`       | 50                                | 单插件数据目录配额（MB，0=禁用，v4.9.0 见 10.10）                                                                                              |
 | `PLUGIN_DATA_TOTAL_LIMIT_MB` | 0                                 | 全部插件数据总量配额（MB，0=无限制，v4.9.2 见 10.11）                                                                                          |
 | `MDNS_ENABLED`               | false                             | mDNS 服务注册开关（v4.11，需重启生效，需 pip install zeroconf）                                                                                |

@@ -4,7 +4,7 @@
   <img src="https://github.com/ReconLeo/FlaskToolkit/actions/workflows/ci.yml/badge.svg" alt="CI">
   <img src="https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB?logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/License-MIT-yellow" alt="License">
-  <img src="https://img.shields.io/badge/version-4.20.1-blue" alt="Version">
+  <img src="https://img.shields.io/badge/version-4.20.2-blue" alt="Version">
   <a href="https://github.com/ReconLeo/FlaskToolkit-Lite"><img src="https://img.shields.io/badge/Lite%20Edition-v4.2.2-lightgrey" alt="Lite Edition"></a>
 </p>
 
@@ -39,7 +39,7 @@ Over time it grew into what it is today — a few highlights:
 - **Event bus & true dependency resolution**: a lightweight in-process pub/sub bus lets plugins talk without knowing who’s listening; dependencies resolve with version constraints and cycle detection.
 - **Dark mode**: full-interface light/dark themes with `auto` (follow the OS) plus manual override; the CSS-variable system is **extensible by dropping in a `themes/<name>/` folder** (a `sepia` example ships), and the first-run `setup` page renders bilingual side by side.
 - **User center**: logged-in users self-manage their **nickname and password** at `/user-center` (usernames are immutable; self-service only).
-- **Ops & tooling**: version check + dual-backend updater, Factory Reset, backup/restore, startup self-check, integrity signing, plugin scaffolding & offline install/uninstall CLI, plus a **46-script regression suite and GitHub Actions CI**.
+- **Ops & tooling**: version check + dual-backend updater, Factory Reset, backup/restore, startup self-check, integrity signing, plugin scaffolding & offline install/uninstall CLI, plus a **47-script regression suite and GitHub Actions CI**.
 
 The full feature specification lives in the [development guide](documents/Flask-Plugin-Framework-Dev-Guide-v4.md).
 
@@ -141,7 +141,7 @@ Detailed specs live in the [Flask Plugin Framework Development Guide](documents/
 `tests/` contains **47 scripts** of regression tests (isolated-directory mode, no pollution of project files); GitHub Actions runs them automatically on Python 3.10 / 3.11 / 3.12, covering permissions, plugin-package / frontend-tool chains, integrity signatures, uninstall manifests, Factory Reset, large-plugin multi-template page routing, file transfer (upload limits / Chinese-name downloads / Range), static security scanning, capability cross-validation, runtime audit hooks, i18n framework, plugin data quota, event bus & dependency resolution, device detection & mobile template dispatch, plugin scaffolding / offline install-uninstall CLI, per-plugin space cleanup, ops tools, etc.
 
 <details>
-<summary>Expand: 46 test scripts</summary>
+<summary>Expand: 47 test scripts</summary>
 
 ```bash
 cd FlaskToolkit

@@ -40,8 +40,10 @@ RUNTIME_TOP = ['app.py', 'global_var.py', 'requirements.txt', 'core', 'routes', 
 #     源码自带 themes/sepia 作自定义主题模板，runtime 用户可自行复制/添加。
 # 内置插件白名单（用户插件不入精简包；plugins/configs|data|temp 为运行时数据不入包）
 RUNTIME_PLUGIN_FILES = {'__init__.py', 'base_plugin.py', 'auth.py', 'user_manage.py'}
-# templates 下排除的用户内容子目录（插件模板/前端工具模板）
-RUNTIME_TEMPLATE_EXCLUDE = {'plugins', 'frontend_tools'}
+# templates 下排除的用户内容子目录（前端工具模板）。
+# 注：'plugins' 不在此处整体排除——精简包需保留内置插件 user_manage 的模板/静态资源
+#     （render_template('plugins/user_manage.html')），由 collect_runtime_files 单独过滤。
+RUNTIME_TEMPLATE_EXCLUDE = {'frontend_tools'}
 
 # changelog 签名覆盖字段（与 core/update_checker.SIGNED_FIELDS 对齐）
 SIGNED_FIELDS = ('latest_version', 'published_at', 'download_url', 'sha256', 'changes')
@@ -139,6 +141,12 @@ def collect_runtime_files():
                     first = rel.split('/')[1] if '/' in rel else ''
                     if first in RUNTIME_TEMPLATE_EXCLUDE:
                         continue
+                    if first == 'plugins':
+                        # 精简包仅内置插件 user_manage 需自带模板/静态资源
+                        # （auth 无独立模板；airdrop/kaleido 为示例插件，不进 runtime 包）
+                        rest = rel[len('templates/plugins/'):]
+                        if not (rest == 'user_manage.html' or rest.startswith('static/user_manage/')):
+                            continue
                 files.append(rel)
     return sorted(set(files))
 

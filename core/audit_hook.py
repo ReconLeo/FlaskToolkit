@@ -43,6 +43,11 @@ _OS_TRUNC = getattr(os, 'O_TRUNC', 0x200)
 
 # 事件 → (domain, 目标提取函数)
 def _open_target(args):
+    # P0#4 修复：open 事件的第一个参数可能是 int 文件描述符（os.fdopen / open(fd) 复用已打开
+    # fd），此时 str(fd) 会被误判成路径 "10" 生成伪能力 filesystem:read:10/。int fd 属对已打开
+    # 文件的复用，非新路径访问，直接跳过（返回 None 由 _handler 放行）。
+    if not args or isinstance(args[0], int):
+        return None, None
     path = str(args[0])
     mode = args[1] if len(args) > 1 else None
     flags = args[2] if len(args) > 2 else 0
@@ -91,7 +96,10 @@ def _bind_target(args):
 
 
 def _path_target(args):
-    return 'filesystem:write', str(args[0] if args else '')
+    # P0#4 修复：同 _open_target，int 参数（fd）非路径访问，跳过避免伪能力
+    if not args or isinstance(args[0], int):
+        return None, None
+    return 'filesystem:write', str(args[0])
 
 
 def _sqlite_target(args):

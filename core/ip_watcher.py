@@ -89,10 +89,13 @@ def stop():
 
 
 def get_status():
-    """供网络页展示的状态字典。"""
+    """供网络页展示的状态字典。
+    interval 从 config 权威读取（IP_WATCH_INTERVAL），保存后即时反映；
+    否则只读模块级 _interval（仅 start 时设定），保存配置后前端会显示旧值。"""
+    interval = int(network.get_ip_watch_interval())
     return {
-        'enabled': _interval > 0,
-        'interval': _interval,
+        'enabled': interval > 0,
+        'interval': interval,
         'last_change_ts': last_change_ts,
         'last_change_detail': last_change_detail,
     }

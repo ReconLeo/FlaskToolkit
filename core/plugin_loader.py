@@ -12,7 +12,9 @@ import importlib.metadata
 import logging
 import os
 import sys
+import threading
 import traceback
+from functools import wraps
 
 import global_var
 from core.logging_setup import PluginLogAdapter
@@ -27,6 +29,19 @@ from core.stats import save_stats
 from core.utils import parse_path_pattern
 
 logger = logging.getLogger('flask.app')
+
+# P0 修复：并发 load_plugins 竞态（watcher 线程 × API 处理线程同时 del sys.modules
+# ['plugins.base_plugin'] + 重导入 → CPython _load_unlocked KeyError('plugins.base_plugin')）。
+# 用全局互斥锁串行化 load_plugins，消除 sys.modules 清理/重导入竞态。
+_LOAD_LOCK = threading.RLock()
+
+def _synchronized_load(func):
+    """为 load_plugins 加全局互斥锁：同一时刻只允许一个线程执行加载。"""
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        with _LOAD_LOCK:
+            return func(*args, **kwargs)
+    return wrapper
 
 
 def check_dependencies(plugin_instance, available_plugins: set, plugin_versions=None):
@@ -91,6 +106,7 @@ def register_scheduled_tasks(plugin_instance):
         logger.info(f"已注册定时任务: {task_id}", extra={'plugin': plugin_instance.name})
 
 
+@_synchronized_load
 def load_plugins():
     plugin_dir = os.path.join(global_var.BASE_DIR, 'plugins')
     global_temp_root = os.path.join(plugin_dir, 'temp')

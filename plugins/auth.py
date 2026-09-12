@@ -129,15 +129,21 @@ class AuthPlugin(BasePlugin):
             self.sessions = {}
 
     def _save_sessions(self):
-        """持久化当前会话数据（原子写：临时文件 + os.replace，避免并发读端读到空/截断文件）"""
+        """持久化当前会话数据（原子写：唯一临时文件 + os.replace，避免并发写冲突/读空）"""
         session_file = self._get_session_file_path()
-        tmp_file = f"{session_file}.tmp"
+        # P0 修复：tmp 名加唯一后缀（并发 load_plugins/多线程 _save_sessions 时不再互相覆盖同一 tmp 文件）
+        tmp_file = f"{session_file}.{uuid.uuid4().hex}.tmp"
         try:
             with open(tmp_file, "w", encoding="utf-8") as f:
                 json.dump(self.sessions, f, ensure_ascii=False, indent=2)
             os.replace(tmp_file, session_file)
         except Exception as e:
             self.logger.error(f"会话持久化失败: {str(e)}")
+            try:
+                if os.path.exists(tmp_file):
+                    os.remove(tmp_file)
+            except Exception:
+                pass
 
 
     # ------------------------------
@@ -252,6 +258,15 @@ class AuthPlugin(BasePlugin):
             if user["id"] == user_id:
                 user["nickname"] = nickname
                 self.save_config()
+                # 修复：同步该用户所有活跃会话的 nickname 快照并持久化，
+                # 否则前端 user/info 从会话读昵称仍旧值（仅 configs/auth.json 更新，sessions.json 不变，需重登才生效）
+                _changed = False
+                for _token, _sess in list(self.sessions.items()):
+                    if _sess.get("id") == user_id:
+                        _sess["nickname"] = nickname
+                        _changed = True
+                if _changed:
+                    self._save_sessions()
                 return True, "昵称修改成功"
         return False, "用户不存在"
 

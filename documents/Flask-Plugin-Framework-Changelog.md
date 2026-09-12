@@ -59,6 +59,7 @@ Kaleido 同样开源（自托管题库系统）：[github.com/ReconLeo/Kaleido](
 | **v4.19.2** | 2026-09-12 | 可扩展主题（themes/ 目录扫描，AirDrop 交接）：core/theme.py available_themes 扫描 THEMES_DIR（mtime 缓存，运行期生效）+ 新增 get_theme_css + /theme-static 路由 + theme.js KNOWN 动态化（data-themes + 自定义 CSS 按需加载/404 回退）+ 16 框架模板/4 插件样板加 data-themes + 切换器动态渲染 + 被删主题全链路兜底（后端回退 auto 不清 Cookie，前端 CSS 404 回退）+ 自带 sepia 示例；test_theme 11→25、前端 jsdom 11、端到端集成 21 | tag `v4.19.2` |
 | **v4.20.0** | 2026-09-12 | 用户中心（审核符合 Community）：登录用户自助改昵称/改密码，用户名不可改；auth.py 新增 update_nickname + update_nickname_api（POST /api/auth/user/update-nickname）+ 独立页面 /user-center（interceptor 守卫，需登录）+ user_center.html/js + 后台/公开页导航入口 + 强制改密弹窗提示；新增 test_user_center 13 + jsdom 12 | tag `v4.20.0` |
 | **v4.20.1** | 2026-09-12 | update_checker 修复（background_check 改 force=True，有缓存重启后仍重新远程获取）+ themes 移出 CORE_DIRS（新装 runtime 无 themes 不再误报致命，归 USER_DATA_PATHS 升级保留 + RUNTIME_TOP 打包 sepia）+ tzdata 加入 REQUIRED_DEPS；test_update_checker 50→52、test_selfcheck 14→17、manifest 53→54，全量 47 脚本 1227 项 | tag `v4.20.1` |
+| **v4.20.2** | 2026-09-12 | 稳定性测试累积 bug 修复：P0 日志清理 / 并发 load_plugins 竞态互斥锁 / audit 钩子 int fd 误判路径伪能力 / quota 未声明插件默认配额 / 昵称修改同步会话 / IP 检测保存即时生效 + release 打包缺陷（runtime 缺内置 user_manage 模板致 500）+ 前端备忘 9-29（登录移动端崩溃/上传预览复原/深色适配/汉堡抽屉/悬浮卡片/版本检查/窄屏）；全量 47 脚本 0 失败 | tag `v4.20.2` |
 
 ## 3. 版本详情
 
@@ -395,6 +396,28 @@ P1 安全强化至此全部完成，形成纵深防御：**静态扫描 → 能�
 - **themes 误入 CORE_DIRS 导致新装 runtime 无法启动**：v4.19.2 把 `themes` 加进 `CORE_DIRS`（缺失视为致命），而 `themes` 是可选扩展目录（无自定义主题时不存在属正常），runtime 精简包（RUNTIME_TOP）也未含 themes → 新装 runtime 启动时 selfcheck 报"核心目录缺失: themes"致命阻止启动。修复：`themes` 从 `CORE_DIRS` 移出（selfcheck 不强求），归入 `USER_DATA_PATHS`（升级/备份保留用户自定义主题），`RUNTIME_TOP` 加 `themes`（runtime 打包自带 sepia 示例）。
 - **tzdata 加入 REQUIRED_DEPS**：`core/selfcheck.py` `REQUIRED_DEPS` 补 `tzdata`（APScheduler 3.11 用标准库 zoneinfo，Windows 缺 tzdata 时 app.py 顶层创建 scheduler 即崩；requirements.txt 已锁 tzdata==2026.3，安装后 importlib 可命中）。
 - **测试**：`test_selfcheck` 新增 A4/A5/A6（themes 不在核心必需 / themes 在 USER_DATA_PATHS / tzdata 在 REQUIRED_DEPS），14→17 项；`test_framework_manifest` E1 期望补 themes，53→54。全量回归 47 脚本 1227 项。
+
+### 3.37 v4.20.2（2026-09-12，稳定性测试累积 bug 修复）
+
+在 Pydroid（Python 3.13.2）稳定性测试中新发现并修复的一批框架 bug，含后端健壮性、发布打包缺陷与前端体验，全部回归通过后正式发布。
+
+**后端修复**：
+- **P0 日志初始化清理**（core/logging_setup.py）：移除 `app.logger.handlers.clear()` 与 `propagate=False`，避免重复初始化时清掉已有 handler / 日志不向父级传播，保证 app.log 与 error.log 稳定写入。
+- **并发 load_plugins 竞态**（core/plugin_loader.py）：watcher 线程 × API 线程同时 `del sys.modules['plugins.base_plugin']` + 重导入时 CPython `_load_unlocked` KeyError 崩溃；为 `load_plugins` 加全局 `RLock` 互斥串行化，消除清理/重导入竞态。
+- **audit 钩子 int fd 误判**（core/audit_hook.py）：`_open_target`/`_path_target` 对 `open(fd)`/`os.fdopen` 的 int 文件描述符参数误当路径，生成伪能力 `filesystem:read:10/` 等；int 参数跳过（非新路径访问）。
+- **quota 未声明插件默认配额**（core/quota.py）：`all_plugins_quota` 由扫 `plugins/data/` 目录改为遍历全局插件注册表 `global_var.plugins`（含禁用、未建 data 目录的插件如 AirDrop/user_manage），按各自 `storage:limit` 或默认配额列出。
+- **/api/admin/quota total**（routes/admin.py）：总用量从插件级 usage 汇总（sum），不再单独 `_total_usage()` 遍历，修复 Pydroid 上 total 显示 0.00MB。
+- **昵称修改同步会话**（plugins/auth.py）：改昵称时同步所有活跃会话的 nickname 快照并持久化（此前仅改 configs/auth.json，sessions.json 不变需重登才生效）；`_save_sessions` 临时文件加唯一后缀防并发覆盖。
+- **IP 检测保存即时生效**（core/ip_watcher.py + routes/admin.py）：`get_status` 的 interval 从 config 权威读取（保存后即时反映）；`/api/admin/network/config` 保存 `IP_WATCH_INTERVAL` 时 stop+start 重启检测线程。
+- **host 字段同源**（routes/admin.py）：`/api/admin/system/info` 的 host 改用 `network.get_binding_host()`，与 `/api/admin/network` 的 binding_host 一致（env>config.HOST>127.0.0.1）。
+- **release 打包缺陷**（tools/release.py）：`RUNTIME_TEMPLATE_EXCLUDE` 原整体排除 `templates/plugins/`，但内置插件 `user_manage` 用 `render_template('plugins/user_manage.html')` 渲染 → runtime 精简包缺该模板致页面 500；改为仅排除示例插件（airdrop/kaleido），保留内置 `user_manage` 的模板与 `static/user_manage/` 静态资源。
+
+**前端修复（备忘 9-29）**：
+- login 移动端崩溃（`#pwdToggle` 判空）、上传预览态复原（`resetUploadState`）、index 用户中心改 button + logout 样式统一、toolSort 深色、plugins 页去系统管理按钮。
+- 后台汉堡抽屉重构 + userBox/userInfo 悬浮卡片 + theme/lang 收纳 + 深色 badge/notice-warn、network 深色 + notice-warn、system 版本手动/自动检查、plugin_default 窄屏溢出。
+- 移动端导航系列：index 与 admin 双端 navbar 平滑展开/收起、theme/lang 点击 toggle（二次点击真正收起）、admin-indicator 位于 user-text 右侧。
+
+**测试**：全量回归 47 脚本 0 失败（改动的 audit_hook 38 / capabilities 70 / reload_race / ip_watcher 15 / data_limit 32 / admin_api 68 / network 41 / frontend_chain 23 均通过）。
 
 ## 4. 发布实践沉淀
 

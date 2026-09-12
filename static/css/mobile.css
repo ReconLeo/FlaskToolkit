@@ -46,7 +46,7 @@ body {
 .nav-toggle {
     display: none;
     background: transparent;
-    border: 1px solid rgba(255, 255, 255, 0.6);
+    border: none;
     color: #fff;
     border-radius: 6px;
     padding: 6px 10px;
@@ -57,21 +57,64 @@ body {
     min-height: 44px;
 }
 @media (max-width: 640px) {
-    .nav-toggle { display: inline-flex; align-items: center; justify-content: center; }
+    .nav-toggle {
+        order: 1;   /* v4.20.1：与 navbar-brand 同一行（navbar-right 换行到第二行） */
+        display: inline-flex; align-items: center; justify-content: center;
+        margin-left: auto;   /* v4.20.1：恒靠右，不随 navbar-right 展开变化 */
+    }
     .navbar .container { flex-wrap: wrap; }
+    /* v4.20.1：移动端加大导航高度 */
+    header.navbar { padding: 1rem 0; min-height: 60px; }
     .navbar-right {
+        order: 2;
+        position: relative;
+        z-index: 2;                  /* v4.20.1：展开时浮于 nav-toggle 上方，使 theme/lang 菜单不被遮盖 */
         flex-basis: 100%;
-        display: none;               /* 默认折叠，.nav-open 展开 */
+        display: flex;               /* v4.20.1：max-height 平滑展开/收起，保持原布局 */
         flex-direction: column;
         align-items: stretch;
         gap: 8px;
+        max-height: 0;
+        overflow: hidden;
+        opacity: 0;
+        padding: 0;
+        border-top: 0;
+        margin-top: 0;
+        transition: max-height 0.35s ease, opacity 0.3s ease, padding 0.3s ease;
+    }
+    .navbar.nav-open .navbar-right {
+        max-height: 900px;
+        opacity: 1;
         padding: 10px 0;
         border-top: 1px solid rgba(255, 255, 255, 0.15);
         margin-top: 8px;
     }
-    .navbar.nav-open .navbar-right { display: flex; }
     .navbar-right .user-info { justify-content: flex-start; }
     .navbar-right .auth-btn { text-align: center; }
+    /* v4.20.1：authButton 内各按钮占满 authButton 全宽、上下排布 */
+    .navbar-right #authButton {
+        display: flex; flex-direction: column; gap: 8px; width: 100%;
+    }
+    .navbar-right #authButton .auth-btn {
+        display: block; width: 100%; box-sizing: border-box; text-align: center;
+        min-height: 44px; line-height: 1.2;
+    }
+    /* v4.20.1：authButton 的按钮 与 theme/lang 切换按钮高度&宽度统一（占 100% navbar-right） */
+    .navbar-right .theme-switch, .navbar-right .lang-switch { width: 100%; }
+    .navbar-right .theme-switch .theme-btn,
+    .navbar-right .lang-switch .lang-btn {
+        display: block; width: 100%; box-sizing: border-box; text-align: center;
+        min-height: 44px;
+    }
+}
+
+/* ---------- theme/lang 下拉 hover 桥梁（v4.20.1：移向菜单时菜单不消失） ---------- */
+.theme-switch, .lang-switch { position: relative; }
+.theme-switch::after, .lang-switch::after {
+    content: '';
+    position: absolute;
+    top: 100%; left: 0; right: 0;
+    height: 6px;
 }
 
 /* ---------- 首页：工具条与卡片 ---------- */

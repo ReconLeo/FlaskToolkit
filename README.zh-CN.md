@@ -4,7 +4,7 @@
   <img src="https://github.com/ReconLeo/FlaskToolkit/actions/workflows/ci.yml/badge.svg" alt="CI">
   <img src="https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB?logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/License-MIT-yellow" alt="License">
-  <img src="https://img.shields.io/badge/version-4.20.1-blue" alt="Version">
+  <img src="https://img.shields.io/badge/version-4.20.2-blue" alt="Version">
   <a href="https://github.com/ReconLeo/FlaskToolkit-Lite"><img src="https://img.shields.io/badge/Lite%20Edition-v4.2.2-lightgrey" alt="Lite Edition"></a>
 </p>
 
@@ -138,10 +138,10 @@ python examples/install_all.py                            # 一键安装 8 个�
 
 ## 测试与 CI
 
-`tests/` 46 个回归测试脚本（隔离目录模式，不污染项目文件）；GitHub Actions 在 Python 3.10 / 3.11 / 3.12 上自动执行，覆盖权限、插件包 / 前端工具链路、完整性签名、卸载清单、Factory Reset、大插件多模板页面路由、文件传输（上传限制 / 中文名下载 / Range）、插件静态安全扫描、能力声明交叉校验、运行时审计钩子、i18n 语言框架、插件数据配额、事件总线与依赖解析、设备检测与移动端模板分发、插件脚手架与离线安装/卸载 CLI、单插件空间清理、运维工具等。
+`tests/` 47 个回归测试脚本（隔离目录模式，不污染项目文件）；GitHub Actions 在 Python 3.10 / 3.11 / 3.12 上自动执行，覆盖权限、插件包 / 前端工具链路、完整性签名、卸载清单、Factory Reset、大插件多模板页面路由、文件传输（上传限制 / 中文名下载 / Range）、插件静态安全扫描、能力声明交叉校验、运行时审计钩子、i18n 语言框架、插件数据配额、事件总线与依赖解析、设备检测与移动端模板分发、插件脚手架与离线安装/卸载 CLI、单插件空间清理、运维工具等。
 
 <details>
-<summary>展开：46 个测试脚本</summary>
+<summary>展开：47 个测试脚本</summary>
 
 ```bash
 cd FlaskToolkit

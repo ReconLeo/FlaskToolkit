@@ -26,7 +26,6 @@
     </div>
     <div style="display:flex; gap:10px; flex-wrap:wrap;">
         <button class="btn btn-success" onclick="openUploadModal()">+ {{ t('上传新插件/工具') }}</button>
-        <a class="btn btn-info" href="/admin/system">⚙️ {{ t('系统管理') }}</a>
         <button class="btn btn-primary" onclick="loadPlugins()">🔄 {{ t('刷新') }}</button>
         <button class="btn btn-info" onclick="checkPluginUpdates(true)">⬆ {{ t('检查插件更新') }}</button>
     </div>
@@ -534,10 +533,27 @@
 
     function openUploadModal() {
         switchUploadType();
+        resetUploadState();
         showModal('upload-modal');
     }
 
-    function closeUploadModal() { hideModal('upload-modal'); }
+    function closeUploadModal() {
+        resetUploadState();
+        hideModal('upload-modal');
+    }
+
+    // 上传弹窗预览态/表单复原：关闭或重开弹窗时重置，避免预览态残留（upload-preview 仍显示）
+    function resetUploadState() {
+        currentPreviewId = null;
+        document.getElementById('upload-preview').classList.add('hidden');
+        document.getElementById('upload-file-group').classList.remove('hidden');
+        document.getElementById('upload-buttons').classList.remove('hidden');
+        var fi = document.getElementById('upload-file');
+        if (fi) fi.value = '';
+        // v4.20.1：一并清空"已选"提示，避免关闭/重开弹窗后残留文件名
+        var infoEl = document.getElementById('upload-file-info');
+        if (infoEl) { infoEl.textContent = ''; infoEl.classList.remove('error'); }
+    }
 
     function confirmUpload() {
         const uploadType = document.querySelector('input[name="upload-type"]:checked').value;

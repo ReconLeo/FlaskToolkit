@@ -118,7 +118,9 @@ def register(app):
         from core import quota
         plugins = quota.all_plugins_quota()
         g_limit = quota.total_limit_mb()
-        g_usage = quota._total_usage() / 1048576
+        # v4.20.1：总用量从插件级 usage 汇总，与列表一致（含 filesystem:write 外部路径），
+        # 不再单独 _total_usage() 遍历，避免两套路径不一致导致 total 显示 0
+        g_usage = sum(p['usage_mb'] for p in plugins)
         return jsonify({"code": 200, "data": {
             "plugins": plugins,
             "total": {"limit_mb": g_limit, "usage_mb": round(g_usage, 1),
@@ -535,6 +537,7 @@ def register(app):
     @admin_api
     def get_system_info():
         """获取系统信息（框架/Python/平台/目录/统计概览），供管理后台展示"""
+        from core import network as net_mod
         total_api_calls = sum(global_var.call_stats.values())
         total_frontend_access = sum(global_var.frontend_access_stats.values())
         import time as _t
@@ -552,7 +555,7 @@ def register(app):
             "python_version": sys.version.split()[0],
             "platform": platform.platform(),
             "base_dir": global_var.BASE_DIR,
-            "host": os.environ.get('FLASKTOOLKIT_HOST', '127.0.0.1').strip() or '127.0.0.1',
+            "host": net_mod.get_binding_host(),  # 修复：与 /api/admin/network 的 binding_host 同源（env>config.HOST>127.0.0.1），避免前端设置 HOST 后两接口不一致
             "debug": bool(global_var.app and global_var.app.debug),
             "total_plugins": len(global_var.plugins),
             "total_plugins_catalog": len(global_var.plugin_catalog),
@@ -649,6 +652,13 @@ def register(app):
             return jsonify({'code': 500, 'message': f'配置写入失败: {e}'}), 500
 
         restart_keys = [k for k in updates if k in ('HOST', 'MDNS_ENABLED', 'MDNS_HOSTNAME')]
+        # IP_WATCH_INTERVAL 变更即时生效：重启检测线程（0=关闭），避免仅写 config 而运行线程仍用旧间隔
+        if 'IP_WATCH_INTERVAL' in updates:
+            new_iv = int(updates['IP_WATCH_INTERVAL'])
+            from core import ip_watcher as _iw
+            _iw.stop()
+            if new_iv > 0:
+                _iw.start(new_iv)
         detail = ', '.join(f'{k}={updates[k]}' for k in updates)
         log_audit('网络配置', ', '.join(updates.keys()), 'ok', detail)
         return jsonify({

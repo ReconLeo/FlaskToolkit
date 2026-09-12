@@ -1,12 +1,12 @@
 {
-  "latest_version": "4.20.1",
+  "latest_version": "4.20.2",
   "published_at": "2026-09-12",
-  "download_url": "https://github.com/ReconLeo/FlaskToolkit/releases/download/v4.20.1/FlaskToolkit-4.20.1-runtime.zip",
-  "sha256": "877e2e393d38d48263cef97dce7f837329595fff95aa76af0d07fa62a92c4bc4",
+  "download_url": "https://github.com/ReconLeo/FlaskToolkit/releases/download/v4.20.2/FlaskToolkit-4.20.2-runtime.zip",
+  "sha256": "7b2a77ceb1325c881da424b4315d8b8eb32cc20791e54e2f932058d8459daf00",
   "changes": [
-    "修复 update_checker：有缓存时重启框架后未重新远程获取——background_check 改 force=True 绕过缓存 TTL，每次启动强制拉取最新版本",
-    "修复 themes 误入 CORE_DIRS 致新装无法启动：themes 移出核心必需目录（可选，缺失不致命），归 USER_DATA_PATHS（升级/备份保留用户主题）",
-    "selfcheck REQUIRED_DEPS 补 tzdata（APScheduler 3.11 zoneinfo，Windows 缺则启动即崩）",
-    "test_update_checker 50→52、test_selfcheck 14→17、manifest 53→54，全量回归 47 脚本 1227 项"
+    "P0 日志初始化清理 + 并发 load_plugins 竞态互斥锁",
+    "audit 钩子 int fd 误判路径伪能力 + quota 未声明插件默认配额 + 昵称修改同步会话 + IP 检测保存即时生效",
+    "release 打包缺陷：runtime 缺内置 user_manage 模板致 500",
+    "前端备忘 9-29：登录移动端崩溃/上传预览复原/深色适配/后台汉堡抽屉/悬浮卡片/版本检查/窄屏"
   ]
 }

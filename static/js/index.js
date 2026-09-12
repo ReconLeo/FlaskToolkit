@@ -16,17 +16,30 @@
             const adminMark = user.role === 'admin'
                 ? '<div class="admin-indicator" title="超级管理员">⚙️ 管理员</div>'
                 : '';
-            userInfoEl.innerHTML = adminMark + `
+            // v4.20.1：userInfo 内嵌悬浮卡片（用户中心/退出），桌面端悬停显示；authButton 供移动端保持原布局
+            userInfoEl.innerHTML = `
                 <div class="user-avatar">${escapeHtml(userName.charAt(0).toUpperCase())}</div>
                 <div class="user-text">
                     <div class="user-name">${escapeHtml(userName)}</div>
                     <div class="user-role">${escapeHtml(user.role || 'user')}</div>
+                </div>
+                ${adminMark}
+                <div class="index-user-menu">
+                    <div class="um-id">
+                        <div class="um-nick">${escapeHtml(userName)}</div>
+                        <div class="um-role">${user.role === 'admin' ? '⚙️ ' + '管理员' : '用户'}</div>
+                    </div>
+                    <div class="um-sep"></div>
+                    <a href="/user-center">👤 用户中心</a>
+                    <a href="javascript:;" id="indexLogout">退出登录</a>
                 </div>`;
-            authButtonEl.innerHTML = `<a href="/user-center" class="auth-btn user-center-btn">用户中心</a> <button id="logoutBtn" class="auth-btn logout-btn">退出登录</button>`;
+            authButtonEl.innerHTML = `<button type="button" class="auth-btn user-center-btn" onclick="location.href='/user-center'">用户中心</button> <button type="button" id="logoutBtn" class="auth-btn logout-btn">退出登录</button>`;
+            document.body.classList.add('ftk-logged');
             adminBarEl.classList.toggle('hidden', user.role !== 'admin');
         } else {
             userInfoEl.innerHTML = '';
             authButtonEl.innerHTML = `<a href="/login" class="auth-btn login-btn">登录</a>`;
+            document.body.classList.remove('ftk-logged');
             adminBarEl.classList.add('hidden');
         }
     }
@@ -101,7 +114,7 @@
 
         // 登出（事件委托）
         document.addEventListener('click', function (e) {
-            if (e.target && e.target.id === 'logoutBtn') {
+            if (e.target && (e.target.id === 'logoutBtn' || e.target.id === 'indexLogout')) {
                 e.preventDefault();
                 FT.doLogout({ redirect: '/login' });
             }

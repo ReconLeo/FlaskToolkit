@@ -297,6 +297,19 @@
         .badge-orange{ background: #fff3cd; color: #856404; }
         .badge-gray  { background: #ecf0f1; color: #5d6d7e; }
         .badge-purple{ background: #e8d5f5; color: #6a1b9a; }
+        /* v4.20.1：深色模式徽标翻色 */
+        :root[data-theme="dark"] .badge-blue { background: #16293a; color: #6cb5e8; }
+        :root[data-theme="dark"] .badge-green { background: #153a2c; color: #6fd39b; }
+        :root[data-theme="dark"] .badge-red   { background: #3a1f1e; color: #f2918c; }
+        :root[data-theme="dark"] .badge-orange{ background: #3a3216; color: #e8c66f; }
+        :root[data-theme="dark"] .badge-gray  { background: #2f343a; color: #c8ccd0; }
+        :root[data-theme="dark"] .badge-purple{ background: #2a1f3a; color: #c69fe8; }
+        /* v4.20.1：notice-warn 深色（!important 覆盖内联浅色，如 dashboard） */
+        :root[data-theme="dark"] .notice-warn {
+            background: #3a3216 !important;
+            border-color: #6b5c2a !important;
+            color: #e8c66f !important;
+        }
         /* ---------- 统计卡片 ---------- */
         .stats-grid {
             display: grid;
@@ -390,14 +403,7 @@
     <nav class="navbar">
         <div class="navbar-left">
             <a class="navbar-brand" href="/admin/dashboard">{{ system_name }}<span>{{ t('管理后台') }}</span></a>
-            <ul class="nav-menu">
-                <li><a href="/admin/dashboard" class="{{ 'active' if active_page == 'dashboard' else '' }}">📊 {{ t('仪表盘') }}</a></li>
-                <li><a href="/admin/plugins" class="{{ 'active' if active_page == 'plugins' else '' }}">🔌 {{ t('插件管理') }}</a></li>
-                <li><a href="/admin/logs" class="{{ 'active' if active_page == 'logs' else '' }}">📄 {{ t('日志') }}</a></li>
-                <li><a href="/admin/stats" class="{{ 'active' if active_page == 'stats' else '' }}">📈 {{ t('统计') }}</a></li>
-                <li><a href="/admin/system" class="{{ 'active' if active_page == 'system' else '' }}">⚙️ {{ t('系统管理') }}</a></li>
-                <li><a href="/admin/network" class="{{ 'active' if active_page == 'network' else '' }}">🌐 {{ t('网络与访问') }}</a></li>
-            </ul>
+            <a href="/" class="nav-home">{{ t('首页') }}</a>
         </div>
         <div class="navbar-right">
             {% include '_theme_switch.html' %}
@@ -405,12 +411,32 @@
             <div class="user-box" id="userBox">
                 <div class="user-avatar" id="userAvatar">A</div>
                 <span class="user-name" id="userName">{{ t('加载中...') }}</span>
+                <div class="user-menu" id="userMenu">
+                    <div class="user-menu-id" id="userMenuId">{{ t('加载中...') }}</div>
+                    <div class="user-menu-sep"></div>
+                    <a href="/user-center">👤 {{ t('用户中心') }}</a>
+                    <a href="javascript:;" class="user-menu-logout" onclick="handleLogout()">{{ t('退出登录') }}</a>
+                </div>
             </div>
-            <a href="{{ project_github }}" target="_blank" rel="noopener" class="nav-link" title="{{ t('项目主页（GitHub）') }}">⭐ GitHub</a>
-            <a href="/" class="nav-link">{{ t('首页') }}</a>
-            <a href="/user-center" class="nav-link">{{ t('用户中心') }}</a>
-            <a href="javascript:;" class="nav-link logout-btn" onclick="handleLogout()">{{ t('退出') }}</a>
         </div>
+
+        <!-- v4.20.1：左侧汉堡抽屉（后台导航 + 项目主页） -->
+        <aside class="side-menu" id="sideMenu">
+        <ul class="nav-menu">
+            <li><a href="/admin/dashboard" class="{{ 'active' if active_page == 'dashboard' else '' }}">📊 {{ t('仪表盘') }}</a></li>
+            <li><a href="/admin/plugins" class="{{ 'active' if active_page == 'plugins' else '' }}">🔌 {{ t('插件管理') }}</a></li>
+            <li><a href="/admin/logs" class="{{ 'active' if active_page == 'logs' else '' }}">📄 {{ t('日志') }}</a></li>
+            <li><a href="/admin/stats" class="{{ 'active' if active_page == 'stats' else '' }}">📈 {{ t('统计') }}</a></li>
+            <li><a href="/admin/system" class="{{ 'active' if active_page == 'system' else '' }}">⚙️ {{ t('系统管理') }}</a></li>
+            <li><a href="/admin/network" class="{{ 'active' if active_page == 'network' else '' }}">🌐 {{ t('网络与访问') }}</a></li>
+            <li><a href="{{ project_github }}" target="_blank" rel="noopener" title="{{ t('项目主页（GitHub）') }}">⭐ GitHub</a></li>
+            </ul>
+            <!-- v4.20.1：移动端 theme/lang 收纳于此，随 sideMenu 展开一同出现 -->
+            <div class="side-menu-util">
+                {% include '_theme_switch.html' %}
+                {% include '_lang_switch.html' %}
+            </div>
+        </aside>
     </nav>
 
     <div class="main">
@@ -488,6 +514,14 @@
                             (u.nickname || u.username || 'A').charAt(0).toUpperCase();
                         document.getElementById('userName').textContent =
                             (u.nickname || u.username) + ' · ' + (u.role === 'admin' ? window.T('管理员') : window.T('用户'));
+                        const mid = document.getElementById('userMenuId');
+                        if (mid) {
+                            const nick = u.nickname || u.username || '';
+                            const role = u.role === 'admin' ? '⚙️ ' + window.T('超级管理员') : window.T('普通用户');
+                            mid.innerHTML = '<div class="um-nick"></div><div class="um-role"></div>';
+                            mid.querySelector('.um-nick').textContent = nick;
+                            mid.querySelector('.um-role').textContent = role;
+                        }
                     }
                 })
                 .catch(() => {});
