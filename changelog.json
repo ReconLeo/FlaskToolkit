@@ -1,12 +1,13 @@
 {
-  "latest_version": "4.20.2",
+  "latest_version": "4.20.3",
   "published_at": "2026-09-12",
-  "download_url": "https://github.com/ReconLeo/FlaskToolkit/releases/download/v4.20.2/FlaskToolkit-4.20.2-runtime.zip",
-  "sha256": "7b2a77ceb1325c881da424b4315d8b8eb32cc20791e54e2f932058d8459daf00",
+  "download_url": "https://github.com/ReconLeo/FlaskToolkit/releases/download/v4.20.3/FlaskToolkit-4.20.3-runtime.zip",
+  "sha256": "e740fdf03750e16fec4d5051c71dfb6ed19021f4d54131cb3fffac65c68edd16",
   "changes": [
-    "P0 日志初始化清理 + 并发 load_plugins 竞态互斥锁",
-    "audit 钩子 int fd 误判路径伪能力 + quota 未声明插件默认配额 + 昵称修改同步会话 + IP 检测保存即时生效",
-    "release 打包缺陷：runtime 缺内置 user_manage 模板致 500",
-    "前端备忘 9-29：登录移动端崩溃/上传预览复原/深色适配/后台汉堡抽屉/悬浮卡片/版本检查/窄屏"
+    "移动端 index/login 样式统一（汉堡 navbar + 垂直居中 + 系统名 system_name）",
+    "user_manage 能力声明（纯 API 委托，Deny by Default）",
+    "audit 两个根因修复（is_framework_core_path 排除目录本身 / 渲染读模板·i18n·静态豁免归因）+ 回归用例固化",
+    "setup 默认英语单语 + en 补 key + 新增 fr 语言包 + setup POST 语言白名单动态化",
+    "test_admin_api logs 脆弱断言修复（app 启动写日志致隔离空日志前提失效）"
   ]
 }

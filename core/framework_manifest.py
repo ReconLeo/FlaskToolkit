@@ -214,7 +214,9 @@ def is_framework_core_path(path, base_dir=None) -> bool:
         return True
     if p == 'plugins' or p.startswith('plugins/'):
         # plugins/ 下除自属豁免目录外均为受管核心（内置基类/鉴权 + 各插件主文件与描述文件）
-        if any(p.startswith(prefix) for prefix in PLUGIN_DATA_EXCLUDE_PREFIXES):
+        # v4.20.3：排除须同时覆盖"目录本身"（plugins/configs 无尾斜杠，startswith('plugins/configs/') 不匹配）
+        # 与"目录下内容"（plugins/configs/auth.json），否则插件建/写自属配置目录会被误判为核心路径
+        if any(p == prefix.rstrip('/') or p.startswith(prefix) for prefix in PLUGIN_DATA_EXCLUDE_PREFIXES):
             return False
         return True
     return False

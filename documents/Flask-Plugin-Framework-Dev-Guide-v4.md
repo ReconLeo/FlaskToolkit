@@ -11,7 +11,7 @@
 - **定时任务**：插件可声明 `scheduled_tasks`，框架自动注册到调度器（Asia/Shanghai 时区）。
 - **统计与日志**：API 调用统计、前端工具访问统计自动累积；分级日志落盘。
 - **纵深安全（v4.3-4.5）**：AST 静态扫描 → 能力声明交叉校验 → 运行时审计钩子三道防线；插件包完整性校验 + 可选 RSA 签名；登录失败锁定/空闲超时/强制改密；可选 HTTPS。
-- **国际化（v4.9）**：JSON 语言包（内置 zh-CN/en，可扩展），模板/后端/前端统一 `t()`，各页面可切换语言 + 翻译工具（v4.15.4）。
+- **国际化（v4.9）**：JSON 语言包（内置 zh-CN/en/fr，可扩展），模板/后端/前端统一 `t()`，各页面可切换语言 + 翻译工具（v4.15.4）。
 - **插件数据配额（v4.9）**：单插件 + 全局总量配额（capabilities `storage:limit` 声明 / `PLUGIN_DATA_LIMIT_MB`），后台空间管理与在线清理。
 - **网络可达（v4.11）**：后台网络与访问页（分享链接 + 二维码）、mDNS、IP 变化检测；桌面启动器双击即用（仅本机/局域网一键切换）。
 - **安全传输（v4.12）**：自签名 HTTPS + HTTP→HTTPS 308 自动跳转 + Secure Cookie 自动配置，支持反向代理 TLS 终止。
@@ -52,7 +52,7 @@ FlaskToolkit/
 │   ├── network.py           #   网络地址中心（局域网 IP / 绑定 / 端口 / 访问地址，v4.11 M1；HTTP→HTTPS 308 跳转 / Secure Cookie 判定，v4.12）
 │   ├── mdns.py              #   mDNS 服务注册（可选依赖 zeroconf，v4.11 M2）
 │   ├── ip_watcher.py        #   IP 变化检测（快照比较 + 后台线程，v4.11 M4）
-│   ├── i18n.py             #   国际化语言包框架（zh-CN + en 内置可扩展，v4.9）
+│   ├── i18n.py             #   国际化语言包框架（zh-CN/en/fr 内置可扩展，v4.9）
 │   ├── quota.py            #   插件数据配额（路径判定 / 用量统计 / enforce / 全局总量，v4.9）
 │   ├── update_checker.py   #   版本检查推送（changelog feed + 双后端更新校验，v4.8）
 │   ├── framework_manifest.py # 框架目录清单（核心文件/用户数据单一事实来源，v4.15.1）
@@ -637,7 +637,7 @@ python tools/package.py pack ./my_plugin -o my_plugin.zip --type backend --src-l
 后端插件可声明 `require_framework_version`（`plugin.json` 或插件类属性，非强制），用于声明插件所需的最低框架版本，以支撑框架持续迭代：
 
 - **未声明**：不检查，任意框架版本可用。
-- **声明了**：上传/更新时与 `global_var.FRAMEWORK_VERSION`（当前 `4.20.2`）做点分版本比较（`compare_versions`，修复了前端工具原先字符串比较的缺陷）；插件要求高于框架版本 → 拒绝安装并报告。
+- **声明了**：上传/更新时与 `global_var.FRAMEWORK_VERSION`（当前 `4.20.3`）做点分版本比较（`compare_versions`，修复了前端工具原先字符串比较的缺陷）；插件要求高于框架版本 → 拒绝安装并报告。
 - **运行时双重校验**：`load_plugins` 加载时同样校验（防止手工放置插件绕过上传校验），不满足则跳过加载并报错。
 - 参与描述一致性对齐（冲突拒绝/缺失补全），见 5.6.3。
 
@@ -1569,7 +1569,7 @@ python tools/config.py profile <daily|strict|lan-open>   # 套用安全配置预
 | `LANGUAGE`                   | zh-CN                             | 系统显示语言（v4.9.0，可选值由 locales/ 语言包决定，Cookie `lang` 可覆盖）                                                                     |
 | `THEME`                      | auto                              | 界面主题（v4.19，可选 auto/light/dark，可扩展；auto=跟随系统 prefers-color-scheme；Cookie `theme` 可覆盖，见 5.11）                            |
 | `SYSTEM_NAME`                | FlaskToolkit                      | 系统显示名称（v4.7.0，仅装饰，不影响内部标识）                                                                                                 |
-| `SYSTEM_VERSION_LABEL`       | v4.20.2                           | 系统版本显示标签（v4.7.0，仅装饰，升级框架时建议同步更新）                                                                                     |
+| `SYSTEM_VERSION_LABEL`       | v4.20.3                           | 系统版本显示标签（v4.7.0，仅装饰，升级框架时建议同步更新）                                                                                     |
 | `PLUGIN_DATA_LIMIT_MB`       | 50                                | 单插件数据目录配额（MB，0=禁用，v4.9.0 见 10.10）                                                                                              |
 | `PLUGIN_DATA_TOTAL_LIMIT_MB` | 0                                 | 全部插件数据总量配额（MB，0=无限制，v4.9.2 见 10.11）                                                                                          |
 | `MDNS_ENABLED`               | false                             | mDNS 服务注册开关（v4.11，需重启生效，需 pip install zeroconf）                                                                                |

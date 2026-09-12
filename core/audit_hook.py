@@ -172,6 +172,17 @@ def _is_framework_path(path):
     norm = _norm_slash(os.path.abspath(str(path)))
     return any(norm.startswith(d + '/') or norm == d for d in _framework_dirs())
 
+def _is_framework_resource_path(path):
+    """框架内容/国际化/静态资源（templates/、locales/、static/ 顶层）——插件渲染页面读取自己的
+    模板（render_template）、i18n 加载语言包、静态资源均属框架基础功能，非插件业务文件读取，
+    不归因插件（否则每个渲染页面的插件都要为读取框架自带模板/语言包声明 filesystem:read）。
+    兼容相对路径与 BASE_DIR 下的绝对路径。"""
+    norm = _norm_slash(str(path))
+    base = _norm_slash(os.path.abspath(global_var.BASE_DIR))
+    rel = norm[len(base) + 1:] if norm.startswith(base + '/') else norm
+    return (rel.startswith('templates/') or rel.startswith('locales/')
+            or rel.startswith('static/'))
+
 
 def _is_interpreter_path(path):
     """Python 解释器内部路径（stdlib/site-packages/编码器缓存）——插件业务无关，跳过"""
@@ -356,6 +367,8 @@ def _handler(event, args):
             return
         if domain == 'filesystem:read' and _is_interpreter_path(target):
             return  # Python 解释器内部文件（编码器/缓存）非插件业务
+        if domain == 'filesystem:read' and _is_framework_resource_path(target):
+            return  # 框架内容/国际化/静态资源（模板/i18n/静态），插件渲染页面读取属框架基础功能，不归因
         if _is_framework_path(target):
             return  # 框架管理目录（日志/统计数据/备份），插件经框架机制写入不归因
         plugin = _locate_plugin()

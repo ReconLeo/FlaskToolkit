@@ -62,6 +62,7 @@ _core_yes = [('app.py',), ('global_var.py',), ('requirements.txt',), ('changelog
              ('plugins/base_plugin.py',)]
 _core_no = [('templates/plugins/x/a.html',), ('templates/frontend_tools/x/',),
             ('plugins/data/x/y',), ('plugins/temp/z',), ('plugins/configs/a.json',),
+            ('plugins/configs',),  # v4.20.3: 目录本身（无尾斜杠）也须豁免，防 is_framework_core_path 误判为核心（auth 写自属配置目录不再记 root-access）
             ('data/stats.json',), ('logs/x.log',), ('backups/x',), ('users/x',)]
 for p in _core_yes:
     ok = FM.is_framework_core_path(p[0]) is True
@@ -71,7 +72,8 @@ for p in _core_no:
     check("C 核心豁免 %s" % p[0], ok, '')
 check("C capabilities 委托 manifest 判定",
       C.is_framework_core_path('core/network.py') is True
-      and C.is_framework_core_path('plugins/data/x/y') is False, '')
+      and C.is_framework_core_path('plugins/data/x/y') is False
+      and C.is_framework_core_path('plugins/configs') is False, '')
 
 # ------------------------------ D. is_user_data_path ------------------------------
 for p in [('data/x', True), ('data/stats.json', True), ('plugins/configs/a.json', True),

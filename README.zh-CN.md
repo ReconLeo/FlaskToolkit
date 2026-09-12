@@ -4,7 +4,7 @@
   <img src="https://github.com/ReconLeo/FlaskToolkit/actions/workflows/ci.yml/badge.svg" alt="CI">
   <img src="https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB?logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/License-MIT-yellow" alt="License">
-  <img src="https://img.shields.io/badge/version-4.20.2-blue" alt="Version">
+  <img src="https://img.shields.io/badge/version-4.20.3-blue" alt="Version">
   <a href="https://github.com/ReconLeo/FlaskToolkit-Lite"><img src="https://img.shields.io/badge/Lite%20Edition-v4.2.2-lightgrey" alt="Lite Edition"></a>
 </p>
 
@@ -29,7 +29,7 @@
 - **权限与纵深防御**：统一三层权限（public/user/admin）、可选鉴权、审计日志、热重载；分层防护——**AST 静态扫描 → 能力声明交叉校验 → 运行时审计钩子**；登录失败锁定；可选 HTTPS。
 - **统一文件传输**：全局上传上限 + 保存前预检、中文文件名下载（RFC 5987）、下载统计与 Range 断点续传，以及同步持久化上传助手（`save_uploads`：净化 + 去重 + 大小/配额预检一次完成）。
 - **数据配额体系**：单插件配额 → 声明式 storage:limit → **全局总量上限 + 后台空间管理**。
-- **国际化**：轻量 JSON 语言包（内置 zh-CN + en，可扩展）、模板/后端/前端统一 t()、每个页面都可切换语言 + 翻译工具。
+- **国际化**：轻量 JSON 语言包（内置 zh-CN + en + fr，可扩展）、模板/后端/前端统一 t()、每个页面都可切换语言 + 翻译工具。
 - **低门槛上手**：首次运行向导 + 强制改密、邀请码自助注册、带权限标注的插件 API 文档页、单插件空间清理、可选 pip_dependencies 优雅降级。
 - **安全传输**：自签名 HTTPS + 自动 **HTTP→HTTPS 308 跳转** + Secure Cookie 自动配置——旧 http:// 链接永不失效。
 - **网络可达**：后台**网络与访问页**（分享链接 + 二维码、mDNS、IP 变化检测）+ 双击即用的桌面启动器（本机/局域网一键切换）。

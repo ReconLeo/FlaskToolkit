@@ -9,7 +9,7 @@
 <script src="/static/js/theme.js"></script>
 </head>
 <body class="mobile">
-    <div class="m-container">
+    <div class="m-container m-container-center">
         <div class="m-lang">
             {% for code, name in available_langs.items() %}{% if code != lang %}<a href="/lang/{{ code }}?next={{ request.path }}">{{ name }}</a>{% endif %}{% endfor %}
             <span style="color:#7f8c8d; margin:0 4px;">|</span>
@@ -19,6 +19,7 @@
         </div>
 
         <div class="m-card">
+            <div class="m-system-name">{{ system_name }}</div>
             <h2 class="m-card-title">🔐 {{ t('系统登录') }}</h2>
 
             <!-- 登录表单区 -->

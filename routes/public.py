@@ -34,7 +34,9 @@ def register(app):
         done_file = _setup_done_file()
         if request.method == 'POST':
             lang = (request.form.get('lang') or '').strip()
-            if lang in ('zh-CN', 'en'):
+            # v4.20.3：动态白名单——接受所有可用语言（locales/ 下真实存在的语言包，含扩展语言如 fr），
+            # 不再硬编码 zh-CN/en，否则 setup 下拉可选 fr 但提交不生效
+            if lang in i18n.available_languages():
                 try:
                     import json as _json
                     cfg_file = global_var.USER_CONFIG_FILE

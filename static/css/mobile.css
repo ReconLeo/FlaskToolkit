@@ -97,7 +97,7 @@ body {
     }
     .navbar-right #authButton .auth-btn {
         display: block; width: 100%; box-sizing: border-box; text-align: center;
-        min-height: 44px; line-height: 1.2;
+        min-height: 44px; line-height: 2.5;
     }
     /* v4.20.1：authButton 的按钮 与 theme/lang 切换按钮高度&宽度统一（占 100% navbar-right） */
     .navbar-right .theme-switch, .navbar-right .lang-switch { width: 100%; }
@@ -162,7 +162,7 @@ body {
     /* 导航栏紧凑化 */
     header.navbar { padding: 0 16px; }
     header.navbar .navbar-brand { font-size: 15px; }
-    header.navbar .auth-btn.login-btn { padding: 5px 10px; font-size: 12px; }
+    header.navbar .auth-btn.login-btn { padding: 5px 10px; font-size: 13px; }
     /* 插件信息换行 */
     .plugin-meta p { word-break: break-all; }
     /* 权限/类型徽标窄屏：允许折行避免溢出 */

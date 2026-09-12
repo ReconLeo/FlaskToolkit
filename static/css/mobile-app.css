@@ -239,3 +239,23 @@ body.mobile .m-lang {
     font-size: 13px;
 }
 body.mobile .m-lang a { color: var(--text-light); text-decoration: none; }
+
+/* v4.20.3：登录页 m-container 垂直居中（仅登录场景，避免影响首页工具列表） */
+body.mobile .m-container-center {
+    min-height: calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+/* v4.20.3：登录页系统名称（配合 {{ system_name }} 注入） */
+body.mobile .m-system-name {
+    text-align: center;
+    font-size: 1.4rem;
+    font-weight: bold;
+    color: var(--primary);
+    margin-bottom: 16px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}

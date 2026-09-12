@@ -4,7 +4,7 @@
   <img src="https://github.com/ReconLeo/FlaskToolkit/actions/workflows/ci.yml/badge.svg" alt="CI">
   <img src="https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB?logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/License-MIT-yellow" alt="License">
-  <img src="https://img.shields.io/badge/version-4.20.2-blue" alt="Version">
+  <img src="https://img.shields.io/badge/version-4.20.3-blue" alt="Version">
   <a href="https://github.com/ReconLeo/FlaskToolkit-Lite"><img src="https://img.shields.io/badge/Lite%20Edition-v4.2.2-lightgrey" alt="Lite Edition"></a>
 </p>
 
@@ -29,7 +29,7 @@ Over time it grew into what it is today — a few highlights:
 - **Permissions & defense in depth**: unified three-level permissions (public / user / admin), optional auth, audit logs, hot reload; layered protection — **AST static scanning → capability cross-validation → runtime audit hooks**; login-failure lockout; optional HTTPS.
 - **Unified file transfer**: global upload-size ceiling with pre-save checks, Chinese-safe downloads (RFC 5987), download stats & Range resume, and a synchronous persistent upload helper (`save_uploads`: sanitize + dedup + size/quota pre-checks in one call).
 - **Data quota system**: per-plugin quota → declarative `storage:limit` → **global total cap + admin storage dashboard**.
-- **i18n**: lightweight JSON language packs (built-in zh-CN + en, extensible), one `t()` across templates / backend / frontend, and a per-page language switcher with translation tooling.
+- **i18n**: lightweight JSON language packs (built-in zh-CN + en + fr, extensible), one `t()` across templates / backend / frontend, and a per-page language switcher with translation tooling.
 - **Low-friction onboarding**: first-run wizard with forced password change, invite-code self-registration, per-plugin API doc pages, per-plugin storage cleanup, and optional `pip_dependencies` that degrade gracefully.
 - **Secure transport**: self-signed HTTPS with automatic **HTTP→HTTPS 308 redirect** and auto-configured Secure cookies — stale `http://` links never die.
 - **Reachability**: an admin **Network & Access** page (share links + QR codes, mDNS, IP-change detection) plus a double-click desktop launcher for local-only vs LAN sharing.

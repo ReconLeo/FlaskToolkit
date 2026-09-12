@@ -55,7 +55,9 @@
         const d = card.dataset;
         return {
             el: card,
-            grid: card.closest('.tools-grid'),
+            // v4.20.3：兼容移动端独立模板（templates/mobile/index.html）的 .m-tools 单列容器，
+            // 否则 closest('.tools-grid') 返回 null 导致分组后 grid.closest 崩溃、移动端搜索/排序失效
+            grid: card.closest('.tools-grid, .m-tools'),
             title: (d.title || '').toLowerCase(),
             name: (d.name || '').toLowerCase(),
             author: (d.author || '').toLowerCase(),

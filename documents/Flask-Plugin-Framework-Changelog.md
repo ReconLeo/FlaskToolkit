@@ -60,6 +60,7 @@ Kaleido 同样开源（自托管题库系统）：[github.com/ReconLeo/Kaleido](
 | **v4.20.0** | 2026-09-12 | 用户中心（审核符合 Community）：登录用户自助改昵称/改密码，用户名不可改；auth.py 新增 update_nickname + update_nickname_api（POST /api/auth/user/update-nickname）+ 独立页面 /user-center（interceptor 守卫，需登录）+ user_center.html/js + 后台/公开页导航入口 + 强制改密弹窗提示；新增 test_user_center 13 + jsdom 12 | tag `v4.20.0` |
 | **v4.20.1** | 2026-09-12 | update_checker 修复（background_check 改 force=True，有缓存重启后仍重新远程获取）+ themes 移出 CORE_DIRS（新装 runtime 无 themes 不再误报致命，归 USER_DATA_PATHS 升级保留 + RUNTIME_TOP 打包 sepia）+ tzdata 加入 REQUIRED_DEPS；test_update_checker 50→52、test_selfcheck 14→17、manifest 53→54，全量 47 脚本 1227 项 | tag `v4.20.1` |
 | **v4.20.2** | 2026-09-12 | 稳定性测试累积 bug 修复：P0 日志清理 / 并发 load_plugins 竞态互斥锁 / audit 钩子 int fd 误判路径伪能力 / quota 未声明插件默认配额 / 昵称修改同步会话 / IP 检测保存即时生效 + release 打包缺陷（runtime 缺内置 user_manage 模板致 500）+ 前端备忘 9-29（登录移动端崩溃/上传预览复原/深色适配/汉堡抽屉/悬浮卡片/版本检查/窄屏）；全量 47 脚本 0 失败 | tag `v4.20.2` |
+| **v4.20.3** | 2026-09-12 | 移动端样式统一（index 汉堡 navbar + login 垂直居中 + 系统名 system_name + index.js 兼容 .m-tools）+ user_manage 能力声明（纯 API 委托）+ audit 两根因修复（framework_manifest 排除目录本身误判核心 + 渲染读框架模板/i18n/静态豁免归因）+ setup 默认英语单语 + en 补 key + 新增 fr 语言包（多语言验证）+ setup POST 语言白名单动态化 + test_admin_api logs 脆弱断言修复；全量 47 脚本 0 失败 | tag `v4.20.3` |
 
 ## 3. 版本详情
 
@@ -418,6 +419,33 @@ P1 安全强化至此全部完成，形成纵深防御：**静态扫描 → 能�
 - 移动端导航系列：index 与 admin 双端 navbar 平滑展开/收起、theme/lang 点击 toggle（二次点击真正收起）、admin-indicator 位于 user-text 右侧。
 
 **测试**：全量回归 47 脚本 0 失败（改动的 audit_hook 38 / capabilities 70 / reload_race / ip_watcher 15 / data_limit 32 / admin_api 68 / network 41 / frontend_chain 23 均通过）。
+
+### 3.38 v4.20.3（2026-09-12，移动端样式统一 + audit 根因修复 + 多语言补全）
+
+在 v4.20.2 稳定性测试基础上继续迭代的 bug 修复与体验统一批次，全部回归通过后正式发布。
+
+**移动端样式统一（index/login）**：
+- **templates/mobile/index.html 重写**：顶栏由原拥挤的 `m-nav` 改为桌面同构的 `header.navbar` + `.navbar-right` 结构，mobile.js 自动注入 `.nav-toggle` 汉堡按钮、点击 toggle `nav-open`；正文保留 mobile-app.css 的 m-tool-card 卡片，工具卡片容器 `.m-tools` 追加 `tools-grid` 类以复用网格布局。
+- **index.js collect 兼容**：`grid: card.closest('.tools-grid, .m-tools')`（原 `.tools-grid` 在移动端 `.m-tools` 下返回 null 致搜索/排序崩溃）。
+- **login 垂直居中 + 系统名**：mobile-app.css 新增 `.m-container-center`（flex 垂直居中）+ `.m-system-name`；main.css 新增 `.auth-system-name`；桌面与移动两份 login.html 均加 `{{ system_name }}`（jinja 渲染系统名）。
+
+**user_manage 能力声明**（内置插件示范，请求 27）：
+- 核查 user_manage 为纯 API 委托（12 个路由全经 `self.auth_plugin.*`），无低层能力，遵循 Deny by Default 声明 `capabilities: []`（双处：类属性 + user_manage.json）。
+
+**audit 两个根因修复**（请求 28，Pydroid v4.20.2 audit.log 探究）：
+- **根因 1**（core/framework_manifest.py）：`is_framework_core_path` 排除前缀 `'plugins/configs/'`（带尾斜杠）不匹配目录本身 `plugins/configs` → auth 写自属配置目录被误判核心路径记 root-access；修复 `p == prefix.rstrip('/') or p.startswith(prefix)`。
+- **根因 2**（core/audit_hook.py）：新增 `_is_framework_resource_path`（templates/locales/static 顶层），filesystem:read 命中时豁免归因——插件渲染页面读模板/i18n/静态资源属框架基础功能，不归因插件。
+- 两个根因均做框架层修复（非改 user_manage 声明），并新增回归用例固化（test_framework_manifest 54→55、test_audit_hook 38→39）。
+
+**setup 默认英语单语 + 多语言补全**（请求 29/30/31）：
+- **setup.html 双语不并存**：CSS 显示/隐藏（默认 `.bi-en` inline、`.bi-zh` none；`data-lang-active="zh-CN"` 时反转），`body data-lang-active="en"`，JS `langSel.value='en'` + 初始 `apply('en')`，仅用户手动切换界面语言下拉时才变换显示语言；"界面语言"标签保留双语。
+- **en.json 补 key**：补 `普通用户`/`点击检查更新`（v4.20.2 漏补），统一 LF。
+- **新增 locales/fr.json**：法语语言包，补齐 en.json 全部 523 个 key 翻译（`__name__: "Français"`），作为多语言测试样板；框架 available_languages 自动发现（en/fr/zh-CN），缺失 key 回退中文。
+- **setup POST 语言白名单动态化**（routes/public.py）：原硬编码 `('zh-CN','en')` 改为 `i18n.available_languages()`，支持扩展语言（fr 提交生效）。
+
+**测试修复**：
+- **test_admin_api logs 脆弱断言修复**：原"隔离空日志 → 空列表"断言因 app 启动会把启动日志写入隔离目录 logs/app.log（且被 logging FileHandler 占用无法删除）而恒失败（既有问题，与 v4.20.3 功能改动无关，经 git stash 对比确认）；改为验证 logs API 核心能力（200 + data 为 list）。
+- 全量回归 47 脚本 0 失败。
 
 ## 4. 发布实践沉淀
 

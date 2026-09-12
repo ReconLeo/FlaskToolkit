@@ -161,6 +161,14 @@ AH._handler('socket.connect', (('evil.com', 443),))
 v = AH.get_violations()
 check("C7 未声明网络聚合（建议 tcp 去 scheme）",
       len(v) == 1 and v[0]['details'][0]['capability'] == 'network:tcp:evil.com:443', str(v)[:100])
+# C8（v4.20.3）：插件渲染页面读取框架模板/语言包/静态资源属框架基础功能，不得归因未声明
+# （此前 user_manage 渲染读 templates/plugins/user_manage.html 与 locales/*.json 被 audit-warn）
+AH.clear_violations()
+for _res in ('templates/plugins/user_manage.html', 'locales/zh-CN.json',
+             'static/css/main.css'):
+    AH._handler('open', (_res, 'r', 0))
+check("C8 框架内容资源读取（模板/语言包/静态）豁免，无未声明记录",
+      AH.get_violations() == [], str(AH.get_violations())[:120])
 
 # ============ D：enforce 模式 ============
 AH._MODE = 'enforce'

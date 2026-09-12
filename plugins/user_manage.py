@@ -13,6 +13,11 @@ class UserManagePlugin(BasePlugin):
     permission = "admin"
     dependencies = ["auth"]  # 依赖auth插件的用户存储和鉴权能力
     require_framework_version = "4.0.0"  # 非强制；声明后低于此框架版本将拒绝安装/加载
+    # 能力声明（v4.20.3）：本插件为纯 API 委托型管理插件——用户增删改查/密码/角色/审核/邀请码
+    # 全部经 auth 插件接口完成，不直接访问文件/网络/进程/调度/框架核心文件，也不写入自有数据目录；
+    # 故遵循 Deny by Default 最小授权，显式声明空能力集（区别于"未声明"= 无授权边界），
+    # 与静态扫描（无低层行为）交叉校验一致，作为内置插件的能力声明示范。
+    capabilities = []
 
     @property
     def routes(self) -> List[Dict]:
