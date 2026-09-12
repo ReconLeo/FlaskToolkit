@@ -170,7 +170,11 @@ def main():
             check('start_server 启动 app.py',
                   bool(captured['cmd']) and str(captured['cmd'][-1]).endswith('app.py'),
                   str(captured.get('cmd')))
-            check('start_server 无弹窗标志', captured['creationflags'] != 0, str(captured['creationflags']))
+            # 平台感知：Windows 上 CREATE_NO_WINDOW=0x08000000（防弹窗，非零）；
+            # Linux 无此常量，start_server 经 getattr 回退 0。断言应与 start_server 实际传入值一致。
+            _exp_cf = getattr(desktop_launcher.subprocess, 'CREATE_NO_WINDOW', 0)
+            check('start_server 无弹窗标志（平台感知）',
+                  captured['creationflags'] == _exp_cf, str(captured['creationflags']))
             desktop_launcher.start_server(port='abc')
             check('start_server 非法端口不注入 env', 'FLASKTOOLKIT_PORT' not in captured['env'], '')
         finally:
