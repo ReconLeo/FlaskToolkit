@@ -41,6 +41,9 @@ def post_uninstall(tool):
 temp = _PROJECT_ROOT + '/temp'
 v1 = os.path.join(temp, 'demo_tool_v1.0.0.zip')
 v2 = os.path.join(temp, 'demo_tool_v1.0.1.zip')
+# v4.20.3 修复：frontend_tools.json 自某版起移至 data/ 下（global_var.FRONTEND_CONFIG_FILE），
+# 旧路径 _PROJECT_ROOT/frontend_tools.json 已不存在，随框架路径演进同步
+_FT_CONFIG = os.path.join(_PROJECT_ROOT, 'data', 'frontend_tools.json')
 
 # ============ 链路 1：上传 v1.0.0 ============
 print('\n===== 链路1：上传 v1.0.0 =====')
@@ -59,7 +62,7 @@ check('static js 200', js.status_code == 200, f'实际{js.status_code}')
 oldjs = s.get(BASE + '/frontend-static/demo_tool/js/old.js')
 check('v1 旧文件 old.js 200', oldjs.status_code == 200, f'实际{oldjs.status_code}')
 
-cfg = json.load(open(_PROJECT_ROOT + '/frontend_tools.json', encoding='utf-8'))
+cfg = json.load(open(_FT_CONFIG, encoding='utf-8'))
 check('配置含 demo_tool', any(t['name'] == 'demo_tool' and t['version'] == '1.0.0' for t in cfg))
 
 # ============ 链路 2：更新 v1.0.1 ============
@@ -80,7 +83,7 @@ check('更新后 css 含 v2-badge 样式', '.v2-badge' in css2.text)
 oldjs2 = s.get(BASE + '/frontend-static/demo_tool/js/old.js')
 check('更新后旧文件 old.js 404（已清理）', oldjs2.status_code == 404, f'实际{oldjs2.status_code}')
 
-cfg = json.load(open(_PROJECT_ROOT + '/frontend_tools.json', encoding='utf-8'))
+cfg = json.load(open(_FT_CONFIG, encoding='utf-8'))
 demo = next((t for t in cfg if t['name'] == 'demo_tool'), None)
 check('配置版本更新为 1.0.1', demo and demo['version'] == '1.0.1')
 
@@ -100,7 +103,7 @@ static_dir_exist = os.path.isdir(_PROJECT_ROOT + '/templates/frontend_tools/stat
 check('html 文件已删除', not html_exist)
 check('static 目录已删除', not static_dir_exist)
 
-cfg = json.load(open(_PROJECT_ROOT + '/frontend_tools.json', encoding='utf-8'))
+cfg = json.load(open(_FT_CONFIG, encoding='utf-8'))
 check('配置已移除 demo_tool', not any(t['name'] == 'demo_tool' for t in cfg))
 print('\n配置剩余工具:', [t['name'] for t in cfg])
 print('\n===== 全链路验证完成 =====')

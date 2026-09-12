@@ -49,15 +49,21 @@ jobs:
           python tools/reset.py list
           python tools/backup.py list
 
-      - name: 运行回归测试套件（测试间自动清理）
+      - name: 运行回归测试套件（47 脚本，测试间自动清理）
         run: |
           set -e
           TESTS=(test_permission test_stage2 test_zip_slip test_pack_meta test_reload_race \
                  test_meta_e2e test_frontend_zip_slip test_frontend_chain test_admin_api \
                  test_factory_reset test_error_pages test_package_sign test_src_layout \
                  test_plugin_cleanup test_frontend_permission test_tools_ops test_page_router \
-                 test_framework_fixes test_file_transfer test_plugin_uploads test_security test_plugin_scan test_capabilities test_audit_hook test_update_checker test_plugin_updates test_release_sign \
-                 test_events test_dependency test_plugin_events test_device test_theme)
+                 test_framework_fixes test_file_transfer test_plugin_uploads test_security \
+                 test_plugin_scan test_capabilities test_audit_hook test_update_checker \
+                 test_plugin_updates test_release_sign test_events test_dependency \
+                 test_plugin_events test_device test_theme \
+                 test_data_limit test_desktop_launcher test_framework_manifest test_i18n \
+                 test_ip_watcher test_mdns test_network test_register test_root_demo \
+                 test_root_domain test_scaffold_tools test_selfcheck test_setup test_stats \
+                 test_user_center)
           for t in "${TESTS[@]}"; do
             echo "===== $t ====="
             python "tests/$t.py"
@@ -76,6 +82,30 @@ jobs:
           python tools/package.py pack /tmp/ci_tool -o /tmp/ci_tool.zip --type frontend \
             --sign /tmp/ci_key.pem --signer "CI"
           python tools/package.py verify /tmp/ci_tool.zip --public-key /tmp/ci_key_pub.pem
+
+      - name: 前端工具端到端链路验证（真实 HTTP：上传/更新/卸载）
+        run: |
+          set -e
+          # 1. 预生成 demo_tool 工具包（v1.0.0 / v1.0.1，内容匹配 verify_frontend_chain 断言）
+          python tests/ci_prepare_frontend_demo.py
+          # 2. 初始化标记：绕过首次运行 setup 向导（auth 插件加载时自动重建默认账号 admin/admin123）
+          mkdir -p data
+          touch data/.setup_done
+          # 3. 后台启动真实 server（默认 5000）
+          python app.py > /tmp/ftk_verify_server.log 2>&1 &
+          SRV=$!
+          # 4. 轮询等待就绪（最长 60s）
+          for i in $(seq 1 30); do
+            if curl -s -o /dev/null http://127.0.0.1:5000/; then
+              echo "server 就绪（第 $i 次探测）"
+              break
+            fi
+            sleep 2
+          done
+          # 5. 运行端到端验证（set -e 下失败即 CI 失败）
+          python tests/verify_frontend_chain.py
+          # 6. 停止 server
+          kill $SRV 2>/dev/null || true
 
       - name: 上传失败日志（测试失败时）
         if: failure()
