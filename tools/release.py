@@ -35,6 +35,9 @@ from tools.update import USER_DATA_PATHS, path_is_user_data
 # locales/ 为框架内置 i18n 语言包（v4.9.0），精简运行包必须包含（否则更新后界面翻译缺失）
 # v4.10: 加入 tools（scaffold/install_plugin 离线 CLI、update/backup/reset 运维工具，面向使用者）
 RUNTIME_TOP = ['app.py', 'global_var.py', 'requirements.txt', 'core', 'routes', 'plugins', 'templates', 'static', 'locales', 'tools']
+# 注：themes/（v4.19.2 可扩展主题）归 USER_DATA_PATHS（升级/备份保留用户主题），
+#     不随精简运行包打包——themes 为可选目录，缺失不致命（selfcheck 不强求，见 CORE_DIRS）。
+#     源码自带 themes/sepia 作自定义主题模板，runtime 用户可自行复制/添加。
 # 内置插件白名单（用户插件不入精简包；plugins/configs|data|temp 为运行时数据不入包）
 RUNTIME_PLUGIN_FILES = {'__init__.py', 'base_plugin.py', 'auth.py', 'user_manage.py'}
 # templates 下排除的用户内容子目录（插件模板/前端工具模板）

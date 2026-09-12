@@ -60,7 +60,10 @@ CORE_FILES = [
 # 缺失视为致命（原 core/selfcheck.py CORE_DIRS）
 # 说明：documents/ 仅为开发文档（开发规范/交接文档/设计文档），不在精简运行包内（RUNTIME_TOP 不含），
 #       缺失不影响框架运行——故不属于框架核心目录，不列入本清单（v4.15.1 小修）。
-CORE_DIRS = ['routes', 'core', 'plugins', 'templates', 'tools', 'themes']  # themes: v4.19.2 可扩展主题目录
+# themes/（v4.19.2 可扩展主题）属“可选扩展目录”：无自定义主题时不存在是正常的，缺失不致命，
+#       故不列入 CORE_DIRS（否则 selfcheck 会因缺 themes 误报致命阻止启动）；用户主题内容应随
+#       升级/备份保留，故归入 USER_DATA_PATHS（v4.20.1 修正）。
+CORE_DIRS = ['routes', 'core', 'plugins', 'templates', 'tools']
 
 
 # ============================ 用户数据路径 ============================
@@ -79,6 +82,7 @@ USER_DATA_PATHS = [
     'temp',
     'backups',
     'users',
+    'themes',  # v4.19.2 可扩展主题目录（用户自定义主题，升级/备份保留；非核心必需目录）
 ]
 
 

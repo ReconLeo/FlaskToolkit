@@ -47,6 +47,17 @@ for rel in ('app.py', 'core/plugin_loader.py', 'core/capabilities.py',
             'core/audit_hook.py', 'plugins/base_plugin.py'):
     case(f"A3 核心文件登记: {rel}", rel in sc.CORE_FILES, "")
 
+# A4：themes 不在 CORE_DIRS（可选扩展目录，缺失不致命）——避免新装 runtime 无 themes 被 selfcheck 误报致命阻止启动
+case("A4 themes 不在核心必需目录 CORE_DIRS", 'themes' not in sc.CORE_DIRS,
+     f"CORE_DIRS={sc.CORE_DIRS}")
+# A5：themes 属用户数据（升级/备份保留用户自定义主题）
+import core.framework_manifest as fm
+case("A5 themes 在 USER_DATA_PATHS（升级/备份保留）", 'themes' in fm.USER_DATA_PATHS,
+     f"USER_DATA_PATHS={[p for p in fm.USER_DATA_PATHS if 'theme' in p]}")
+# A6：tzdata 已登记进 REQUIRED_DEPS（APScheduler 3.11 zoneinfo，Windows 缺则启动即崩）
+case("A6 tzdata 在 REQUIRED_DEPS", 'tzdata' in sc.REQUIRED_DEPS,
+     f"REQUIRED_DEPS={sc.REQUIRED_DEPS}")
+
 # ============ B. 时区数据探测 ============
 # B1：默认探测时区为 global_var.TIMEZONE（与 app.py 创建 scheduler 一致）
 case("B1 _TZ_PROBE 与 TIMEZONE 一致",

@@ -89,7 +89,7 @@ for p in [('core/network.py', False), ('app.py', False), ('routes/admin.py', Fal
 
 # ------------------------------ E. BACKUP_ITEMS ------------------------------
 items = {src for src, _ in FM.BACKUP_ITEMS}
-expect = {'data', 'plugins/configs', 'plugins/data', 'logs', 'plugins/status.json'}
+expect = {'data', 'plugins/configs', 'plugins/data', 'logs', 'plugins/status.json', 'themes'}  # themes: v4.20.1 归用户数据（升级/备份保留用户主题）
 check("E1 BACKUP_ITEMS 与原语义一致", items == expect, 'got=%s' % sorted(items))
 check("E2 纯临时目录不入备份", not (items & {'.plugin_cache', 'workspace', 'temp', 'backups', 'users', 'plugins/temp'}),
       '')

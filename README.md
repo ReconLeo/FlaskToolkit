@@ -216,7 +216,7 @@ MIT License · contribution guidelines in [CONTRIBUTING.md](CONTRIBUTING.md) · 
 
 ### AI-Assisted Development Statement
 
-This project used AI-assisted programming tools during development, including but not limited to: code generation and refactoring, code review, test case authoring, and documentation writing. All AI-assisted content has been manually reviewed by the developer and is only merged after passing the project's own regression suite (`tests/`, 47 scripts / 1224 assertions) and startup integrity self-check.
+This project used AI-assisted programming tools during development, including but not limited to: code generation and refactoring, code review, test case authoring, and documentation writing. All AI-assisted content has been manually reviewed by the developer and is only merged after passing the project's own regression suite (`tests/`, 47 scripts / 1227 assertions) and startup integrity self-check.
 
 Transparency conventions for contributors:
 

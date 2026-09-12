@@ -2,9 +2,11 @@
   "latest_version": "4.20.1",
   "published_at": "2026-09-12",
   "download_url": "https://github.com/ReconLeo/FlaskToolkit/releases/download/v4.20.1/FlaskToolkit-4.20.1-runtime.zip",
-  "sha256": "0784e42b8facf2235250620371d6e709df67e27d51f5d733ccce65b174019826",
+  "sha256": "877e2e393d38d48263cef97dce7f837329595fff95aa76af0d07fa62a92c4bc4",
   "changes": [
-    "修复 update_checker：有缓存时重启框架后未重新远程获取更新版本——background_check 改为 force=True 绕过缓存 TTL（默认 24h），每次启动强制拉取最新版本并写缓存；TTL 缓存仍用于抑制运行中手动非强制检查",
-    "新增 test_update_checker 背景检查强制测试（旧缓存 + 新版本源 → 缓存更新），52 项；全量回归 47 脚本 1224 项"
+    "修复 update_checker：有缓存时重启框架后未重新远程获取——background_check 改 force=True 绕过缓存 TTL，每次启动强制拉取最新版本",
+    "修复 themes 误入 CORE_DIRS 致新装无法启动：themes 移出核心必需目录（可选，缺失不致命），归 USER_DATA_PATHS（升级/备份保留用户主题）",
+    "selfcheck REQUIRED_DEPS 补 tzdata（APScheduler 3.11 zoneinfo，Windows 缺则启动即崩）",
+    "test_update_checker 50→52、test_selfcheck 14→17、manifest 53→54，全量回归 47 脚本 1227 项"
   ]
 }

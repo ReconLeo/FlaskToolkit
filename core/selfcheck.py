@@ -28,7 +28,10 @@ import global_var
 from core.framework_manifest import CORE_FILES, CORE_DIRS
 
 # 第三方运行依赖（缺失视为致命，启动前应 pip install -r requirements.txt）
-REQUIRED_DEPS = ['flask', 'flask_cors', 'apscheduler', 'watchdog']
+# tzdata：APScheduler 3.11 改用标准库 zoneinfo，Windows 需 tzdata 提供 IANA 时区库
+#   （缺失时 app.py 顶层创建 BackgroundScheduler(timezone=TIMEZONE) 抛 ZoneInfoNotFoundError 启动即崩）；
+#   requirements.txt 已锁 tzdata==2026.3，所有平台安装 requirements 后 importlib 均可命中。
+REQUIRED_DEPS = ['flask', 'flask_cors', 'apscheduler', 'watchdog', 'tzdata']
 
 # 首次启动标记文件
 MARKER_FILE = os.path.join(global_var.BASE_DIR, 'data', '.initialized')
