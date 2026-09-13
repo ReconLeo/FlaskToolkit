@@ -28,6 +28,8 @@ body {
 .navbar .container { display: flex; justify-content: space-between; align-items: center; }
 .navbar-brand { color: #fff; font-size: 1.25rem; font-weight: bold; text-decoration: none; }
 .navbar-brand:hover { color: #e9ecef; }
+/* v4.20.3：应用图标（static/icon.png）navbar-brand 左侧 */
+.brand-icon { height: 22px; width: 22px; border-radius: 4px; vertical-align: -4px; margin-right: 8px; }
 .navbar-right { display: flex; align-items: center; gap: 1rem; }
 .user-info { color: #fff; display: flex; align-items: center; gap: 0.75rem; }
 .user-avatar {
@@ -198,6 +200,8 @@ body {
 }
 .auth-title { text-align: center; margin-bottom: 24px; color: var(--text); font-size: 24px; }
 .auth-system-name { text-align: center; color: var(--primary); font-size: 26px; font-weight: bold; margin-bottom: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* v4.20.3：登录页 auth-system-name 上方应用图标，居中 */
+.auth-brand-icon { display: block; width: 56px; height: 56px; border-radius: 12px; margin: 0 auto 12px; }
 .form-item { margin-bottom: 18px; }
 .form-item label { display: block; margin-bottom: 8px; color: var(--muted); font-size: 14px; }
 .input-wrap { position: relative; }

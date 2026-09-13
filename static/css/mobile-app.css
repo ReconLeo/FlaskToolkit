@@ -248,6 +248,9 @@ body.mobile .m-container-center {
     justify-content: center;
 }
 
+/* v4.20.3：登录页系统名称上方应用图标，居中 */
+body.mobile .m-brand-icon { display: block; width: 56px; height: 56px; border-radius: 12px; margin: 0 auto 16px; }
+
 /* v4.20.3：登录页系统名称（配合 {{ system_name }} 注入） */
 body.mobile .m-system-name {
     text-align: center;

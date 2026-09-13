@@ -93,6 +93,16 @@
             color: #bdc3c7;
             margin-left: 6px;
         }
+        /* v4.20.3：应用图标 navbar-brand 左侧 */
+        .navbar-brand .admin-brand-icon {
+            height: 20px; width: 20px; border-radius: 4px;
+            vertical-align: -3px; margin-right: 6px;
+        }
+        /* v4.20.3：关于项目卡片大图标（system.html） */
+        .about-brand-icon {
+            display: block; width: 88px; height: 88px;
+            border-radius: 16px; margin: 0 auto 14px;
+        }
         .nav-menu {
             display: flex;
             gap: 4px;
@@ -402,7 +412,7 @@
 <body>
     <nav class="navbar">
         <div class="navbar-left">
-            <a class="navbar-brand" href="/admin/dashboard">{{ system_name }}<span>{{ t('管理后台') }}</span></a>
+            <a class="navbar-brand" href="/admin/dashboard"><img src="/static/icon.png" class="admin-brand-icon" alt="">{{ system_name }}<span>{{ t('管理后台') }}</span></a>
             <a href="/" class="nav-home">{{ t('首页') }}</a>
         </div>
         <div class="navbar-right">

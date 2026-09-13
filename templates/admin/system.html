@@ -14,7 +14,8 @@
     <div class="card">
         <h3 class="card-title">🚀 {{ t('关于项目') }}</h3>
         <div style="font-size:14px; line-height:1.9; color: var(--adm-text);">
-            <p style="margin-bottom:8px;"><strong style="font-size:15px;">{{ system_name }} {{ system_version }}</strong></p>
+            <img src="/static/icon.png" class="about-brand-icon" alt="">
+            <p style="margin-bottom:8px; text-align:center;"><strong style="font-size:22px;">{{ system_name }} {{ system_version }}</strong></p>
             <p style="color: var(--adm-text-muted); margin-bottom:8px;">{{ project_slogan }} —— {{ t('基于 Flask 的插件化全栈工具集，支持插件热重载、生命周期管理、前后端工具混合展示、可选鉴权与安全预设') }}。</p>
             <p style="margin-bottom:8px;">👤 {{ t('作者') }}：<a href="{{ project_github }}" target="_blank" rel="noopener" style="color:#2980b9; font-weight:600; text-decoration:none;">{{ project_author }}</a></p>
             <p style="margin-bottom:8px;">⭐ {{ t('项目主页') }}：<a href="{{ project_github }}" target="_blank" rel="noopener" style="text-decoration:none; font-weight:600; color:#2980b9;">{{ t('GitHub 仓库') }}</a></p>

@@ -229,10 +229,17 @@ body.mobile-narrow .toast {
 }
 
 /* ---------- 登录强制改密弹窗（base 内嵌） ---------- */
+/* v4.20.3：内容多导致高度过大，覆盖 mobile.js 强加的 .mobile-full 全屏（min-height:100vh），
+   改为紧凑卡片 + 最大高度 88vh 可滚动 */
 @media (max-width: 480px) {
     .modal-content[style*="max-width:420px"] {
         max-width: calc(100% - 24px) !important;
+        width: calc(100% - 24px) !important;
+        min-height: auto !important;
+        max-height: 88vh;
+        overflow-y: auto;
         margin: 12px auto;
+        padding: 16px;
         border-radius: 10px;
     }
 }
