@@ -517,6 +517,12 @@ P1 安全强化至此全部完成，形成纵深防御：**静态扫描 → 能�
   - 计数仅存于 JS 闭包内存（**不写 localStorage**），页面刷新后计数清零、可再次触发。动画 keyframes 由脚本动态注入 `<style>`，随 system.html 内联 JS 提供（约 5KB，仅此页）。
   - **发布口径**：changelog.json / commit message 仅提及「加入隐藏彩蛋」，不透露触发位置；本演进记录忠实记录实现细节。
 
+**彩蛋样式复查修复（收编后）**：连点验证发现提示语脱离图标，复查并修复四处样式/逻辑缺陷——
+  - **气泡定位**：`showBubble` 曾把气泡改为固定页面中央（`left:50%; top:38%`）导致提示语不再落在图标旁；改回基于 `icon.getBoundingClientRect()` 锚定图标上方居中（`top = r.top - 44`, `left = r.left + width/2`）。
+  - **气泡竞态**：`showBubble` 未清除旧 `setTimeout(removeBubble)`，连续快速触发时旧定时器会误删新气泡；新增 `bubbleTimer` + `clearTimeout` 修复。
+  - **幽灵残影尺寸**：`.ftk-e-ghost` 原用 CSS `width:100%` 相对整张关于项目卡片文本容器，残影会铺满卡片宽度；改为 JS 用 `icon.offsetLeft/offsetTop/offsetWidth/offsetHeight` 内联精确定位到图标原位置并匹配尺寸。
+  - **气泡长文本溢出**：气话含仓库链接且 `white-space:nowrap` 会横向溢出视口；改为 `white-space:normal + max-width:min(90vw,460px) + text-align:center`。
+
 ## 4. 发布实践沉淀
 
 - **changelog.json 是发布强制同步点**：`tools/release.py build` 会重写（latest_version/sha256/download_url/changes），须随 Release 一起 commit + push（v4.9.0/v4.9.1 曾漏同步，v4.9.2 补齐并固化）。

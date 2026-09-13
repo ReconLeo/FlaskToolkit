@@ -13,7 +13,7 @@
     <!-- 关于项目 -->
     <div class="card">
         <h3 class="card-title">🚀 {{ t('关于项目') }}</h3>
-        <div style="font-size:14px; line-height:1.9; color: var(--adm-text);">
+        <div style="font-size:14px; line-height:1.9; color: var(--adm-text);" id="about-project">
             <img src="/static/icon.png" class="about-brand-icon" alt="">
             <p style="margin-bottom:8px; text-align:center;"><strong style="font-size:22px;">{{ system_name }} {{ system_version }}</strong></p>
             <p style="color: var(--adm-text-muted); margin-bottom:8px;">{{ project_slogan }} —— {{ t('基于 Flask 的插件化全栈工具集，支持插件热重载、生命周期管理、前后端工具混合展示、可选鉴权与安全预设') }}。</p>
@@ -143,7 +143,7 @@
                     [window.T('系统名称'), d.system_name],
                     [window.T('版本检查'), '<span id="sysVerLine" style="cursor:pointer; color: var(--adm-text-muted);" title="' + window.T('点击检查更新') + '" onclick="loadSysVer(true)">' + window.T('待检查') + '</span>'],
                     [window.T('系统版本'), '<span class="badge badge-blue">' + d.system_version + '</span>'],
-                    [window.T('框架版本'), '<span class="badge badge-blue">v' + d.framework_version + '</span>'],
+                    [window.T('框架版本'), '<span class="badge badge-blue" id="framework_version">v' + d.framework_version + '</span>'],
                     [window.T('Python 版本'), d.python_version],
                     [window.T('运行平台'), d.platform],
                     [window.T('绑定地址'), d.host + (d.debug ? '（' + window.T('调试模式') + '）' : '')],
@@ -343,97 +343,216 @@
     }
     document.addEventListener('DOMContentLoaded', () => { loadQuota(); });
 
-    /* ============================================================
-       小彩蛋：连点 about-brand-icon / 框架版本行，触发拟人化逃跑动画。
-       30 秒内累计超过 5 次触发；第 6-11 次为不同逃跑动作，第 12 次图标消失。
-       计数仅存内存（不计 localStorage），刷新页面后重置。
-       ============================================================ */
-    (function () {
-        'use strict';
-        var icon = document.querySelector('.about-brand-icon');
-        if (!icon) return;
+/* ============================================================
+  小彩蛋：连点 about-brand-icon / 框架版本行，触发拟人化逃跑动画。
+  第 6 次起每次触发随机动作；任何动作后 30 秒无操作自动复位。
+  第 12 次图标消失，消失时随机显示气话，并留下幽灵残影（haunted）。
+  消失期间点击框架版本行：再随机气一句 + 重置 30 秒窗口。
+  回归时另外随机显示一条"回来啦"消息，并移除幽灵残影。
+  计数仅存内存（不计 localStorage），刷新页面后重置。
+============================================================ */
+(function () {
+    'use strict';
+    var icon = document.querySelector('.about-brand-icon');
+    var verRow = document.querySelector('#framework_version') ?
+        document.querySelector('#framework_version').closest('tr') : null;
+    if (!icon) return;
 
-        var count = 0, lastTime = 0;
-        var ACTIONS = {
-            6: ['ftk-e-scared', '哎哟！'],
-            7: ['ftk-e-left', '走开走开！'],
-            8: ['ftk-e-right', '躲！'],
-            9: ['ftk-e-up', '别点我！'],
-            10: ['ftk-e-spin', '晕了…'],
-            11: ['ftk-e-flee', '不要再点我了！！'],
-            12: ['ftk-e-vanish', '拜拜👋']
-        };
-        var CLS = ['ftk-e-scared', 'ftk-e-left', 'ftk-e-right', 'ftk-e-up', 'ftk-e-spin', 'ftk-e-flee', 'ftk-e-vanish'];
+    var count = 0;
 
-        // 注入动画样式（一次性）
-        if (!document.getElementById('ftk-easter-style')) {
-            var st = document.createElement('style');
-            st.id = 'ftk-easter-style';
-            st.textContent = [
-                '@keyframes ftk-scared { 0%,100%{transform:translateX(0)} 10%,30%,50%,70%,90%{transform:translateX(-14px) rotate(-8deg)} 20%,40%,60%,80%{transform:translateX(14px) rotate(8deg)} }',
-                '@keyframes ftk-left { 0%{transform:translateX(0)} 40%{transform:translateX(-70px) rotate(-12deg)} 100%{transform:translateX(0)} }',
-                '@keyframes ftk-right { 0%{transform:translateX(0)} 40%{transform:translateX(70px) rotate(12deg)} 100%{transform:translateX(0)} }',
-                '@keyframes ftk-up { 0%{transform:translateY(0)} 40%{transform:translateY(-60px)} 100%{transform:translateY(0)} }',
-                '@keyframes ftk-spin { 0%{transform:rotate(0)} 100%{transform:rotate(360deg)} }',
-                '@keyframes ftk-flee { 0%{transform:translate(0,0) rotate(0)} 40%{transform:translate(46px,-28px) rotate(20deg)} 100%{transform:translate(120px,-70px) rotate(45deg)} }',
-                '@keyframes ftk-vanish { 0%{transform:scale(1);opacity:1} 100%{transform:scale(0);opacity:0} }',
-                '.ftk-e-scared{animation:ftk-scared .9s ease} .ftk-e-left{animation:ftk-left .9s ease} .ftk-e-right{animation:ftk-right .9s ease}',
-                '.ftk-e-up{animation:ftk-up .9s ease} .ftk-e-spin{animation:ftk-spin .9s ease} .ftk-e-flee{animation:ftk-flee .9s ease}',
-                '.ftk-e-vanish{animation:ftk-vanish .7s ease forwards}',
-                '#ftk-easter-bubble{position:fixed; z-index:99999; background:rgba(30,30,30,.92); color:#fff;',
-                '  font-size:13px; padding:6px 10px; border-radius:8px; white-space:nowrap;',
-                '  box-shadow:0 2px 8px rgba(0,0,0,.25); transform:translateX(-50%); pointer-events:none;}',,
-                '#ftk-easter-bubble::after{content:""; position:absolute; top:100%; left:50%; margin-left:-5px;',
-                '  border:5px solid transparent; border-top-color:rgba(30,30,30,.92);}'
-            ].join('');
-            document.head.appendChild(st);
+    // 动作池：每次触发从中随机选取（12 为"消失"，单独处理）
+    var ACTIONS = [
+        { cls: 'ftk-e-scared', msg: '哎哟！' },
+        { cls: 'ftk-e-left',  msg: '走开走开！' },
+        { cls: 'ftk-e-right', msg: '躲！' },
+        { cls: 'ftk-e-up',    msg: '别点我！' },
+        { cls: 'ftk-e-spin',  msg: '晕了…' },
+        { cls: 'ftk-e-flee',  msg: '不要再点我了！！' }
+    ];
+    var VANISH_ACTION = { cls: 'ftk-e-vanish', msg: '拜拜👋' };
+
+    // 消失时刻的气话池（6 条）
+    var VANISH_MSGS = [
+        '被你气跑了',
+        '有这闲工夫，快去 <a href="https://github.com/ReconLeo/FlaskToolkit" target="_blank" rel="noopener">作者仓库</a> 看看吧！',
+        '哼，不跟你玩了',
+        '说好不点的，赖皮',
+        '累了，下线！',
+        '我去别人那儿玩咯'
+    ];
+
+    // 回归时的"回来啦"消息池（6 条）
+    var RETURN_MSGS = [
+        '我又回来啦',
+        '算了，还是舍不得你们',
+        '好啦好啦，不生气了',
+        '回来了，想我没？',
+        '这口气我咽下了',
+        '姑且再陪你一会儿'
+    ];
+
+    // 工具：数组随机下标
+    function randIndex(len) { return Math.floor(Math.random() * len); }
+    // 抽取与上次不重复的动作下标
+    function pickAction(prevIndex) {
+        if (ACTIONS.length === 1) return 0;
+        var idx;
+        do { idx = randIndex(ACTIONS.length); } while (idx === prevIndex);
+        return idx;
+    }
+
+    var prevActionIndex = -1;
+    var resetTimer = null;      // 30 秒无操作定时器
+    var hidden = false;         // 图标是否处于"消失"状态
+    var ghost = null;           // 幽灵残影元素
+    var bubbleTimer = null;     // 气泡自动消失定时器
+
+    // 清除已有气泡
+    function removeBubble() {
+        var old = document.getElementById('ftk-easter-bubble');
+        if (old && old.parentNode) old.parentNode.removeChild(old);
+    }
+
+    // 显示气泡（html 可为 HTML，支持链接）；定位到图标上方居中（fixed 相对视口）
+    function showBubble(html) {
+        removeBubble();
+        clearTimeout(bubbleTimer);              // 清除旧定时器，避免连续触发时误删新气泡
+        var b = document.createElement('div');
+        b.id = 'ftk-easter-bubble';
+        b.innerHTML = html;
+        var r = icon.getBoundingClientRect();
+        b.style.left = (r.left + r.width / 2) + 'px';
+        b.style.top = (r.top - 44) + 'px';
+        document.body.appendChild(b);
+        bubbleTimer = setTimeout(removeBubble, 2500);
+    }
+
+    // 应用动作动画
+    function runAction(act, bubbleHtml) {
+        icon.classList.remove.apply(icon.classList, CLS);
+        void icon.offsetWidth;              // 强制重排以重启动画
+        icon.classList.add(act.cls);
+        showBubble(bubbleHtml || act.msg);
+    }
+
+    // 创建幽灵残影（haunted）：淡化的图标 + 轻微浮动
+    function spawnGhost() {
+        if (!icon || !icon.parentElement) return;
+        var wrap = icon.parentElement;
+        wrap.style.position = 'relative';   // 作为定位容器
+        var g = document.createElement('img');
+        g.src = icon.getAttribute('src') || icon.src;
+        g.alt = '';
+        g.id = 'ftk-ghost';
+        g.className = 'ftk-e-ghost';
+        // 残影精确定位到图标原位置（相对 wrap），尺寸与图标一致，避免 width:100% 铺满整卡
+        g.style.left = icon.offsetLeft + 'px';
+        g.style.top = icon.offsetTop + 'px';
+        g.style.width = icon.offsetWidth + 'px';
+        g.style.height = icon.offsetHeight + 'px';
+        wrap.appendChild(g);
+        ghost = g;
+    }
+
+    // 移除幽灵残影
+    function removeGhost() {
+        if (ghost && ghost.parentNode) ghost.parentNode.removeChild(ghost);
+        ghost = null;
+    }
+
+    // 启动 30 秒无操作复位
+    function armResetTimer() {
+        clearTimeout(resetTimer);
+        resetTimer = setTimeout(function () {
+            resetTimer = null;
+            restore();
+        }, 30000);
+    }
+
+    // 复位：恢复图标 + 随机"回来啦"消息 + 移除幽灵 + 重置计数
+    function restore() {
+        removeGhost();
+        icon.classList.remove('ftk-e-vanish');
+        void icon.offsetWidth;
+        icon.classList.add('ftk-e-back');
+        showBubble(RETURN_MSGS[randIndex(RETURN_MSGS.length)]);
+        setTimeout(function () { icon.classList.remove('ftk-e-back'); }, 900);
+        hidden = false;
+        count = 0;
+        prevActionIndex = -1;
+    }
+
+    // 注入动画样式（一次性）
+    if (!document.getElementById('ftk-easter-style')) {
+        var st = document.createElement('style');
+        st.id = 'ftk-easter-style';
+        st.textContent = [
+            '@keyframes ftk-scared { 0%,100%{transform:translateX(0)} 10%,30%,50%,70%,90%{transform:translateX(-14px) rotate(-8deg)} 20%,40%,60%,80%{transform:translateX(14px) rotate(8deg)} }',
+            '@keyframes ftk-left { 0%{transform:translateX(0)} 40%{transform:translateX(-70px) rotate(-12deg)} 100%{transform:translateX(0)} }',
+            '@keyframes ftk-right { 0%{transform:translateX(0)} 40%{transform:translateX(70px) rotate(12deg)} 100%{transform:translateX(0)} }',
+            '@keyframes ftk-up { 0%{transform:translateY(0)} 40%{transform:translateY(-60px)} 100%{transform:translateY(0)} }',
+            '@keyframes ftk-spin { 0%{transform:rotate(0)} 100%{transform:rotate(360deg)} }',
+            '@keyframes ftk-flee { 0%{transform:translate(0,0) rotate(0)} 40%{transform:translate(46px,-28px) rotate(20deg)} 100%{transform:translate(120px,-70px) rotate(45deg)} }',
+            '@keyframes ftk-vanish { 0%{transform:scale(1);opacity:1} 100%{transform:scale(0);opacity:0} }',
+            '@keyframes ftk-back { 0%{transform:scale(0) rotate(-20deg);opacity:0} 60%{transform:scale(1.15) rotate(6deg);opacity:1} 100%{transform:scale(1) rotate(0);opacity:1} }',
+            // 幽灵残影动画：半透明 + 轻微浮动
+            '@keyframes ftk-ghost-float { 0%,100%{transform:translateY(0) scale(1); opacity:.18} 50%{transform:translateY(-6px) scale(1.05); opacity:.28} }',
+            '.ftk-e-scared{animation:ftk-scared .9s ease} .ftk-e-left{animation:ftk-left .9s ease} .ftk-e-right{animation:ftk-right .9s ease}',
+            '.ftk-e-up{animation:ftk-up .9s ease} .ftk-e-spin{animation:ftk-spin .9s ease} .ftk-e-flee{animation:ftk-flee .9s ease}',
+            '.ftk-e-vanish{animation:ftk-vanish .7s ease forwards}',
+            '.ftk-e-back{animation:ftk-back .9s ease forwards}',
+            '.ftk-e-ghost{position:absolute; filter:grayscale(1) blur(1px); pointer-events:none;',
+            '  animation:ftk-ghost-float 2.4s ease-in-out infinite;}',
+            '#ftk-easter-bubble{position:fixed; z-index:99999; background:rgba(30,30,30,.92); color:#fff;',
+            '  font-size:13px; padding:6px 10px; border-radius:8px; white-space:normal; text-align:center; max-width:min(90vw,460px);',
+            '  box-shadow:0 2px 8px rgba(0,0,0,.25); transform:translateX(-50%); pointer-events:auto;}',
+            '#ftk-easter-bubble::after{content:""; position:absolute; top:100%; left:50%; margin-left:-5px;',
+            '  border:5px solid transparent; border-top-color:rgba(30,30,30,.92);}',
+            '#ftk-easter-bubble a{color:#6cf; text-decoration:underline;}'
+        ].join('');
+        document.head.appendChild(st);
+    }
+
+    var CLS = ['ftk-e-scared', 'ftk-e-left', 'ftk-e-right', 'ftk-e-up', 'ftk-e-spin', 'ftk-e-flee', 'ftk-e-vanish', 'ftk-e-back'];
+
+    // 绑定点击事件：图标
+    icon.addEventListener('click', function () {
+        count++;
+
+        // 前 5 次不触发动画，仅计数
+        if (count < 6) {
+            armResetTimer();
+            return;
         }
 
-        function showBubble(txt) {
-            var b = document.getElementById('ftk-easter-bubble');
-            if (!b) { b = document.createElement('div'); b.id = 'ftk-easter-bubble'; document.body.appendChild(b); }
-            var r = icon.getBoundingClientRect();
-            b.style.top = (r.top - 36) + 'px';
-            b.style.left = (r.left + r.width / 2) + 'px';
-            b.textContent = txt;
-            b.style.display = 'block';
-            clearTimeout(b._t);
-            b._t = setTimeout(function () { b.style.display = 'none'; }, 900);
+        // 触发次数 >=6，随机动作
+        var act;
+        if (count === 12) {
+            act = VANISH_ACTION;
+        } else {
+            var idx = pickAction(prevActionIndex);
+            prevActionIndex = idx;
+            act = ACTIONS[idx];
         }
 
-        function run() {
-            var now = Date.now();
-            if (now - lastTime > 30000) count = 0;   // 30 秒滑动窗口
-            lastTime = now;
-            count += 1;
-            if (count < 6 || count > 12) return;     // 前 5 次与超过上限静默
-            var it = ACTIONS[count];
-            if (!it) return;
-            showBubble(it[1]);
-            icon.classList.remove.apply(icon.classList, CLS);
-            if (count === 12) {                       // 第 12 次：图标消失
-                void icon.offsetWidth;
-                icon.classList.add(it[0]);
-                setTimeout(function () { icon.style.visibility = 'hidden'; }, 720);
-                return;
-            }
-            void icon.offsetWidth;                    // reflow 重触发动画
-            icon.classList.add(it[0]);
-            var c = it[0];
-            setTimeout(function () { icon.classList.remove(c); }, 950);
-        }
+        runAction(act);
 
-        icon.addEventListener('click', run);
-        var tbody = document.getElementById('sysInfoBody');
-        if (tbody) {
-            tbody.addEventListener('click', function (e) {
-                var tr = e.target.closest('tr');
-                if (!tr) return;
-                var td = tr.querySelector('td');
-                var label = (window.T ? window.T('框架版本') : '框架版本');
-                if (td && td.textContent.trim() === label) run();
-            });
+        if (count === 12) {
+            hidden = true;                       // 图标消失
+            showBubble(VANISH_MSGS[randIndex(VANISH_MSGS.length)]);   // 消失时刻随机气话
+            spawnGhost();                        // 留下幽灵残影
         }
-    })();
+        armResetTimer();                         // 所有动作后都启动 30 秒复位
+    });
+
+    // 消失期间点击框架版本行：再气一句 + 重置 30 秒窗口（haunting）
+    if (verRow) {
+        verRow.addEventListener('click', function () {
+            if (!hidden) return;                 // 仅在消失状态生效
+            showBubble(VANISH_MSGS[randIndex(VANISH_MSGS.length)]);
+            armResetTimer();
+        });
+    }
+})();
 </script>
 {% endblock %}
