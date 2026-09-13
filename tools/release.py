@@ -35,9 +35,12 @@ from tools.update import USER_DATA_PATHS, path_is_user_data
 # locales/ 为框架内置 i18n 语言包（v4.9.0），精简运行包必须包含（否则更新后界面翻译缺失）
 # v4.10: 加入 tools（scaffold/install_plugin 离线 CLI、update/backup/reset 运维工具，面向使用者）
 RUNTIME_TOP = ['app.py', 'global_var.py', 'requirements.txt', 'core', 'routes', 'plugins', 'templates', 'static', 'locales', 'tools']
-# 注：themes/（v4.19.2 可扩展主题）归 USER_DATA_PATHS（升级/备份保留用户主题），
-#     不随精简运行包打包——themes 为可选目录，缺失不致命（selfcheck 不强求，见 CORE_DIRS）。
-#     源码自带 themes/sepia 作自定义主题模板，runtime 用户可自行复制/添加。
+# 注：themes/（v4.19.2 可扩展主题）整体归 USER_DATA_PATHS（升级/备份保留用户主题，
+#     不随精简运行包打包——themes 为可选目录，缺失不致命（selfcheck 不强求，见 CORE_DIRS））。
+#     例外：框架自带的示例主题 themes/sepia（v4.20.4 用于展示主题 CSS url 相对资源能力）
+#     作为固定示例随精简运行包分发——仅对全新部署生效；升级落地时仍按 USER_DATA_PATHS
+#     语义跳过保留用户主题，不影响已存在 themes（见 tools/update.py apply_archive）。
+RUNTIME_EXAMPLE_THEME = ['themes/sepia/theme.css', 'themes/sepia/theme.json', 'themes/sepia/background-sepia.png']
 # 内置插件白名单（用户插件不入精简包；plugins/configs|data|temp 为运行时数据不入包）
 RUNTIME_PLUGIN_FILES = {'__init__.py', 'base_plugin.py', 'auth.py', 'user_manage.py'}
 # templates 下排除的用户内容子目录（前端工具模板）。
@@ -148,6 +151,10 @@ def collect_runtime_files():
                         if not (rest == 'user_manage.html' or rest.startswith('static/user_manage/')):
                             continue
                 files.append(rel)
+    # 追加框架自带示例主题 sepia（放行 USER_DATA 过滤，见 RUNTIME_EXAMPLE_THEME 注释）
+    for rel in RUNTIME_EXAMPLE_THEME:
+        if os.path.isfile(os.path.join(BASE_DIR, rel)):
+            files.append(rel)
     return sorted(set(files))
 
 
@@ -210,7 +217,7 @@ def build_package(version, full=False, includes=None, out_dir=None):
     manifest_files = {}
     with zipfile.ZipFile(out, 'w', zipfile.ZIP_DEFLATED) as zf:
         for rel in files:
-            if path_is_user_data(rel):
+            if path_is_user_data(rel) and rel not in RUNTIME_EXAMPLE_THEME:
                 continue
             src = os.path.join(BASE_DIR, rel)
             if not os.path.isfile(src):

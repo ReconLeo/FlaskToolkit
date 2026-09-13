@@ -61,6 +61,7 @@ Kaleido 同样开源（自托管题库系统）：[github.com/ReconLeo/Kaleido](
 | **v4.20.1** | 2026-09-12 | update_checker 修复（background_check 改 force=True，有缓存重启后仍重新远程获取）+ themes 移出 CORE_DIRS（新装 runtime 无 themes 不再误报致命，归 USER_DATA_PATHS 升级保留 + RUNTIME_TOP 打包 sepia）+ tzdata 加入 REQUIRED_DEPS；test_update_checker 50→52、test_selfcheck 14→17、manifest 53→54，全量 47 脚本 1227 项 | tag `v4.20.1` |
 | **v4.20.2** | 2026-09-12 | 稳定性测试累积 bug 修复：P0 日志清理 / 并发 load_plugins 竞态互斥锁 / audit 钩子 int fd 误判路径伪能力 / quota 未声明插件默认配额 / 昵称修改同步会话 / IP 检测保存即时生效 + release 打包缺陷（runtime 缺内置 user_manage 模板致 500）+ 前端备忘 9-29（登录移动端崩溃/上传预览复原/深色适配/汉堡抽屉/悬浮卡片/版本检查/窄屏）；全量 47 脚本 0 失败 | tag `v4.20.2` |
 | **v4.20.3** | 2026-09-12 | 移动端样式统一（index 汉堡 navbar + login 垂直居中 + 系统名 system_name + index.js 兼容 .m-tools）+ user_manage 能力声明（纯 API 委托）+ audit 两根因修复（framework_manifest 排除目录本身误判核心 + 渲染读框架模板/i18n/静态豁免归因）+ setup 默认英语单语 + en 补 key + 新增 fr 语言包（多语言验证）+ setup POST 语言白名单动态化 + test_admin_api logs 脆弱断言修复；全量 47 脚本 0 失败 | tag `v4.20.3` |
+| **v4.20.4** | 2026-09-13 | 应用图标 icon.png 分布各页面（navbar/login/user-center/plugin_default/system 大图标）+ change-pwd-modal 移动端适配 + index 布局细化（主标题跟随 system_name、navbar 垂直居中、管理后台按钮全宽、工具行上下排列）+ theme/lang 下拉不被遮挡 + install_all 后端安装/地址探测/友好报错 + **主题 CSS url()/@import 信任策略（THEME_CSS_URLS allow/relative/deny）+ 主题相对资源服务 + 三套预设补新参数 + sepia 示例背景图**；全量 47 脚本 0 失败 | tag `v4.20.4` |
 
 ## 3. 版本详情
 
@@ -446,6 +447,29 @@ P1 安全强化至此全部完成，形成纵深防御：**静态扫描 → 能�
 **测试修复**：
 - **test_admin_api logs 脆弱断言修复**：原"隔离空日志 → 空列表"断言因 app 启动会把启动日志写入隔离目录 logs/app.log（且被 logging FileHandler 占用无法删除）而恒失败（既有问题，与 v4.20.3 功能改动无关，经 git stash 对比确认）；改为验证 logs API 核心能力（200 + data 为 list）。
 - 全量回归 47 脚本 0 失败。
+
+### 3.39 v4.20.4（2026-09-13，应用图标 + 布局细化 + 主题 CSS url 信任策略）
+
+自 v4.20.3 之后累积的前端与主题能力更新，统一收编 v4.20.4：
+
+**应用图标 icon.png（512×512，`/static/icon.png`）分布各页面**：
+- navbar-brand 左侧（index 桌面/移动、plugin_default）；登录页 auth-system-name / m-system-name 上方居中；user-center uc-top 统一 navbar 样式（图标+系统名+返回首页/退出登录按钮化）；system.html 关于卡片大图标 + system_name 字号 15→22px。
+- change-pwd-modal 移动端适配：覆盖 mobile.js 强加的 .mobile-full 全屏，改紧凑卡片 + max-height 88vh 可滚动。
+
+**index 布局细化**：主标题由硬编码"Flask 全栈工具集"改为跟随 `system_name`（桌面 + mobile）；移动端 navbar 用 flex 垂直居中 container；管理后台按钮占满 adminBar 全宽；mobile/index m-container 上方新增居中主标题 `.m-page-title`，m-toolbar-row 上下排列（toolSort 全宽、toolCount 靠左）；theme/lang 下拉在 navbar nav-open 时 overflow:visible 不被遮挡。
+
+**install_all 增强（examples/install_all.py）**：报错友好化（捕获 requests.ConnectionError 输出排查提示）；`--base-url` 留空自动读 core/network.py 探测本地地址；`--mode auto` 检测到 tools/install_plugin.py 走后端安装/卸载（无需启动服务，更快），`--mode http/backend` 可强制。
+
+**主题 CSS url()/@import 信任策略（深度改造）**：
+- 新增配置 `THEME_CSS_URLS`（enum allow/relative/deny，默认 allow）：allow=放行相对+外部 http(s)、relative=仅相对（拒外部）、deny=移除全部 url()。
+- core/theme.py：`get_theme_url_mode()` + `sanitize_theme_css(css, mode)`（正则解析 url()/@import，危险协议如 javascript:/data: 一律拒绝）+ `get_theme_css()` 返回前消毒。
+- routes/public.py：新增 `/theme-static/<name>/<path>` 主题相对资源路由（send_from_directory 防穿越，内建主题 404），供 CSS `url(./xxx)` 相对引用。
+- 示例主题 themes/sepia 新增 background-sepia.png（1920×1080，CC0 Public Domain，Moss Closeup）作 body 相对 url 背景，演示相对资源能力；theme.css 含版权注释。
+- **sepia 随精简运行包（runtime）分发**（tools/release.py `RUNTIME_EXAMPLE_THEME`）：themes/ 整体仍归 USER_DATA_PATHS 不入包，但框架自带示例主题 sepia 固定随 runtime 打包——仅对全新部署生效，升级落地仍按 USER_DATA_PATHS 跳过保留用户主题（不覆盖已存在 themes）。补齐 v4.20.1 声称但未实现的"RUNTIME_TOP 打包 sepia"。
+
+**三套预设补新参数（tools/config.py）**：daily/strict/lan-open 同步 `THEME_CSS_URLS`（allow/relative/allow）+ MDNS_ENABLED/IP_WATCH_INTERVAL/ACCESS_PROFILE_ENABLED/STATS_RETENTION_DAYS/PLUGIN_DATA_LIMIT_MB/PLUGIN_DATA_TOTAL_LIMIT_MB/PACKAGE_MAX_UPLOAD_SIZE_MB（strict 另加 TRUST_PROXY_HEADERS）。
+
+**测试**：test_theme 新增 url 策略 + 资源路由用例（36 项）；全量回归 47 脚本 0 失败。
 
 ## 4. 发布实践沉淀
 

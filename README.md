@@ -4,7 +4,7 @@
   <img src="https://github.com/ReconLeo/FlaskToolkit/actions/workflows/ci.yml/badge.svg" alt="CI">
   <img src="https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB?logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/License-MIT-yellow" alt="License">
-  <img src="https://img.shields.io/badge/version-4.20.3-blue" alt="Version">
+  <img src="https://img.shields.io/badge/version-4.20.4-blue" alt="Version">
   <a href="https://github.com/ReconLeo/FlaskToolkit-Lite"><img src="https://img.shields.io/badge/Lite%20Edition-v4.2.2-lightgrey" alt="Lite Edition"></a>
 </p>
 
@@ -37,7 +37,7 @@ Over time it grew into what it is today — a few highlights:
 - **Statistics**: a dashboard that answers “what’s actually going on” — runtime badge, cold-plugin hints, 14-day request trend, error Top list, and a per-user / per-IP access profile.
 - **Root domain & marketplace groundwork**: plugins can declare a `framework` capability tier (`read` / `manage` / `core`, `core` ≈ root) with audited writes, backed by a programmatic plugin-management service layer and per-plugin update feeds.
 - **Event bus & true dependency resolution**: a lightweight in-process pub/sub bus lets plugins talk without knowing who’s listening; dependencies resolve with version constraints and cycle detection.
-- **Dark mode**: full-interface light/dark themes with `auto` (follow the OS) plus manual override; the CSS-variable system is **extensible by dropping in a `themes/<name>/` folder** (a `sepia` example ships), and the first-run `setup` page renders bilingual side by side.
+- **Dark mode**: full-interface light/dark themes with `auto` (follow the OS) plus manual override; the CSS-variable system is **extensible by dropping in a `themes/<name>/` folder** (a `sepia` example ships); theme CSS `url()`/`@import` references are controlled by `THEME_CSS_URLS` (`allow`/`relative`/`deny`), and the first-run `setup` page renders bilingual side by side.
 - **User center**: logged-in users self-manage their **nickname and password** at `/user-center` (usernames are immutable; self-service only).
 - **Ops & tooling**: version check + dual-backend updater, Factory Reset, backup/restore, startup self-check, integrity signing, plugin scaffolding & offline install/uninstall CLI, plus a **47-script regression suite and GitHub Actions CI**.
 
@@ -190,7 +190,7 @@ python tests/test_events.py                 # event bus (v4.16): priority / once
 python tests/test_dependency.py             # dependency resolution (v4.16): dep-spec parse / semver incl pre-release / Kahn topo / cycles / missing exclusion 11
 python tests/test_plugin_events.py          # BasePlugin event integration + example demos (v4.16): scheduler_demo events & manual trigger / dependent_demo cross-plugin subscription 28
 python tests/test_device.py                 # device detection + mobile template dispatch (v4.17): UA classification / config switches / resolve_template / public-page mobile template / BasePlugin mobile namespace 20
-python tests/test_theme.py                 # interface theme (v4.19): theme registry whitelist / resolve fallback / cookie vs user-config precedence / auto light-dark resolve / admin+public dark CSS vars / mobile plugin_default / themes/ scan + custom-theme fallback 25
+python tests/test_theme.py                 # interface theme (v4.19): theme registry whitelist / resolve fallback / cookie vs user-config precedence / auto light-dark resolve / admin+public dark CSS vars / mobile plugin_default / themes/ scan + custom-theme fallback + url strategy + asset route 36
 python tests/test_user_center.py            # user center (v4.20): self update-nickname / immutable username / /user-center guard 13
 # total: 47 scripts
 ```

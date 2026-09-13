@@ -30,7 +30,7 @@ LOG_DIR = os.path.join(BASE_DIR, 'logs')
 THEMES_DIR = os.path.join(BASE_DIR, 'themes')  # 可扩展主题目录（v4.19.2，扫描发现自定义主题）
 
 # ------------------------------ 全局常量 ------------------------------
-FRAMEWORK_VERSION = "4.20.3"  # 框架版本（后端插件 require_framework_version 比较基准）
+FRAMEWORK_VERSION = "4.20.4"  # 框架版本（后端插件 require_framework_version 比较基准）
 # 定时任务调度器时区（v4.15.0 收敛到全局常量：app.py 创建 BackgroundScheduler 与 selfcheck 时区探测共用同一来源）
 # 注意：Windows 平台标准库 zoneinfo 依赖 tzdata 包提供 IANA 时区库（requirements.txt 已包含 tzdata==2026.3）
 TIMEZONE = "Asia/Shanghai"
@@ -158,7 +158,7 @@ CONFIG_ITEMS = {
                              'desc': '界面主题（v4.19.0，内置 auto/light/dark，可扩展；auto=跟随系统 prefers-color-scheme；Cookie theme 可覆盖）'},
     'THEME_CSS_URLS': {'default': 'allow', 'kind': 'enum', 'choices': ['allow', 'relative', 'deny'],
                              'desc': '自定义主题 CSS 的 url()/@import 信任策略（v4.20.4）：allow=放行外部 http(s)+相对路径；relative=仅放行相对路径资源（拒外部）；deny=移除全部 url()（纯语义变量）'},
-    'SYSTEM_VERSION_LABEL': {'default': 'v4.20.3', 'kind': 'str',
+    'SYSTEM_VERSION_LABEL': {'default': 'v4.20.4', 'kind': 'str',
                              'desc': '系统版本显示标签（v4.7.0，前端展示用，仅装饰不改 FRAMEWORK_VERSION 逻辑；升级框架时建议同步更新）'},
     'UPDATE_FEED_URL': {'default': 'https://raw.githubusercontent.com/ReconLeo/FlaskToolkit/main/changelog.json', 'kind': 'str',
                          'desc': '版本更新数据源（v4.8.0，默认 GitHub changelog.json，企业内网可指向内网镜像）'},

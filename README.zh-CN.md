@@ -4,7 +4,7 @@
   <img src="https://github.com/ReconLeo/FlaskToolkit/actions/workflows/ci.yml/badge.svg" alt="CI">
   <img src="https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB?logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/License-MIT-yellow" alt="License">
-  <img src="https://img.shields.io/badge/version-4.20.3-blue" alt="Version">
+  <img src="https://img.shields.io/badge/version-4.20.4-blue" alt="Version">
   <a href="https://github.com/ReconLeo/FlaskToolkit-Lite"><img src="https://img.shields.io/badge/Lite%20Edition-v4.2.2-lightgrey" alt="Lite Edition"></a>
 </p>
 
@@ -37,7 +37,7 @@
 - **统计洞察**：回答"到底发生了什么"的仪表盘——运行徽章、冷门插件提示、14 天请求趋势、错误 Top、按用户/按 IP 的访问画像。
 - **Root 权限域与市场铺路**：插件可声明 framework 能力域三档（read/manage/core，core ≈ root），写核心全程审计；配套程序化插件管理服务层 + 插件级更新源。
 - **事件总线与真依赖解析**：轻量进程内发布-订阅总线，插件间无需知道谁在监听即可通信；依赖解析支持版本约束 + 环检测。
-- **深色模式**：全量界面浅色/深色主题，支持 auto（跟随系统）+ 手动覆盖——CSS 变量体系可**通过放入 `themes/<名字>/` 目录扩展主题**（自带 sepia 示例）；首次运行 setup 页还支持双语并显。
+- **深色模式**：全量界面浅色/深色主题，支持 auto（跟随系统）+ 手动覆盖——CSS 变量体系可**通过放入 `themes/<名字>/` 目录扩展主题**（自带 sepia 示例）；主题 CSS 的 url()/@import 引用由 `THEME_CSS_URLS`（allow/relative/deny）策略控制；首次运行 setup 页还支持双语并显。
 - **用户中心**：登录用户可在 `/user-center` **自助修改自己的昵称与密码**（用户名不可改；仅本人自助）。
 - **运维与工具链**：版本检查 + 双后端更新、Factory Reset、备份/恢复、启动自检、完整性签名、插件脚手架与离线安装/卸载 CLI，以及 **47 脚本回归套件与 GitHub Actions CI**。
 
@@ -190,7 +190,7 @@ python tests/test_events.py                 # 事件总线（v4.16）：priority
 python tests/test_dependency.py             # 依赖解析（v4.16）：dep_spec 解析 / semver 含预发布 / Kahn 拓扑 / 环 / 缺失排除 11 项
 python tests/test_plugin_events.py          # BasePlugin 事件集成 + 示例演示（v4.16）：scheduler_demo 事件与手动触发 / dependent_demo 跨插件订阅 28 项
 python tests/test_device.py                 # 设备检测 + 移动端模板分发（v4.17）：UA 分类 / 配置开关 / resolve_template / 公开页移动端模板 / BasePlugin 移动端命名空间 20 项
-python tests/test_theme.py                 # 界面主题（v4.19）：主题注册白名单 / 非法回退 / Cookie 与用户配置优先级 / auto 深浅解析 / 后台+公开页深色变量 / plugin_default 移动端适配 / themes/ 扫描+自定义主题兑底 25 项
+python tests/test_theme.py                 # 界面主题（v4.19）：主题注册白名单 / 非法回退 / Cookie 与用户配置优先级 / auto 深浅解析 / 后台+公开页深色变量 / plugin_default 移动端适配 / themes/ 扫描+自定义主题兑底 / url 策略 + 相对资源路由 36 项
 python tests/test_user_center.py            # 用户中心（v4.20）：自助改昵称 / 用户名不可改 / /user-center 守卫 13 项
 # 合计 47 个回归脚本
 ```

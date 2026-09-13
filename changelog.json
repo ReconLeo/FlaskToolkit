@@ -1,13 +1,13 @@
 {
-  "latest_version": "4.20.3",
-  "published_at": "2026-09-12",
-  "download_url": "https://github.com/ReconLeo/FlaskToolkit/releases/download/v4.20.3/FlaskToolkit-4.20.3-runtime.zip",
-  "sha256": "e740fdf03750e16fec4d5051c71dfb6ed19021f4d54131cb3fffac65c68edd16",
+  "latest_version": "4.20.4",
+  "published_at": "2026-09-13",
+  "download_url": "https://github.com/ReconLeo/FlaskToolkit/releases/download/v4.20.4/FlaskToolkit-v4.20.4-runtime.zip",
+  "sha256": "8f04c4cd727be21fd0d77566293a9251b9ebf42e72b4c02fdf7c8041c7e4132a",
   "changes": [
-    "移动端 index/login 样式统一（汉堡 navbar + 垂直居中 + 系统名 system_name）",
-    "user_manage 能力声明（纯 API 委托，Deny by Default）",
-    "audit 两个根因修复（is_framework_core_path 排除目录本身 / 渲染读模板·i18n·静态豁免归因）+ 回归用例固化",
-    "setup 默认英语单语 + en 补 key + 新增 fr 语言包 + setup POST 语言白名单动态化",
-    "test_admin_api logs 脆弱断言修复（app 启动写日志致隔离空日志前提失效）"
+    "应用图标 icon.png 分布各页面（navbar/login/user-center/plugin_default/system 大图标）+ change-pwd-modal 移动端适配",
+    "index 布局细化（主标题跟随 system_name、navbar 垂直居中、管理后台按钮全宽、工具行上下排列）+ theme/lang 下拉不被遮挡",
+    "install_all 后端安装/地址探测/友好报错（--mode auto/http/backend）",
+    "主题 CSS url()/@import 信任策略 THEME_CSS_URLS（allow/relative/deny）+ 主题相对资源服务 /theme-static/<name>/<path> + sepia 背景图演示",
+    "三套预设补新参数（daily/strict/lan-open）"
   ]
 }
