@@ -93,6 +93,8 @@ body {
         padding: 10px 0;
         border-top: 1px solid rgba(255, 255, 255, 0.15);
         margin-top: 8px;
+        /* v4.20.3：展开时放开 overflow，避免 theme/lang 下拉菜单被裁剪在 container 内部 */
+        overflow: visible;
     }
     .navbar-right .user-info { justify-content: flex-start; }
     .navbar-right .auth-btn { text-align: center; }

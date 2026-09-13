@@ -32,11 +32,16 @@
 </head>
 <body>
     <header class="uc-top">
-        <a href="/">← {{ t('返回首页') }}</a>
+        <div style="display:flex; align-items:center; gap:14px;">
+            <span style="display:flex; align-items:center; font-size:15px; font-weight:700; color:var(--text);">
+                <img src="/static/icon.png" class="brand-icon" alt="">{{ system_name }}
+            </span>
+            <a href="/" class="btn btn-primary btn-sm">← {{ t('返回首页') }}</a>
+        </div>
         <div style="display:flex; align-items:center;">
             <span class="uc-avatar" id="uc-avatar">A</span>
             <span id="uc-name" style="margin-right:14px; font-size:14px;"></span>
-            <a href="#" onclick="doLogout();return false;">{{ t('退出登录') }}</a>
+            <a href="#" onclick="doLogout();return false;" class="btn btn-ghost btn-sm">{{ t('退出登录') }}</a>
         </div>
     </header>
 
