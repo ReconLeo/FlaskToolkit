@@ -109,12 +109,8 @@ class FilePlugin(BasePlugin):
 
 def main():
     try:
-        # ============ 准备下载样例文件 ============
-        fixtures = os.path.join(_TESTS_DIR, "fixtures")
-        os.makedirs(fixtures, exist_ok=True)
-        sample = os.path.join(fixtures, "download_sample.txt")
-        with open(sample, "w", encoding="utf-8") as f:
-            f.write("hello flasktoolkit file transfer")
+        # 下载样例文件 download_sample.txt 已作为固定 fixture 入库于 tests/fixtures/（内容固定），
+        # 测试只读、不再生成，避免在源码目录反复创建/残留（累积）。
 
         # ============ 注册插件 ============
         plugin = FilePlugin()
@@ -192,21 +188,11 @@ def main():
         check("E2 on_load 在 on_ready 之前执行（先 load 后 ready）",
               seq.index("on_load") < seq.index("on_ready"), f"order={FilePlugin.order_log}")
 
-        # 清理样例文件
-        try:
-            os.remove(sample)
-        except OSError:
-            pass
-
         print(f'\n==== 文件传输强化回归（v4.2.2）：共 {len(results)} 项，'
               f'通过 {sum(1 for _, c, _ in results if c)}，'
               f'失败 {sum(1 for _, c, _ in results if not c)} ====')
     finally:
         plugins.pop(plugin.name, None)
-        try:
-            os.remove(os.path.join(_TESTS_DIR, "fixtures", "download_sample.txt"))
-        except OSError:
-            pass
 
     ok = all(c for _, c, _ in results)
     sys.exit(0 if ok else 1)

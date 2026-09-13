@@ -46,6 +46,40 @@ def _run_env():
     return env
 
 
+def run_frontend_jsdom(log_dir, verbose):
+    """运行 tests/frontend_jsdom/ 下全部 .js（node + jsdom 前端验证）。返回 (passed, failed)。"""
+    jsdir = os.path.join(_TESTS_DIR, "frontend_jsdom")
+    scripts = sorted(f for f in os.listdir(jsdir) if f.endswith(".js"))
+    passed, failed = [], []
+    for idx, s in enumerate(scripts, 1):
+        log_path = os.path.join(log_dir, "frontend_" + s.replace(".js", ".log"))
+        start = time.time()
+        with open(log_path, "w", encoding="utf-8") as fp:
+            try:
+                p = subprocess.run(["node", os.path.join(jsdir, s)],
+                                   cwd=_PROJECT_ROOT, stdout=fp, stderr=subprocess.STDOUT,
+                                   timeout=120)
+                rc = p.returncode
+            except subprocess.TimeoutExpired:
+                rc = "TIMEOUT"
+            except Exception as exc:  # pragma: no cover
+                rc = "ERROR"
+                fp.write("\n[run_all_tests] 前端验证异常: %s\n" % exc)
+        dur = time.time() - start
+        status = "PASS" if rc == 0 else ("TIMEOUT" if rc == "TIMEOUT" else ("ERROR" if rc == "ERROR" else "FAIL"))
+        print("[fe %2d] %-8s %-32s %6.1fs" % (idx, status, s, dur))
+        if status == "PASS":
+            passed.append(s)
+        else:
+            failed.append(s)
+            if verbose:
+                print("  ---- %s 日志 ----" % s)
+                with open(log_path, encoding="utf-8", errors="replace") as f:
+                    print(f.read()[:3000])
+                print("  ---- 结束 ----")
+    return passed, failed
+
+
 def collect_tests(pattern):
     tests = sorted(
         f for f in os.listdir(_TESTS_DIR)
@@ -115,6 +149,8 @@ def main(argv=None):
                         help="仅列出待跑测试，不执行")
     parser.add_argument("--no-cleanup", action="store_true",
                         help="每个测试后不运行 tests/ci_cleanup.py 测试间清理")
+    parser.add_argument("--with-frontend", action="store_true",
+                        help="额外运行 tests/frontend_jsdom/ 的 node 前端验证（需 node + jsdom）")
     args = parser.parse_args(argv)
 
     tests = collect_tests(args.pattern)
@@ -164,10 +200,18 @@ def main(argv=None):
                 print(body[:4000] + ("\n  ...（日志已截断，完整见 %s）" % log_path if len(body) > 4000 else ""))
                 print("  ---- 结束 ----")
 
+    front_failed = []
+    if args.with_frontend:
+        print("\n---- 前端 jsdom 验证（--with-frontend）----")
+        _fp, front_failed = run_frontend_jsdom(args.log_dir, args.verbose)
+        print("---- 前端验证：通过 %d / %d ----" % (len(_fp), len(_fp) + len(front_failed)))
+
     print("=" * 60)
     print("回归完成：通过 %d / %d，失败 %d，耗时 %.1fs"
           % (len(passed), total, len(failed), total_dur))
-    if failed:
+    if front_failed:
+        print("前端验证失败：%s" % ", ".join(front_failed))
+    if failed or front_failed:
         print("失败/异常/超时清单：")
         for t, status, lp in failed:
             print("  [%s] %s  ->  %s" % (status, t, lp))

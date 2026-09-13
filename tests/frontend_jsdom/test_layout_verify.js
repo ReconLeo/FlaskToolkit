@@ -7,14 +7,14 @@ function pass(msg,c){ console.log((c?'PASS ':'FAIL ')+msg); if(!c) process.exitC
 {
   const html = fs.readFileSync('templates/index.html','utf8');
   pass('桌面主标题用 system_name', html.includes('{{ system_name }}</h1>') && !html.includes("t('Flask 全栈工具集')"));
-  pass('桌面 index 保留 🔧 图标', html.includes('🔧 {{ system_name }}'));
+  pass('桌面 navbar-brand 含 system_name', html.includes('{{ system_name }} {{ system_version }}'));
 }
 
 // 2. mobile/index.html：m-container 上方 system_name 标题 + 结构
 {
   const html = fs.readFileSync('templates/mobile/index.html','utf8');
   pass('mobile 有 m-page-title 主标题', html.includes('class="m-page-title"'));
-  pass('mobile 主标题含 system_name', html.includes('🔧 {{ system_name }}'));
+  pass('mobile m-page-title 主标题含 system_name', html.includes('class="m-page-title">{{ system_name }}'));
   pass('mobile m-toolbar-row 含 toolSort+toolCount', html.includes('id="toolSort"') && html.includes('id="toolCount"'));
   pass('mobile adminBar 存在', html.includes('id="adminBar"'));
 }

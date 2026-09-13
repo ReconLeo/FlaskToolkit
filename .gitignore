@@ -76,8 +76,9 @@ frontend_tools.json  # 前端工具注册清单（运行时配置，install_all/
 reverse_proxy_test/
 /20*/
 __NEW_PLUGIN_DEFAULT__/
-# 测试运行时产物（test_file_transfer 下载样例 / test_security 备份等，运行自动重建）
-tests/fixtures/
+# 测试运行时产物（test_security 备份等，运行自动重建）；固定 fixture download_sample.txt 豁免入库
+tests/fixtures/*
+!tests/fixtures/download_sample.txt
 
 # ---------- 操作系统 / 编辑器 ----------
 .DS_Store
