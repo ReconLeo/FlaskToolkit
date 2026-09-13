@@ -214,9 +214,13 @@ def _run_install_tool(args) -> bool:
     """调用 tools/install_plugin.py，透传输出，返回是否成功。"""
     print(f"\n[后端] python tools/install_plugin.py {' '.join(args)}")
     try:
+        # Windows 下子进程输出到 pipe 默认按 locale 编码（如 GBK/cp936），与下方 utf-8 解码不匹配会乱码；
+        # 注入 PYTHONIOENCODING=utf-8 强制子进程以 UTF-8 输出，保证中文提示正确透传。
+        env = dict(os.environ)
+        env['PYTHONIOENCODING'] = 'utf-8'
         proc = subprocess.run([sys.executable, TOOLS_INSTALL] + args,
                               capture_output=True, text=True,
-                              encoding='utf-8', errors='replace')
+                              encoding='utf-8', errors='replace', env=env)
     except FileNotFoundError as exc:
         print(f"[后端] 无法运行运维工具 {TOOLS_INSTALL}: {exc}")
         return False

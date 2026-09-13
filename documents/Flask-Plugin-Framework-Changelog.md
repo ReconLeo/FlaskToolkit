@@ -62,6 +62,7 @@ Kaleido 同样开源（自托管题库系统）：[github.com/ReconLeo/Kaleido](
 | **v4.20.2** | 2026-09-12 | 稳定性测试累积 bug 修复：P0 日志清理 / 并发 load_plugins 竞态互斥锁 / audit 钩子 int fd 误判路径伪能力 / quota 未声明插件默认配额 / 昵称修改同步会话 / IP 检测保存即时生效 + release 打包缺陷（runtime 缺内置 user_manage 模板致 500）+ 前端备忘 9-29（登录移动端崩溃/上传预览复原/深色适配/汉堡抽屉/悬浮卡片/版本检查/窄屏）；全量 47 脚本 0 失败 | tag `v4.20.2` |
 | **v4.20.3** | 2026-09-12 | 移动端样式统一（index 汉堡 navbar + login 垂直居中 + 系统名 system_name + index.js 兼容 .m-tools）+ user_manage 能力声明（纯 API 委托）+ audit 两根因修复（framework_manifest 排除目录本身误判核心 + 渲染读框架模板/i18n/静态豁免归因）+ setup 默认英语单语 + en 补 key + 新增 fr 语言包（多语言验证）+ setup POST 语言白名单动态化 + test_admin_api logs 脆弱断言修复；全量 47 脚本 0 失败 | tag `v4.20.3` |
 | **v4.20.4** | 2026-09-13 | 应用图标 icon.png 分布各页面（navbar/login/user-center/plugin_default/system 大图标）+ change-pwd-modal 移动端适配 + index 布局细化（主标题跟随 system_name、navbar 垂直居中、管理后台按钮全宽、工具行上下排列）+ theme/lang 下拉不被遮挡 + install_all 后端安装/地址探测/友好报错 + **主题 CSS url()/@import 信任策略（THEME_CSS_URLS allow/relative/deny）+ 主题相对资源服务 + 三套预设补新参数 + sepia 示例背景图**；全量 47 脚本 0 失败 | tag `v4.20.4` |
+| **v4.20.5（收编，未推送）** | 2026-09-13 | 示例插件专项检查：async_file_demo 版本字段一致化（plugin.json 与类属性统一 4.9.1）+ install_all 后端子进程编码修复（PYTHONIOENCODING=utf-8 乱码）、scheduler_demo stat-row 心跳总数 loadStats 同步、corp_tools 模板补 plugin_common.js 修复 CSRF 校验失败、multitool_demo demo.js Object.assign 修复 apiUrl 被覆盖致 undefined 404 + 词频 Top-N 加输入框交互、root_demo 写核心配置 400（**框架 validate_params 支持 object 类型参数**，test_page_router 21→23）、dashboard_demo echarts.min.js 本地化到前端工具 static/（离线可展示）；前端整改：index tool-card 三行布局（icon+title/badge+heat/author）+ 移动端溢出修复、mobile/index m-tool-meta/m-admin-badge 补 chip 样式并同步三行、plugins.html badge 自成一行 + 标识符信息 meta-item 化；.gitignore 放行 dashboard_demo 前端工具源码入库；全量 47 脚本 0 失败 | tag `v4.20.5` |
 
 ## 3. 版本详情
 
@@ -470,6 +471,24 @@ P1 安全强化至此全部完成，形成纵深防御：**静态扫描 → 能�
 **三套预设补新参数（tools/config.py）**：daily/strict/lan-open 同步 `THEME_CSS_URLS`（allow/relative/allow）+ MDNS_ENABLED/IP_WATCH_INTERVAL/ACCESS_PROFILE_ENABLED/STATS_RETENTION_DAYS/PLUGIN_DATA_LIMIT_MB/PLUGIN_DATA_TOTAL_LIMIT_MB/PACKAGE_MAX_UPLOAD_SIZE_MB（strict 另加 TRUST_PROXY_HEADERS）。
 
 **测试**：test_theme 新增 url 策略 + 资源路由用例（36 项）；全量回归 47 脚本 0 失败。
+
+### 3.40 v4.20.5（2026-09-13，示例插件专项检查 + 前端整改）
+
+**示例插件专项检查（6 项）**：
+- **async_file_demo 安装失败**：plugin.json `require_framework_version=4.9.1` 与插件类属性 `4.3.2` 不一致（示例插件更新注意事项：两处必须一致）→ 统一为 4.9.1。
+- **install_all.py 后端安装乱码**：`tools/install_plugin.py` 在 Windows 下输出到 pipe 用 locale 编码（GBK），与 `encoding='utf-8'` 解码不匹配 → `subprocess.run` 注入 `PYTHONIOENCODING=utf-8` 强制子进程 UTF-8 输出。
+- **scheduler_demo stat-row**：loadStats() 只更新 jobCount/running，第一个 stat-box「心跳总数」无 id 未同步 → 加 `totalCount` id 并在 loadStats 更新 `s.total`。
+- **corp_tools/notices 发布公告 CSRF 校验失败**：corp_tools 全部模板只引 corp.js、缺 `plugin_common.js`（框架 XHR/fetch 拦截注入 CSRF 头依赖它）→ 7 个模板批量补插 plugin_common.js。
+- **multitool_demo 文本统计 undefined 404**：text.html 先注入 `FtktText.apiUrl`，随后 demo.js `window.FtktText = { analyze }` **整体覆盖**丢失 apiUrl → demo.js 改 `Object.assign` 合并保留；**词频 Top-N 无输入框** → topwords.html 加输入框 + analyzeTop() 复用 analyze API + page_topwords 传 api_url。
+- **root_demo 写核心配置 400「data 须为非空键值对象」**：框架 `validate_params` 对 `type='object'` 落入 else 被 `str()` 强转字符串 → 框架增加 object 类型分支保留原生 dict（非 dict 报类型错误），root_demo 写 `{"PORT": 5010}` 正常；test_page_router 21→23 项。
+- **dashboard_demo 需自带 echarts**：`examples/frontend_tools/dashboard_demo/`（真实打包源）静态资源随 zip 打包，CDN 引用改 `/frontend-static/dashboard_demo/echarts.min.js`（本地 static/echarts.min.js，Apache-2.0，离线可展示）；`.gitignore` 放行 dashboard_demo 前端工具源码入库。
+
+**前端整改**：
+- **index.html**：tool-card 头部三行垂直排布（tool-icon+tool-title / badge+tool-heat / tool-author），`min-width:0` 修复移动端长文本 tool-card 溢出 category-section 右边界。
+- **mobile/index.html**：m-tool-card 排布同步桌面三行；m-admin-badge/m-tool-heat/m-tool-author 补 chip 样式（此前无 CSS）；m-tool-footer（version + 打开按钮）。
+- **plugins.html（admin）**：卡片 badge 从 h3 行拆出自成一行（plg-badges），标识符信息从长串 `｜` 分隔改为 meta-item 标签化（plg-meta），名称&版本 / badge / 标识符信息垂直三排。
+
+**测试**：test_page_router 新增 object 类型参数用例（21→23）；全量 47 脚本 0 失败。
 
 ## 4. 发布实践沉淀
 

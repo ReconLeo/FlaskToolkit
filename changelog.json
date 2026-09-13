@@ -1,13 +1,10 @@
 {
-  "latest_version": "4.20.4",
+  "latest_version": "4.20.5",
   "published_at": "2026-09-13",
-  "download_url": "https://github.com/ReconLeo/FlaskToolkit/releases/download/v4.20.4/FlaskToolkit-v4.20.4-runtime.zip",
-  "sha256": "8f04c4cd727be21fd0d77566293a9251b9ebf42e72b4c02fdf7c8041c7e4132a",
+  "download_url": "https://github.com/ReconLeo/FlaskToolkit/releases/download/v4.20.5/FlaskToolkit-v4.20.5-runtime.zip",
+  "sha256": "f9b7e4298299e84226c030030d9b3ffa69c68094f784d36a13220fcff07dc85d",
   "changes": [
-    "应用图标 icon.png 分布各页面（navbar/login/user-center/plugin_default/system 大图标）+ change-pwd-modal 移动端适配",
-    "index 布局细化（主标题跟随 system_name、navbar 垂直居中、管理后台按钮全宽、工具行上下排列）+ theme/lang 下拉不被遮挡",
-    "install_all 后端安装/地址探测/友好报错（--mode auto/http/backend）",
-    "主题 CSS url()/@import 信任策略 THEME_CSS_URLS（allow/relative/deny）+ 主题相对资源服务 /theme-static/<name>/<path> + sepia 背景图演示",
-    "三套预设补新参数（daily/strict/lan-open）"
+    "示例插件专项检查：async_file_demo 版本字段一致化 + install_all 后端子进程编码修复（乱码）+ scheduler_demo stat-row 心跳总数同步 + corp_tools 模板补 plugin_common.js 修复 CSRF + multitool_demo 修复 apiUrl 被覆盖致 undefined 404 + 词频 Top-N 加输入框 + root_demo 写核心配置（框架 validate_params 支持 object 类型参数）+ dashboard_demo echarts 本地化",
+    "前端整改：index tool-card 三行布局 + 移动端溢出修复 + mobile/index m-tool-meta/m-admin-badge 补 chip 样式同步三行 + plugins.html badge 自成一行 + 标识符信息 meta-item 化"
   ]
 }

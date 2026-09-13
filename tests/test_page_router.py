@@ -236,6 +236,19 @@ def main():
         # 路径参数占位符识别（<int:pid>）不报错
         check('9 路径参数占位符解析不报错', 'pid' in t or r.status_code == 200, '')
 
+        # ============ 10. validate_params 支持 object 类型参数（v4.20.5） ============
+        # 回归：此前 type='object' 落入 else 被 str() 强转字符串，导致
+        # root_demo 写 {"PORT": 5010} 返回 400 "data 须为非空键值对象"。
+        with app.test_request_context('/', json={'obj': {'PORT': 5010}, 'bad': 'not-object'}):
+            vp, errs = _plugin.validate_params([
+                {'name': 'obj', 'type': 'object', 'required': True},
+                {'name': 'bad', 'type': 'object', 'required': True},
+            ])
+            check('10 object 类型参数保留原生 dict',
+                  vp.get('obj') == {'PORT': 5010}, f'got={vp.get("obj")!r} type={type(vp.get("obj")).__name__}')
+            check('10 object 类型非 dict 参数报类型错误',
+                  len(errs) == 1 and 'obj' in vp and 'bad' not in vp, f'errs={errs!r} vp={vp!r}')
+
         print(f'\n==== 大插件多模板（页面路由）回归：共 {len(results)} 项，'
               f'通过 {sum(1 for _, c, _ in results if c)}，'
               f'失败 {sum(1 for _, c, _ in results if not c)} ====')

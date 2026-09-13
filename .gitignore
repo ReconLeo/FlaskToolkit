@@ -27,7 +27,20 @@ plugins/temp/
 # 插件运行时配置（auth 首次启动自动重建；hello_plugin 等插件配置均不入库）
 plugins/configs/*.json
 plugins/status.json
-
+# 除去内置插件（auth user_manage）与插件基类base_plugin，其余均不纳入
+plugins/*.py
+plugins/*.json
+!plugins/base_plugin.py
+!plugins/auth.py
+!plugins/user_manage.py
+!plugins/user_manage.json
+# 除去内置插件（auth user_manage）与示例前端工具password_generator，其余均不纳入
+templates/frontend_tools
+!templates/frontend_tools/password_generator.html
+!templates/frontend_tools/dashboard_demo.html
+templates/plugins
+!templates/plugins/user_manage.html
+!templates/plugins/static/user_manage/css/user_manage.css
 # ---------- 沙箱/探针残留 ----------
 _t_hook.txt
 
@@ -49,6 +62,9 @@ plugins/kaleido_*.json
 templates/plugins/kaleido_*/
 templates/frontend_tools/kaleido_*.html
 templates/frontend_tools/static/
+# 框架自带示例前端工具 dashboard_demo 的静态资源（含 echarts.min.js）入库，供离线展示；其余（kaleido_v3 等）仍忽略
+!templates/frontend_tools/static/dashboard_demo/
+!templates/frontend_tools/static/dashboard_demo/*
 # AirDrop（局域网文件共享）独立子项目插件落地文件（不入主仓库）
 plugins/airdrop.py
 plugins/airdrop.json
@@ -56,7 +72,6 @@ templates/plugins/airdrop/
 templates/plugins/static/airdrop/
 frontend_tools.json  # 前端工具注册清单（运行时配置，install_all/上传时重建）
 .version
-
 # ---------- 灵犀会话工作区残留 / 插件默认目录缓存 ----------
 .lingxi/
 .rundata/

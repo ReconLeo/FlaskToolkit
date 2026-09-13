@@ -127,22 +127,27 @@ body {
 .tool-card {
     background: var(--card-bg); border-radius: var(--radius); padding: 20px;
     border: 1px solid var(--border); transition: all 0.3s ease;
+    /* min-width:0 防 grid 子项被长内容（长标题/长词）撑破溢出 category-section 右边界 */
+    min-width: 0;
 }
 .tool-card:hover { box-shadow: var(--shadow); transform: translateY(-2px); }
-.tool-header { display: flex; align-items: center; margin-bottom: 10px; }
-.tool-icon { font-size: 24px; margin-right: 10px; }
+/* tool-header 三行垂直排布：tool-icon+title / badge+heat / author（v4.20.5） */
+.tool-header { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; min-width: 0; }
+.tool-line { display: flex; align-items: center; min-width: 0; }
+.tool-title-line .tool-icon { font-size: 24px; margin-right: 10px; flex: none; }
 .tool-title {
-    font-size: 17px; font-weight: bold; color: var(--text); flex: 1;
+    font-size: 17px; font-weight: bold; color: var(--text); flex: 1; min-width: 0;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+.tool-meta-line { gap: 6px; flex-wrap: wrap; }
 .tool-heat {
     font-size: 12px; color: var(--text-light); background: var(--chip-bg);
-    padding: 2px 7px; border-radius: 10px; margin-right: 6px; white-space: nowrap;
+    padding: 2px 7px; border-radius: 10px; white-space: nowrap;
 }
 .tool-author {
     font-size: 12px; color: var(--text-light); background: var(--chip-bg);
-    padding: 2px 6px; border-radius: 3px; min-height: 20px;
-    max-width: 80px; align-content: center; text-align: left;
+    padding: 2px 6px; border-radius: 3px; min-height: 20px; align-content: center;
+    text-align: left; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .tool-description { color: var(--muted); margin-bottom: 15px; line-height: 1.5; min-height: 40px; font-size: 14px; }
 .tool-footer { display: flex; justify-content: space-between; align-items: center; }

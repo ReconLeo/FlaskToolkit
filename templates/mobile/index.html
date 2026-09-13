@@ -66,23 +66,27 @@
                          data-category="{{ tool.category }}"
                          data-heat="{{ tool._heat }}">
                         <div class="m-tool-head">
-                            <span>{% if tool.type == 'backend' %}🔌{% else %}🌐{% endif %}</span>
+                            <span class="m-tool-icon">{% if tool.type == 'backend' %}🔌{% else %}🌐{% endif %}</span>
                             <span class="m-tool-title">{{ tool.title }}</span>
+                        </div>
+                        <div class="m-tool-meta">
                             {% if tool.permission == 'admin' %}
                             <span class="m-admin-badge">{{ t('管理') }}</span>
                             {% endif %}
+                            {% if tool._heat > 0 %}
+                            <span class="m-tool-heat">🔥 {{ tool._heat }}</span>
+                            {% endif %}
                         </div>
-                        <div class="m-tool-meta">
-                            {% if tool._heat > 0 %}<span>🔥 {{ tool._heat }}</span>{% endif %}
-                            <span>by {{ tool.author }}</span>
-                            <span>{% if tool.type == 'backend' %}v{{ tool.version }}{% else %}{{ t('前端工具') }}{% endif %}</span>
-                        </div>
+                        <div class="m-tool-author">by {{ tool.author }}</div>
                         <div class="m-tool-desc">{{ tool.description }}</div>
-                        {% if tool.type == 'backend' %}
-                        <a href="/plugin/{{ tool.name }}" class="btn btn-success btn-sm m-tool-open">{{ t('打开工具') }}</a>
-                        {% else %}
-                        <a href="/frontend/{{ tool.name }}" class="btn btn-success btn-sm m-tool-open">{{ t('打开工具') }}</a>
-                        {% endif %}
+                        <div class="m-tool-footer">
+                            <span class="m-tool-version">{% if tool.type == 'backend' %}v{{ tool.version }}{% else %}{{ t('前端工具') }}{% endif %}</span>
+                            {% if tool.type == 'backend' %}
+                            <a href="/plugin/{{ tool.name }}" class="btn btn-success btn-sm m-tool-open">{{ t('打开工具') }}</a>
+                            {% else %}
+                            <a href="/frontend/{{ tool.name }}" class="btn btn-success btn-sm m-tool-open">{{ t('打开工具') }}</a>
+                            {% endif %}
+                        </div>
                     </div>
                     {% endfor %}
                 </div>

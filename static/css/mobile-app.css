@@ -109,18 +109,48 @@ body.mobile .m-tool-card .m-tool-head {
     font-size: 1rem;
     font-weight: 600;
     color: var(--text);
+    min-width: 0;
+}
+body.mobile .m-tool-card .m-tool-head .m-tool-icon { flex: none; }
+body.mobile .m-tool-card .m-tool-head .m-tool-title {
+    flex: 1; min-width: 0; font-weight: 600;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 body.mobile .m-tool-card .m-tool-meta {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
+    flex-wrap: wrap;
     font-size: 12px;
     color: var(--text-light);
+}
+/* badge/heat/author 统一 chip 样式（v4.20.5 补全） */
+body.mobile .m-tool-card .m-admin-badge {
+    font-size: 11px; color: #fff; background: var(--warning);
+    padding: 2px 7px; border-radius: 10px; white-space: nowrap;
+}
+body.mobile .m-tool-card .m-tool-heat {
+    font-size: 12px; color: var(--text-light); background: var(--chip-bg);
+    padding: 2px 7px; border-radius: 10px; white-space: nowrap;
+}
+body.mobile .m-tool-card .m-tool-author {
+    font-size: 12px; color: var(--text-light); background: var(--chip-bg);
+    padding: 2px 6px; border-radius: 3px; min-height: 20px; align-content: center;
+    text-align: left; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 body.mobile .m-tool-card .m-tool-desc {
     font-size: 13px;
     color: var(--text-light);
     line-height: 1.5;
+}
+body.mobile .m-tool-card .m-tool-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 2px;
+}
+body.mobile .m-tool-card .m-tool-footer .m-tool-version {
+    font-size: 12px; color: var(--text-light);
 }
 body.mobile .m-tool-card .m-tool-open {
     align-self: flex-start;

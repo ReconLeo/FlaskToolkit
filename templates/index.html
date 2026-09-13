@@ -71,15 +71,23 @@
                          data-category="{{ tool.category }}"
                          data-heat="{{ tool._heat }}">
                         <div class="tool-header">
-                            <span class="tool-icon">{% if tool.type == 'backend' %}🔌{% else %}🌐{% endif %}</span>
-                            <h3 class="tool-title" title="{{ tool.title }}">{{ tool.title }}</h3>
-                            {% if tool.permission == 'admin' %}
-                            <span class="badge badge-admin">{{ t('管理') }}</span>
+                            <div class="tool-line tool-title-line">
+                                <span class="tool-icon">{% if tool.type == 'backend' %}🔌{% else %}🌐{% endif %}</span>
+                                <h3 class="tool-title" title="{{ tool.title }}">{{ tool.title }}</h3>
+                            </div>
+                            {% if tool.permission == 'admin' or tool._heat > 0 %}
+                            <div class="tool-line tool-meta-line">
+                                {% if tool.permission == 'admin' %}
+                                <span class="badge badge-admin">{{ t('管理') }}</span>
+                                {% endif %}
+                                {% if tool._heat > 0 %}
+                                <span class="tool-heat" title="{{ t('累计访问/调用') }}">🔥 {{ tool._heat }}</span>
+                                {% endif %}
+                            </div>
                             {% endif %}
-                            {% if tool._heat > 0 %}
-                            <span class="tool-heat" title="{{ t('累计访问/调用') }}">🔥 {{ tool._heat }}</span>
-                            {% endif %}
-                            <span class="tool-author">by {{ tool.author }}</span>
+                            <div class="tool-line tool-author-line">
+                                <span class="tool-author">by {{ tool.author }}</span>
+                            </div>
                         </div>
                         <p class="tool-description">{{ tool.description }}</p>
                         <div class="tool-footer">

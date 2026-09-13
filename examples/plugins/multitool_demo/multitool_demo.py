@@ -85,9 +85,10 @@ class MultiToolDemo(BasePlugin):
         return {"api_url": f"/api/{self.name}/analyze"}
 
     def page_topwords(self):
-        # 服务端渲染：辅助模块直接计算示例文本的词频 Top-N
+        # 服务端初始渲染示例词频 + 提供 api_url 供前端输入文本后重新分析
         sample = "你好 Flask 你好 框架 你好 Flask 插件 插件 插件"
-        return {"sample": sample, "top": multitool_utils.top_words(sample, 5)}
+        return {"sample": sample, "top": multitool_utils.top_words(sample, 5),
+                "api_url": f"/api/{self.name}/analyze"}
 
     def page_hello(self, name):
         # 路径参数 <name> 由分发器注入 kwargs → 渲染 hello.html

@@ -16,6 +16,21 @@
     .upload-progress.hidden { display: none; }
     .upload-progress-bar { height: 100%; width: 0; background: #3498db; border-radius: 4px; transition: width 0.2s; }
     .upload-progress-bar.error { background: #e74c3c; }
+    /* 插件卡片头部：名称&版本 / badge / 标识符信息 垂直三排（v4.20.5） */
+    .plg-card { overflow: hidden; }
+    .plg-top { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px; margin-bottom: 10px; }
+    .plg-main { flex: 1 1 300px; min-width: 0; }
+    .plg-title-line h3 { font-size: 17px; color: var(--adm-text); margin: 0 0 8px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .plg-title-line .plg-version { color: var(--adm-text-light); font-weight: 400; font-size: 13px; }
+    .plg-badges { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+    .plg-badges .badge { margin-left: 0 !important; }
+    .plg-meta { font-size: 13px; color: var(--adm-text-muted); line-height: 1.9; display: flex; flex-wrap: wrap; gap: 4px 0; }
+    .plg-meta .meta-item { background: #f0f2f5; padding: 1px 7px; border-radius: 3px; margin-right: 6px; white-space: nowrap; }
+    .plg-meta .meta-item b { color: var(--adm-text); font-weight: 600; }
+    .plg-meta .meta-issue { width: 100%; color: #e74c3c; margin-top: 4px; }
+    .plg-meta .meta-select { display: flex; align-items: center; gap: 6px; margin-top: 2px; }
+    .plg-meta .meta-select select { font-size: 12px; padding: 2px 4px; border: 1px solid #ccc; border-radius: 4px; background: #fff; }
+    .plg-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 </style>
 {% endblock %}
 {% block content %}
@@ -327,37 +342,41 @@
         }
 
         container.innerHTML = plugins.map(plugin => `
-            <div class="card" style="border-left:4px solid ${plugin.enabled ? '#3498db' : '#95a5a6'}; opacity:${plugin.enabled ? 1 : 0.7};">
-                <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px; margin-bottom:10px;">
-                    <div>
-                        <h3 style="font-size:17px; color: var(--adm-text); margin-bottom:6px;">
-                            ${plugin.title ? plugin.title : plugin.name} <span style="color: var(--adm-text-light); font-weight:400; font-size:13px;">v${plugin.version}</span>
-                            ${plugin.builtin ? '<span class="badge badge-orange" style="margin-left:8px;">' + window.T('内置') + '</span>' : ''}
-                            ${plugin.type === 'frontend' ? '<span class="badge badge-blue" style="margin-left:8px;">' + window.T('前端工具') + '</span>' : ''}
-                            ${plugin.enabled ? '<span class="badge badge-green" style="margin-left:8px;">' + window.T('已启用') + '</span>' : '<span class="badge badge-red" style="margin-left:8px;">' + window.T('已禁用') + '</span>'}
-                            ${plugin.loaded ? '<span class="badge badge-purple" style="margin-left:8px;">' + window.T('已加载') + '</span>' : ''}
-                            ${plugin.load_issue ? '<span class="badge badge-red" style="margin-left:8px;">' + window.T('未加载') + '</span>' : ''}
-                            ${plugin.meta_invalid ? '<span class="badge badge-red" style="margin-left:8px;" title="' + window.T('描述 json 非法，已回退插件类属性，capabilities 等声明被忽略') + '">' + window.T('描述文件失效') + '</span>' : ''}
+            <div class="card plg-card" style="border-left:4px solid ${plugin.enabled ? '#3498db' : '#95a5a6'}; opacity:${plugin.enabled ? 1 : 0.7};">
+                <div class="plg-top">
+                    <div class="plg-main">
+                        <div class="plg-title-line">
+                            <h3>${plugin.title ? plugin.title : plugin.name} <span class="plg-version">v${plugin.version}</span></h3>
+                        </div>
+                        <div class="plg-badges">
+                            ${plugin.builtin ? '<span class="badge badge-orange">' + window.T('内置') + '</span>' : ''}
+                            ${plugin.type === 'frontend' ? '<span class="badge badge-blue">' + window.T('前端工具') + '</span>' : ''}
+                            ${plugin.enabled ? '<span class="badge badge-green">' + window.T('已启用') + '</span>' : '<span class="badge badge-red">' + window.T('已禁用') + '</span>'}
+                            ${plugin.loaded ? '<span class="badge badge-purple">' + window.T('已加载') + '</span>' : ''}
+                            ${plugin.load_issue ? '<span class="badge badge-red">' + window.T('未加载') + '</span>' : ''}
+                            ${plugin.meta_invalid ? '<span class="badge badge-red" title="' + window.T('描述 json 非法，已回退插件类属性，capabilities 等声明被忽略') + '">' + window.T('描述文件失效') + '</span>' : ''}
                             ${pluginFrameworkBadge(plugin)}
                             ${pluginUpdateBadge(plugin)}
-                        </h3>
-                        <div style="font-size:13px; color: var(--adm-text-muted);">
-                            ${window.T('标识符')}：${plugin.name} ｜ ${window.T('分类')}：${plugin.category || '-'} ｜ ${window.T('作者')}：${plugin.author || '-'} ｜
-                            ${plugin.require_framework_version ? `${window.T('要求框架')}：v${plugin.require_framework_version} ｜ ` : ''}
-                            ${window.T('依赖')}：${(plugin.dependencies && plugin.dependencies.length) ? plugin.dependencies.join(', ') : window.T('无')} ｜
-                            ${window.T('调用')}：<b>${plugin.api_calls || 0}</b>
-                            ${plugin.load_issue_detail ? `<div style="margin-top:6px; color:#e74c3c;">⚠ ${window.T('未加载原因')}：${escapeHtml(plugin.load_issue_detail)}</div>` : ''}
-                            ${plugin.install_time ? `<br>${window.T('安装')}：${plugin.install_time}` : ''}
-                            ${plugin.source ? ` ｜ ${window.T('来源')}：${plugin.source}` : ''}
-                            ${(plugin.history && plugin.history.length > 1) ? ` ｜ ${window.T('版本历史')}：${plugin.history.map(h => h.version).join(' → ')}` : ''}
-                            ${plugin.type === 'frontend' ? `<div style="margin-top:8px; display:flex; align-items:center; gap:6px;"><span style="width: 50px;">${window.T('权限')}：</span><select style="font-size:12px; padding:2px 4px; border:1px solid #ccc; border-radius:4px; background:#fff;" onchange="changeFrontendPermission('${plugin.name}', this.value)">
+                        </div>
+                        <div class="plg-meta">
+                            <span class="meta-item">${window.T('标识符')}：<b>${plugin.name}</b></span>
+                            <span class="meta-item">${window.T('分类')}：<b>${plugin.category || '-'}</b></span>
+                            <span class="meta-item">${window.T('作者')}：<b>${plugin.author || '-'}</b></span>
+                            ${plugin.require_framework_version ? `<span class="meta-item">${window.T('要求框架')}：<b>v${plugin.require_framework_version}</b></span>` : ''}
+                            <span class="meta-item">${window.T('依赖')}：<b>${(plugin.dependencies && plugin.dependencies.length) ? plugin.dependencies.join(', ') : window.T('无')}</b></span>
+                            <span class="meta-item">${window.T('调用')}：<b>${plugin.api_calls || 0}</b></span>
+                            ${plugin.install_time ? `<span class="meta-item">${window.T('安装')}：<b>${plugin.install_time}</b></span>` : ''}
+                            ${plugin.source ? `<span class="meta-item">${window.T('来源')}：<b>${plugin.source}</b></span>` : ''}
+                            ${(plugin.history && plugin.history.length > 1) ? `<span class="meta-item">${window.T('版本历史')}：<b>${plugin.history.map(h => h.version).join(' → ')}</b></span>` : ''}
+                            ${plugin.load_issue_detail ? `<div class="meta-issue">⚠ ${window.T('未加载原因')}：${escapeHtml(plugin.load_issue_detail)}</div>` : ''}
+                            ${plugin.type === 'frontend' ? `<div class="meta-select"><span>${window.T('权限')}：</span><select onchange="changeFrontendPermission('${plugin.name}', this.value)">
                                 <option value="public" ${plugin.permission === 'public' ? 'selected' : ''}>${window.T('公开')}</option>
                                 <option value="user" ${plugin.permission === 'user' ? 'selected' : ''}>${window.T('登录')}</option>
                                 <option value="admin" ${plugin.permission === 'admin' ? 'selected' : ''}>${window.T('管理员')}</option>
                             </select></div>` : ''}
                         </div>
                     </div>
-                    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                    <div class="plg-actions">
                         ${plugin.type === 'frontend'
                             ? (plugin.enabled
                                 ? `<button class="btn btn-warning btn-sm" onclick="disableFrontendTool('${plugin.name}')">${window.T('禁用')}</button>`

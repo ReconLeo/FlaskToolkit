@@ -54,7 +54,7 @@
 
     <div class="card">
         <div class="stat-row">
-            <div class="stat-box"><div class="num">{{ total }}</div><div class="label">心跳总数</div></div>
+            <div class="stat-box"><div class="num" id="totalCount">{{ total }}</div><div class="label">心跳总数</div></div>
             <div class="stat-box"><div class="num" id="jobCount">-</div><div class="label">调度任务数</div></div>
             <div class="stat-box"><div class="num" id="running">-</div><div class="label">调度器状态</div></div>
         </div>
@@ -115,6 +115,7 @@
             const resp = await fetch('/api/scheduler_demo/stats');
             const data = await resp.json();
             const s = data.data || {};
+            document.getElementById('totalCount').textContent = (s.total ?? 0);
             document.getElementById('jobCount').textContent = (s.jobs || []).length;
             document.getElementById('running').textContent = s.scheduler_running ? '运行中' : '未运行';
             const el = document.getElementById('statsDetail');

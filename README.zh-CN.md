@@ -4,7 +4,7 @@
   <img src="https://github.com/ReconLeo/FlaskToolkit/actions/workflows/ci.yml/badge.svg" alt="CI">
   <img src="https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB?logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/License-MIT-yellow" alt="License">
-  <img src="https://img.shields.io/badge/version-4.20.4-blue" alt="Version">
+  <img src="https://img.shields.io/badge/version-4.20.5-blue" alt="Version">
   <a href="https://github.com/ReconLeo/FlaskToolkit-Lite"><img src="https://img.shields.io/badge/Lite%20Edition-v4.2.2-lightgrey" alt="Lite Edition"></a>
 </p>
 
@@ -160,7 +160,7 @@ python tests/test_package_sign.py          # 完整性校验/签名 25 项
 python tests/test_plugin_cleanup.py        # 插件卸载 installed_files 清单 23 项
 python tests/test_frontend_permission.py   # 前端工具访问控制 25 项
 python tests/test_tools_ops.py             # 运维工具 backup/reset/config 19 项
-python tests/test_page_router.py           # 大插件多模板页面路由 + 纯 API 无 name 插件调试页回归 21 项
+python tests/test_page_router.py           # 大插件多模板页面路由 + 纯 API 无 name 插件调试页 + object 类型参数回归 23 项
 python tests/test_framework_fixes.py       # 框架小修复：public_page 豁免 + CSRF 单值注入 12 项
 python tests/test_file_transfer.py         # 文件传输：全局 413 / 插件级与 route 级上传上限 / 中文名下载 / 下载统计 / Range / on_ready 顺序 12 项
 python tests/test_plugin_uploads.py    # 同步持久化上传助手（v4.18）：净化/去重/大小+配额预检/落盘 21 项

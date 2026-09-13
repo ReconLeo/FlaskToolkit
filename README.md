@@ -4,7 +4,7 @@
   <img src="https://github.com/ReconLeo/FlaskToolkit/actions/workflows/ci.yml/badge.svg" alt="CI">
   <img src="https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB?logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/License-MIT-yellow" alt="License">
-  <img src="https://img.shields.io/badge/version-4.20.4-blue" alt="Version">
+  <img src="https://img.shields.io/badge/version-4.20.5-blue" alt="Version">
   <a href="https://github.com/ReconLeo/FlaskToolkit-Lite"><img src="https://img.shields.io/badge/Lite%20Edition-v4.2.2-lightgrey" alt="Lite Edition"></a>
 </p>
 
@@ -160,7 +160,7 @@ python tests/test_package_sign.py          # integrity verification / signing 25
 python tests/test_plugin_cleanup.py        # uninstall installed_files manifest 23
 python tests/test_frontend_permission.py   # frontend-tool access control 25
 python tests/test_tools_ops.py             # ops tools backup/reset/config 19
-python tests/test_page_router.py           # large-plugin multi-template page routing + pure-API no-name plugin debug page regression 21
+python tests/test_page_router.py           # large-plugin multi-template page routing + pure-API no-name plugin debug page regression + object-type param 23
 python tests/test_framework_fixes.py       # framework small fixes: public_page exemption + CSRF single-injection 12
 python tests/test_file_transfer.py         # file transfer: global 413 / plugin & route upload limits / Chinese-name downloads / download stats / Range / on_ready order 12
 python tests/test_plugin_uploads.py    # sync persistent upload helper (v4.18): sanitize / dedup / size+quota pre-check / save 21

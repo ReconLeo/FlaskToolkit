@@ -762,6 +762,13 @@ class BasePlugin(ABC):
                                 else:
                                     converted_arr.append(str(item))
                             validated_data[param_name] = converted_arr
+                        elif param_type == 'object':
+                            # object 类型：保留原生 dict（JSON body 直接传入），非 dict 报错。
+                            # （v4.20.5 修复：此前 object 落入 else 被 str() 强转字符串，导致
+                            #   root_demo 写 {"PORT": 5010} 返回 400 "data 须为非空键值对象"）
+                            if not isinstance(value, dict):
+                                raise ValueError("无法转换为对象类型")
+                            validated_data[param_name] = value
                         else:
                             validated_data[param_name] = str(value)
                     except ValueError:

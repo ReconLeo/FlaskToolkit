@@ -43,7 +43,7 @@ async function loadAll() {
 function renderChart(stats) {
     const el = document.getElementById('chart');
     if (typeof echarts === 'undefined') {
-        el.innerHTML = '<p style="color:#95a5a6;">ECharts 未加载（CDN 不可达时请将 echarts.min.js 下载到 static/ 目录）。</p>';
+        el.innerHTML = '<p style="color:#95a5a6;">ECharts 本地资源未加载（请确认前端工具包含 static/echarts.min.js）。</p>';
         return;
     }
     // stats 结构：{ 插件名: 调用次数, ... }（来自 GET /api/admin/stats）

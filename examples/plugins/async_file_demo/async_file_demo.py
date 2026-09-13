@@ -36,7 +36,7 @@ class AsyncFileDemoPlugin(BasePlugin):
     author = "FlaskToolkit Examples"
     category = "示例"
     permission = "user"
-    require_framework_version = "4.3.2"  # get_data_path 为 v4.3.2 能力
+    require_framework_version = "4.9.1"  # 与 plugin.json 一致；save_uploaded_file / send_file_response 等能力基准
 
     # 允许上传的文件类型（空列表 = 不限；框架在 save_uploaded_file 中自动校验）
     @property
