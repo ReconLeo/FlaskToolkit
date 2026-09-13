@@ -2,7 +2,7 @@
   "latest_version": "4.20.7",
   "published_at": "2026-09-13",
   "download_url": "https://github.com/ReconLeo/FlaskToolkit/releases/download/v4.20.7/FlaskToolkit-v4.20.7-runtime.zip",
-  "sha256": "d36241cc6349724c670c9f68c3ebdd50109852fe29a2b8aa92d274899a9de589",
+  "sha256": "461b6cac6a5661da53a836a4daad09da5a4e366812468a9ac8b1aac04cbec1f4",
   "changes": [
     "修复浏览器扩展注入的页面元素（plasmo-csui）在文档流中撑高 index 页面、导致 container 下方出现大量空白的问题",
     "登录页交互增强：用户名输入后回车自动跳转密码输入框，密码框回车提交登录",
