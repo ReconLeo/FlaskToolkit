@@ -342,5 +342,98 @@
             .catch(function (e) { showToast(window.T('清理失败') + '：' + e.message, 'error'); });
     }
     document.addEventListener('DOMContentLoaded', () => { loadQuota(); });
+
+    /* ============================================================
+       小彩蛋：连点 about-brand-icon / 框架版本行，触发拟人化逃跑动画。
+       30 秒内累计超过 5 次触发；第 6-11 次为不同逃跑动作，第 12 次图标消失。
+       计数仅存内存（不计 localStorage），刷新页面后重置。
+       ============================================================ */
+    (function () {
+        'use strict';
+        var icon = document.querySelector('.about-brand-icon');
+        if (!icon) return;
+
+        var count = 0, lastTime = 0;
+        var ACTIONS = {
+            6: ['ftk-e-scared', '哎哟！'],
+            7: ['ftk-e-left', '走开走开！'],
+            8: ['ftk-e-right', '躲！'],
+            9: ['ftk-e-up', '别点我！'],
+            10: ['ftk-e-spin', '晕了…'],
+            11: ['ftk-e-flee', '不要再点我了！！'],
+            12: ['ftk-e-vanish', '拜拜👋']
+        };
+        var CLS = ['ftk-e-scared', 'ftk-e-left', 'ftk-e-right', 'ftk-e-up', 'ftk-e-spin', 'ftk-e-flee', 'ftk-e-vanish'];
+
+        // 注入动画样式（一次性）
+        if (!document.getElementById('ftk-easter-style')) {
+            var st = document.createElement('style');
+            st.id = 'ftk-easter-style';
+            st.textContent = [
+                '@keyframes ftk-scared { 0%,100%{transform:translateX(0)} 10%,30%,50%,70%,90%{transform:translateX(-14px) rotate(-8deg)} 20%,40%,60%,80%{transform:translateX(14px) rotate(8deg)} }',
+                '@keyframes ftk-left { 0%{transform:translateX(0)} 40%{transform:translateX(-70px) rotate(-12deg)} 100%{transform:translateX(0)} }',
+                '@keyframes ftk-right { 0%{transform:translateX(0)} 40%{transform:translateX(70px) rotate(12deg)} 100%{transform:translateX(0)} }',
+                '@keyframes ftk-up { 0%{transform:translateY(0)} 40%{transform:translateY(-60px)} 100%{transform:translateY(0)} }',
+                '@keyframes ftk-spin { 0%{transform:rotate(0)} 100%{transform:rotate(360deg)} }',
+                '@keyframes ftk-flee { 0%{transform:translate(0,0) rotate(0)} 40%{transform:translate(46px,-28px) rotate(20deg)} 100%{transform:translate(120px,-70px) rotate(45deg)} }',
+                '@keyframes ftk-vanish { 0%{transform:scale(1);opacity:1} 100%{transform:scale(0);opacity:0} }',
+                '.ftk-e-scared{animation:ftk-scared .9s ease} .ftk-e-left{animation:ftk-left .9s ease} .ftk-e-right{animation:ftk-right .9s ease}',
+                '.ftk-e-up{animation:ftk-up .9s ease} .ftk-e-spin{animation:ftk-spin .9s ease} .ftk-e-flee{animation:ftk-flee .9s ease}',
+                '.ftk-e-vanish{animation:ftk-vanish .7s ease forwards}',
+                '#ftk-easter-bubble{position:fixed; z-index:99999; background:rgba(30,30,30,.92); color:#fff;',
+                '  font-size:13px; padding:6px 10px; border-radius:8px; white-space:nowrap;',
+                '  box-shadow:0 2px 8px rgba(0,0,0,.25); transform:translateX(-50%); pointer-events:none;}',,
+                '#ftk-easter-bubble::after{content:""; position:absolute; top:100%; left:50%; margin-left:-5px;',
+                '  border:5px solid transparent; border-top-color:rgba(30,30,30,.92);}'
+            ].join('');
+            document.head.appendChild(st);
+        }
+
+        function showBubble(txt) {
+            var b = document.getElementById('ftk-easter-bubble');
+            if (!b) { b = document.createElement('div'); b.id = 'ftk-easter-bubble'; document.body.appendChild(b); }
+            var r = icon.getBoundingClientRect();
+            b.style.top = (r.top - 36) + 'px';
+            b.style.left = (r.left + r.width / 2) + 'px';
+            b.textContent = txt;
+            b.style.display = 'block';
+            clearTimeout(b._t);
+            b._t = setTimeout(function () { b.style.display = 'none'; }, 900);
+        }
+
+        function run() {
+            var now = Date.now();
+            if (now - lastTime > 30000) count = 0;   // 30 秒滑动窗口
+            lastTime = now;
+            count += 1;
+            if (count < 6 || count > 12) return;     // 前 5 次与超过上限静默
+            var it = ACTIONS[count];
+            if (!it) return;
+            showBubble(it[1]);
+            icon.classList.remove.apply(icon.classList, CLS);
+            if (count === 12) {                       // 第 12 次：图标消失
+                void icon.offsetWidth;
+                icon.classList.add(it[0]);
+                setTimeout(function () { icon.style.visibility = 'hidden'; }, 720);
+                return;
+            }
+            void icon.offsetWidth;                    // reflow 重触发动画
+            icon.classList.add(it[0]);
+            var c = it[0];
+            setTimeout(function () { icon.classList.remove(c); }, 950);
+        }
+
+        icon.addEventListener('click', run);
+        var tbody = document.getElementById('sysInfoBody');
+        if (tbody) {
+            tbody.addEventListener('click', function (e) {
+                var tr = e.target.closest('tr');
+                if (!tr) return;
+                var td = tr.querySelector('td');
+                var label = (window.T ? window.T('框架版本') : '框架版本');
+                if (td && td.textContent.trim() === label) run();
+            });
+        }
+    })();
 </script>
 {% endblock %}

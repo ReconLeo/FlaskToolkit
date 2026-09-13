@@ -145,8 +145,12 @@
         document.getElementById('password').addEventListener('keydown', function (e) {
             if (e.key === 'Enter' && !loginBtn.disabled) handleLogin();
         });
+        // v4.20.7：用户名回车跳转到密码输入框（不再直接提交登录）；密码框回车仍提交
         document.getElementById('username').addEventListener('keydown', function (e) {
-            if (e.key === 'Enter' && !loginBtn.disabled) handleLogin();
+            if (e.key === 'Enter' && !loginBtn.disabled) {
+                e.preventDefault();
+                document.getElementById('password').focus();
+            }
         });
         // P1#5 修复：移动端 login 模板无 #pwdToggle 元素，判空避免 getElementById 返回 null 崩溃（init 中断致无法登录）
         const pwdToggle = document.getElementById('pwdToggle');

@@ -318,3 +318,13 @@ body {
 @media (max-width: 768px) {
     .index-user-menu { display: none !important; }
 }
+
+/* v4.20.7：浏览器扩展注入的 Content Script UI（如 plasmo-csui）
+   若处于文档流中会撑开 body 高度，导致 container 下方出现大量空白。
+   将其脱离文档流（position:fixed 不指定 inset，保留静态位置在视口内），
+   使其不占页面高度，消除底部多余空白；对正常布局元素无影响。 */
+body > [class*="plasmo-csui"],
+body > [id*="plasmo-csui"] {
+    position: fixed !important;
+    z-index: 2147483000;
+}

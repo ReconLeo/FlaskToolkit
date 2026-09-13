@@ -64,6 +64,7 @@ Kaleido 同样开源（自托管题库系统）：[github.com/ReconLeo/Kaleido](
 | **v4.20.4** | 2026-09-13 | 应用图标 icon.png 分布各页面（navbar/login/user-center/plugin_default/system 大图标）+ change-pwd-modal 移动端适配 + index 布局细化（主标题跟随 system_name、navbar 垂直居中、管理后台按钮全宽、工具行上下排列）+ theme/lang 下拉不被遮挡 + install_all 后端安装/地址探测/友好报错 + **主题 CSS url()/@import 信任策略（THEME_CSS_URLS allow/relative/deny）+ 主题相对资源服务 + 三套预设补新参数 + sepia 示例背景图**；全量 47 脚本 0 失败 | tag `v4.20.4` |
 | **v4.20.5（收编，未推送）** | 2026-09-13 | 示例插件专项检查：async_file_demo 版本字段一致化（plugin.json 与类属性统一 4.9.1）+ install_all 后端子进程编码修复（PYTHONIOENCODING=utf-8 乱码）、scheduler_demo stat-row 心跳总数 loadStats 同步、corp_tools 模板补 plugin_common.js 修复 CSRF 校验失败、multitool_demo demo.js Object.assign 修复 apiUrl 被覆盖致 undefined 404 + 词频 Top-N 加输入框交互、root_demo 写核心配置 400（**框架 validate_params 支持 object 类型参数**，test_page_router 21→23）、dashboard_demo echarts.min.js 本地化到前端工具 static/（离线可展示）；前端整改：index tool-card 三行布局（icon+title/badge+heat/author）+ 移动端溢出修复、mobile/index m-tool-meta/m-admin-badge 补 chip 样式并同步三行、plugins.html badge 自成一行 + 标识符信息 meta-item 化；.gitignore 放行 dashboard_demo 前端工具源码入库；全量 47 脚本 0 失败 | tag `v4.20.5` |
 | **v4.20.6（收编，未推送）** | 2026-09-13 | 前端 index.html 桌面端 tool-footer 始终位于 tool-card 内部底部（flex 列布局 + margin-top:auto）；所有 index.html / mobile/index.html「打开工具」新页面打开（target=_blank + rel=noopener）；**新功能：前端工具 / 插件包支持自定义图标（.ico 文件，建议 1:1），index.html tool-icon 渲染 img 展示、未定义时 fallback 原样（emoji）**（core/plugin_pack.py META_FIELDS + plugin_loader _meta + frontend_tools valid_tool 组装 icon URL）；示例插件 corp_tools 展示自定义图标（corp.ico，Pillow 生成多尺寸） | tag `v4.20.6` |
+| **v4.20.7（收编，未推送）** | 2026-09-13 | 修复浏览器扩展注入元素（plasmo-csui）撑高 index 页面导致底部大量空白（main.css 防御性 position:fixed 脱离文档流）；登录页用户名回车跳转密码输入框；管理后台 system 页加入隐藏彩蛋（连点 about-brand-icon / 框架版本行，30s 内 >5 次触发，第 6-11 次拟人化逃跑动画、第 12 次图标消失，计数仅内存） | tag `v4.20.7` |
 
 ## 3. 版本详情
 
@@ -506,6 +507,15 @@ P1 安全强化至此全部完成，形成纵深防御：**静态扫描 → 能�
 - **install_all.py 打包修复（manifest 缺失警告）**：examples/install_all.py `build_zip` 复用 `core/package_sign.make_manifest` 生成 manifest.json + 加 `package_type` 参数，并改用 `zf.writestr(rel, f.read())` 而非 `zf.write`（后者在 Windows 对 arcname 做 normpath 转反斜杠，致 make_manifest 读哈希报 BadZipFile）——消除安装示例插件/前端工具时的「[警告] 缺少 manifest.json」；8 个示例 zip 均含 manifest.json 且无反斜杠路径，--mode backend 安装 8 个无警告。
 
 **验证**：启动服务后访问 index，corp_tools 卡片 tool-icon 渲染 `<img src="/plugin-static/corp_tools/corp.ico">`（HTTP 200 image/x-icon），其余未定义 icon 插件（scheduler_demo/async_file_demo/multitool_demo）正确 fallback 为 emoji。
+
+### 3.42 v4.20.7（2026-09-13，扩展注入空白修复 + 登录交互 + 后台彩蛋）
+
+- **修复 plasmo-csui 撑高页面空白**：浏览器扩展（Plasmo）注入的 Content Script UI（`plasmo-csui` 元素）若处于文档流会撑开 body 高度，导致 index 页面 container 下方出现大量空白。`main.css` 追加防御规则：`body > [class*="plasmo-csui"], body > [id*="plasmo-csui"] { position: fixed !important; z-index: 2147483000; }` ——`position:fixed` 不指定 inset 会保留元素静态位置在视口内，同时脱离文档流不再撑高页面；对正常布局元素无影响。
+- **登录页交互增强**：`login.js` 用户名输入框回车由「直接提交登录」改为「`preventDefault` + 聚焦密码输入框」（符合填写流习惯）；密码框回车仍提交登录。
+- **管理后台隐藏彩蛋（system 页）**：连续点击「关于项目」卡片的应用大图标 `.about-brand-icon`，或系统信息表中「框架版本」行（`sysInfoBody` 内事件委托，按首列文本识别），触发拟人化逃跑动画：
+  - 30 秒内累计超过 5 次触发（第 1-5 次静默）；第 6-11 次为 6 种不同逃跑动作（依次：受惊发抖 / 向左跳 / 向右跳 / 向上躲 / 旋转 / 大逃亡），每种动作配一句拟人台词气泡（「哎哟！」…「不要再点我了！！」）；第 12 次图标缩小消失（`visibility:hidden`），此后静默。
+  - 计数仅存于 JS 闭包内存（**不写 localStorage**），页面刷新后计数清零、可再次触发。动画 keyframes 由脚本动态注入 `<style>`，随 system.html 内联 JS 提供（约 5KB，仅此页）。
+  - **发布口径**：changelog.json / commit message 仅提及「加入隐藏彩蛋」，不透露触发位置；本演进记录忠实记录实现细节。
 
 ## 4. 发布实践沉淀
 

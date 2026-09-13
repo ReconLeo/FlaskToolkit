@@ -1,13 +1,11 @@
 {
-  "latest_version": "4.20.6",
+  "latest_version": "4.20.7",
   "published_at": "2026-09-13",
-  "download_url": "https://github.com/ReconLeo/FlaskToolkit/releases/download/v4.20.6/FlaskToolkit-v4.20.6-runtime.zip",
-  "sha256": "2b64afa4540d761a52bf231c555eab525d82ad2e700e9727f0cb82c69581c6e0",
+  "download_url": "https://github.com/ReconLeo/FlaskToolkit/releases/download/v4.20.7/FlaskToolkit-v4.20.7-runtime.zip",
+  "sha256": "d36241cc6349724c670c9f68c3ebdd50109852fe29a2b8aa92d274899a9de589",
   "changes": [
-    "前端 index.html 桌面端 tool-footer 始终位于 tool-card 内部底部（flex 布局 + margin-top:auto）",
-    "所有 index.html / mobile/index.html「打开工具」改为新页面打开（target=_blank + rel=noopener）",
-    "新功能：前端工具 / 插件包支持自定义图标（.ico 文件，建议 1:1），index.html 的 tool-icon 渲染 img 展示；未定义时 fallback 原样（emoji）",
-    "示例插件 corp_tools 展示自定义图标功能（corp.ico）",
-    "examples/install_all.py 打包修复：build_zip 生成 manifest.json（复用 core/package_sign.make_manifest）+ 改用 zf.writestr 保持正斜杠，消除安装示例插件时的「缺少 manifest.json」警告"
+    "修复浏览器扩展注入的页面元素（plasmo-csui）在文档流中撑高 index 页面、导致 container 下方出现大量空白的问题",
+    "登录页交互增强：用户名输入后回车自动跳转密码输入框，密码框回车提交登录",
+    "管理后台加入一处隐藏彩蛋（连续点击触发拟人化小动画，欢迎探索发现）"
   ]
 }
