@@ -401,6 +401,8 @@ def load_plugins():
             'api_calls': sum(v for k, v in global_var.call_stats.items() if k.startswith(f"{_name}:")),
             'page_url': f'/plugin/{_name}',
             'meta_invalid': info.get('meta_invalid', False),
+            # v4.20.6：自定义图标（.ico）→ /plugin-static/<name>/<icon>；缺省空（首页回退 emoji）
+            'icon': f"/plugin-static/{_name}/{info['icon']}" if info.get('icon') else '',
         }
         # 已加载插件用实例属性覆盖（更准确）
         _inst = global_var.plugins.get(_name)

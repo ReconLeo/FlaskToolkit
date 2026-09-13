@@ -72,7 +72,7 @@
                          data-heat="{{ tool._heat }}">
                         <div class="tool-header">
                             <div class="tool-line tool-title-line">
-                                <span class="tool-icon">{% if tool.type == 'backend' %}🔌{% else %}🌐{% endif %}</span>
+                                <span class="tool-icon">{% if tool.icon %}<img src="{{ tool.icon }}" alt="" class="tool-icon-img" onerror="var p=this.parentNode; this.remove(); p.textContent='{% if tool.type == 'backend' %}🔌{% else %}🌐{% endif %}';">{% elif tool.type == 'backend' %}🔌{% else %}🌐{% endif %}</span>
                                 <h3 class="tool-title" title="{{ tool.title }}">{{ tool.title }}</h3>
                             </div>
                             {% if tool.permission == 'admin' or tool._heat > 0 %}
@@ -93,10 +93,10 @@
                         <div class="tool-footer">
                             {% if tool.type == 'backend' %}
                             <span class="tool-version">v{{ tool.version }}</span>
-                            <a href="/plugin/{{ tool.name }}" class="btn btn-success btn-sm">{{ t('打开工具') }}</a>
+                            <a href="/plugin/{{ tool.name }}" class="btn btn-success btn-sm" target="_blank" rel="noopener">{{ t('打开工具') }}</a>
                             {% else %}
                             <span class="tool-version">{{ t('前端工具') }}</span>
-                            <a href="/frontend/{{ tool.name }}" class="btn btn-success btn-sm">{{ t('打开工具') }}</a>
+                            <a href="/frontend/{{ tool.name }}" class="btn btn-success btn-sm" target="_blank" rel="noopener">{{ t('打开工具') }}</a>
                             {% endif %}
                         </div>
                     </div>

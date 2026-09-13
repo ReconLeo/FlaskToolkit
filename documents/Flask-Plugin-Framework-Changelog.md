@@ -63,6 +63,7 @@ Kaleido 同样开源（自托管题库系统）：[github.com/ReconLeo/Kaleido](
 | **v4.20.3** | 2026-09-12 | 移动端样式统一（index 汉堡 navbar + login 垂直居中 + 系统名 system_name + index.js 兼容 .m-tools）+ user_manage 能力声明（纯 API 委托）+ audit 两根因修复（framework_manifest 排除目录本身误判核心 + 渲染读框架模板/i18n/静态豁免归因）+ setup 默认英语单语 + en 补 key + 新增 fr 语言包（多语言验证）+ setup POST 语言白名单动态化 + test_admin_api logs 脆弱断言修复；全量 47 脚本 0 失败 | tag `v4.20.3` |
 | **v4.20.4** | 2026-09-13 | 应用图标 icon.png 分布各页面（navbar/login/user-center/plugin_default/system 大图标）+ change-pwd-modal 移动端适配 + index 布局细化（主标题跟随 system_name、navbar 垂直居中、管理后台按钮全宽、工具行上下排列）+ theme/lang 下拉不被遮挡 + install_all 后端安装/地址探测/友好报错 + **主题 CSS url()/@import 信任策略（THEME_CSS_URLS allow/relative/deny）+ 主题相对资源服务 + 三套预设补新参数 + sepia 示例背景图**；全量 47 脚本 0 失败 | tag `v4.20.4` |
 | **v4.20.5（收编，未推送）** | 2026-09-13 | 示例插件专项检查：async_file_demo 版本字段一致化（plugin.json 与类属性统一 4.9.1）+ install_all 后端子进程编码修复（PYTHONIOENCODING=utf-8 乱码）、scheduler_demo stat-row 心跳总数 loadStats 同步、corp_tools 模板补 plugin_common.js 修复 CSRF 校验失败、multitool_demo demo.js Object.assign 修复 apiUrl 被覆盖致 undefined 404 + 词频 Top-N 加输入框交互、root_demo 写核心配置 400（**框架 validate_params 支持 object 类型参数**，test_page_router 21→23）、dashboard_demo echarts.min.js 本地化到前端工具 static/（离线可展示）；前端整改：index tool-card 三行布局（icon+title/badge+heat/author）+ 移动端溢出修复、mobile/index m-tool-meta/m-admin-badge 补 chip 样式并同步三行、plugins.html badge 自成一行 + 标识符信息 meta-item 化；.gitignore 放行 dashboard_demo 前端工具源码入库；全量 47 脚本 0 失败 | tag `v4.20.5` |
+| **v4.20.6（收编，未推送）** | 2026-09-13 | 前端 index.html 桌面端 tool-footer 始终位于 tool-card 内部底部（flex 列布局 + margin-top:auto）；所有 index.html / mobile/index.html「打开工具」新页面打开（target=_blank + rel=noopener）；**新功能：前端工具 / 插件包支持自定义图标（.ico 文件，建议 1:1），index.html tool-icon 渲染 img 展示、未定义时 fallback 原样（emoji）**（core/plugin_pack.py META_FIELDS + plugin_loader _meta + frontend_tools valid_tool 组装 icon URL）；示例插件 corp_tools 展示自定义图标（corp.ico，Pillow 生成多尺寸） | tag `v4.20.6` |
 
 ## 3. 版本详情
 
@@ -489,6 +490,22 @@ P1 安全强化至此全部完成，形成纵深防御：**静态扫描 → 能�
 - **plugins.html（admin）**：卡片 badge 从 h3 行拆出自成一行（plg-badges），标识符信息从长串 `｜` 分隔改为 meta-item 标签化（plg-meta），名称&版本 / badge / 标识符信息垂直三排。
 
 **测试**：test_page_router 新增 object 类型参数用例（21→23）；全量 47 脚本 0 失败。
+
+### 3.41 v4.20.6（2026-09-13，tool-footer 布局 + 打开新页面 + 自定义图标）
+
+在前端体验与插件自定义能力上的收编批次：
+
+- **tool-footer 常驻 tool-card 底部（桌面端）**：`index.html` tool-card 改 `flex: column` 布局 + `.tool-footer { margin-top: auto }`，无论卡片内容长短，tool-footer（版本 + 打开按钮）始终吸附在卡片内部底部，避免高矮不齐。
+- **「打开工具」新页面打开**：所有 `index.html` / `mobile/index.html` 的打开按钮加 `target="_blank" rel="noopener"`，在浏览器新标签页打开工具页，不打断首页浏览。
+- **自定义图标新功能（核心）**：前端工具 / 插件包现支持自定义图标（`.ico` 文件，建议 1:1）。数据流：
+  - `core/plugin_pack.py` `META_FIELDS` 增 `icon` 字段（打包元数据透传）；
+  - `core/plugin_loader.py` `_meta` 把 `info['icon']` 组装为 `/plugin-static/<name>/<icon>` URL；
+  - `core/frontend_tools.py` `valid_tool` 把 `tool['icon']` 组装为 `/frontend-static/<name>/<icon>` URL；
+  - 前端 `index.html` tool-icon 渲染 `<img class="tool-icon-img">`，`onerror` 移除 img 并回填 emoji（🔌 插件 / 🌐 前端工具）；未定义 icon 时后端返回空串，直接走 emoji fallback，**不破坏既有卡片展示**。
+- **corp_tools 示例**：plugin.json 加 `icon: corp.ico`，Pillow 生成 64×64 蓝色圆角 + 白色齿轮的多尺寸（16/32/48/64）ico 到 `static/`，随插件包打包展示自定义图标效果。
+- **install_all.py 打包修复（manifest 缺失警告）**：examples/install_all.py `build_zip` 复用 `core/package_sign.make_manifest` 生成 manifest.json + 加 `package_type` 参数，并改用 `zf.writestr(rel, f.read())` 而非 `zf.write`（后者在 Windows 对 arcname 做 normpath 转反斜杠，致 make_manifest 读哈希报 BadZipFile）——消除安装示例插件/前端工具时的「[警告] 缺少 manifest.json」；8 个示例 zip 均含 manifest.json 且无反斜杠路径，--mode backend 安装 8 个无警告。
+
+**验证**：启动服务后访问 index，corp_tools 卡片 tool-icon 渲染 `<img src="/plugin-static/corp_tools/corp.ico">`（HTTP 200 image/x-icon），其余未定义 icon 插件（scheduler_demo/async_file_demo/multitool_demo）正确 fallback 为 emoji。
 
 ## 4. 发布实践沉淀
 

@@ -1,10 +1,13 @@
 {
-  "latest_version": "4.20.5",
+  "latest_version": "4.20.6",
   "published_at": "2026-09-13",
-  "download_url": "https://github.com/ReconLeo/FlaskToolkit/releases/download/v4.20.5/FlaskToolkit-v4.20.5-runtime.zip",
-  "sha256": "f9b7e4298299e84226c030030d9b3ffa69c68094f784d36a13220fcff07dc85d",
+  "download_url": "https://github.com/ReconLeo/FlaskToolkit/releases/download/v4.20.6/FlaskToolkit-v4.20.6-runtime.zip",
+  "sha256": "2b64afa4540d761a52bf231c555eab525d82ad2e700e9727f0cb82c69581c6e0",
   "changes": [
-    "示例插件专项检查：async_file_demo 版本字段一致化 + install_all 后端子进程编码修复（乱码）+ scheduler_demo stat-row 心跳总数同步 + corp_tools 模板补 plugin_common.js 修复 CSRF + multitool_demo 修复 apiUrl 被覆盖致 undefined 404 + 词频 Top-N 加输入框 + root_demo 写核心配置（框架 validate_params 支持 object 类型参数）+ dashboard_demo echarts 本地化",
-    "前端整改：index tool-card 三行布局 + 移动端溢出修复 + mobile/index m-tool-meta/m-admin-badge 补 chip 样式同步三行 + plugins.html badge 自成一行 + 标识符信息 meta-item 化"
+    "前端 index.html 桌面端 tool-footer 始终位于 tool-card 内部底部（flex 布局 + margin-top:auto）",
+    "所有 index.html / mobile/index.html「打开工具」改为新页面打开（target=_blank + rel=noopener）",
+    "新功能：前端工具 / 插件包支持自定义图标（.ico 文件，建议 1:1），index.html 的 tool-icon 渲染 img 展示；未定义时 fallback 原样（emoji）",
+    "示例插件 corp_tools 展示自定义图标功能（corp.ico）",
+    "examples/install_all.py 打包修复：build_zip 生成 manifest.json（复用 core/package_sign.make_manifest）+ 改用 zf.writestr 保持正斜杠，消除安装示例插件时的「缺少 manifest.json」警告"
   ]
 }

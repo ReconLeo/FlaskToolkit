@@ -88,7 +88,9 @@ def load_frontend_tools():
             'permission': tool.get('permission', 'public'),
             'require_framework_version': tool.get('require_framework_version', ''),
             'enabled': tool.get('enabled', True),  # 缺省为启用状态
-            'type': 'frontend'
+            'type': 'frontend',
+            # v4.20.6：自定义图标（.ico）→ /frontend-static/<name>/<icon>；缺省空（首页回退 emoji）
+            'icon': f"/frontend-static/{name}/{tool['icon']}" if tool.get('icon') else '',
         }
 
         valid_tools.append(valid_tool)

@@ -484,6 +484,7 @@ def get_item(self, item_id):
 | `dependencies`              | 否   | 依赖插件名列表（如 `["auth"]`，v4.16 支持版本约束如 `"auth>=2.0"`，见 5.6.2.1）                                                                           |
 | `require_framework_version` | 否   | 最低框架版本要求（点分版本，如 `"4.0.0"`）；非强制，一经声明须满足，见 5.7                                                                                |
 | `capabilities`              | 否   | 能力白名单声明（v4.3.2，字符串列表）；未声明的检出行为在 enforce 模式下拒绝安装，见 10.7                                                                  |
+| `icon`                      | 否   | 自定义图标文件名（v4.20.6，如 `corp.ico`，建议 1:1 的 `.ico`）；随包携带到插件 static/，index 首页 tool-icon 渲染 img 展示，未定义时 fallback 原样（emoji） |
 | `repo`                      | 否   | 插件源码/发布仓库地址（v4.15，市场铺路元数据；不进描述一致性冲突比对）                                                                                    |
 | `update_feed`               | 否   | 插件级更新源 feed URL（v4.15，JSON {latest_version,published_at,download_url,sha256,changes[,signature]}，RSA 验签，应用内 check-updates 触达，见 5.6.8） |
 
@@ -637,7 +638,7 @@ python tools/package.py pack ./my_plugin -o my_plugin.zip --type backend --src-l
 后端插件可声明 `require_framework_version`（`plugin.json` 或插件类属性，非强制），用于声明插件所需的最低框架版本，以支撑框架持续迭代：
 
 - **未声明**：不检查，任意框架版本可用。
-- **声明了**：上传/更新时与 `global_var.FRAMEWORK_VERSION`（当前 `4.20.5`）做点分版本比较（`compare_versions`，修复了前端工具原先字符串比较的缺陷）；插件要求高于框架版本 → 拒绝安装并报告。
+- **声明了**：上传/更新时与 `global_var.FRAMEWORK_VERSION`（当前 `4.20.6`）做点分版本比较（`compare_versions`，修复了前端工具原先字符串比较的缺陷）；插件要求高于框架版本 → 拒绝安装并报告。
 - **运行时双重校验**：`load_plugins` 加载时同样校验（防止手工放置插件绕过上传校验），不满足则跳过加载并报错。
 - 参与描述一致性对齐（冲突拒绝/缺失补全），见 5.6.3。
 
@@ -951,6 +952,10 @@ Content-Type: application/json
 X-CSRF-Token: <csrf_token>
 {"permission": "admin"}   # 仅接受 public / user / admin
 ```
+
+### 6.6 前端工具自定义图标（v4.20.6）
+
+前端工具与插件包一样支持自定义图标：在 `frontend_tools.json` 的对应工具项声明 `icon` 字段（`.ico` 文件，建议 1:1），图标文件随 HTML 包 static/ 分发；`valid_tool` 把它组装为 `/frontend-static/<name>/<icon>` URL，index 首页 tool-icon 渲染 `<img class="tool-icon-img">`，未定义或加载失败时 `onerror` 回填 emoji（🌐 前端工具 / 🔌 插件），不影响既有卡片展示。
 
 ---
 
@@ -1578,7 +1583,7 @@ python tools/config.py profile <daily|strict|lan-open>   # 套用安全配置预
 | `LANGUAGE`                   | zh-CN                             | 系统显示语言（v4.9.0，可选值由 locales/ 语言包决定，Cookie `lang` 可覆盖）                                                                     |
 | `THEME`                      | auto                              | 界面主题（v4.19，可选 auto/light/dark，可扩展；auto=跟随系统 prefers-color-scheme；Cookie `theme` 可覆盖，见 5.11）                            |
 | `SYSTEM_NAME`                | FlaskToolkit                      | 系统显示名称（v4.7.0，仅装饰，不影响内部标识）                                                                                                 |
-| `SYSTEM_VERSION_LABEL`       | v4.20.5                           | 系统版本显示标签（v4.7.0，仅装饰，升级框架时建议同步更新）                                                                                     |
+| `SYSTEM_VERSION_LABEL`       | v4.20.6                           | 系统版本显示标签（v4.7.0，仅装饰，升级框架时建议同步更新）                                                                                     |
 | `PLUGIN_DATA_LIMIT_MB`       | 50                                | 单插件数据目录配额（MB，0=禁用，v4.9.0 见 10.10）                                                                                              |
 | `PLUGIN_DATA_TOTAL_LIMIT_MB` | 0                                 | 全部插件数据总量配额（MB，0=无限制，v4.9.2 见 10.11）                                                                                          |
 | `MDNS_ENABLED`               | false                             | mDNS 服务注册开关（v4.11，需重启生效，需 pip install zeroconf）                                                                                |

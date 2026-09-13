@@ -31,6 +31,8 @@ META_FIELDS = (
     'require_framework_version',
     # v4.15 市场铺路：repo=主页/仓库，update_feed=插件更新源 URL（http(s)）
     'repo', 'update_feed',
+    # v4.20.6：icon=自定义图标文件（.ico，建议 1:1），位于插件 static 目录，首页 tool-icon 渲染；缺省回退 emoji
+    'icon',
 )
 # 参与“冲突拒绝”比对的字段（name 单独走强制一致校验）
 COMPARE_FIELDS = (

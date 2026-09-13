@@ -129,8 +129,12 @@ body {
     border: 1px solid var(--border); transition: all 0.3s ease;
     /* min-width:0 防 grid 子项被长内容（长标题/长词）撑破溢出 category-section 右边界 */
     min-width: 0;
+    /* v4.20.6：flex column，让 tool-footer 始终靠卡片底部（margin-top:auto） */
+    display: flex; flex-direction: column;
 }
 .tool-card:hover { box-shadow: var(--shadow); transform: translateY(-2px); }
+/* v4.20.6：自定义图标（.ico）渲染，1:1 方形 */
+.tool-icon-img { width: 24px; height: 24px; object-fit: contain; flex: none; margin-right: 10px; }
 /* tool-header 三行垂直排布：tool-icon+title / badge+heat / author（v4.20.5） */
 .tool-header { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; min-width: 0; }
 .tool-line { display: flex; align-items: center; min-width: 0; }
@@ -150,7 +154,7 @@ body {
     text-align: left; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .tool-description { color: var(--muted); margin-bottom: 15px; line-height: 1.5; min-height: 40px; font-size: 14px; }
-.tool-footer { display: flex; justify-content: space-between; align-items: center; }
+.tool-footer { display: flex; justify-content: space-between; align-items: center; margin-top: auto; padding-top: 10px; }
 .tool-version { font-size: 12px; color: var(--text-light); }
 .empty-state { text-align: center; padding: 60px 20px; color: var(--faint); }
 .empty-state h2 { margin-bottom: 8px; color: var(--text-light); }

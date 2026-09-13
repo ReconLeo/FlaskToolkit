@@ -40,6 +40,9 @@ MANIFEST = os.path.join(EXAMPLES_DIR, 'manifest.json')
 DIST_DIR = os.path.join(EXAMPLES_DIR, 'dist')
 # 后端安装/卸载运维工具（存在时可用，无需启动 HTTP 服务，更快）
 TOOLS_INSTALL = os.path.join(PROJECT_ROOT, 'tools', 'install_plugin.py')
+# 完整性清单生成（P2-4 方案C）：让示例 zip 携带 manifest.json，消除后端安装缺清单警告
+sys.path.insert(0, PROJECT_ROOT)
+from core.package_sign import MANIFEST_FILE, make_manifest
 
 
 def backend_available() -> bool:
@@ -78,8 +81,13 @@ def load_manifest():
         return json.load(f)
 
 
-def build_zip(src_dir: str, out_zip: str):
-    """把示例源目录打包为 zip（目录结构即插件包结构，正斜杠分隔）"""
+def build_zip(src_dir: str, out_zip: str, package_type: str = 'backend'):
+    """把示例源目录打包为插件包（目录结构即插件包结构，正斜杠分隔）。
+
+    打包后写入 manifest.json 完整性哈希清单（P2-4 方案C），使示例 zip 与
+    tools/package.py 产物一致——后端安装（install_plugin.py → verify_package）
+    在 warn 模式下不再因缺清单而提示"缺少 manifest.json"。
+    """
     if not os.path.isdir(src_dir):
         raise FileNotFoundError(f"示例目录不存在: {src_dir}")
     os.makedirs(os.path.dirname(out_zip), exist_ok=True)
@@ -88,7 +96,13 @@ def build_zip(src_dir: str, out_zip: str):
             for fname in files:
                 full = os.path.join(root, fname)
                 rel = os.path.relpath(full, src_dir).replace('\\', '/')
-                zf.write(full, rel)
+                # 用 writestr 而非 write：write 会对 arcname 做 os.path.normpath，
+                # Windows 下把正斜杠转成反斜杠写入 zip 目录，破坏跨平台路径一致性
+                # 并导致 make_manifest 按正斜杠读成员哈希时 BadZipFile。
+                with open(full, 'rb') as f:
+                    zf.writestr(rel, f.read())
+        zf.writestr(MANIFEST_FILE, json.dumps(make_manifest(zf, package_type),
+                                              ensure_ascii=False, indent=2))
     return out_zip
 
 
@@ -101,7 +115,8 @@ def pack_all():
             name = item['name']
             src = os.path.join(EXAMPLES_DIR, item['path'])
             out = os.path.join(DIST_DIR, f"{name}.zip")
-            build_zip(src, out)
+            ptype = 'backend' if group == 'plugins' else 'frontend'
+            build_zip(src, out, ptype)
             results[name] = out
             print(f"[打包] {name} -> examples/dist/{name}.zip")
     return results
