@@ -63,8 +63,13 @@ body {
         margin-left: auto;   /* v4.20.1：恒靠右，不随 navbar-right 展开变化 */
     }
     .navbar .container { flex-wrap: wrap; }
+    /* v4.20.3：navbar 内 container 垂直居中 */
+    header.navbar { display: flex; align-items: center; }
+    header.navbar .container { width: 100%; flex: 1; min-width: 0; }
     /* v4.20.1：移动端加大导航高度 */
     header.navbar { padding: 1rem 0; min-height: 60px; }
+    /* v4.20.3：移动端管理后台按钮占满 adminBar 全宽 */
+    #adminBar .btn { width: 100%; box-sizing: border-box; text-align: center; }
     .navbar-right {
         order: 2;
         position: relative;

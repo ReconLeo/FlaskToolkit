@@ -67,6 +67,14 @@ body.mobile .m-container {
     margin: 0 auto;
     padding: 16px 14px 32px;
 }
+/* v4.20.3：移动端首页主标题（🔧 system_name），m-container 上方居中 */
+body.mobile .m-page-title {
+    text-align: center;
+    font-size: 1.4rem;
+    font-weight: bold;
+    color: var(--text);
+    margin: 0 0 16px;
+}
 body.mobile .m-section-title {
     font-size: 1.05rem;
     margin: 18px 0 10px;
@@ -138,9 +146,14 @@ body.mobile .m-toolbar select {
     color: var(--text);
 }
 body.mobile .m-toolbar .m-toolbar-row {
+    /* v4.20.3：toolSort/toolCount 上下排列：toolSort 占满全宽，toolCount 位于行左侧 */
     display: flex;
-    align-items: center;
-    gap: 8px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+}
+body.mobile .m-toolbar .m-toolbar-row .m-count {
+    align-self: flex-start;
 }
 
 /* ---------------- 移动端通用按钮 ---------------- */
