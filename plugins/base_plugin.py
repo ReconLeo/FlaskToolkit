@@ -407,6 +407,12 @@ class BasePlugin(ABC):
         """保存上传的文件，返回(临时文件路径, 原始文件名)。
         保存前统一做大小预检（超限抛 ValueError，提示上限 MB），
         大小上限来自 route 级 max_upload / max_upload_mb / 插件 max_upload_size / 全局默认。"""
+        # v4.20.7：实例若未走 plugin_loader 的 set_temp_dir（如测试/独立实例化），
+        # `_plugin_temp_dir` 仍为默认占位符 `__NEW_PLUGIN_DEFAULT__`，相对路径会落盘到项目根同名目录并累积。
+        # 此处兜底回退到插件专属临时目录（plugins/temp/<name>），避免污染项目根。
+        if self._plugin_temp_dir == "__NEW_PLUGIN_DEFAULT__":
+            self.set_temp_dir(os.path.join(global_var.BASE_DIR, 'plugins', 'temp', self.name))
+
         if file_key not in request.files:
             raise ValueError("缺少上传文件")
         file = request.files[file_key]
