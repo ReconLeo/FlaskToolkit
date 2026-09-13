@@ -369,7 +369,8 @@
     cacheAnchor();
     function getAnchor() {
         var sx = window.pageXOffset || 0, sy = window.pageYOffset || 0;
-        return { x: anchor.x + (sx - anchor.sx), y: anchor.y + (sy - anchor.sy), w: anchor.w, h: anchor.h };
+        // 当前视口位置 = 初始视口位置 − 已滚动量（页面滚动后元素在文档中左移/上移）
+        return { x: anchor.x - (sx - anchor.sx), y: anchor.y - (sy - anchor.sy), w: anchor.w, h: anchor.h };
     }
 
     var count = 0;
@@ -438,6 +439,14 @@
         b.style.left = (a.x + a.w / 2) + 'px';
         b.style.top = (a.y - 44) + 'px';
         document.body.appendChild(b);
+        // 钳制到视口内（移动端窄屏/图标偏右/气泡较宽时防超出右边界）
+        var bw = b.offsetWidth, bh = b.offsetHeight;
+        var vw = window.innerWidth || document.documentElement.clientWidth;
+        var vh = window.innerHeight || document.documentElement.clientHeight;
+        var L = Math.max(8 + bw / 2, Math.min(a.x + a.w / 2, vw - 8 - bw / 2));
+        var T = Math.max(8, Math.min(a.y - 44, vh - bh - 8));
+        b.style.left = L + 'px';
+        b.style.top = T + 'px';
         bubbleTimer = setTimeout(removeBubble, 2500);
     }
 

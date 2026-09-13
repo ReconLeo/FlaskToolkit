@@ -523,6 +523,7 @@ P1 安全强化至此全部完成，形成纵深防御：**静态扫描 → 能�
   - **幽灵残影尺寸**：`.ftk-e-ghost` 原用 CSS `width:100%` 相对整张关于项目卡片文本容器，残影会铺满卡片宽度；改为 JS 用 `icon.offsetLeft/offsetTop/offsetWidth/offsetHeight` 内联精确定位到图标原位置并匹配尺寸。
   - **气泡长文本溢出**：气话含仓库链接且 `white-space:nowrap` 会横向溢出视口；改为 `white-space:normal + max-width:min(90vw,460px) + text-align:center`。
   - **气泡定位受图标动画影响（回归/消失态塌缩）**：`showBubble` 原用 `getBoundingClientRect()` 定位，而回归（`ftk-e-back` 缩放）与消失（`vanish scale(0)`）态图标带 transform，返回矩形塌缩导致气泡错位（如落在图标中间）。改为**初始化时缓存图标静态锚点**（首次 `getBoundingClientRect` + 之后随滚动增量平移，`getAnchor()`），所有消息统一锚定图标上方，动作/回归/消失各态气泡位置完全一致。
+  - **移动端气泡超出右边界**：两处根因——①`getAnchor` 滚动增量方向反（`anchor.x + (sx-anchor.sx)` 应为减，页面滚动后元素视口位置 = 初始 − 滚动量），滚动后气泡右移超界；②`showBubble` 的 `left` 无钳制，窄屏下图标偏右或气泡较宽时右边界直接超出视口不可见。修复：`getAnchor` 改减号；`showBubble` append 后按气泡实际宽高钳制到视口内（水平中心 `[8+bw/2, vw-8-bw/2]`、垂直 `[8, vh-bh-8]`）。
 
 ## 4. 发布实践沉淀
 
