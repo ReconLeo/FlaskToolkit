@@ -24,6 +24,7 @@ import argparse
 import io
 import json
 import os
+import subprocess
 import sys
 import zipfile
 
@@ -33,9 +34,33 @@ except ImportError:
     print("缺少 requests，请先安装：pip install -r requirements.txt -r requirements-dev.txt")
     sys.exit(1)
 
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 EXAMPLES_DIR = os.path.dirname(os.path.abspath(__file__))
 MANIFEST = os.path.join(EXAMPLES_DIR, 'manifest.json')
 DIST_DIR = os.path.join(EXAMPLES_DIR, 'dist')
+# 后端安装/卸载运维工具（存在时可用，无需启动 HTTP 服务，更快）
+TOOLS_INSTALL = os.path.join(PROJECT_ROOT, 'tools', 'install_plugin.py')
+
+
+def backend_available() -> bool:
+    """后端运维工具 tools/install_plugin.py 是否可用。"""
+    return os.path.isfile(TOOLS_INSTALL)
+
+
+def detect_base_url() -> str:
+    """自动探测本地服务地址：读 core/network.py（绑定 host + 端口 + scheme）。
+
+    失败时回退 http://127.0.0.1:5000。
+    """
+    try:
+        sys.path.insert(0, PROJECT_ROOT)
+        from core import network
+        host = network.get_binding_host()
+        if host in ('0.0.0.0', '::', ''):
+            host = '127.0.0.1'
+        return f"{network.get_scheme()}://{host}:{network.get_effective_port()}"
+    except Exception:
+        return 'http://127.0.0.1:5000'
 
 # 上传接口
 UPLOAD_API = {
@@ -92,10 +117,18 @@ class ApiClient:
         self._login(username, password)
 
     def _login(self, username: str, password: str):
-        resp = self.session.post(
-            f"{self.base}/api/auth/login",
-            json={"username": username, "password": password},
-        )
+        try:
+            resp = self.session.post(
+                f"{self.base}/api/auth/login",
+                json={"username": username, "password": password},
+                timeout=8,
+            )
+        except requests.ConnectionError as exc:
+            raise ConnectionError(
+                f"无法连接服务 {self.base}（连接被拒绝/目标不可达）: {exc}"
+            ) from exc
+        except requests.RequestException as exc:
+            raise ConnectionError(f"请求服务 {self.base} 出错: {exc}") from exc
         data = resp.json()
         if resp.status_code != 200 or data.get("code") != 200:
             raise RuntimeError(
@@ -177,25 +210,104 @@ def uninstall_all(client: ApiClient):
     return fail == 0
 
 
+def _run_install_tool(args) -> bool:
+    """调用 tools/install_plugin.py，透传输出，返回是否成功。"""
+    print(f"\n[后端] python tools/install_plugin.py {' '.join(args)}")
+    try:
+        proc = subprocess.run([sys.executable, TOOLS_INSTALL] + args,
+                              capture_output=True, text=True,
+                              encoding='utf-8', errors='replace')
+    except FileNotFoundError as exc:
+        print(f"[后端] 无法运行运维工具 {TOOLS_INSTALL}: {exc}")
+        return False
+    out = (proc.stdout or '').rstrip()
+    err = (proc.stderr or '').rstrip()
+    if out:
+        print(out)
+    if err:
+        print(err)
+    return proc.returncode == 0
+
+
+def backend_install_all(zips: dict):
+    """后端方式安装所有示例（tools/install_plugin.py，无需服务运行）。"""
+    manifest = load_manifest()
+    ok, fail = 0, 0
+    for group, type_ in (('plugins', 'backend'), ('frontend_tools', 'frontend')):
+        for item in manifest[group]:
+            name = item['name']
+            # --update：首次安装与重复运行（版本不低于已装）均可
+            if _run_install_tool([type_, zips[name], '--base', PROJECT_ROOT, '--update']):
+                ok += 1
+            else:
+                fail += 1
+    print(f"\n==== 后端安装完成：成功 {ok}，失败 {fail} ====")
+    return fail == 0
+
+
+def backend_uninstall_all():
+    """后端方式卸载所有示例（tools/install_plugin.py，无需服务运行）。"""
+    manifest = load_manifest()
+    ok, fail = 0, 0
+    for group, type_ in (('plugins', 'backend'), ('frontend_tools', 'frontend')):
+        for item in manifest[group]:
+            name = item['name']
+            if _run_install_tool(['uninstall', type_, name, '--base', PROJECT_ROOT]):
+                ok += 1
+            else:
+                fail += 1
+    print(f"\n==== 后端卸载完成：成功 {ok}，失败 {fail} ====")
+    return fail == 0
+
+
 def main():
     parser = argparse.ArgumentParser(description="FlaskToolkit 示例一键安装/卸载/打包")
     parser.add_argument('--pack-only', action='store_true', help='仅打包到 examples/dist/，不安装')
-    parser.add_argument('--uninstall', action='store_true', help='卸载所有示例（需服务运行）')
-    parser.add_argument('--base-url', default='http://127.0.0.1:5000', help='服务地址')
-    parser.add_argument('--username', default='admin', help='管理员用户名')
-    parser.add_argument('--password', default='admin123', help='管理员密码')
+    parser.add_argument('--uninstall', action='store_true', help='卸载所有示例')
+    parser.add_argument('--mode', choices=['auto', 'http', 'backend'], default='auto',
+                        help='安装方式：auto=有后端工具走 backend 否则 http；backend=走后端(无需服务)；http=走 HTTP API')
+    parser.add_argument('--base-url', default='', help='HTTP 服务地址（留空自动探测本地地址）')
+    parser.add_argument('--username', default='admin', help='管理员用户名（HTTP 方式）')
+    parser.add_argument('--password', default='admin123', help='管理员密码（HTTP 方式）')
     args = parser.parse_args()
 
     zips = pack_all()
     if args.pack_only:
-        print("已打包到 examples/dist/，可手动在管理后台上传或使用 --uninstall/默认安装。")
+        print("已打包到 examples/dist/，可手动在管理后台上传，或使用 --mode backend 后端安装。")
         return
 
+    # 决定安装方式
+    if args.mode == 'backend':
+        use_backend = True
+    elif args.mode == 'http':
+        use_backend = False
+    else:  # auto
+        use_backend = backend_available()
+
+    if use_backend:
+        if not backend_available():
+            print(f"后端运维工具不存在：{TOOLS_INSTALL}")
+            print("请用 --mode http 走 HTTP API（需先启动服务），或确认 tools/install_plugin.py 存在。")
+            sys.exit(1)
+        sys.exit(0 if (backend_uninstall_all() if args.uninstall else backend_install_all(zips)) else 1)
+
+    # HTTP 方式
+    base_url = args.base_url or detect_base_url()
+    print(f"[HTTP] 目标服务：{base_url}")
     try:
-        client = ApiClient(args.base_url, args.username, args.password)
+        client = ApiClient(base_url, args.username, args.password)
+    except ConnectionError as e:
+        print(f"\n连接失败：{e}")
+        print("排查提示：")
+        print("  ① 服务未启动？先执行 python app.py 再重试。")
+        print("  ② 地址/端口不对？用 --base-url 指定，或确认 tools/config.py / 环境变量配置。")
+        if backend_available():
+            print("  ③ 本地已有后端运维工具，可免启动服务直接走后端：")
+            print("     python examples/install_all.py --mode backend")
+        sys.exit(1)
     except RuntimeError as e:
-        print(f"连接失败：{e}")
-        print("请先启动服务：python app.py（并确认管理员账号）。")
+        print(f"\n初始化失败：{e}")
+        print("请确认管理员账号密码（--username/--password）与当前服务一致。")
         sys.exit(1)
 
     if args.uninstall:
