@@ -12,6 +12,7 @@
   python tools/run_all_tests.py -v                  # 失败时打印该测试完整日志
   python tools/run_all_tests.py --keep              # 保留历史日志（默认每次清理）
   python tools/run_all_tests.py --list              # 仅列出待跑测试，不执行
+  python tools/run_all_tests.py --no-cleanup         # 每个测试后不跑 tests/ci_cleanup.py 清理
 
 说明：
 - 测试脚本均为自包含（隔离目录），直接以当前 Python 解释器运行。
@@ -56,8 +57,12 @@ def collect_tests(pattern):
     return tests
 
 
-def run_one(test_file, timeout, log_path):
-    """运行单个测试，返回 (exit_code, duration)。超时按失败处理。"""
+def run_one(test_file, timeout, log_path, do_cleanup=True):
+    """运行单个测试，返回 (exit_code, duration)。超时按失败处理。
+
+    do_cleanup=True 时在测试后调用 tests/ci_cleanup.py（测试间清理，防互相污染）；
+    ci_cleanup 失败不影响该测试结果（双保险，测试本身用隔离目录）。
+    """
     start = time.time()
     log_fp = open(log_path, "w", encoding="utf-8")
     try:
@@ -77,6 +82,19 @@ def run_one(test_file, timeout, log_path):
         rc = "ERROR"
         log_fp.write("\n[run_all_tests] 运行异常: %s\n" % exc)
     finally:
+        if do_cleanup:
+            try:
+                log_fp.write("\n[run_all_tests] ci_cleanup\n")
+                subprocess.run(
+                    [sys.executable, os.path.join(_TESTS_DIR, "ci_cleanup.py")],
+                    cwd=_PROJECT_ROOT,
+                    env=_run_env(),
+                    stdout=log_fp,
+                    stderr=subprocess.STDOUT,
+                    timeout=60,
+                )
+            except Exception:  # 清理失败不阻断回归
+                pass
         log_fp.close()
     return rc, time.time() - start
 
@@ -95,6 +113,8 @@ def main(argv=None):
                         help="保留历史日志（默认每次运行前清理目标日志目录）")
     parser.add_argument("--list", action="store_true",
                         help="仅列出待跑测试，不执行")
+    parser.add_argument("--no-cleanup", action="store_true",
+                        help="每个测试后不运行 tests/ci_cleanup.py 测试间清理")
     args = parser.parse_args(argv)
 
     tests = collect_tests(args.pattern)
@@ -128,7 +148,7 @@ def main(argv=None):
     total_dur = 0.0
     for idx, t in enumerate(tests, 1):
         log_path = os.path.join(args.log_dir, t.replace(".py", ".log"))
-        rc, dur = run_one(t, args.timeout, log_path)
+        rc, dur = run_one(t, args.timeout, log_path, do_cleanup=not args.no_cleanup)
         total_dur += dur
         status = "PASS" if rc == 0 else ("TIMEOUT" if rc == "TIMEOUT" else ("ERROR" if rc == "ERROR" else "FAIL"))
         line = "[%3d/%d] %-8s %-32s %6.1fs" % (idx, total, status, t, dur)

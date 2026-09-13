@@ -1,0 +1,18 @@
+## v4.15.0 — Root 权限域 + 第三方插件市场骨架
+
+Community 为 Enterprise 铺路：回答“插件能否操作框架核心文件、能否自建插件市场”。framework:core（≈ Linux root）为显式高风险授权，MIT 协议框架概不负责。
+
+### 变更
+
+- Root 权限域（framework 能力域，core/capabilities.py）：三档 read/manage/core（core≈Linux root，隐含 manage/read，级别 3>2>1）；is_framework_core_path 判定框架核心路径（core/routes/templates 框架部分/app.py/global_var.py/data/user_config.json/plugins/status.json，豁免模板/插件数据目录）；filesystem:write 命中核心路径→errors 拒绝并提示改用 framework:core；cross_validate 中 framework:core 隐式覆盖核心路径写；check_filesystem 运行时核心写仅 framework:core 放行；新增 check_framework
+- Root 审计与栈归因（core/audit_hook.py）：allowed 核心路径写追加 root-access 审计事件；公共栈归因 locate_caller_plugin()（服务层权限判定防伪造）；加载 framework:core 插件打印醒目横幅；前端 Root/Manage/Framework 徽章 + ⚠️ Root 红/manage 橙/read 蓝三色警示条
+- 程序化插件管理服务层（core/plugin_admin.py 新 288 行）：require_manage（框架自身放行/插件须 framework:manage）/scan_gate/enable/disable/uninstall/purge_data/install_from_package/update_from_package；routes/admin 六个管理接口改薄壳调用服务层，为第三方插件市场铺路
+- 插件级更新源（core/plugin_updates.py 新）：plugin.json 声明 repo/update_feed，应用内 check-updates 触达各插件独立发布渠道——feed JSON {latest_version,published_at,download_url,sha256,changes[,signature]}、data/cache/plugin_updates.json 缓存（UPDATE_CHECK_INTERVAL 小时）、3s 超时静默、UPDATE_PUBLIC_KEY_PEM 强制 RSA 验签、版本比较；plugin_pack META_FIELDS 加 repo/update_feed（不进 COMPARE_FIELDS）；后台插件页检查更新按钮/更新徽章（⬆ vX 可更新）
+- 既有 bug 修复：routes/admin.py preview 分支 from core.plugin_scanner import read_pack_capabilities（函数实为 core.capabilities）→ ImportError 被 except 吞 → preview.capabilities 自 v4.10 恒空；改顶层已导入函数
+- 启动自检增强（core/selfcheck.py）：global_var 新增 TIMEZONE 常量，app.py BackgroundScheduler 改用它——APScheduler 3.11 弃 pytz 改 zoneinfo，Windows 缺 tzdata 时顶层创建 scheduler 抛 ZoneInfoNotFoundError 启动即崩，selfcheck 新增 zoneinfo 时区探测在自检阶段致命报错并提示 pip install tzdata（而非静默通过、启动才崩）；CORE_FILES 补登记 core/plugin_admin.py、core/plugin_updates.py；requirements.txt 新增 tzdata==2026.3（Windows 全新 Python 环境可复现）
+- 测试：新增 tests/test_root_domain.py 18 项（framework 域三档/核心路径判定/root 写放行与拒绝/服务层 require_manage/市场写 core 拒绝/更新源）+ tests/test_selfcheck.py 14 项（CORE_FILES 完整性/时区探测/完整自检）；test_capabilities 扩展 G 段 framework 域 13 项；修复 test_admin_api 版本期望；全量回归 35 脚本 914 项 0 失败
+- 文档：README 双版补 Root 域与市场骨架特性条目（35 脚本 / 914 项回归）、开发规范 v4.15 段（framework 能力域表 + repo/update_feed 字段表 + 5.6.8 小节 + MIT 免责声明）、Roadmap v4.15 当前行 + v4.16 规划行（事件总线 + 插件依赖）、版本演进记录 3.20、SECURITY.md framework:core 风险与回归口径同步
+
+---
+sha256: 90c1ccf4db1c3606a6023a75945316abfb2a380f97b4b4f0c598f38505073f64
+Runtime: FlaskToolkit-4.15.0-runtime.zip（87 文件）

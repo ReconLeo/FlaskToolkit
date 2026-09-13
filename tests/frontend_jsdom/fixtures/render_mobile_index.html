@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme-init="auto" data-themes='{&#34;auto&#34;: &#34;自动&#34;, &#34;light&#34;: &#34;浅色&#34;, &#34;dark&#34;: &#34;深色&#34;}'>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Flask 工具集</title>
+    <link rel="stylesheet" href="/static/css/main.css">
+    <link rel="stylesheet" href="/static/css/mobile-app.css">
+    <link rel="stylesheet" href="/static/css/mobile.css">
+<script src="/static/js/theme.js"></script>
+</head>
+<body class="mobile">
+    <!-- 移动端顶部导航：复用桌面 navbar 设计（mobile.js 自动注入 .nav-toggle 汉堡菜单），
+         与桌面 index.html 结构一致，消除原 m-nav 顶栏拥挤；navbar-right 收纳进汉堡抽屉 -->
+    <header class="navbar">
+        <div class="container">
+            <a class="navbar-brand" href="/">MyToolbox v4.20.3</a>
+            <div class="navbar-right">
+                <div id="userInfo" class="user-info"></div>
+                <div id="authButton"></div>
+                <!-- v4.19.2 界面主题切换（导航栏下拉式）：内建 auto/light/dark + themes/ 扫描的自定义主题 -->
+
+
+<div class="theme-switch" title="切换主题">
+    <button type="button" class="theme-btn">
+        🌓
+        <span class="theme-label">自动</span> ▾
+    </button>
+    <div class="theme-menu">
+        
+        <a href="/theme/auto?next=/" data-theme-code="auto" class="active">🌓 自动</a>
+        
+        <a href="/theme/light?next=/" data-theme-code="light" class="">☀️ 浅色</a>
+        
+        <a href="/theme/dark?next=/" data-theme-code="dark" class="">🌙 深色</a>
+        
+    </div>
+</div>
+<style>
+.theme-switch{position:relative;display:inline-block;vertical-align:middle}
+.theme-btn{background:rgba(255,255,255,0.08);color:#fff;border:1px solid #7f8c8d;padding:6px 12px;border-radius:6px;font-size:13px;cursor:pointer;line-height:1.4;font-family:inherit}
+.theme-btn:hover{background:rgba(255,255,255,0.15);border-color:#95a5a6}
+.theme-menu{display:none;position:absolute;right:0;top:calc(100% + 6px);min-width:130px;background:#2c3e50;border:1px solid rgba(255,255,255,0.15);border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,0.3);z-index:1000;overflow:hidden;padding:4px 0;max-height:300px;overflow-y:auto}
+.theme-switch:hover .theme-menu,.theme-switch:focus-within .theme-menu{display:block}
+.theme-menu a{display:block;padding:8px 14px;color:#ecf0f1;text-decoration:none;font-size:13px;white-space:nowrap}
+.theme-menu a:hover{background:rgba(255,255,255,0.12);color:#fff}
+.theme-menu a.active{background:rgba(52,152,219,0.25);color:#fff}
+</style>
+                
+<div class="lang-switch" title="切换语言">
+    <button type="button" class="lang-btn">中文 ▾</button>
+    <div class="lang-menu">
+        
+        
+        
+        
+        <a href="/lang/en?next=/" data-lang="en">English</a>
+        
+        
+    </div>
+</div>
+<style>
+.lang-switch{position:relative;display:inline-block;vertical-align:middle}
+.lang-btn{background:rgba(255,255,255,0.08);color:#fff;border:1px solid #7f8c8d;padding:6px 12px;border-radius:6px;font-size:13px;cursor:pointer;line-height:1.4;font-family:inherit}
+.lang-btn:hover{background:rgba(255,255,255,0.15);border-color:#95a5a6}
+.lang-menu{display:none;position:absolute;right:0;top:calc(100% + 6px);min-width:130px;background:#2c3e50;border:1px solid rgba(255,255,255,0.15);border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,0.3);z-index:1000;overflow:hidden;padding:4px 0}
+.lang-switch:hover .lang-menu,.lang-switch:focus-within .lang-menu{display:block}
+.lang-menu a{display:block;padding:8px 14px;color:#ecf0f1;text-decoration:none;font-size:13px;white-space:nowrap}
+.lang-menu a:hover{background:rgba(255,255,255,0.12);color:#fff}
+</style>
+
+            </div>
+        </div>
+    </header>
+
+    <div class="m-container">
+        <div id="adminBar" class="hidden" style="margin-bottom:12px;">
+            <a href="/admin/dashboard" class="btn btn-primary btn-sm">🛠️ 管理后台</a>
+        </div>
+
+        <!-- 移动端工具条：搜索 + 排序 -->
+        <div class="m-toolbar">
+            <input type="text" id="toolSearch" placeholder="搜索工具名称 / 描述 / 作者 / 分类...">
+            <div class="m-toolbar-row">
+                <select id="toolSort" title="排序方式">
+                    <option value="default">默认排序</option>
+                    <option value="heat">🔥 按热度</option>
+                    <option value="alpha">按字母</option>
+                </select>
+                <span id="toolCount" class="m-count" style="color:var(--text-light); font-size:13px;"></span>
+            </div>
+        </div>
+        <div id="searchEmpty" class="m-empty" style="display:none;">
+            <h3>没有匹配的工具</h3>
+            <p>换个关键词试试，或调整排序条件</p>
+        </div>
+
+        
+        
+            <div class="category-section">
+                <h2 class="m-section-title">测试
+                    <span class="m-count">(2)</span>
+                </h2>
+                
+                
+                <!-- .tools-grid 与 index.js 搜索/排序兼容（移动端单列靠 .m-tools flex column） -->
+                <div class="m-tools tools-grid">
+                    
+                    <div class="m-tool-card tool-card"
+                         data-title="Alpha"
+                         data-name="alpha"
+                         data-author="a"
+                         data-desc="foo"
+                         data-category="测试"
+                         data-heat="3">
+                        <div class="m-tool-head">
+                            <span>🔌</span>
+                            <span class="m-tool-title">Alpha</span>
+                            
+                        </div>
+                        <div class="m-tool-meta">
+                            <span>🔥 3</span>
+                            <span>by a</span>
+                            <span>v1.0</span>
+                        </div>
+                        <div class="m-tool-desc">foo</div>
+                        
+                        <a href="/plugin/alpha" class="btn btn-success btn-sm m-tool-open">打开工具</a>
+                        
+                    </div>
+                    
+                    <div class="m-tool-card tool-card"
+                         data-title="Beta"
+                         data-name="beta"
+                         data-author="a"
+                         data-desc="bar"
+                         data-category="测试"
+                         data-heat="1">
+                        <div class="m-tool-head">
+                            <span>🌐</span>
+                            <span class="m-tool-title">Beta</span>
+                            
+                        </div>
+                        <div class="m-tool-meta">
+                            <span>🔥 1</span>
+                            <span>by a</span>
+                            <span>前端工具</span>
+                        </div>
+                        <div class="m-tool-desc">bar</div>
+                        
+                        <a href="/frontend/beta" class="btn btn-success btn-sm m-tool-open">打开工具</a>
+                        
+                    </div>
+                    
+                </div>
+                
+            </div>
+        
+        
+    </div>
+
+    <script src="/static/js/main.js"></script>
+    <script src="/static/js/index.js"></script>
+    <script src="/static/js/mobile.js"></script>
+</body>
+</html>
