@@ -358,6 +358,20 @@
         document.querySelector('#framework_version').closest('tr') : null;
     if (!icon) return;
 
+    // 静态锚点：初始化时（图标无动画）缓存其视口位置，之后随滚动增量平移。
+    // 避免 vanish(scale0)/back(缩放) 等 transform 动画使 getBoundingClientRect 塌缩导致气泡错位。
+    var anchor = null;
+    function cacheAnchor() {
+        var r = icon.getBoundingClientRect();
+        anchor = { x: r.left, y: r.top, w: r.width, h: r.height,
+                   sx: window.pageXOffset || 0, sy: window.pageYOffset || 0 };
+    }
+    cacheAnchor();
+    function getAnchor() {
+        var sx = window.pageXOffset || 0, sy = window.pageYOffset || 0;
+        return { x: anchor.x + (sx - anchor.sx), y: anchor.y + (sy - anchor.sy), w: anchor.w, h: anchor.h };
+    }
+
     var count = 0;
 
     // 动作池：每次触发从中随机选取（12 为"消失"，单独处理）
@@ -420,9 +434,9 @@
         var b = document.createElement('div');
         b.id = 'ftk-easter-bubble';
         b.innerHTML = html;
-        var r = icon.getBoundingClientRect();
-        b.style.left = (r.left + r.width / 2) + 'px';
-        b.style.top = (r.top - 44) + 'px';
+        var a = getAnchor();                    // 用静态锚点定位，动画中仍保持一致
+        b.style.left = (a.x + a.w / 2) + 'px';
+        b.style.top = (a.y - 44) + 'px';
         document.body.appendChild(b);
         bubbleTimer = setTimeout(removeBubble, 2500);
     }

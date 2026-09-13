@@ -522,6 +522,7 @@ P1 安全强化至此全部完成，形成纵深防御：**静态扫描 → 能�
   - **气泡竞态**：`showBubble` 未清除旧 `setTimeout(removeBubble)`，连续快速触发时旧定时器会误删新气泡；新增 `bubbleTimer` + `clearTimeout` 修复。
   - **幽灵残影尺寸**：`.ftk-e-ghost` 原用 CSS `width:100%` 相对整张关于项目卡片文本容器，残影会铺满卡片宽度；改为 JS 用 `icon.offsetLeft/offsetTop/offsetWidth/offsetHeight` 内联精确定位到图标原位置并匹配尺寸。
   - **气泡长文本溢出**：气话含仓库链接且 `white-space:nowrap` 会横向溢出视口；改为 `white-space:normal + max-width:min(90vw,460px) + text-align:center`。
+  - **气泡定位受图标动画影响（回归/消失态塌缩）**：`showBubble` 原用 `getBoundingClientRect()` 定位，而回归（`ftk-e-back` 缩放）与消失（`vanish scale(0)`）态图标带 transform，返回矩形塌缩导致气泡错位（如落在图标中间）。改为**初始化时缓存图标静态锚点**（首次 `getBoundingClientRect` + 之后随滚动增量平移，`getAnchor()`），所有消息统一锚定图标上方，动作/回归/消失各态气泡位置完全一致。
 
 ## 4. 发布实践沉淀
 
