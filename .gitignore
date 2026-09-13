@@ -62,9 +62,6 @@ plugins/kaleido_*.json
 templates/plugins/kaleido_*/
 templates/frontend_tools/kaleido_*.html
 templates/frontend_tools/static/
-# 框架自带示例前端工具 dashboard_demo 的静态资源（含 echarts.min.js）入库，供离线展示；其余（kaleido_v3 等）仍忽略
-!templates/frontend_tools/static/dashboard_demo/
-!templates/frontend_tools/static/dashboard_demo/*
 # AirDrop（局域网文件共享）独立子项目插件落地文件（不入主仓库）
 plugins/airdrop.py
 plugins/airdrop.json
