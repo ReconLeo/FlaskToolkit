@@ -17,20 +17,36 @@
 
 ## 快速开始
 
-前置：启动服务并确认管理员账号（默认 `admin / admin123`），安装 `requests`：
+安装 `requests`（HTTP 方式用）：
 
 ```bash
 pip install -r requirements.txt -r requirements-dev.txt
-python app.py                      # 启动服务（另开一个终端）
 ```
 
-一键安装全部示例（登录 → CSRF → 正式 API 上传，含溯源/审计）：
+**一键安装全部示例**（默认 `--mode auto`：检测到 `tools/install_plugin.py` 后端运维工具则**走后端安装**，无需启动服务、更快；否则走 HTTP API）：
 
 ```bash
-python examples/install_all.py     # 默认连接 http://127.0.0.1:5000，账号 admin/admin123
+python examples/install_all.py
 ```
 
-仅打包（不依赖服务，生成 `examples/dist/*.zip`，可手动在管理后台上传）：
+安装方式可选：
+
+```bash
+python examples/install_all.py --mode backend     # 强制后端（无需启动服务，直接落盘）
+python examples/install_all.py --mode http        # 强制 HTTP API（登录→CSRF→上传，含溯源/审计）
+```
+
+HTTP 方式需先启动服务（`python app.py`），`--base-url` 留空时自动读 `core/network.py` 探测本地地址：
+
+```bash
+python app.py                      # 另开一个终端
+python examples/install_all.py --mode http        # 自动探测 http://127.0.0.1:5000
+python examples/install_all.py --mode http --base-url http://127.0.0.1:5000 --username admin --password 你的密码
+```
+
+服务未启动/地址错误时给出友好排查提示（不抛原始 traceback），并提示可用后端模式免启动安装。
+
+仅打包（不依赖服务，生成 `examples/dist/*.zip`）：
 
 ```bash
 python examples/install_all.py --pack-only
@@ -39,13 +55,7 @@ python examples/install_all.py --pack-only
 一键卸载全部示例：
 
 ```bash
-python examples/install_all.py --uninstall
-```
-
-自定义服务地址/账号：
-
-```bash
-python examples/install_all.py --base-url http://127.0.0.1:5000 --username admin --password 你的密码
+python examples/install_all.py --uninstall       # 默认走后端；HTTP 卸载同 --mode http
 ```
 
 ## 各示例详解

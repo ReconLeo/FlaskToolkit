@@ -141,6 +141,33 @@ def main():
     check("A8b get_theme_css 白名单/内建/不存在拒绝",
           theme.get_theme_css('../dark') is None and theme.get_theme_css('dark') is None
           and theme.get_theme_css('nope') is None, '')
+    # v4.20.4：url()/@import 信任策略（THEME_CSS_URLS）
+    check("A8c sanitize allow 放行相对+http、拒 javascript/data",
+          ('url(./bg.png)' in theme.sanitize_theme_css('body{a:url(./bg.png)}', 'allow')
+           and 'https://x.com/f.woff' in theme.sanitize_theme_css('@font-face{src:url(https://x.com/f.woff)}', 'allow')
+           and 'javascript:x' not in theme.sanitize_theme_css('body{b:url(javascript:x)}', 'allow')
+           and 'data:image' not in theme.sanitize_theme_css('body{d:url(data:image/png;base64,A)}', 'allow')), '')
+    check("A8d sanitize relative 仅相对、拒外部",
+          ('url(./bg.png)' in theme.sanitize_theme_css('body{a:url(./bg.png)}body{b:url(https://x.com/f.woff)}', 'relative')
+           and 'https://x.com' not in theme.sanitize_theme_css('body{b:url(https://x.com/f.woff)}', 'relative')
+           and 'javascript:x' not in theme.sanitize_theme_css('body{b:url(javascript:x)}', 'relative')), '')
+    check("A8e sanitize deny 移除全部 url()",
+          'url(' not in theme.sanitize_theme_css('body{a:url(./bg.png)}body{b:url(https://x.com/f.woff)}body{c:url(javascript:x)}', 'deny'), '')
+    # get_theme_css 按 THEME_CSS_URLS 消毒（直接写内存 _user_config；get_user_config() 返回合并副本不可写）
+    _old_mode = global_var._user_config.get('THEME_CSS_URLS')
+    global_var._user_config['THEME_CSS_URLS'] = 'allow'
+    check("A8f get_theme_css allow 保留相对 url",
+          theme.get_theme_css('sepia') and 'url(./background-sepia.png)' in theme.get_theme_css('sepia'), '')
+    global_var._user_config['THEME_CSS_URLS'] = 'relative'
+    check("A8g get_theme_css relative 保留相对 url",
+          theme.get_theme_css('sepia') and 'url(./background-sepia.png)' in theme.get_theme_css('sepia'), '')
+    global_var._user_config['THEME_CSS_URLS'] = 'deny'
+    check("A8h get_theme_css deny 移除相对背景 url",
+          theme.get_theme_css('sepia') is not None and 'url(./background-sepia.png)' not in theme.get_theme_css('sepia'), '')
+    if _old_mode is None:
+        global_var._user_config.pop('THEME_CSS_URLS', None)
+    else:
+        global_var._user_config['THEME_CSS_URLS'] = _old_mode
     # 动态白名单解析
     check("A9 resolve_theme 动态含自定义",
           theme.resolve_theme('sepia') == 'sepia' and theme.resolve_theme('ocean') == 'ocean'
@@ -170,6 +197,20 @@ def main():
     check("B7 /theme-static 非法名 404", r.status_code == 404, f"status={r.status_code}")
     r = client.get('/theme-static/dark/theme.css')
     check("B7b /theme-static 内建主题 404", r.status_code == 404, f"status={r.status_code}")
+    # v4.20.4：主题相对资源服务（url(./xxx) → /theme-static/<name>/<file>）
+    r = client.get('/theme-static/sepia/background-sepia.png')
+    check("B8 /theme-static/sepia/background-sepia.png 200", r.status_code == 200,
+          f"status={r.status_code} ct={r.headers.get('Content-Type')}")
+    r = client.get('/theme-static/sepia/theme.css')
+    check("B8b 资源路由 theme.css 仍由 CSS 路由服务(200+text/css)",
+          r.status_code == 200 and 'text/css' in (r.headers.get('Content-Type') or ''),
+          f"status={r.status_code} ct={r.headers.get('Content-Type')}")
+    r = client.get('/theme-static/sepia/../../etc/passwd')
+    check("B8c 资源路由路径穿越 404", r.status_code == 404, f"status={r.status_code}")
+    r = client.get('/theme-static/dark/icon.png')
+    check("B8d 内建主题资源 404", r.status_code == 404, f"status={r.status_code}")
+    r = client.get('/theme-static/nope/a.png')
+    check("B8e 不存在主题资源 404", r.status_code == 404, f"status={r.status_code}")
     # 上下文注入 data-themes（含自定义主题）
     client.set_cookie('theme', 'auto', domain='localhost', path='/')
     r = client.get('/login')

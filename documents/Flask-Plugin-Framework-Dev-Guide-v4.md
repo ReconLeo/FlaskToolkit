@@ -738,13 +738,22 @@ python tools/package.py pack ./my_plugin -o my_plugin.zip --type backend --src-l
 | `resolve_theme(candidate)`        | 白名单校验防注入：合法主题名原样返回，非法回退 `auto`（防路径注入 / 未知值）                              |
 | `get_theme()`                     | 解析当前请求主题：**Cookie `theme` > 用户配置 `THEME` > `auto`**（镜像 i18n 语言机制）                   |
 | `resolve_effective_theme(candidate=None)` | 解析“实际生效主题”（v4.19.x）：`light`→`light`、`dark`→`dark`、有效自定义主题→主题名、`auto`/非法→`auto`；省略入参取 `get_theme()`。供后端/视图需要“当前主题/深浅”做条件渲染 |
-| `get_theme_css(name)`               | 读取自定义主题 CSS（v4.19.2）：白名单 + 非内建 + `themes/<name>/theme.css` 存在才返回，供 `/theme-static` 路由用；否则 `None` |
+| `get_theme_css(name)`               | 读取自定义主题 CSS（v4.19.2）：白名单 + 非内建 + `themes/<name>/theme.css` 存在才返回，并按 `THEME_CSS_URLS` 策略消毒 url()/@import（v4.20.4）；否则 `None` |
+| `get_theme_url_mode()`              | 当前主题 CSS 的 url()/@import 信任策略（v4.20.4）：读 `THEME_CSS_URLS`（allow/relative/deny），非法回退 `allow` |
+| `sanitize_theme_css(css, mode)`     | 按策略消毒 CSS 中的 `url(...)`/`@import`（v4.20.4）：allow=放行相对+外部 http(s)、relative=仅相对、deny=全部移除 |
 
 **优先级**（`get_theme`）：用户本次会话手动选择（Cookie `theme`，白名单校验）> 持久化用户配置 `THEME` > 跟随系统 `auto`。
 
 **auto 语义（诚实说明）**：后端无法读取浏览器 `prefers-color-scheme`（仅前端可感知），故 `resolve_effective_theme()` 对 `auto` 返回 `'auto'` 而非解析后的深浅色；实际深浅色由前端 `theme.js` 经 `matchMedia` 解析并设 `<html data-theme>`。需要“运行时实际深浅”时用前端 `window.Theme.current()` 或 CSS `[data-theme="dark"]` 覆盖。
 
-**路由**：`GET /theme/<code>`（`routes/public.py`）切换主题，仿 `/lang/<code>`：白名单校验 + `next` 开放重定向防护（`next_url.startswith('//') or '://' in next_url` → 回 `/`），成功写 `theme` Cookie 并跳转。`GET /theme-static/<name>/theme.css`（v4.19.2）服务自定义主题 CSS（白名单 + 只读，不存在 404）。`app.py` `inject_i18n` context_processor 注入 `theme` / `available_themes` / `theme_effective` 供模板使用（`available_themes` 在 `data-themes` 属性中供前端读取）。
+**路由**：`GET /theme/<code>`（`routes/public.py`）切换主题，仿 `/lang/<code>`：白名单校验 + `next` 开放重定向防护（`next_url.startswith('//') or '://' in next_url` → 回 `/`），成功写 `theme` Cookie 并跳转。`GET /theme-static/<name>/theme.css`（v4.19.2）服务自定义主题 CSS（白名单 + 只读，按 `THEME_CSS_URLS` 消毒，不存在 404）；`GET /theme-static/<name>/<path>`（v4.20.4）服务主题目录内**相对资源**（图片/字体，`send_from_directory` 防穿越，内建主题无独立资源目录 404），供 CSS 中 `url(./xxx)` 相对引用。`app.py` `inject_i18n` context_processor 注入 `theme` / `available_themes` / `theme_effective` 供模板使用（`available_themes` 在 `data-themes` 属性中供前端读取）。
+
+**url()/@import 信任策略（v4.20.4，`THEME_CSS_URLS`）**：自定义主题 CSS 视为不可信样式只读加载，其 `url()`/`@import` 引用按配置项策略处理：
+- `allow`（默认）：放行相对路径 + 外部 `http(s)` url；移除危险协议（`javascript:`、`data:` 等非 http(s)）；
+- `relative`：仅放行相对路径 url（资源在主题目录内，经 `/theme-static/<name>/` 服务）；移除外部 http(s) 与危险协议；
+- `deny`：移除全部 `url()`/`@import`（纯语义变量主题）。
+
+官方示例主题 `themes/sepia/` 用 `url(./background-sepia.png)`（CC0 Public Domain，Moss Closeup）作 body 背景，演示相对资源能力：`allow`/`relative` 下显示背景图，`deny` 下背景 url 被移除（直观演示策略差异）。
 
 **主题发现与兜底（v4.19.2）**：自定义主题目录为 `global_var.THEMES_DIR`（默认 `BASE_DIR/themes`），结构 `themes/<name>/{theme.json,theme.css}`；主题名须匹配 `^[a-zA-Z0-9_-]+$`（防路径注入），`theme.json` 声明 `name`（须与目录名一致）与 `title`（UI 展示）。**自定义主题被删（Cookie/配置仍指向它）的兜底**：`get_theme`/`resolve_theme`/`resolve_effective_theme` 均经 `_is_valid_theme`（依赖动态 `available_themes`）校验，被删主题自动回退 `auto`，且**不清除 Cookie**（偏好保留，重放回目录自动恢复）；前端 theme.js 对自定义主题 CSS 加载失败（404）回退 `auto` 作视觉兜底。
 

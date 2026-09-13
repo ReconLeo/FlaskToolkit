@@ -222,6 +222,15 @@ PROFILES = {
             'AUDIT_HOOK_MODE': 'observe',
             'UPDATE_CHECK_ENABLED': True,
             'MAX_UPLOAD_SIZE_MB': 100,
+            # v4.20.4：后续新增参数入预设
+            'THEME_CSS_URLS': 'allow',
+            'MDNS_ENABLED': True,
+            'IP_WATCH_INTERVAL': 30,
+            'ACCESS_PROFILE_ENABLED': True,
+            'STATS_RETENTION_DAYS': 30,
+            'PLUGIN_DATA_LIMIT_MB': 50,
+            'PLUGIN_DATA_TOTAL_LIMIT_MB': 200,
+            'PACKAGE_MAX_UPLOAD_SIZE_MB': 10,
         },
     },
     'strict': {
@@ -239,6 +248,16 @@ PROFILES = {
             'AUDIT_HOOK_MODE': 'enforce',
             'UPDATE_CHECK_ENABLED': False,
             'MAX_UPLOAD_SIZE_MB': 100,
+            # v4.20.4：加固——禁外部主题 url（仅相对资源）、关闭 mDNS 暴露、反代 HTTPS
+            'THEME_CSS_URLS': 'relative',
+            'MDNS_ENABLED': False,
+            'IP_WATCH_INTERVAL': 30,
+            'ACCESS_PROFILE_ENABLED': True,
+            'STATS_RETENTION_DAYS': 90,
+            'TRUST_PROXY_HEADERS': True,
+            'PLUGIN_DATA_LIMIT_MB': 50,
+            'PLUGIN_DATA_TOTAL_LIMIT_MB': 200,
+            'PACKAGE_MAX_UPLOAD_SIZE_MB': 10,
         },
     },
     'lan-open': {
@@ -253,6 +272,15 @@ PROFILES = {
             'AUDIT_HOOK_MODE': 'off',
             'UPDATE_CHECK_ENABLED': False,
             'MAX_UPLOAD_SIZE_MB': 100,
+            # v4.20.4：可信局域网——允许外部主题 url、开启 mDNS、IP 稳定不轮询
+            'THEME_CSS_URLS': 'allow',
+            'MDNS_ENABLED': True,
+            'IP_WATCH_INTERVAL': 0,
+            'ACCESS_PROFILE_ENABLED': True,
+            'STATS_RETENTION_DAYS': 30,
+            'PLUGIN_DATA_LIMIT_MB': 50,
+            'PLUGIN_DATA_TOTAL_LIMIT_MB': 200,
+            'PACKAGE_MAX_UPLOAD_SIZE_MB': 10,
         },
     },
 }

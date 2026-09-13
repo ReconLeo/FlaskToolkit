@@ -143,6 +143,22 @@ def register(app):
         response.headers['Cache-Control'] = 'public, max-age=300'
         return response
 
+    @app.route('/theme-static/<name>/<path:filepath>')
+    def theme_static_asset(name, filepath):
+        """自定义主题相对资源（v4.20.4）：GET /theme-static/<name>/<file>。
+
+        服务 themes/<name>/ 下的图片/字体等，供主题 CSS 内 url(./xxx) 相对引用
+        （浏览器经 /theme-static/<name>/xxx 解析）。主题名白名单 + send_from_directory 防穿越；
+        内建主题无独立资源目录返回 404。
+        """
+        from core import theme
+        if not theme._THEME_NAME_RE.match(name) or name in theme.BUILTIN_THEMES:
+            return '', 404
+        base = os.path.join(global_var.THEMES_DIR, name)
+        if not os.path.isdir(base):
+            return '', 404
+        return send_from_directory(base, filepath, max_age=300)
+
     @app.route('/user-center')
     def user_center():
         """用户中心（v4.20）：登录用户自助修改昵称/密码（用户名不可改）。

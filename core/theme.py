@@ -155,12 +155,72 @@ def resolve_effective_theme(candidate=None):
     return DEFAULT_THEME  # auto（跟随系统，交前端解析）
 
 
+def get_theme_url_mode() -> str:
+    """当前自定义主题 CSS 的 url()/@import 信任策略（THEME_CSS_URLS 配置）。
+
+    allow/relative/deny；非法回退 allow（default 即 allow）。
+    """
+    mode = global_var.get_user_config().get('THEME_CSS_URLS')
+    return mode if mode in ('allow', 'relative', 'deny') else 'allow'
+
+
+# 匹配 CSS 中的 url(...) 与 @import url(...) / @import "..."（含单引号）
+_URL_PAT = re.compile(
+    r"@import\s+(?:url\(\s*)?['\"]?([^'\"\)\s]+)['\"]?\s*\)?|"
+    r"url\(\s*['\"]?([^'\"\)\s]+)['\"]?\s*\)",
+    re.IGNORECASE,
+)
+
+_SCHEME_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9+.-]*:')
+
+
+def _is_external_url(u: str) -> bool:
+    """是否外部/危险协议 url：以 scheme: 开头（http://、data:、javascript: 等）或 //。"""
+    s = u.strip().lower()
+    if s.startswith('//'):
+        return True
+    if s.startswith('#'):
+        return False
+    return bool(_SCHEME_RE.match(s))
+
+
+def sanitize_theme_css(css: str, mode: str) -> str:
+    """按 url 策略消毒主题 CSS 中的 url()/@import 引用。
+
+    - allow   ：保留相对路径 + 外部 http(s)；移除危险协议（data:/javascript:/其它 scheme）。
+    - relative：仅保留相对路径（资源在主题目录内，经 /theme-static/<name>/ 服务）；移除外部/危险。
+    - deny    ：移除全部 url()/@import（纯语义变量主题）。
+    """
+    if not css:
+        return css
+
+    def repl(m):
+        # @import 匹配组 1，url() 匹配组 2
+        raw = m.group(1) or m.group(2) or ''
+        u = raw.strip().strip('\"\'')
+        if not u or u.startswith('#'):
+            return m.group(0) if mode != 'deny' else ''
+        lower = u.lower()
+        is_http = lower.startswith(('http://', 'https://'))
+        is_rel = not (_is_external_url(u) or is_http)
+        if mode == 'deny':
+            return ''
+        if mode == 'relative':
+            # 仅相对路径放行；外部 http(s) 与危险协议均移除
+            return m.group(0) if is_rel else ''
+        # allow：外部 http(s) 与相对放行，其余（data:/javascript:/其它 scheme）移除
+        return m.group(0) if (is_http or is_rel) else ''
+
+    return _URL_PAT.sub(repl, css)
+
+
 def get_theme_css(name):
     """读取自定义主题 CSS 内容（供 /theme-static/<name>/theme.css 路由）。
 
     - 白名单正则校验，非法名返回 None；
     - 仅对已发现的自定义主题（非内建三色）开放；
-    - 文件不存在 / 读取失败返回 None。视为不可信样式，只读、不执行任何代码。
+    - 文件不存在 / 读取失败返回 None。视为不可信样式，只读、不执行任何代码；
+      按 THEME_CSS_URLS 策略消毒 url()/@import（allow/relative/deny）。
     """
     if not _THEME_NAME_RE.match(name):
         return None
@@ -171,6 +231,7 @@ def get_theme_css(name):
         return None
     try:
         with open(p, encoding='utf-8') as f:
-            return f.read()
+            css = f.read()
     except OSError:
         return None
+    return sanitize_theme_css(css, get_theme_url_mode())

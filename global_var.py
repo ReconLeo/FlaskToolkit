@@ -156,6 +156,8 @@ CONFIG_ITEMS = {
                              'desc': '系统显示语言（v4.9.0，内置 zh-CN/en，可扩展；可选值由 locales/ 语言包决定；Cookie lang 可覆盖）'},
     'THEME': {'default': 'auto', 'kind': 'str',
                              'desc': '界面主题（v4.19.0，内置 auto/light/dark，可扩展；auto=跟随系统 prefers-color-scheme；Cookie theme 可覆盖）'},
+    'THEME_CSS_URLS': {'default': 'allow', 'kind': 'enum', 'choices': ['allow', 'relative', 'deny'],
+                             'desc': '自定义主题 CSS 的 url()/@import 信任策略（v4.20.4）：allow=放行外部 http(s)+相对路径；relative=仅放行相对路径资源（拒外部）；deny=移除全部 url()（纯语义变量）'},
     'SYSTEM_VERSION_LABEL': {'default': 'v4.20.3', 'kind': 'str',
                              'desc': '系统版本显示标签（v4.7.0，前端展示用，仅装饰不改 FRAMEWORK_VERSION 逻辑；升级框架时建议同步更新）'},
     'UPDATE_FEED_URL': {'default': 'https://raw.githubusercontent.com/ReconLeo/FlaskToolkit/main/changelog.json', 'kind': 'str',

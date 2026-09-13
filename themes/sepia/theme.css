@@ -4,8 +4,17 @@
    自定义主题 = 完整语义变量覆盖集（无需改 JS / 后端逻辑）。
    复制 themes/sepia/ 为 themes/<你的主题名>/，改写 theme.json 的
    name/title 与 theme.css 的 :root[data-theme="<主题名>"] 覆盖集即可。
-   主题名须匹配 ^[a-zA-Z0-9_-]+$；theme.css 视为不可信样式只读加载。
+   主题名须匹配 ^[a-zA-Z0-9_-]+$；theme.css 视为不可信样式只读加载，
+   url()/@import 按 THEME_CSS_URLS 策略消毒（allow/relative/deny）。
    ============================================================ */
+/* 背景图 background-sepia.png
+   来源：https://www.publicdomainpictures.net/en/view-image.php?image=223692
+   License: CC0 Public Domain
+   Lode Van de Velde has released this "Moss Closeup" image under Public Domain license.
+   It means that you can use and modify it for your personal and commercial projects.
+   If you intend to use an image you find here for commercial use, please be aware that
+   some photos do require a model or a property release. Pictures featuring products
+   should be used with care. */
 :root[data-theme="sepia"] {
     /* 主色：暖棕金 */
     --primary: #a17917;
@@ -41,4 +50,14 @@
     --code-text: #e8dfc8;
     /* 浅色暖调 */
     color-scheme: light;
+}
+
+/* v4.20.4：相对资源能力演示——背景图（url(./background-sepia.png) 经 /theme-static/sepia/ 服务）。
+   仅在 THEME_CSS_URLS=allow/relative 时生效（deny 会移除该 url）。卡片/面板用不透明 --card-bg，文字可读。 */
+:root[data-theme="sepia"] body {
+    background-image: url(./background-sepia.png);
+    background-size: cover;
+    background-attachment: fixed;
+    background-position: center;
+    background-color: var(--bg);
 }
