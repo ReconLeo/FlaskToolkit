@@ -8,7 +8,7 @@
   2) 构建更新包 + 写 changelog.json：
      python tools/release.py build --version 4.8.0 \
          --changes "版本检查与更新机制（F1/F4）" --changes "..." \
-         --download-url "https://github.com/ReconLeo/FlaskToolkit/releases/download/v4.8.0/FlaskToolkit-v4.8.0-runtime.zip" \
+         --download-url "https://github.com/ReconLeo/FlaskToolkit/releases/download/v4.8.0/FlaskToolkit-4.8.0-runtime.zip" \
          [--full] [--include /path/src:rel/dest ...] [--sign private.pem] [--out dist]
 
 更新包形态（审计意见）：默认精简运行包；--full 全量包（含 tests/documents/examples）；--include 叠加企业定制附加项。
