@@ -138,65 +138,8 @@ python examples/install_all.py                            # 一键安装 8 个�
 
 ## 测试与 CI
 
-`tests/` 48 个回归测试脚本（隔离目录模式，不污染项目文件）；GitHub Actions 在 Python 3.10 / 3.11 / 3.12 上自动执行，覆盖权限、插件包 / 前端工具链路、完整性签名、卸载清单、Factory Reset、大插件多模板页面路由、文件传输（上传限制 / 中文名下载 / Range）、插件静态安全扫描、能力声明交叉校验、运行时审计钩子、i18n 语言框架、插件数据配额、事件总线与依赖解析、设备检测与移动端模板分发、插件脚手架与离线安装/卸载 CLI、单插件空间清理、运维工具等。
+`tests/` 48 个回归测试脚本（隔离目录模式，不污染项目文件）；GitHub Actions 在 Python 3.10 / 3.11 / 3.12 上自动执行，覆盖权限、插件包 / 前端工具链路、完整性签名、卸载清单、Factory Reset、大插件多模板页面路由、文件传输（上传限制 / 中文名下载 / Range）、插件静态安全扫描、能力声明交叉校验、运行时审计钩子、i18n 语言框架、插件数据配额、事件总线与依赖解析、设备检测与移动端模板分发、插件脚手架与离线安装/卸载 CLI、单插件空间清理、运维工具等。逐脚本清单仅在[开发规范第 12 章（回归测试套件）](documents/Flask-Plugin-Framework-Dev-Guide-v4.md)维护，不在本文件重复。
 
-<details>
-<summary>展开：48 个测试脚本</summary>
-
-```bash
-cd FlaskToolkit
-python tests/test_permission.py            # 权限体系 20 项
-python tests/test_stage2.py                # 安全加固回归 19 项
-python tests/test_zip_slip.py              # 插件包 zip slip 19 项
-python tests/test_reserved_name.py         # 插件名保留名黑名单（v4.21）：PLUGIN_RESERVED_NAMES 拒绝 + 普通名放行 20 项
-python tests/test_pack_meta.py             # 插件包描述一致性 23 项
-python tests/test_reload_race.py           # 热加载重载竞态 1 项（20 轮）
-python tests/test_meta_e2e.py              # 插件包元信息端到端 11 项
-python tests/test_frontend_zip_slip.py     # 前端工具 zip slip 21 项
-python tests/test_frontend_chain.py        # 前端工具链路端到端 23 项
-python tests/test_admin_api.py             # 管理端 API 69 项
-python tests/test_factory_reset.py         # Factory Reset 范围 39 项
-python tests/test_error_pages.py           # 错误码页面 12 项
-python tests/test_package_sign.py          # 完整性校验/签名 25 项
-python tests/test_plugin_cleanup.py        # 插件卸载 installed_files 清单 23 项
-python tests/test_frontend_permission.py   # 前端工具访问控制 25 项
-python tests/test_tools_ops.py             # 运维工具 backup/reset/config 19 项
-python tests/test_page_router.py           # 大插件多模板页面路由 + 纯 API 无 name 插件调试页 + object 类型参数回归 23 项
-python tests/test_framework_fixes.py       # 框架小修复：public_page 豁免 + CSRF 单值注入 12 项
-python tests/test_file_transfer.py         # 文件传输：全局 413 / 插件级与 route 级上传上限 / 中文名下载 / 下载统计 / Range / on_ready 顺序 12 项
-python tests/test_plugin_uploads.py    # 同步持久化上传助手（v4.18）：净化/去重/大小+配额预检/落盘 21 项
-python tests/test_security.py              # 系统安全：安全响应头 / Cookie 加固 / 空闲超时 / 登录锁定与手动解封 45 项
-python tests/test_plugin_scan.py           # 插件静态扫描（v4.3.1）：危险导入/调用/混淆/网络文件触点 35 项
-python tests/test_capabilities.py          # 插件能力声明（v4.3.2）：解析/匹配/交叉校验/运行时授权 70 项
-python tests/test_root_domain.py            # Root 域与市场铺路（v4.15）：framework 三档 / 插件管理服务层 / 插件级更新源 18 项
-python tests/test_framework_manifest.py     # 框架目录清单（v4.15.1）：核心/用户数据单一清单 + Root 域路径判定 54 项
-python tests/test_root_demo.py              # 示例插件 root_demo（v4.15.1）：framework:core Root 读写 + 对照拒绝 19 项
-python tests/test_audit_hook.py            # 运行时审计钩子（v4.4.0）：事件映射/栈定位/observe/enforce 38 项
-python tests/test_update_checker.py     # 版本检查推送（v4.8.0）：版本比较/数据源缓存 TTL/archive 校验链/zip slip 防护/自更新签名验签 50 项
-python tests/test_plugin_updates.py    # 插件级更新源签名（v4.15/v4.17.1）：有效签名通过/篡改·无签名拒绝 8 项
-python tests/test_release_sign.py      # 发布签名联动（v4.17.1）：release --sign 产出可被 update_checker 验证 5 项
-python tests/test_src_layout.py        # package.py 源码布局自动映射（v4.17.2）：<name>.json+frontend/ → plugin.json+templates/static 16 项
-python tests/test_i18n.py                  # i18n（v4.9.0）：语言包/查找链/语言解析/切换路由/模板渲染 29 项
-python tests/test_data_limit.py            # 插件数据配额（v4.9.0-4.9.2）：路径判定/用量统计/storage:limit 声明/写目录作用域/上传预检/全局总量/TTL/禁用 32 项
-python tests/test_setup.py               # 首次运行向导 + 强制改密（v4.10 M4）17 项
-python tests/test_register.py             # 邀请码自助注册 + 审核（v4.10 M5）25 项
-python tests/test_scaffold_tools.py       # 脚手架 + 离线安装/卸载闭环（v4.10 M6）53 项
-python tests/test_network.py              # 网络与访问（v4.11）+ 308 跳转/Secure 判定（v4.12）41 项
-python tests/test_mdns.py                 # mDNS 服务注册（v4.11，可选 zeroconf）22 项
-python tests/test_ip_watcher.py           # IP 变化检测（v4.11）15 项
-python tests/test_desktop_launcher.py     # 桌面启动器（v4.11）+ HTTPS 复选框（v4.12）36 项
-python tests/test_stats.py                  # 数据统计洞察（v4.14）：时间桶 + 访问画像双维模型 / dashboard 总览化 / 14 天趋势与错误 Top 55 项
-python tests/test_selfcheck.py              # 启动完整性自检（v4.15）：CORE_FILES 完整性 / 时区探测 / 完整自检 14 项
-python tests/test_events.py                 # 事件总线（v4.16）：priority / once / off / weakref 清理 / 绑定方法强引用 / async 非阻塞 / 异常隔离 / 内置事件 11 项
-python tests/test_dependency.py             # 依赖解析（v4.16）：dep_spec 解析 / semver 含预发布 / Kahn 拓扑 / 环 / 缺失排除 11 项
-python tests/test_plugin_events.py          # BasePlugin 事件集成 + 示例演示（v4.16）：scheduler_demo 事件与手动触发 / dependent_demo 跨插件订阅 28 项
-python tests/test_device.py                 # 设备检测 + 移动端模板分发（v4.17）：UA 分类 / 配置开关 / resolve_template / 公开页移动端模板 / BasePlugin 移动端命名空间 20 项
-python tests/test_theme.py                 # 界面主题（v4.19）：主题注册白名单 / 非法回退 / Cookie 与用户配置优先级 / auto 深浅解析 / 后台+公开页深色变量 / plugin_default 移动端适配 / themes/ 扫描+自定义主题兑底 / url 策略 + 相对资源路由 36 项
-python tests/test_user_center.py            # 用户中心（v4.20）：自助改昵称 / 用户名不可改 / /user-center 守卫 13 项
-# 合计 48 个回归脚本
-```
-
-</details>
 
 ## 版本状态
 

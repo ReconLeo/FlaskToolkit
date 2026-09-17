@@ -138,69 +138,12 @@ Detailed specs live in the [Flask Plugin Framework Development Guide](documents/
 
 ## Tests & CI
 
-`tests/` contains **48 scripts** of regression tests (isolated-directory mode, no pollution of project files); GitHub Actions runs them automatically on Python 3.10 / 3.11 / 3.12, covering permissions, plugin-package / frontend-tool chains, integrity signatures, uninstall manifests, Factory Reset, large-plugin multi-template page routing, file transfer (upload limits / Chinese-name downloads / Range), static security scanning, capability cross-validation, runtime audit hooks, i18n framework, plugin data quota, event bus & dependency resolution, device detection & mobile template dispatch, plugin scaffolding / offline install-uninstall CLI, per-plugin space cleanup, ops tools, etc.
+`tests/` contains **48 scripts** of regression tests (isolated-directory mode, no pollution of project files); GitHub Actions runs them automatically on Python 3.10 / 3.11 / 3.12, covering permissions, plugin-package / frontend-tool chains, integrity signatures, uninstall manifests, Factory Reset, large-plugin multi-template page routing, file transfer (upload limits / Chinese-name downloads / Range), static security scanning, capability cross-validation, runtime audit hooks, i18n framework, plugin data quota, event bus & dependency resolution, device detection & mobile template dispatch, plugin scaffolding / offline install-uninstall CLI, per-plugin space cleanup, ops tools, etc. The full per-script list is maintained in the [Development Guide §12](documents/Flask-Plugin-Framework-Dev-Guide-v4.md) only, not duplicated here.
 
-<details>
-<summary>Expand: 48 test scripts</summary>
-
-```bash
-cd FlaskToolkit
-python tests/test_permission.py            # permission system 20 assertions
-python tests/test_stage2.py                # security hardening regression 19
-python tests/test_zip_slip.py              # plugin-package zip slip 19
-python tests/test_reserved_name.py         # reserved plugin-name blacklist (v4.21): PLUGIN_RESERVED_NAMES reject + normal-name pass 20
-python tests/test_pack_meta.py             # plugin-package meta consistency 23
-python tests/test_reload_race.py           # hot-reload race 1 (20 rounds)
-python tests/test_meta_e2e.py              # plugin-package meta end-to-end 11
-python tests/test_frontend_zip_slip.py     # frontend-tool zip slip 21
-python tests/test_frontend_chain.py        # frontend-tool chain end-to-end 23
-python tests/test_admin_api.py             # admin API 69
-python tests/test_factory_reset.py         # Factory Reset scope 39
-python tests/test_error_pages.py           # error-code pages 12
-python tests/test_package_sign.py          # integrity verification / signing 25
-python tests/test_plugin_cleanup.py        # uninstall installed_files manifest 23
-python tests/test_frontend_permission.py   # frontend-tool access control 25
-python tests/test_tools_ops.py             # ops tools backup/reset/config 19
-python tests/test_page_router.py           # large-plugin multi-template page routing + pure-API no-name plugin debug page regression + object-type param 23
-python tests/test_framework_fixes.py       # framework small fixes: public_page exemption + CSRF single-injection 12
-python tests/test_file_transfer.py         # file transfer: global 413 / plugin & route upload limits / Chinese-name downloads / download stats / Range / on_ready order 12
-python tests/test_plugin_uploads.py    # sync persistent upload helper (v4.18): sanitize / dedup / size+quota pre-check / save 21
-python tests/test_security.py              # system security: headers / cookie hardening / idle timeout / login lockout & manual unlock 45
-python tests/test_plugin_scan.py           # plugin static scanning (v4.3.1): risky imports/calls/obfuscation/network+file touchpoints 35
-python tests/test_capabilities.py          # plugin capability declarations (v4.3.2): parse/match/cross-check/runtime authorization 70
-python tests/test_root_domain.py            # Root domain & marketplace groundwork (v4.15): framework tiers / plugin-admin service layer / per-plugin update feed 18
-python tests/test_framework_manifest.py     # framework directory manifest (v4.15.1): single-source core/user-data lists + Root-domain path check 54
-python tests/test_root_demo.py              # example plugin root_demo (v4.15.1): framework:core Root read/write + contrast rejection 19
-python tests/test_audit_hook.py            # runtime audit hooks (v4.4.0): event mapping/stack attribution/observe/enforce 38
-python tests/test_update_checker.py     # update checker (v4.8.0): version compare / feed cache TTL / archive verify chain / zip-slip guard / update-feed signature verify 50
-python tests/test_plugin_updates.py    # plugin update-feed signing (v4.15/v4.17.1): signed verified / tampered·unsigned rejected 8
-python tests/test_release_sign.py      # release --sign → update_checker verify chain (v4.17.1) 5
-python tests/test_src_layout.py        # package.py src-layout auto-mapping (v4.17.2): <name>.json+frontend/ → plugin.json+templates/static 16
-python tests/test_i18n.py                  # i18n (v4.9.0): language packs / lookup chain / lang resolution / cookie switch / template render 29
-python tests/test_data_limit.py            # plugin data quota (v4.9.0-4.9.2): path judge / usage / storage:limit declaration / write-dir scope / upload pre-check / global total / TTL / disable 32
-python tests/test_setup.py               # first-run wizard + forced password change (v4.10 M4) 17
-python tests/test_register.py             # invite-code self-registration + review (v4.10 M5) 25
-python tests/test_scaffold_tools.py       # scaffolding + offline install/uninstall (v4.10 M6) 53
-python tests/test_network.py              # network & access (v4.11) + 308 redirect / Secure cookie (v4.12) 41
-python tests/test_mdns.py                 # mDNS service registration (v4.11, optional zeroconf) 22
-python tests/test_ip_watcher.py           # IP-change detection (v4.11) 15
-python tests/test_desktop_launcher.py     # desktop launcher (v4.11) + HTTPS checkbox (v4.12) 36
-python tests/test_stats.py                  # statistics insight (v4.14): time-bucket + access-profile dual model / dashboard / trend & error top 55
-python tests/test_selfcheck.py              # startup self-check (v4.15): CORE_FILES completeness / timezone probe / full check 14
-python tests/test_events.py                 # event bus (v4.16): priority / once / off / weakref cleanup / bound-method strong ref / async non-blocking / exception isolation / built-in emission 11
-python tests/test_dependency.py             # dependency resolution (v4.16): dep-spec parse / semver incl pre-release / Kahn topo / cycles / missing exclusion 11
-python tests/test_plugin_events.py          # BasePlugin event integration + example demos (v4.16): scheduler_demo events & manual trigger / dependent_demo cross-plugin subscription 28
-python tests/test_device.py                 # device detection + mobile template dispatch (v4.17): UA classification / config switches / resolve_template / public-page mobile template / BasePlugin mobile namespace 20
-python tests/test_theme.py                 # interface theme (v4.19): theme registry whitelist / resolve fallback / cookie vs user-config precedence / auto light-dark resolve / admin+public dark CSS vars / mobile plugin_default / themes/ scan + custom-theme fallback + url strategy + asset route 36
-python tests/test_user_center.py            # user center (v4.20): self update-nickname / immutable username / /user-center guard 13
-# total: 48 scripts
-```
-
-</details>
 
 ## Edition Status
 
-- **Community Edition (v4.x)**: feature development continues with a deliberately controlled architectural scale, focused on small-LAN / personal-use scenarios; we maintain and release regularly (46-script regression suite + CI).
+- **Community Edition (v4.x)**: feature development continues with a deliberately controlled architectural scale, focused on small-LAN / personal-use scenarios; we maintain and release regularly (48-script regression suite + CI).
 - **Lite Edition (v4.2.2)**: a lightweight single-machine sibling repo for personal developers and small self-hosted setups — a minimal, readable subset of FlaskToolkit (anything that runs on Lite also runs on the main framework). First release: [FlaskToolkit-Lite v4.2.2](https://github.com/ReconLeo/FlaskToolkit-Lite).
 - **Enterprise Edition (v5.x)**: planned to carry the long-term roadmap (refined permission model, process-level sandboxing, stricter CSP, enterprise identity integration, etc.). Due to limited team capacity, we are openly looking for maintainers to take over — see the [Enterprise Edition handover & roadmap](documents/Enterprise-Edition-Handover-Roadmap.md).
 
