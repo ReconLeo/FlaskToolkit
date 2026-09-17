@@ -58,7 +58,7 @@ GOOD_PY = '''
 from plugins.base_plugin import BasePlugin
 
 class UserManagePlugin(BasePlugin):
-    name = "user_manage"
+    name = "demo_meta"
     version = "1.0.1"
     title = "用户账号管理"
     author = "System"
@@ -69,7 +69,7 @@ class UserManagePlugin(BasePlugin):
 '''
 
 GOOD_JSON = {
-    "name": "user_manage",
+    "name": "demo_meta",
     "version": "1.0.1",
     "title": "用户账号管理",
     "author": "System",
@@ -84,7 +84,7 @@ PIP_PY = '''
 from plugins.base_plugin import BasePlugin
 
 class UserManagePlugin(BasePlugin):
-    name = "user_manage"
+    name = "demo_meta"
     version = "1.0.1"
     title = "用户账号管理"
     author = "System"
@@ -95,11 +95,11 @@ class UserManagePlugin(BasePlugin):
     pip_dependencies = ["requests>=2.28", "cryptography"]
 '''
 
-def make_zip(path, json_obj, py_source, py_name='user_manage.py'):
+def make_zip(path, json_obj, py_source, py_name='demo_meta.py'):
     with zipfile.ZipFile(path, 'w', zipfile.ZIP_DEFLATED) as zf:
         zf.writestr('plugin.json', json.dumps(json_obj, ensure_ascii=False).encode('utf-8'))
         zf.writestr(py_name, py_source)
-def expect_ok(label, json_obj, py_source, py_name='user_manage.py'):
+def expect_ok(label, json_obj, py_source, py_name='demo_meta.py'):
     """期望解析成功，返回对齐后的 desc"""
     with TmpBase() as root:
         zp = os.path.join(root, 'p.zip')
@@ -113,7 +113,7 @@ def expect_ok(label, json_obj, py_source, py_name='user_manage.py'):
             return None
 
 
-def expect_reject(label, json_obj, py_source, py_name='user_manage.py', keyword=''):
+def expect_reject(label, json_obj, py_source, py_name='demo_meta.py', keyword=''):
     """期望解析被拒绝（ValueError）"""
     with TmpBase() as root:
         zp = os.path.join(root, 'p.zip')
@@ -145,7 +145,7 @@ def test_alignment():
         check('dependencies 已从类兜底', desc.get('dependencies') == ['auth'], f"deps={desc.get('dependencies')}")
 
     # 4. plugin.json 缺多个展示字段 → 类兜底
-    d = {'name': 'user_manage'}
+    d = {'name': 'demo_meta'}
     desc = expect_ok('plugin.json 仅 name 其余类兜底', d, GOOD_PY)
     if desc:
         ok = (desc.get('version') == '1.0.1' and desc.get('permission') == 'admin'
@@ -208,7 +208,7 @@ def test_conflicts():
 
 def test_name_consistency():
     # 10. 类 name 与 plugin.json name 不一致 → 拒绝
-    bad_py = GOOD_PY.replace('name = "user_manage"', 'name = "other_name"')
+    bad_py = GOOD_PY.replace('name = "demo_meta"', 'name = "other_name"')
     expect_reject('类 name 与 plugin.json 不一致拒绝', dict(GOOD_JSON), bad_py, keyword='name')
 
     # 11. 类 name 无法静态提取（如 __init__ 动态设置）→ 不误伤（跳过 name 校验）
@@ -219,7 +219,7 @@ class DynamicPlugin(BasePlugin):
     version = "1.0.1"
     def __init__(self):
         super().__init__()
-        self.name = "user_manage"
+        self.name = "demo_meta"
 '''
     expect_ok('类 name 动态设置不误伤', dict(GOOD_JSON), dynamic_py)
 
@@ -233,19 +233,19 @@ def test_extract_writes_aligned_meta():
     with TmpBase() as root:
         zp = os.path.join(root, 'p.zip')
         # plugin.json 缺 version/dependencies，期望落盘时已补齐
-        d = {'name': 'user_manage', 'title': '用户账号管理'}
+        d = {'name': 'demo_meta', 'title': '用户账号管理'}
         make_zip(zp, d, GOOD_PY)
         desc = parse_plugin_pack(zp)
-        extract_plugin_pack(zp, 'user_manage', meta_override=desc)
+        extract_plugin_pack(zp, 'demo_meta', meta_override=desc)
 
-        meta_path = os.path.join(root, 'plugins', 'user_manage', 'user_manage.json')
-        check('描述文件已落盘(目录化 plugins/user_manage/user_manage.json)', os.path.isfile(meta_path), f"exists={os.path.isfile(meta_path)}")
+        meta_path = os.path.join(root, 'plugins', 'demo_meta', 'demo_meta.json')
+        check('描述文件已落盘(目录化 plugins/demo_meta/demo_meta.json)', os.path.isfile(meta_path), f"exists={os.path.isfile(meta_path)}")
         if os.path.isfile(meta_path):
             with open(meta_path, 'r', encoding='utf-8') as f:
                 landed = json.load(f)
             ok = (landed.get('version') == '1.0.1'
                   and landed.get('dependencies') == ['auth']
-                  and landed.get('name') == 'user_manage')
+                  and landed.get('name') == 'demo_meta')
             check('落盘描述已对齐补全', ok, f"landed={landed}")
 
 
@@ -257,15 +257,15 @@ def test_extract_locales_plugin_pack():
         # 构造含 locales/ 的插件包
         with zipfile.ZipFile(zp, 'w', zipfile.ZIP_DEFLATED) as zf:
             zf.writestr('plugin.json', json.dumps(GOOD_JSON, ensure_ascii=False).encode('utf-8'))
-            zf.writestr('user_manage.py', GOOD_PY)
+            zf.writestr('demo_meta.py', GOOD_PY)
             zf.writestr('locales/en.json', json.dumps({'用户账号管理': 'User Management'}, ensure_ascii=False).encode('utf-8'))
             zf.writestr('locales/fr.json', json.dumps({'用户账号管理': 'Gestion des utilisateurs'}, ensure_ascii=False).encode('utf-8'))
         desc = parse_plugin_pack(zp)
-        res = extract_plugin_pack(zp, 'user_manage', meta_override=desc)
+        res = extract_plugin_pack(zp, 'demo_meta', meta_override=desc)
 
         # 1. locales 解压到 plugins/<name>/locales/
-        en_p = os.path.join(root, 'plugins', 'user_manage', 'locales', 'en.json')
-        fr_p = os.path.join(root, 'plugins', 'user_manage', 'locales', 'fr.json')
+        en_p = os.path.join(root, 'plugins', 'demo_meta', 'locales', 'en.json')
+        fr_p = os.path.join(root, 'plugins', 'demo_meta', 'locales', 'fr.json')
         check('插件语言包解压到 plugins/<name>/locales/en.json', os.path.isfile(en_p), f"exists={os.path.isfile(en_p)}")
         check('插件语言包解压到 plugins/<name>/locales/fr.json', os.path.isfile(fr_p), f"exists={os.path.isfile(fr_p)}")
 
@@ -273,11 +273,11 @@ def test_extract_locales_plugin_pack():
         check('extract 返回 locales 清单', res.get('locales') == [en_p, fr_p], f"locales={res.get('locales')}")
 
         # 3. installed_files 记入 locales（供卸载/更新清理）
-        with open(os.path.join(root, 'plugins', 'user_manage', 'user_manage.json'), encoding='utf-8') as f:
+        with open(os.path.join(root, 'plugins', 'demo_meta', 'demo_meta.json'), encoding='utf-8') as f:
             landed = json.load(f)
         inst = [x for x in landed.get('installed_files', []) if 'locales' in x]
         check('installed_files 含 locales 条目',
-              set(inst) == {'plugins/user_manage/locales/en.json', 'plugins/user_manage/locales/fr.json'},
+              set(inst) == {'plugins/demo_meta/locales/en.json', 'plugins/demo_meta/locales/fr.json'},
               f"inst={inst}")
 
         # 4. 内容正确写入

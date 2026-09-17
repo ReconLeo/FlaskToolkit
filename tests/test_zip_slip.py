@@ -70,7 +70,7 @@ def test_parse_plugin_pack():
         zip_path = os.path.join(root, 'p.zip')
 
         # 1. 缺 plugin.json
-        make_zip(zip_path, [('user_manage.py', b'x')])
+        make_zip(zip_path, [('demo_meta.py', b'x')])
         try:
             parse_plugin_pack(zip_path)
             check('缺 plugin.json 拒绝', False, '未抛异常')
@@ -78,7 +78,7 @@ def test_parse_plugin_pack():
             check('缺 plugin.json 拒绝', '缺少描述文件' in str(e), str(e)[:40])
 
         # 2. plugin.json 非法 JSON
-        make_zip(zip_path, [('plugin.json', b'{bad json'), ('user_manage.py', b'x')])
+        make_zip(zip_path, [('plugin.json', b'{bad json'), ('demo_meta.py', b'x')])
         try:
             parse_plugin_pack(zip_path)
             check('非法 JSON 拒绝', False, '未抛异常')
@@ -88,7 +88,7 @@ def test_parse_plugin_pack():
         # 3. 缺 name 字段
         make_zip(zip_path, [
             ('plugin.json', json.dumps({'version': '1.0.0'}).encode('utf-8')),
-            ('user_manage.py', b'x'),
+            ('demo_meta.py', b'x'),
         ])
         try:
             parse_plugin_pack(zip_path)
@@ -98,7 +98,7 @@ def test_parse_plugin_pack():
 
         # 4. name 与主 .py 文件名不匹配
         make_zip(zip_path, [
-            ('plugin.json', json.dumps({'name': 'user_manage'}).encode('utf-8')),
+            ('plugin.json', json.dumps({'name': 'demo_meta'}).encode('utf-8')),
             ('other.py', b'x'),
         ])
         try:
@@ -109,11 +109,11 @@ def test_parse_plugin_pack():
 
         # 5. 正常包解析
         make_zip(zip_path, [
-            ('plugin.json', json.dumps({'name': 'user_manage', 'version': '1.0.1'}).encode('utf-8')),
-            ('user_manage.py', b'x'),
+            ('plugin.json', json.dumps({'name': 'demo_meta', 'version': '1.0.1'}).encode('utf-8')),
+            ('demo_meta.py', b'x'),
         ])
         desc = parse_plugin_pack(zip_path)
-        check('正常包解析', desc.get('name') == 'user_manage', f"desc={desc}")
+        check('正常包解析', desc.get('name') == 'demo_meta', f"desc={desc}")
 
 
 def _expect_reject(entries, label):

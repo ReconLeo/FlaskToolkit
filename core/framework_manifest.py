@@ -116,6 +116,19 @@ FRAMEWORK_CORE_PATHS = ('data/user_config.json', 'data/frontend_tools.json', 'pl
 # 误删则页面 404 且 backup 无法恢复，只能靠 git）。新增框架自带模板须在此同步登记。
 FRONTEND_TOOLS_BUILTIN = ['password_generator']
 
+# ============================ 插件名保留名（禁止作为插件 name） ============================
+# v4.21 目录化后插件 name 直接映射 plugins/<name>/、templates/plugins/<name>/、
+# templates/plugins/static/<name>/，与框架保留目录/模块/内置插件同 namespace。若插件名与
+# 保留目录同名会：覆盖框架数据目录、被 scan _skip_top 跳过而永不被加载、且 Factory Reset
+# 无法清理残留。故 parse_plugin_pack 校验时统一拒绝。新增 plugins/ 顶层保留目录/内置插件/
+# 框架保留模块时须同步登记本清单。
+PLUGIN_RESERVED_NAMES = (
+    'configs', 'data', 'temp', '__pycache__',  # plugins/ 顶层保留目录（scan _skip_top 同名）
+    'static',                                   # templates/plugins/static 保留子目录
+    'auth', 'user_manage',                      # 内置插件
+    '__init__', 'base_plugin', 'status',        # 框架保留模块/文件（plugins/__init__.py、base_plugin.py、status.json）
+)
+
 
 # ============================ 备份范围（从用户数据清单派生） ============================
 # 备份工具（tools/backup.py）的备份项：从 USER_DATA_PATHS 派生，排除纯临时/工作目录；

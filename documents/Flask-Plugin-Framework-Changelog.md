@@ -65,6 +65,7 @@ Kaleido 同样开源（自托管题库系统）：[github.com/ReconLeo/Kaleido](
 | **v4.20.5（收编，未推送）** | 2026-09-13 | 示例插件专项检查：async_file_demo 版本字段一致化（plugin.json 与类属性统一 4.9.1）+ install_all 后端子进程编码修复（PYTHONIOENCODING=utf-8 乱码）、scheduler_demo stat-row 心跳总数 loadStats 同步、corp_tools 模板补 plugin_common.js 修复 CSRF 校验失败、multitool_demo demo.js Object.assign 修复 apiUrl 被覆盖致 undefined 404 + 词频 Top-N 加输入框交互、root_demo 写核心配置 400（**框架 validate_params 支持 object 类型参数**，test_page_router 21→23）、dashboard_demo echarts.min.js 本地化到前端工具 static/（离线可展示）；前端整改：index tool-card 三行布局（icon+title/badge+heat/author）+ 移动端溢出修复、mobile/index m-tool-meta/m-admin-badge 补 chip 样式并同步三行、plugins.html badge 自成一行 + 标识符信息 meta-item 化；.gitignore 放行 dashboard_demo 前端工具源码入库；全量 47 脚本 0 失败 | tag `v4.20.5` |
 | **v4.20.6（收编，未推送）** | 2026-09-13 | 前端 index.html 桌面端 tool-footer 始终位于 tool-card 内部底部（flex 列布局 + margin-top:auto）；所有 index.html / mobile/index.html「打开工具」新页面打开（target=_blank + rel=noopener）；**新功能：前端工具 / 插件包支持自定义图标（.ico 文件，建议 1:1），index.html tool-icon 渲染 img 展示、未定义时 fallback 原样（emoji）**（core/plugin_pack.py META_FIELDS + plugin_loader _meta + frontend_tools valid_tool 组装 icon URL）；示例插件 corp_tools 展示自定义图标（corp.ico，Pillow 生成多尺寸） | tag `v4.20.6` |
 | **v4.20.7（收编，未推送）** | 2026-09-13 | 修复浏览器扩展注入元素（plasmo-csui）撑高 index 页面导致底部大量空白（main.css 防御性 position:fixed 脱离文档流）；登录页用户名回车跳转密码输入框；管理后台 system 页加入隐藏彩蛋（连点 about-brand-icon / 框架版本行，30s 内 >5 次触发，第 6-11 次拟人化逃跑动画、第 12 次图标消失，计数仅内存） | tag `v4.20.7` |
+| **v4.21.0（收编，未推送）** | 2026-09-17 | 插件自包含目录化（插件私有目录 `plugins/<name>/` + 双布局扫描 + migrate 工具 + updateFromFeed 一键更新 + 语言易用化）+ 暗色模式修复 + Factory Reset 边界修复（temp 补全 plugins/temp + 前端工具白名单 + static 子目录保护 + API 可选自动备份）+ 插件名保留名黑名单（PLUGIN_RESERVED_NAMES，parse_plugin_pack 入口统一拦截） | tag `v4.21.0`（bump，未推送） |
 
 ## 3. 版本详情
 
@@ -524,6 +525,37 @@ P1 安全强化至此全部完成，形成纵深防御：**静态扫描 → 能�
   - **气泡长文本溢出**：气话含仓库链接且 `white-space:nowrap` 会横向溢出视口；改为 `white-space:normal + max-width:min(90vw,460px) + text-align:center`。
   - **气泡定位受图标动画影响（回归/消失态塌缩）**：`showBubble` 原用 `getBoundingClientRect()` 定位，而回归（`ftk-e-back` 缩放）与消失（`vanish scale(0)`）态图标带 transform，返回矩形塌缩导致气泡错位（如落在图标中间）。改为**初始化时缓存图标静态锚点**（首次 `getBoundingClientRect` + 之后随滚动增量平移，`getAnchor()`），所有消息统一锚定图标上方，动作/回归/消失各态气泡位置完全一致。
   - **移动端气泡超出右边界**：两处根因——①`getAnchor` 滚动增量方向反（`anchor.x + (sx-anchor.sx)` 应为减，页面滚动后元素视口位置 = 初始 − 滚动量），滚动后气泡右移超界；②`showBubble` 的 `left` 无钳制，窄屏下图标偏右或气泡较宽时右边界直接超出视口不可见。修复：`getAnchor` 改减号；`showBubble` append 后按气泡实际宽高钳制到视口内（水平中心 `[8+bw/2, vw-8-bw/2]`、垂直 `[8, vh-bh-8]`）。
+
+### 3.43 v4.21.0（2026-09-17，插件自包含目录化 + Factory Reset 边界修复 + 保留名黑名单）
+
+#### 插件自包含目录化（主特性，`5e551ec`）
+
+每个插件一个自包含目录 `plugins/<name>/`，主 `.py`、辅助模块、描述文件、`locales/` 全部进入插件私有命名空间，消除多插件同名辅助模块/模板的全局冲突。分发包（zip）内仍为扁平布局，仅**安装解压时映射**到 `plugins/<name>/`：
+- `extract_plugin_pack` 目录化解压；`plugin_meta_file`/`plugin_main_file` helper；cleanup 回退删目录。
+- 双布局扫描（扁平 `plugins/*.py` + 目录化 `plugins/<name>/<name>.py`），`module_name` 供 loader 直接导入；目录指纹递归覆盖目录化插件。
+- `watcher._infer_plugin_target` 目录化推断；`factory_reset` 目录化整删。
+- `user_manage` 迁移为目录化布局；新增 `tools/migrate_plugin_layout.py` 迁移工具。
+- 暗色模式修复 dashboard/network/stats/plugins → `var(--adm-*)`。
+- `plugin_updates._download_to_file` 流式下载 + plugins.html updateFromFeed 一键更新。
+- BasePlugin 语言易用化 `get_lang`/`t`/`available_langs`；corp_tools 1.2.0 require_framework_version=4.21.0。
+
+#### Factory Reset 边界修复（`406065b`，本会话）
+
+侦查发现全范围工厂重置**误删 2 个框架源码文件**（password_generator.html、user_manage.css），根因是重置边界混淆框架源码与用户数据。修复三处：
+- **reset_temp**：临时目录补全 `plugins/temp`（此前无法清理插件目录化后的 `plugins/temp`）。
+- **reset_frontend_tools**：新增 `FRONTEND_TOOLS_BUILTIN`（含 `password_generator`）白名单保护框架自带前端工具模板，不再整删。
+- **reset_custom_plugins**：顶层不再把 `static` 目录整删，避免误删内置静态资源。
+- 新增 `PLUGIN_RESERVED_NAMES` 保留名黑名单；Factory Reset API 增加 `backup` 参数（默认 True）返回 `backup_dir`，写审计日志；前端 system 页 reset-modal 加「重置前自动备份」勾选框（全范围重置自动勾选）+ 响应展示回滚命令；`tools/backup.py` 同秒时间戳冲突追加 `_2/_3` 后缀规避。
+- 测试：test_factory_reset（夹具补目录化布局 + 各 scope 保留断言）、test_admin_api（backup 返回断言 + demo_pack 目录化路径断言）、test_root_demo（require 同步 4.21.0）。
+
+#### 插件名保留名黑名单校验（本会话）
+
+侦查确认：v4.21 目录化后插件 `name` 直接映射 `plugins/<name>/`、`templates/plugins/<name>/`、`templates/plugins/static/<name>/`，与框架保留目录/模块/内置插件同 namespace。安装 `name=data/configs/temp/...` 的插件会**覆盖框架数据目录**、因 `plugin_cache._skip_top` 被静默跳过（不可加载）、且 Factory Reset 无法清理残留。
+- `core/framework_manifest.py` 新增 `PLUGIN_RESERVED_NAMES = (configs, data, temp, __pycache__, static, auth, user_manage, __init__, base_plugin, status)`（10 个保留名）。
+- `parse_plugin_pack` 在 name 非空校验后立即检查保留名并抛 ValueError——preview/install/update/update-from-feed/CLI 统一在入口拦截，早于 extract 干净拒绝。
+- 不改 `plugin_cache._skip_top`（黑名单与其目录化 skip 语义一致）；不扩展前端工具名校验；不做历史遗留 name=data 插件迁移。
+- 测试：新增 test_reserved_name.py（数据驱动拒绝全部保留名 + 普通名回归 + 黑名单关键项断言，20 项）；test_pack_meta / test_zip_slip 的普通样本名 `user_manage` → `demo_meta`（避免误触黑名单）。
+- 全量回归 48 脚本 0 失败。
 
 ## 4. 发布实践沉淀
 

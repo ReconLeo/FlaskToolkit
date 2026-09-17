@@ -517,6 +517,7 @@ def get_item(self, item_id):
 | 规则          | 说明                                                                                                                                                      |
 | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | name 三处一致 | `plugin.json.name` == 主 `.py` 文件名 == 插件类 `name`（AST 可提取时），任一不一致拒绝上传                                                                |
+| 保留名黑名单  | `name` ∈ `PLUGIN_RESERVED_NAMES`（`configs`/`data`/`temp`/`__pycache__`/`static`/`auth`/`user_manage`/`__init__`/`base_plugin`/`status`，见 `core/framework_manifest.py`）→ 拒绝上传。目录化后插件 `name` 直接映射 `plugins/<name>/`、`templates/plugins/<name>/`、`templates/plugins/static/<name>/`，与框架保留目录/模块/内置插件同 namespace，同名会覆盖数据目录、被 `plugin_cache` 扫描 `_skip_top` 静默跳过且 Factory Reset 无法清理，故统一在 `parse_plugin_pack` 入口拦截（v4.21） |
 | 冲突字段拒绝  | `version`/`title`/`author`/`permission`/`category`/`description`/`dependencies`/`require_framework_version` 两处同时声明且不一致 → 拒绝并报告具体冲突字段及两处各自的值（v4.17.2，便于定位改哪边） |
 | 缺失补全      | `plugin.json` 缺失字段回退插件类属性（`version` 缺失用类兜底并告警）                                                                                      |
 | 对齐落盘      | 对齐后的完整描述落盘为 `plugins/<name>/<name>.json`（v4.21 目录化），为运行时唯一权威                                                                                            |

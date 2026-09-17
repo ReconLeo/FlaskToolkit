@@ -19,6 +19,7 @@ import shutil
 import zipfile
 
 import global_var
+from core.framework_manifest import PLUGIN_RESERVED_NAMES
 
 logger = logging.getLogger('flask.app')
 
@@ -75,6 +76,12 @@ def parse_plugin_pack(zip_path: str) -> dict:
         name = (desc.get('name') or '').strip()
         if not name:
             raise ValueError("plugin.json 缺少必填字段: name")
+        # v4.21：插件名保留名黑名单——目录化后 name 直接映射 plugins/<name>/ 等路径，
+        # 与框架保留目录/模块/内置插件同 namespace，同名会覆盖数据目录、被 scan 跳过、
+        # 且 Factory Reset 无法清理残留，故统一拒绝。
+        if name in PLUGIN_RESERVED_NAMES:
+            raise ValueError(
+                f"插件名 '{name}' 为框架保留名，请更换名称（保留名: {', '.join(PLUGIN_RESERVED_NAMES)}）")
         main_py = f"{name}.py"
         if main_py not in names:
             raise ValueError(
