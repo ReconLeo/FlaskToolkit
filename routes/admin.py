@@ -435,6 +435,15 @@ def register(app):
         scope = data.get('scope', 'all')
         if isinstance(scope, (list, tuple)) and not scope:
             return jsonify({"code": 400, "message": "scope 不能为空列表"}), 400
+        # v4.21：重置前可选自动备份（默认开启，全范围重置最危险；显式传 backup=false 可关闭）
+        backup_dir = None
+        if data.get('backup', True):
+            try:
+                from tools import backup as _bk
+                backup_dir, _saved, _skipped = _bk.create_backup()
+            except Exception as e:
+                logger.error(f"Factory Reset 前自动备份失败: {str(e)}", extra={'plugin': 'system'})
+                backup_dir = None
         results = factory_reset(scope)
         # 重置后重载插件（内置插件按默认配置重新加载）
         try:
@@ -442,10 +451,11 @@ def register(app):
         except Exception as e:
             logger.error(f"Factory Reset 后重载插件失败: {str(e)}", extra={'plugin': 'system'})
         log_audit('工厂重置', str(scope), 'ok',
-                  f"清理 {len(results['cleaned'])} 项，失败 {len(results['failed'])} 项")
+                  f"清理 {len(results['cleaned'])} 项，失败 {len(results['failed'])} 项"
+                  + (f"，备份 {os.path.basename(backup_dir)}" if backup_dir else ""))
         return jsonify({
             "code": 200,
-            "data": results,
+            "data": dict(results, backup_dir=backup_dir),
             "message": "重置完成",
         })
 

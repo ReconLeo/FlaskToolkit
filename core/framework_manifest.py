@@ -110,6 +110,12 @@ FRAMEWORK_ROOT_FILES = (
 # Root 域管辖的精确文件（相对项目根，不在 CORE_DIRS 顶层目录下）
 FRAMEWORK_CORE_PATHS = ('data/user_config.json', 'data/frontend_tools.json', 'plugins/status.json')
 
+# ============================ 框架自带前端工具模板 ============================
+# templates/frontend_tools/ 下随框架源码分发、受版本控制的模板文件（非用户上传工具）。
+# Factory Reset 的 frontend_tools 范围只清用户上传模板、保护这些框架自带模板（属框架源码，
+# 误删则页面 404 且 backup 无法恢复，只能靠 git）。新增框架自带模板须在此同步登记。
+FRONTEND_TOOLS_BUILTIN = ['password_generator']
+
 
 # ============================ 备份范围（从用户数据清单派生） ============================
 # 备份工具（tools/backup.py）的备份项：从 USER_DATA_PATHS 派生，排除纯临时/工作目录；
@@ -139,7 +145,7 @@ RESET_STATS_FILE = 'data/stats.json'
 RESET_SESSIONS_FILE = 'plugins/data/auth/sessions.json'
 RESET_LEGACY_SESSIONS_FILE = 'plugins/data/sessions.json'  # v4.5.0 前的旧会话路径
 RESET_AUTH_CONFIG_FILE = 'plugins/configs/auth.json'  # 内置插件配置（auth 恢复默认）
-RESET_TEMP_DIRS = ['.plugin_cache', 'temp']  # 临时清理目标（相对 BASE_DIR，与既有重置行为一致）
+RESET_TEMP_DIRS = ['.plugin_cache', 'temp', 'plugins/temp']  # 临时清理目标（相对 BASE_DIR，plugins/temp 为各插件运行时临时目录）
 
 
 # ============================ 判定函数 ============================

@@ -530,5 +530,7 @@
   "至少 6 位": "at least 6 characters",
   "确认修改密码": "Confirm Password Change",
   "亦可前往": "You may also go to",
-  "完整修改昵称与密码": "to fully update your nickname and password"
+  "完整修改昵称与密码": "to fully update your nickname and password",
+  "重置前自动备份关键数据（可回滚）": "Auto-backup critical data before reset (recoverable)",
+  "已自动备份，如需回滚请执行": "Auto-backup done. To roll back, run"
 }

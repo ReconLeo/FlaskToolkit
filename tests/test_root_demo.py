@@ -41,7 +41,7 @@ with open(os.path.join(_plug_dir, 'plugin.json'), encoding='utf-8') as _f:
 _caps = _desc.get('capabilities', [])
 check("A1 plugin.json name=root_demo", _desc.get('name') == 'root_demo', '')
 check("A2 permission=admin", _desc.get('permission') == 'admin', '')
-check("A3 require_framework_version=4.15.0", _desc.get('require_framework_version') == '4.15.0', '')
+check("A3 require_framework_version=4.21.0", _desc.get('require_framework_version') == '4.21.0', '')
 check("A4 声明 framework:core", 'framework:core' in _caps, '%s' % _caps)
 check("A5 声明 filesystem:read:data/", 'filesystem:read:data/' in _caps, '%s' % _caps)
 
@@ -85,7 +85,7 @@ _spec.loader.exec_module(_mod)
 _cls = _mod.RootDemoPlugin
 check("G1 类名 RootDemoPlugin", _cls.__name__ == 'RootDemoPlugin', '')
 check("G2 类 name=root_demo", _cls.name == 'root_demo', '')
-check("G3 类 require_framework_version=4.15.0", _cls.require_framework_version == '4.15.0', '')
+check("G3 类 require_framework_version=4.21.0", _cls.require_framework_version == '4.21.0', '')
 check("G4 类 permission=admin", _cls.permission == 'admin', '')
 _check_target = getattr(_mod, '_TARGET_CONFIG', None)
 check("G5 写目标为 data/user_config.json（框架核心路径）", _check_target == 'data/user_config.json', '%s' % _check_target)

@@ -177,6 +177,12 @@ def main():
     r = client.post('/api/admin/factory-reset', data='{bad json',
                     content_type='application/json')
     check('factory-reset 非法 JSON → 200（容错）', r.status_code == 200, f'status={r.status_code}')
+    # v4.21：backup 可选参数——backup=True 时返回备份路径（默认即开启）
+    r = client.post('/api/admin/factory-reset', json={'scope': 'sessions', 'backup': True})
+    _bdir = r.get_json().get('data', {}).get('backup_dir') if r.get_json() else None
+    check('factory-reset backup=True 返回 backup_dir',
+          r.status_code == 200 and bool(_bdir) and 'backups' in str(_bdir),
+          f'status={r.status_code} backup_dir={_bdir}')
 
     # 6. 上传：缺文件 / 非 zip / 超大包
     r = client.post('/api/admin/plugins/upload', data={})
@@ -214,9 +220,9 @@ def main():
           f"pv deps={pv.get('dependencies')} pip={pv.get('pip_dependencies')}")
     check('预览含扫描摘要字段', 'scan_summary' in pv and 'capabilities' in pv,
           f"pv keys={sorted(pv.keys())}")
-    # 预览阶段不应安装
+    # 预览阶段不应安装（v4.21 目录化：插件目录也不得存在）
     check('preview 后插件未落盘',
-          not os.path.exists(os.path.join(_isolated, 'plugins', 'demo_pack.py')), '')
+          not os.path.exists(os.path.join(_isolated, 'plugins', 'demo_pack')), '')
 
     # confirm 缺 preview_id → 400
     r = client.post('/api/admin/plugins/upload', data={'confirm': '1'},
@@ -230,8 +236,9 @@ def main():
     b2 = r2.get_json() or {}
     check('confirm 安装成功', r2.status_code == 200 and b2.get('code') == 200,
           f'status={r2.status_code} body={r2.get_data(as_text=True)[:140]}')
+    # v4.21 目录化：安装落盘为 plugins/demo_pack/demo_pack.py
     check('确认安装后插件已落盘',
-          os.path.exists(os.path.join(_isolated, 'plugins', 'demo_pack.py')), '')
+          os.path.exists(os.path.join(_isolated, 'plugins', 'demo_pack', 'demo_pack.py')), '')
     if pv_id:
         check('确认安装后预览临时文件已清理',
               not os.path.exists(os.path.join(global_var.UPLOAD_TEMP_DIR, pv_id)), '')

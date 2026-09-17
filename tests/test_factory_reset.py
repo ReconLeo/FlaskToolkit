@@ -58,13 +58,16 @@ def make_tree(root):
     # plugins/temp：内置受保护子目录 + 自定义子目录
     w(os.path.join(root, 'plugins', 'temp', 'auth', 't'), 'x')
     w(os.path.join(root, 'plugins', 'temp', 'demo_custom', 't'), 'x')
-    # templates/plugins：内置模板 + 自定义模板 + 静态
+    # templates/plugins：内置模板（扁平 + 目录式）+ 自定义模板 + 静态
     w(os.path.join(root, 'templates', 'plugins', 'auth.html'))
     w(os.path.join(root, 'templates', 'plugins', 'user_manage.html'))
+    w(os.path.join(root, 'templates', 'plugins', 'user_manage', 'user_manage.html'))  # v4.21 目录式内置模板
     w(os.path.join(root, 'templates', 'plugins', 'demo_custom.html'))
     w(os.path.join(root, 'templates', 'plugins', 'static', 'auth', 'a.js'))
+    w(os.path.join(root, 'templates', 'plugins', 'static', 'user_manage', 'css', 'user_manage.css'))  # 内置静态资源
     w(os.path.join(root, 'templates', 'plugins', 'static', 'demo_custom', 'd.js'))
     # templates/frontend_tools
+    w(os.path.join(root, 'templates', 'frontend_tools', 'password_generator.html'))  # 框架自带模板（受保护）
     w(os.path.join(root, 'templates', 'frontend_tools', 'demo_tool.html'))
     w(os.path.join(root, 'templates', 'frontend_tools', 'static', 'demo_tool', 'x.css'))
     # 其它可重置数据
@@ -133,6 +136,11 @@ def test_plugins_scope():
               os.path.exists(os.path.join(root, 'templates', 'plugins', 'auth.html')), '')
         check('plugins scope 删自定义静态目录',
               not os.path.exists(os.path.join(root, 'templates', 'plugins', 'static', 'demo_custom')), '')
+        # v4.21 回归：static 目录不得被整删，内置插件静态资源与目录式模板须保留
+        check('plugins scope 保留内置静态资源 static/user_manage',
+              os.path.exists(os.path.join(root, 'templates', 'plugins', 'static', 'user_manage')), '')
+        check('plugins scope 保留目录式内置模板 user_manage/',
+              os.path.exists(os.path.join(root, 'templates', 'plugins', 'user_manage', 'user_manage.html')), '')
         # plugins/temp：自定义子目录删、内置子目录留
         check('plugins scope 删自定义插件临时目录',
               not os.path.exists(os.path.join(root, 'plugins', 'temp', 'demo_custom')), '')
@@ -165,6 +173,9 @@ def test_frontend_tools_scope():
         check('frontend_tools scope 清单清空', cfg == [], f'cfg={cfg}')
         check('frontend_tools scope 模板目录清空',
               not os.path.exists(os.path.join(root, 'templates', 'frontend_tools', 'demo_tool.html')), '')
+        # v4.21 回归：框架自带模板（受版本控制）不得被误删
+        check('frontend_tools scope 保留框架自带模板 password_generator',
+              os.path.exists(os.path.join(root, 'templates', 'frontend_tools', 'password_generator.html')), '')
         # 插件不受影响
         check('frontend_tools scope 不动插件',
               os.path.exists(os.path.join(root, 'plugins', 'demo_custom.py')), '')
@@ -227,6 +238,11 @@ def test_temp_scope():
               not os.path.exists(os.path.join(root, '.plugin_cache', 'c.json')), '')
         check('temp scope 清空 __pycache__',
               not os.path.exists(os.path.join(root, 'plugins', '__pycache__')), '')
+        # v4.21 回归：temp scope 需清理 plugins/temp（清自定义子目录、保留内置子目录）
+        check('temp scope 清 plugins/temp 自定义子目录',
+              not os.path.exists(os.path.join(root, 'plugins', 'temp', 'demo_custom')), '')
+        check('temp scope 保留 plugins/temp 内置子目录',
+              os.path.exists(os.path.join(root, 'plugins', 'temp', 'auth')), '')
         check('temp scope 不动插件',
               os.path.exists(os.path.join(root, 'plugins', 'demo_custom.py')), '')
     finally:
@@ -250,6 +266,11 @@ def test_all_scope():
         # 内置插件文件仍在（受保护）
         check('all scope 保留内置 auth.py',
               os.path.exists(os.path.join(root, 'plugins', 'auth.py')), '')
+        # v4.21 回归：框架自带源码（受版本控制）不得被误删
+        check('all scope 保留框架自带前端工具模板',
+              os.path.exists(os.path.join(root, 'templates', 'frontend_tools', 'password_generator.html')), '')
+        check('all scope 保留内置插件静态资源',
+              os.path.exists(os.path.join(root, 'templates', 'plugins', 'static', 'user_manage', 'css', 'user_manage.css')), '')
         # builtin 范围：auth.json users 清空
         cfg = json.load(open(auth_cfg, encoding='utf-8'))
         check('all scope 重置内置配置 auth users 清空', cfg['users'] == [], f'users={cfg["users"]}')

@@ -118,6 +118,9 @@
     <div class="modal-content">
         <h3 id="reset-modal-title" style="margin-bottom:12px;">{{ t('确认重置') }}</h3>
         <p id="reset-modal-message" style="color: var(--adm-form-label); line-height:1.7;"></p>
+        <label class="scope-item" style="display:flex; align-items:center; gap:8px; font-size:14px; cursor:pointer; margin:10px 0;">
+            <input type="checkbox" id="reset-backup-chk" checked> {{ t('重置前自动备份关键数据（可回滚）') }}
+        </label>
         <div class="modal-buttons">
             <button class="btn btn-info" onclick="hideModal('reset-modal')">{{ t('取消') }}</button>
             <button class="btn btn-danger" id="reset-modal-confirm" onclick="doReset()">{{ t('确认重置') }}</button>
@@ -218,6 +221,8 @@
 
     function openResetAllConfirm() {
         pendingScope = 'all';
+        // 全范围重置最危险：自动勾选重置前备份（用户可取消）
+        document.getElementById('reset-backup-chk').checked = true;
         document.getElementById('reset-modal-title').textContent = window.T('确认全部重置');
         document.getElementById('reset-modal-message').innerHTML =
             `${window.T('即将执行')} <strong>${window.T('全部重置')}</strong>：${window.T('清除自定义插件、前端工具、统计与日志、登录会话、临时文件')}，<br>` +
@@ -234,7 +239,7 @@
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': _getCsrfCookie() },
             credentials: 'include',
-            body: JSON.stringify({ scope: pendingScope })
+            body: JSON.stringify({ scope: pendingScope, backup: document.getElementById('reset-backup-chk').checked })
         })
             .then(r => r.json())
             .then(res => {
@@ -243,9 +248,11 @@
                 if (res.code === 200) {
                     const cleaned = (res.data && res.data.cleaned) || [];
                     const failed = (res.data && res.data.failed) || [];
+                    const backupDir = (res.data && res.data.backup_dir) || '';
                     resultBox.innerHTML = `<div class="badge badge-green" style="font-size:13px; margin-bottom:6px;">✅ ${window.T('重置完成')}</div>
                         <div style="font-size:13px; color:#155724;">${window.T('清理')} ${cleaned.length} ${window.T('项')}${failed.length ? `，${window.T('失败')} ` + failed.length + ` ${window.T('项')}` : ''}</div>` +
-                        (failed.length ? `<div style="font-size:12px; color:#c0392b; margin-top:6px;">${failed.join('<br>')}</div>` : '');
+                        (failed.length ? `<div style="font-size:12px; color:#c0392b; margin-top:6px;">${failed.join('<br>')}</div>` : '') +
+                        (backupDir ? `<div style="font-size:12px; color:#155724; margin-top:6px;">${window.T('已自动备份，如需回滚请执行')} python tools/backup.py restore ${backupDir}</div>` : '');
                     showToast(`${window.T('重置完成')}：${window.T('清理')} ${cleaned.length} ${window.T('项')}` + (failed.length ? `，${window.T('失败')} ${failed.length} ${window.T('项')}` : ''), failed.length ? 'warning' : 'success');
                 } else {
                     resultBox.innerHTML = `<div class="badge badge-red" style="font-size:13px;">❌ ${window.T('重置失败')}：${(res.message || window.T('未知错误'))}</div>`;

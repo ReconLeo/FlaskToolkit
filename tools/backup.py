@@ -45,8 +45,16 @@ def create_backup(name: str = '') -> tuple:
     """创建备份，返回 (备份目录, 已备份条目列表)。name 为空用时间戳。"""
     ts = name or time.strftime('%Y%m%d_%H%M%S')
     dest = os.path.join(BACKUP_ROOT, ts)
-    if os.path.exists(dest):
-        raise FileExistsError(f"备份已存在: {dest}")
+    if name:
+        # 用户显式命名：同名冲突报错（避免静默改名不符预期）
+        if os.path.exists(dest):
+            raise FileExistsError(f"备份已存在: {dest}")
+    else:
+        # 自动时间戳命名：同秒连续创建（如 API 快速多次重置）追加序号后缀规避冲突
+        i = 2
+        while os.path.exists(dest):
+            dest = os.path.join(BACKUP_ROOT, f"{ts}_{i}")
+            i += 1
     os.makedirs(dest, exist_ok=True)
     saved = []
     skipped = []

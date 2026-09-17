@@ -27,6 +27,7 @@ from core.framework_manifest import (
     RESET_LEGACY_SESSIONS_FILE,
     RESET_AUTH_CONFIG_FILE,
     RESET_TEMP_DIRS,
+    FRONTEND_TOOLS_BUILTIN,
 )
 
 logger = logging.getLogger('flask.app')
@@ -102,9 +103,15 @@ def reset_custom_plugins(results: dict):
             _safe_remove(os.path.join(data_root, fn), results, f'插件数据 {fn}')
 
     # templates/plugins 非内置模板与静态资源
+    # v4.21 目录化后，非内置插件模板/静态自包含在 plugins/<name>/（整删即带走）；
+    # templates/plugins 下仅可能残留内置插件 user_manage 的模板与 static 目录。
+    # 修复 static 整删缺陷：顶层遍历须跳过 static 子目录（其内部按插件名保护内置），
+    # 避免把 static 当插件名整删导致误删内置插件静态资源。
     tpl_root = os.path.join(base, 'templates', 'plugins')
     if os.path.isdir(tpl_root):
         for fn in sorted(os.listdir(tpl_root)):
+            if fn == 'static':  # 单独处理，避免把 static 当插件名整删
+                continue
             name = fn[:-5] if fn.endswith('.html') else fn
             if name in global_var.BUILTIN_PLUGINS:
                 continue
@@ -118,10 +125,13 @@ def reset_custom_plugins(results: dict):
 
 
 def reset_frontend_tools(results: dict):
-    """清除前端工具（清单 + 模板目录）"""
+    """清除用户前端工具（清单 + 用户上传模板）；保护框架自带模板（FRONTEND_TOOLS_BUILTIN）"""
     _write_text(global_var.FRONTEND_CONFIG_FILE, '[]', results, '前端工具清单')
     if os.path.isdir(global_var.FRONTEND_TEMPLATE_DIR):
         for fn in os.listdir(global_var.FRONTEND_TEMPLATE_DIR):
+            name = fn[:-5] if fn.endswith('.html') else fn
+            if name in FRONTEND_TOOLS_BUILTIN:
+                continue
             _safe_remove(os.path.join(global_var.FRONTEND_TEMPLATE_DIR, fn), results, f'前端工具 {fn}')
 
 
@@ -160,18 +170,23 @@ def reset_sessions(results: dict):
 
 
 def reset_temp(results: dict):
-    """清除运行产生的临时文件（.plugin_cache、__pycache__、temp/、plugins/temp/）"""
+    """清除运行产生的临时文件（.plugin_cache、temp/、plugins/temp/、递归 __pycache__）"""
     base = global_var.BASE_DIR
 
-    cache_dir = os.path.join(base, RESET_TEMP_DIRS[0])
-    if os.path.isdir(cache_dir):
-        for fn in os.listdir(cache_dir):
-            _safe_remove(os.path.join(cache_dir, fn), results, f'缓存 {fn}')
-
-    tmp_dir = os.path.join(base, RESET_TEMP_DIRS[1])
-    if os.path.isdir(tmp_dir):
-        for fn in os.listdir(tmp_dir):
-            _safe_remove(os.path.join(tmp_dir, fn), results, f'临时 {fn}')
+    for rel in RESET_TEMP_DIRS:
+        d = os.path.join(base, rel)
+        if not os.path.isdir(d):
+            continue
+        if rel == 'plugins/temp':
+            # 各插件运行时临时目录：清空非内置插件子目录（内置插件 temp 保留，与 plugins scope 一致）
+            for sub in sorted(os.listdir(d)):
+                if sub in global_var.BUILTIN_PLUGINS:
+                    continue
+                _safe_remove(os.path.join(d, sub), results, f'插件临时 {sub}')
+        else:
+            for fn in sorted(os.listdir(d)):
+                label = '缓存' if rel == '.plugin_cache' else '临时'
+                _safe_remove(os.path.join(d, fn), results, f'{label} {fn}')
 
     # 递归清理 __pycache__
     for root, dirs, files in os.walk(base):
