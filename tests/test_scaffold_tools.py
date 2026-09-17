@@ -122,18 +122,18 @@ def main():
     ok, code, out = run_cli('install_plugin.py', 'backend', os.path.join(work, 'demo_tool.zip'),
                             '--base', base)
     check("D2 install backend 成功", ok, f"code={code}")
-    check("D3 主 py 落盘", os.path.isfile(os.path.join(base, 'plugins', 'demo_tool.py')))
-    check("D4 描述文件落盘", os.path.isfile(os.path.join(base, 'plugins', 'demo_tool.json')))
+    check("D3 主 py 落盘", os.path.isfile(os.path.join(base, 'plugins', 'demo_tool', 'demo_tool.py')))
+    check("D4 描述文件落盘", os.path.isfile(os.path.join(base, 'plugins', 'demo_tool', 'demo_tool.json')))
     check("D5 模板落盘", os.path.isfile(os.path.join(base, 'templates', 'plugins', 'demo_tool', 'index.html')))
     check("D6 静态落盘",
           os.path.isfile(os.path.join(base, 'templates', 'plugins', 'static', 'demo_tool', 'style.css')))
     installed_ok = False
-    meta_path = os.path.join(base, 'plugins', 'demo_tool.json')
+    meta_path = os.path.join(base, 'plugins', 'demo_tool', 'demo_tool.json')
     if os.path.isfile(meta_path):
         try:
             meta = json.load(open(meta_path, encoding='utf-8'))
             installed_ok = ('installed_files' in meta
-                            and 'plugins/demo_tool.py' in meta['installed_files'])
+                            and 'plugins/demo_tool/demo_tool.py' in meta['installed_files'])
         except Exception:
             pass
     check("D7 installed_files 清单写入", installed_ok)
@@ -218,9 +218,9 @@ def main():
     open(os.path.join(base, 'plugins', 'data', 'demo_tool', 'f.json'), 'w').write('{}')
     open(os.path.join(base, 'plugins', 'temp', 'demo_tool', 't'), 'w').write('x')
     open(os.path.join(base, 'uploads', 'a.txt'), 'w').write('x')
-    meta = json.load(open(os.path.join(base, 'plugins', 'demo_tool.json'), encoding='utf-8'))
+    meta = json.load(open(os.path.join(base, 'plugins', 'demo_tool', 'demo_tool.json'), encoding='utf-8'))
     meta['capabilities'] = ['filesystem:write:uploads/**']
-    json.dump(meta, open(os.path.join(base, 'plugins', 'demo_tool.json'), 'w', encoding='utf-8'),
+    json.dump(meta, open(os.path.join(base, 'plugins', 'demo_tool', 'demo_tool.json'), 'w', encoding='utf-8'),
               ensure_ascii=False, indent=2)
 
     ok, code, out = run_cli('install_plugin.py', 'uninstall', 'backend', 'auth', '--base', base,
@@ -228,7 +228,7 @@ def main():
     check("I1 内置插件卸载保护", ok, f"code={code}")
     ok, code, out = run_cli('install_plugin.py', 'uninstall', 'backend', 'demo_tool', '--base', base)
     check("I2 uninstall backend 成功", ok, f"code={code}")
-    check("I3 默认卸载删除主文件", not os.path.exists(os.path.join(base, 'plugins', 'demo_tool.py')), '')
+    check("I3 默认卸载删除主文件", not os.path.exists(os.path.join(base, 'plugins', 'demo_tool', 'demo_tool.py')), '')
     check("I4 默认卸载保留数据目录",
           os.path.isdir(os.path.join(base, 'plugins', 'data', 'demo_tool')), '')
     check("I5 默认卸载保留 write 声明目录", os.path.isdir(os.path.join(base, 'uploads')), '')
@@ -243,9 +243,9 @@ def main():
     open(os.path.join(base, 'plugins', 'data', 'demo_tool', 'f.json'), 'w').write('{}')
     open(os.path.join(base, 'plugins', 'temp', 'demo_tool', 't'), 'w').write('x')
     open(os.path.join(base, 'uploads', 'a.txt'), 'w').write('x')
-    meta = json.load(open(os.path.join(base, 'plugins', 'demo_tool.json'), encoding='utf-8'))
+    meta = json.load(open(os.path.join(base, 'plugins', 'demo_tool', 'demo_tool.json'), encoding='utf-8'))
     meta['capabilities'] = ['filesystem:write:uploads/**']
-    json.dump(meta, open(os.path.join(base, 'plugins', 'demo_tool.json'), 'w', encoding='utf-8'),
+    json.dump(meta, open(os.path.join(base, 'plugins', 'demo_tool', 'demo_tool.json'), 'w', encoding='utf-8'),
               ensure_ascii=False, indent=2)
 
     ok, code, out = run_cli('install_plugin.py', 'uninstall', 'backend', 'demo_tool', '--purge-data',

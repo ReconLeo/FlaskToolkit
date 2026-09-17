@@ -164,8 +164,8 @@ def test_extract_normal_pack():
         result = extract_plugin_pack(zip_path, 'demo')
 
         ok = True
-        ok &= os.path.isfile(os.path.join(root, 'plugins', 'demo.py'))
-        ok &= os.path.isfile(os.path.join(root, 'plugins', 'demo.json'))
+        ok &= os.path.isfile(os.path.join(root, 'plugins', 'demo', 'demo.py'))
+        ok &= os.path.isfile(os.path.join(root, 'plugins', 'demo', 'demo.json'))
         ok &= os.path.isfile(os.path.join(root, 'templates', 'plugins', 'demo', 'demo.html'))
         ok &= os.path.isfile(os.path.join(root, 'templates', 'plugins', 'demo', 'sub', 'x.html'))
         ok &= os.path.isfile(os.path.join(root, 'templates', 'plugins', 'static', 'demo', 'css', 'style.css'))
@@ -182,10 +182,10 @@ def test_extract_normal_pack():
 
         # 返回结构字段
         check('result.main 指向主文件',
-              result['main'] == os.path.join(root, 'plugins', 'demo.py'),
+              result['main'] == os.path.join(root, 'plugins', 'demo', 'demo.py'),
               f"main={result['main']}")
         check('result.meta 指向描述文件',
-              result['meta'] == os.path.join(root, 'plugins', 'demo.json'),
+              result['meta'] == os.path.join(root, 'plugins', 'demo', 'demo.json'),
               f"meta={result['meta']}")
 
 

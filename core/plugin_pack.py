@@ -448,7 +448,7 @@ def cleanup_plugin_data(plugin_name: str, include_data: bool = False, base_dir: 
         try:
             from core import capabilities as caps_mod
             caps = None
-            meta_file = os.path.join(base, 'plugins', f'{plugin_name}.json')
+            meta_file = plugin_meta_file(base, str(plugin_name))
             if os.path.isfile(meta_file):
                 caps = caps_mod.load_capabilities_from_desc(meta_file)
             for d in caps_mod.get_write_dirs(str(plugin_name), base_dir=base, capabilities=caps):
