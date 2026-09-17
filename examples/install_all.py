@@ -92,8 +92,12 @@ def build_zip(src_dir: str, out_zip: str, package_type: str = 'backend'):
         raise FileNotFoundError(f"示例目录不存在: {src_dir}")
     os.makedirs(os.path.dirname(out_zip), exist_ok=True)
     with zipfile.ZipFile(out_zip, 'w', zipfile.ZIP_DEFLATED) as zf:
-        for root, _dirs, files in os.walk(src_dir):
+        for root, dirs, files in os.walk(src_dir):
+            # 排除 __pycache__（源目录可能残留 .pyc，混入插件包是冗余/不干净）
+            dirs[:] = [d for d in dirs if d != '__pycache__']
             for fname in files:
+                if fname.endswith('.pyc') or fname.endswith('.pyo'):
+                    continue
                 full = os.path.join(root, fname)
                 rel = os.path.relpath(full, src_dir).replace('\\', '/')
                 # 用 writestr 而非 write：write 会对 arcname 做 os.path.normpath，

@@ -1299,7 +1299,7 @@ python tools/config.py set PLUGIN_SCAN_MODE enforce   # 单项覆盖
 
 **向后兼容**：旧插件无 `capabilities` 字段——report 模式放行附告警；enforce 模式下若有未声明检出行为则拒绝（良性插件扫描范围通常为空，不受影响）。plugin.json 在 manifest.json 完整性清单内，装后私改 capabilities 会被完整性校验拦截。
 
-> **官方示例维护约定**：`examples/` 下的示例插件须与最新开发规范保持同步——`require_framework_version` 需高于所用框架 API 的引入版本（如使用 `get_data_path` 的示例要求 ≥ 4.3.2）；示例内容变更时同步升级 `version`（plugin.json 与插件类属性两处一致，见 5.6.3），保证 `update` 可重复安装。综合示例 `corp_tools`（企业内网工具箱）演示 capabilities 网络白名单与权限过滤导航，且自 v1.2.0（require 4.21.0）演示 v4.21 语言便捷方法（`self.t()`/`self.get_lang()`/`self.available_langs()`）与插件自带 `locales/` 语言包安装，设计见 `documents/archive/Plugin-Design-corp_tools.md`。
+> **官方示例维护约定**：`examples/` 下的示例插件须与最新开发规范保持同步——`require_framework_version` 需高于所用框架 API 的引入版本（如使用 `get_data_path` 的示例要求 ≥ 4.3.2）；示例内容变更时同步升级 `version`（plugin.json 与插件类属性两处一致，见 5.6.3），保证 `update` 可重复安装。综合示例 `corp_tools`（企业内网工具箱）演示 capabilities 网络白名单与权限过滤导航，且自 v1.2.0（require 4.21.0）演示 v4.21 语言便捷方法（`self.t()`/`self.get_lang()`/`self.available_langs()`）与插件自带 `locales/` 语言包安装，设计见 `documents/archive/Plugin-Design-corp_tools.md`。此外 v4.21 目录化后，`multitool_demo`（插件私有辅助模块包导入 `from plugins.multitool_demo import multitool_utils`）与 `root_demo`（插件语言包 `locales/` 落位）均要求 ≥ 4.21.0。
 
 ---
 

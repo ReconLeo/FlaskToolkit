@@ -140,7 +140,7 @@ class DependentDemoPlugin(BasePlugin):
 ### 5. multitool_demo —— 大插件多模板（多模板 + 辅助 .py + 静态资源）
 
 ```python
-from plugins import multitool_utils  # 辅助 .py：插件包内多 .py，复用其纯函数
+from plugins.multitool_demo import multitool_utils  # 辅助 .py（v4.21 目录化：插件私有命名空间，包导入）
 
 class MultiToolDemo(BasePlugin):
     # 1. 多模板：page=True 页面路由（主入口 index.html + 子页）
@@ -176,7 +176,7 @@ class MultiToolDemo(BasePlugin):
 - **多模板 + 静态资源**：主入口 index + 3 个 page=True 子页（health/links/notices），css/js 经 `/plugin-static/corp_tools/` 访问；
 - **跨插件调用**：`GET /api/corp_tools/me` 调 auth 获取当前用户/用户数（auth 未安装时优雅回退）。
 - **插件多语言（v4.9.1 示例）**：自带 `locales/en.json` 语言包（演示插件语言包合并机制——插件词条自动并入框架查找链）；4 个模板 `{{ t('...') }}` 迁移、后端消息经 `_tr()` 翻译、前端 `window.T` 翻译（模板注入 `window.__I18N`）；页面顶部自动出现语言切换入口（`/lang/<code>?next=<当前路径>`）。切换 `LANGUAGE` 配置或 Cookie 即整站中英联动。
-- **移动端独立模板（v4.17 示例）**：新增 `templates/plugins/corp_tools/mobile/` 下 4 个同名移动端独立模板（主入口 + health/links/notices 子页），彻底脱离 v4.13 的 `corp_mobile.css` 样式补充模式。服务端按 UA 判定手机端 → BasePlugin 自动分发渲染 `mobile/` 命名空间模板（精简 DOM、触屏友好、复用框架 `mobile-app.css`）；平板/桌面走桌面端响应式模板避免退化。corp_tools **1.1.0**（`require_framework_version 4.17.0`）。插件接入移动端独立渲染只需放同名模板，`render()`/`render_plugin_page()`/子页面路由均已自动支持，无需改视图。
+- **移动端独立模板（v4.17 示例）**：新增 `templates/plugins/corp_tools/mobile/` 下 4 个同名移动端独立模板（主入口 + health/links/notices 子页），彻底脱离 v4.13 的 `corp_mobile.css` 样式补充模式。服务端按 UA 判定手机端 → BasePlugin 自动分发渲染 `mobile/` 命名空间模板（精简 DOM、触屏友好、复用框架 `mobile-app.css`）；平板/桌面走桌面端响应式模板避免退化。corp_tools **1.2.0**（`require_framework_version 4.21.0`）。插件接入移动端独立渲染只需放同名模板，`render()`/`render_plugin_page()`/子页面路由均已自动支持，无需改视图。
 
 ```python
 @property
@@ -235,5 +235,5 @@ examples/
 
 - 示例安装会写入真实项目运行时目录（`plugins/`、`templates/`、`frontend_tools.json`），卸载后清理。若要测试隔离环境，请使用临时副本或先备份。
 - `dependent_demo` 依赖 `auth` 插件；`scheduler_demo` 的心跳数据持久化在 `plugins/data/scheduler_demo/heartbeats.json`（v4.3.2 `get_data_path` 自属目录，隐式豁免），重启服务后保留。
-- 插件在 `plugin.json` 中以可选 `capabilities` 字段声明白名单能力（如 `scheduler_demo` 声明 `["scheduler"]`；数据目录读写属自属路径**隐式豁免**，无需声明），安装时与静态扫描范围交叉校验（见开发规范 10.7）。示例均已按最新规范补齐声明，`require_framework_version` 与所用框架 API 匹配（使用 `get_data_path` 的示例要求 ≥ 4.3.2；`corp_tools` 1.1.0 使用 v4.17 移动端独立模板能力，要求 ≥ 4.17.0）。
+- 插件在 `plugin.json` 中以可选 `capabilities` 字段声明白名单能力（如 `scheduler_demo` 声明 `["scheduler"]`；数据目录读写属自属路径**隐式豁免**，无需声明），安装时与静态扫描范围交叉校验（见开发规范 10.7）。示例均已按最新规范补齐声明，`require_framework_version` 与所用框架 API 匹配（使用 `get_data_path` 的示例要求 ≥ 4.3.2；`corp_tools` 1.2.0 / `multitool_demo` 1.1.0 / `root_demo` 1.0.0 依赖 v4.21 目录化能力（插件私有辅助模块包导入 / 插件语言包 `locales/`），要求 ≥ 4.21.0）。
 - 想自己打包插件？直接复制某个示例目录，修改 `plugin.json` 与主文件后，用 `python tools/package.py pack <目录> -o xxx.zip --type backend|frontend` 打包（支持 `--sign` 签名）。

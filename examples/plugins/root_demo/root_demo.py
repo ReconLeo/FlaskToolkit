@@ -54,7 +54,7 @@ class RootDemoPlugin(BasePlugin):
     author = "FlaskToolkit Examples"
     category = "示例"
     permission = "admin"               # Root 高风险，路由一律 admin
-    require_framework_version = "4.15.0"  # framework:core 为 v4.15.0 能力
+    require_framework_version = "4.21.0"  # framework:core 为 v4.15.0 能力 + 插件语言包 locales（v4.21 目录化落位）
 
     # ---------------- 生命周期 ----------------
     def on_load(self):
