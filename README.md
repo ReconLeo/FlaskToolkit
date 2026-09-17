@@ -138,16 +138,17 @@ Detailed specs live in the [Flask Plugin Framework Development Guide](documents/
 
 ## Tests & CI
 
-`tests/` contains **47 scripts** of regression tests (isolated-directory mode, no pollution of project files); GitHub Actions runs them automatically on Python 3.10 / 3.11 / 3.12, covering permissions, plugin-package / frontend-tool chains, integrity signatures, uninstall manifests, Factory Reset, large-plugin multi-template page routing, file transfer (upload limits / Chinese-name downloads / Range), static security scanning, capability cross-validation, runtime audit hooks, i18n framework, plugin data quota, event bus & dependency resolution, device detection & mobile template dispatch, plugin scaffolding / offline install-uninstall CLI, per-plugin space cleanup, ops tools, etc.
+`tests/` contains **48 scripts** of regression tests (isolated-directory mode, no pollution of project files); GitHub Actions runs them automatically on Python 3.10 / 3.11 / 3.12, covering permissions, plugin-package / frontend-tool chains, integrity signatures, uninstall manifests, Factory Reset, large-plugin multi-template page routing, file transfer (upload limits / Chinese-name downloads / Range), static security scanning, capability cross-validation, runtime audit hooks, i18n framework, plugin data quota, event bus & dependency resolution, device detection & mobile template dispatch, plugin scaffolding / offline install-uninstall CLI, per-plugin space cleanup, ops tools, etc.
 
 <details>
-<summary>Expand: 47 test scripts</summary>
+<summary>Expand: 48 test scripts</summary>
 
 ```bash
 cd FlaskToolkit
 python tests/test_permission.py            # permission system 20 assertions
 python tests/test_stage2.py                # security hardening regression 19
 python tests/test_zip_slip.py              # plugin-package zip slip 19
+python tests/test_reserved_name.py         # reserved plugin-name blacklist (v4.21): PLUGIN_RESERVED_NAMES reject + normal-name pass 20
 python tests/test_pack_meta.py             # plugin-package meta consistency 23
 python tests/test_reload_race.py           # hot-reload race 1 (20 rounds)
 python tests/test_meta_e2e.py              # plugin-package meta end-to-end 11
@@ -192,7 +193,7 @@ python tests/test_plugin_events.py          # BasePlugin event integration + exa
 python tests/test_device.py                 # device detection + mobile template dispatch (v4.17): UA classification / config switches / resolve_template / public-page mobile template / BasePlugin mobile namespace 20
 python tests/test_theme.py                 # interface theme (v4.19): theme registry whitelist / resolve fallback / cookie vs user-config precedence / auto light-dark resolve / admin+public dark CSS vars / mobile plugin_default / themes/ scan + custom-theme fallback + url strategy + asset route 36
 python tests/test_user_center.py            # user center (v4.20): self update-nickname / immutable username / /user-center guard 13
-# total: 47 scripts
+# total: 48 scripts
 ```
 
 </details>
@@ -216,7 +217,7 @@ MIT License · contribution guidelines in [CONTRIBUTING.md](CONTRIBUTING.md) · 
 
 ### AI-Assisted Development Statement
 
-This project used AI-assisted programming tools during development, including but not limited to: code generation and refactoring, code review, test case authoring, and documentation writing. All AI-assisted content has been manually reviewed by the developer and is only merged after passing the project's own regression suite (`tests/`, 47 scripts / 1227 assertions) and startup integrity self-check.
+This project used AI-assisted programming tools during development, including but not limited to: code generation and refactoring, code review, test case authoring, and documentation writing. All AI-assisted content has been manually reviewed by the developer and is only merged after passing the project's own regression suite (`tests/`, 48 scripts / 1288 assertions) and startup integrity self-check.
 
 Transparency conventions for contributors:
 

@@ -39,7 +39,7 @@
 - **事件总线与真依赖解析**：轻量进程内发布-订阅总线，插件间无需知道谁在监听即可通信；依赖解析支持版本约束 + 环检测。
 - **深色模式**：全量界面浅色/深色主题，支持 auto（跟随系统）+ 手动覆盖——CSS 变量体系可**通过放入 `themes/<名字>/` 目录扩展主题**（自带 sepia 示例）；主题 CSS 的 url()/@import 引用由 `THEME_CSS_URLS`（allow/relative/deny）策略控制；首次运行 setup 页还支持双语并显。
 - **用户中心**：登录用户可在 `/user-center` **自助修改自己的昵称与密码**（用户名不可改；仅本人自助）。
-- **运维与工具链**：版本检查 + 双后端更新、Factory Reset、备份/恢复、启动自检、完整性签名、插件脚手架与离线安装/卸载 CLI，以及 **47 脚本回归套件与 GitHub Actions CI**。
+- **运维与工具链**：版本检查 + 双后端更新、Factory Reset、备份/恢复、启动自检、完整性签名、插件脚手架与离线安装/卸载 CLI，以及 **48 脚本回归套件与 GitHub Actions CI**。
 
 完整功能规格见[开发规范](documents/Flask-Plugin-Framework-Dev-Guide-v4.md)。
 
@@ -138,16 +138,17 @@ python examples/install_all.py                            # 一键安装 8 个�
 
 ## 测试与 CI
 
-`tests/` 47 个回归测试脚本（隔离目录模式，不污染项目文件）；GitHub Actions 在 Python 3.10 / 3.11 / 3.12 上自动执行，覆盖权限、插件包 / 前端工具链路、完整性签名、卸载清单、Factory Reset、大插件多模板页面路由、文件传输（上传限制 / 中文名下载 / Range）、插件静态安全扫描、能力声明交叉校验、运行时审计钩子、i18n 语言框架、插件数据配额、事件总线与依赖解析、设备检测与移动端模板分发、插件脚手架与离线安装/卸载 CLI、单插件空间清理、运维工具等。
+`tests/` 48 个回归测试脚本（隔离目录模式，不污染项目文件）；GitHub Actions 在 Python 3.10 / 3.11 / 3.12 上自动执行，覆盖权限、插件包 / 前端工具链路、完整性签名、卸载清单、Factory Reset、大插件多模板页面路由、文件传输（上传限制 / 中文名下载 / Range）、插件静态安全扫描、能力声明交叉校验、运行时审计钩子、i18n 语言框架、插件数据配额、事件总线与依赖解析、设备检测与移动端模板分发、插件脚手架与离线安装/卸载 CLI、单插件空间清理、运维工具等。
 
 <details>
-<summary>展开：47 个测试脚本</summary>
+<summary>展开：48 个测试脚本</summary>
 
 ```bash
 cd FlaskToolkit
 python tests/test_permission.py            # 权限体系 20 项
 python tests/test_stage2.py                # 安全加固回归 19 项
 python tests/test_zip_slip.py              # 插件包 zip slip 19 项
+python tests/test_reserved_name.py         # 插件名保留名黑名单（v4.21）：PLUGIN_RESERVED_NAMES 拒绝 + 普通名放行 20 项
 python tests/test_pack_meta.py             # 插件包描述一致性 23 项
 python tests/test_reload_race.py           # 热加载重载竞态 1 项（20 轮）
 python tests/test_meta_e2e.py              # 插件包元信息端到端 11 项
@@ -192,14 +193,14 @@ python tests/test_plugin_events.py          # BasePlugin 事件集成 + 示例�
 python tests/test_device.py                 # 设备检测 + 移动端模板分发（v4.17）：UA 分类 / 配置开关 / resolve_template / 公开页移动端模板 / BasePlugin 移动端命名空间 20 项
 python tests/test_theme.py                 # 界面主题（v4.19）：主题注册白名单 / 非法回退 / Cookie 与用户配置优先级 / auto 深浅解析 / 后台+公开页深色变量 / plugin_default 移动端适配 / themes/ 扫描+自定义主题兑底 / url 策略 + 相对资源路由 36 项
 python tests/test_user_center.py            # 用户中心（v4.20）：自助改昵称 / 用户名不可改 / /user-center 守卫 13 项
-# 合计 47 个回归脚本
+# 合计 48 个回归脚本
 ```
 
 </details>
 
 ## 版本状态
 
-- **Community Edition（v4.x）**：功能开发持续进行，但架构规模有意识控制——专注小型局域网/个人用户场景，我们定期维护与发布（47 脚本回归套件 + CI）。
+- **Community Edition（v4.x）**：功能开发持续进行，但架构规模有意识控制——专注小型局域网/个人用户场景，我们定期维护与发布（48 脚本回归套件 + CI）。
 - **Lite Edition（v4.2.2）**：面向个人开发者与小型自托管场景的单机精简版兄弟仓库——FlaskToolkit 的最小可读子集（凡在 Lite 上可运行的插件，主框架都能运行）。首版发布于 [FlaskToolkit-Lite v4.2.2](https://github.com/ReconLeo/FlaskToolkit-Lite)。
 - **Enterprise Edition（v5.x）**：规划承载远期路线（权限模型细化、进程级沙箱、CSP 收紧、企业身份对接等）。因当前小团队开发能力有限，公开寻求接手者——详见 [Enterprise Edition 交接与路线](documents/Enterprise-Edition-Handover-Roadmap.md)。
 
@@ -216,7 +217,7 @@ MIT License · 贡献指南见 [CONTRIBUTING.md](CONTRIBUTING.md) · 开发过�
 
 ### 人工智能辅助开发声明
 
-本项目在开发过程中使用了 AI 辅助编程工具，包括但不限于：代码生成与重构、代码审查、测试用例编写、文档撰写。所有 AI 辅助生成或修改的内容，均已由开发者人工审查，并通过项目自身的回归测试套件（`tests/`，47 脚本）与启动完整性自检验证后才会合入。
+本项目在开发过程中使用了 AI 辅助编程工具，包括但不限于：代码生成与重构、代码审查、测试用例编写、文档撰写。所有 AI 辅助生成或修改的内容，均已由开发者人工审查，并通过项目自身的回归测试套件（`tests/`，48 脚本）与启动完整性自检验证后才会合入。
 
 对贡献者的透明性约定：
 

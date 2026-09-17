@@ -101,6 +101,7 @@ class {name.title()}Plugin(BasePlugin):
     def category(self):
         return '测试'
 
+    @property
     def routes(self):
         return []
 ''')
@@ -150,13 +151,13 @@ _cf = _confirm_install(_pid)
 _cfd = _cf.get_json() or {}
 check("B2 confirm 安装成功", _cf.status_code == 200 and _cfd.get('code') == 200,
       f"status={_cf.status_code} body={_cf.get_data(as_text=True)[:120]}")
-check("B3 rootdemo 落盘", os.path.isfile(os.path.join(_isolated, 'plugins', 'rootdemo.py')), '')
+check("B3 rootdemo 落盘", os.path.isfile(os.path.join(_isolated, 'plugins', 'rootdemo', 'rootdemo.py')), '')
 _dbg_names = [p.get('name') for p in global_var.plugin_catalog]
 check("B4 catalog 含 capabilities",
       any(p.get('name') == 'rootdemo' and 'framework:core' in (p.get('capabilities') or [])
           for p in global_var.plugin_catalog),
       f"caps={[p.get('capabilities') for p in global_var.plugin_catalog if p.get('name') == 'rootdemo']} "
-      f"names={_dbg_names} json={os.path.isfile(os.path.join(_isolated, 'plugins', 'rootdemo.json'))}")
+      f"names={_dbg_names} json={os.path.isfile(os.path.join(_isolated, 'plugins', 'rootdemo', 'rootdemo.json'))}")
 
 # filesystem:write 核心收紧：带 filesystem:write:core/ 声明的包 preview → cap errors（安装被拒）
 _evil = build_plugin_zip('evilroot', '1.0.0', ['filesystem:write:core/network.py'])
@@ -194,7 +195,7 @@ with open(_tmp2, 'wb') as _f:
     _f.write(_mkt2.getvalue())
 ok1, msg1, _ = install_from_package(_tmp2, actor='market_tool')
 check("C4 install_from_package(market) 成功", ok1, msg1)
-check("C5 service_inst 落盘", os.path.isfile(os.path.join(_isolated, 'plugins', 'service_inst.py')), '')
+check("C5 service_inst 落盘", os.path.isfile(os.path.join(_isolated, 'plugins', 'service_inst', 'service_inst.py')), '')
 try:
     install_from_package(_tmp2, actor='normal_plugin')
     check("C6 install_from_package(normal) 拒绝", False, '未抛异常')

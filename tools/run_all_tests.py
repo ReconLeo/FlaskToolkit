@@ -133,6 +133,49 @@ def run_one(test_file, timeout, log_path, do_cleanup=True):
     return rc, time.time() - start
 
 
+def _scan_warnings(log_path):
+    """扫描单个测试日志，检测 rc=0 时被掩盖的异常/失败信号（假绿）。
+
+    排除测试故意触发的 Traceback（如 test_events/test_audit_hook 的异常隔离/
+    审计拒绝验证），仅标记真实崩溃中断或断言失败信号。返回告警列表（空=无告警）。
+    """
+    try:
+        with open(log_path, encoding="utf-8", errors="replace") as f:
+            text = f.read()
+    except OSError:
+        return []
+    warns = []
+    lines = text.splitlines()
+    # 1. 断言失败标记（[FAIL] / 结果行失败数>0）
+    if "[FAIL]" in text:
+        warns.append("日志含 [FAIL] 断言失败")
+    # 优先采信最终结果行「共 N 项，通过 P，失败 M」的失败数（取最后一条），
+    # 避免把过程日志里的「失败 N」（如 Factory Reset 容错测试的清理失败 3 项、
+    # 登录锁定测试的「第1次失败 401」等故意触发的失败字眼）误判为测试失败。
+    result_fails = re.findall(r"共\s*\d+\s*项[^\n]*?失败\s*(\d+)", text)
+    if result_fails:
+        last_fail = int(result_fails[-1])
+        if last_fail > 0:
+            warns.append("结果含失败项: %d" % last_fail)
+    else:
+        # 无标准结果行（可能崩溃中断）→ 回退全局搜索「失败 N」
+        m = re.search(r"失败 ([1-9]\d*)", text)
+        if m:
+            warns.append("结果含失败项: %s" % m.group(1))
+    # 2. 疑似未捕获 Traceback：位于日志尾部且其后无 PASS/结果行（崩溃中断）
+    tb_idx = [i for i, ln in enumerate(lines) if "Traceback" in ln]
+    if tb_idx:
+        last = tb_idx[-1]
+        tail = lines[last + 1:]
+        tail_has_progress = any(
+            ("PASS" in ln or "结果" in ln or ("共 " in ln and "项" in ln))
+            for ln in tail
+        )
+        if not tail_has_progress and (len(lines) - last) <= 25:
+            warns.append("日志尾部含疑似未捕获 Traceback（崩溃中断）")
+    return warns
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(prog="tools/run_all_tests.py", description=__doc__)
     parser.add_argument("-p", "--pattern", default=None,
@@ -180,17 +223,27 @@ def main(argv=None):
     print("日志目录: %s" % args.log_dir)
     print("=" * 60)
 
-    passed, failed = [], []
+    passed, warned, failed = [], [], []
     total_dur = 0.0
     for idx, t in enumerate(tests, 1):
         log_path = os.path.join(args.log_dir, t.replace(".py", ".log"))
         rc, dur = run_one(t, args.timeout, log_path, do_cleanup=not args.no_cleanup)
         total_dur += dur
         status = "PASS" if rc == 0 else ("TIMEOUT" if rc == "TIMEOUT" else ("ERROR" if rc == "ERROR" else "FAIL"))
+        warns = []
+        if rc == 0:
+            warns = _scan_warnings(log_path)
+            if warns:
+                status = "WARN"
         line = "[%3d/%d] %-8s %-32s %6.1fs" % (idx, total, status, t, dur)
         print(line)
         if status == "PASS":
             passed.append(t)
+        elif status == "WARN":
+            warned.append((t, warns, log_path))
+            if args.verbose:
+                print("  ---- %s 告警 ----" % t)
+                print("  - " + "\n  - ".join(warns))
         else:
             failed.append((t, status, log_path))
             if args.verbose:
@@ -207,8 +260,12 @@ def main(argv=None):
         print("---- 前端验证：通过 %d / %d ----" % (len(_fp), len(_fp) + len(front_failed)))
 
     print("=" * 60)
-    print("回归完成：通过 %d / %d，失败 %d，耗时 %.1fs"
-          % (len(passed), total, len(failed), total_dur))
+    print("回归完成：通过 %d / %d，失败 %d，告警 %d，耗时 %.1fs"
+          % (len(passed), total, len(failed), len(warned), total_dur))
+    if warned:
+        print("告警（rc=0 但日志含异常信号，建议人工复核）：")
+        for t, warns, lp in warned:
+            print("  [WARN] %s  %s  ->  %s" % (t, "；".join(warns), lp))
     if front_failed:
         print("前端验证失败：%s" % ", ".join(front_failed))
     if failed or front_failed:
@@ -217,7 +274,7 @@ def main(argv=None):
             print("  [%s] %s  ->  %s" % (status, t, lp))
         print("日志保留于: %s" % args.log_dir)
         return 1
-    print("全部通过 ✅")
+    print("全部通过 ✅" + ("（含 %d 条告警，见上）" % len(warned) if warned else ""))
     return 0
 
 

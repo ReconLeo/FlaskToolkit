@@ -266,7 +266,7 @@ def main():
         check("H6 未锁定用户解封返回 False", auth.unlock_user('ghost_user') is False, "")
 
         # ============ I：user_manage 解封端点（v4.5.0） ============
-        from plugins.user_manage import UserManagePlugin
+        from plugins.user_manage.user_manage import UserManagePlugin
         um = UserManagePlugin()
         um.auth_plugin = auth
         plugins["user_manage"] = um

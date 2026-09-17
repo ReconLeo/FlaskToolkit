@@ -90,7 +90,7 @@ def main():
             auth._wrapped_routes.setdefault(path, {})[methods] = wrapped
         global_var.plugins["auth"] = auth
 
-        import plugins.user_manage as um_mod
+        import plugins.user_manage.user_manage as um_mod
         um = um_mod.UserManagePlugin()
         um.auth_plugin = auth
         um._wrapped_routes = {}
