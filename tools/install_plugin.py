@@ -46,7 +46,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import global_var  # noqa: E402
 from core.plugin_pack import (cleanup_plugin_data, cleanup_plugin_resources,  # noqa: E402
                               compare_versions, check_framework_version,
-                              extract_plugin_pack, parse_plugin_pack)
+                              extract_plugin_pack, parse_plugin_pack,
+                              plugin_main_file, plugin_meta_file)
 from core.package_sign import verify_package  # noqa: E402
 from routes.frontend import cleanup_frontend_resources, safe_extract_frontend  # noqa: E402
 from core.frontend_tools import load_frontend_tools  # noqa: E402
@@ -129,9 +130,9 @@ def install_backend(args, base: str) -> int:
     _scan_gate_cli(pack, 'backend', name, args.no_scan)
 
     # 4. 同名与版本检查
-    plugin_file = os.path.join(base, 'plugins', f'{name}.py')
+    plugin_file = plugin_main_file(base, name)
     existing_meta = None
-    meta_path = os.path.join(base, 'plugins', f'{name}.json')
+    meta_path = plugin_meta_file(base, name)
     if os.path.isfile(meta_path):
         try:
             with open(meta_path, 'r', encoding='utf-8') as f:
@@ -286,11 +287,18 @@ def install_frontend(args, base: str) -> int:
 
 def cmd_list(base: str) -> int:
     print(f"框架根: {base}")
-    plugins = sorted(f[:-3] for f in os.listdir(os.path.join(base, 'plugins'))
-                     if f.endswith('.py') and f != 'base_plugin.py')
+    plugin_dir = os.path.join(base, 'plugins')
+    _names = []
+    for f in sorted(os.listdir(plugin_dir)):
+        full = os.path.join(plugin_dir, f)
+        if f.endswith('.py') and f not in ('base_plugin.py', '__init__.py'):
+            _names.append(f[:-3])  # 扁平主文件
+        elif os.path.isdir(full) and os.path.isfile(os.path.join(full, f'{f}.py')):
+            _names.append(f)  # 目录化主文件
+    plugins = sorted(set(_names))
     print(f"\n已安装后端插件（{len(plugins)} 个）:")
     for p in plugins:
-        meta_path = os.path.join(base, 'plugins', f'{p}.json')
+        meta_path = plugin_meta_file(base, p)
         ver = ''
         if os.path.isfile(meta_path):
             try:
@@ -315,7 +323,7 @@ def uninstall_backend(args, base: str) -> int:
     if name in global_var.BUILTIN_PLUGINS:
         print(f"错误：内置插件 {name} 受保护，不允许卸载", file=sys.stderr)
         return 1
-    plugin_file = os.path.join(base, 'plugins', f'{name}.py')
+    plugin_file = plugin_main_file(base, name)
     if not os.path.isfile(plugin_file):
         print(f"错误：插件 {name} 不存在（plugins/{name}.py）", file=sys.stderr)
         return 1

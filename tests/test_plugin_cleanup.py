@@ -90,30 +90,36 @@ def main():
         result = extract_plugin_pack(zip_path, 'multi_plugin', meta_override={
             "name": "multi_plugin", "title": "多文件示例", "version": "1.0.0",
             "author": "t", "category": "示例", "description": "多文件插件包"})
-        check('安装后主 .py 存在', os.path.isfile(os.path.join(BASE, 'plugins', 'multi_plugin.py')))
-        check('安装后辅助模块 helper_a 存在', os.path.isfile(os.path.join(BASE, 'plugins', 'helper_a.py')))
-        check('安装后辅助模块 helper_b 存在', os.path.isfile(os.path.join(BASE, 'plugins', 'helper_b.py')))
+        # v4.21 目录化：主/辅助 .py 与描述落入 plugins/<name>/ 自包含目录
+        check('安装后主 .py 存在(目录化)', os.path.isfile(os.path.join(BASE, 'plugins', 'multi_plugin', 'multi_plugin.py')))
+        check('安装后辅助模块 helper_a 存在(目录化)', os.path.isfile(os.path.join(BASE, 'plugins', 'multi_plugin', 'helper_a.py')))
+        check('安装后辅助模块 helper_b 存在(目录化)', os.path.isfile(os.path.join(BASE, 'plugins', 'multi_plugin', 'helper_b.py')))
+        check('安装后生成 __init__.py', os.path.isfile(os.path.join(BASE, 'plugins', 'multi_plugin', '__init__.py')))
         check('安装后模板存在', os.path.isfile(os.path.join(BASE, 'templates', 'plugins', 'multi_plugin', 'multi_plugin.html')))
         check('py 清单含 3 个模块', len(result['py']) == 3, str(result['py']))
 
-        meta_file = os.path.join(BASE, 'plugins', 'multi_plugin.json')
+        meta_file = os.path.join(BASE, 'plugins', 'multi_plugin', 'multi_plugin.json')
         meta = json.load(open(meta_file, encoding='utf-8'))
         check('描述文件写入 installed_files', isinstance(meta.get('installed_files'), list))
         installed = meta.get('installed_files', [])
         expect = {
-            'plugins/multi_plugin.py', 'plugins/helper_a.py', 'plugins/helper_b.py',
-            'plugins/multi_plugin.json', 'templates/plugins/multi_plugin/multi_plugin.html',
+            'plugins/multi_plugin/multi_plugin.py', 'plugins/multi_plugin/helper_a.py',
+            'plugins/multi_plugin/helper_b.py', 'plugins/multi_plugin/multi_plugin.json',
+            'plugins/multi_plugin/__init__.py',
+            'templates/plugins/multi_plugin/multi_plugin.html',
         }
         check('installed_files 清单完整', set(installed) == expect, str(installed))
 
         # ---------- 2. 卸载按清单全清 ----------
         removed = cleanup_plugin_resources('multi_plugin')
-        check('卸载后主 .py 已删', not os.path.exists(os.path.join(BASE, 'plugins', 'multi_plugin.py')))
-        check('卸载后 helper_a 已删', not os.path.exists(os.path.join(BASE, 'plugins', 'helper_a.py')))
-        check('卸载后 helper_b 已删', not os.path.exists(os.path.join(BASE, 'plugins', 'helper_b.py')))
+        check('卸载后主 .py 已删', not os.path.exists(os.path.join(BASE, 'plugins', 'multi_plugin', 'multi_plugin.py')))
+        check('卸载后 helper_a 已删', not os.path.exists(os.path.join(BASE, 'plugins', 'multi_plugin', 'helper_a.py')))
+        check('卸载后 helper_b 已删', not os.path.exists(os.path.join(BASE, 'plugins', 'multi_plugin', 'helper_b.py')))
+        check('卸载后 __init__.py 已删', not os.path.exists(os.path.join(BASE, 'plugins', 'multi_plugin', '__init__.py')))
         check('卸载后模板已删', not os.path.exists(os.path.join(BASE, 'templates', 'plugins', 'multi_plugin', 'multi_plugin.html')))
         check('卸载后描述文件已删', not os.path.exists(meta_file))
-        check('卸载删除路径数 >= 5', len(removed) >= 5, str(removed))
+        check('卸载后插件目录本体已清', not os.path.exists(os.path.join(BASE, 'plugins', 'multi_plugin')))
+        check('卸载删除路径数 >= 6', len(removed) >= 6, str(removed))
 
         tpl_plugins = os.path.join(BASE, 'templates', 'plugins')
         if os.path.isdir(tpl_plugins):
@@ -126,15 +132,16 @@ def main():
         # v1 含 helper_a/helper_b
         z1 = build_pack(TMP, 'upd_plugin', '1.0.0', extra_pys=['helper_a', 'helper_b'])
         extract_plugin_pack(z1, 'upd_plugin', meta_override={"name": "upd_plugin", "version": "1.0.0"})
-        check('v1 安装后 helper_a 存在', os.path.isfile(os.path.join(BASE, 'plugins', 'helper_a.py')))
+        check('v1 安装后 helper_a 存在(目录化)', os.path.isfile(os.path.join(BASE, 'plugins', 'upd_plugin', 'helper_a.py')))
         # v2 不再携带 helper_a（模拟新版本移除辅助模块）→ clean_old=True 应清掉旧 helper_a
         z2 = build_pack(TMP, 'upd_plugin', '1.0.1', extra_pys=['helper_b'])
         extract_plugin_pack(z2, 'upd_plugin', meta_override={"name": "upd_plugin", "version": "1.0.1"})
-        check('v2 更新后旧 helper_a 已清理', not os.path.exists(os.path.join(BASE, 'plugins', 'helper_a.py')))
-        check('v2 更新后新 helper_b 保留', os.path.isfile(os.path.join(BASE, 'plugins', 'helper_b.py')))
+        check('v2 更新后旧 helper_a 已清理', not os.path.exists(os.path.join(BASE, 'plugins', 'upd_plugin', 'helper_a.py')))
+        check('v2 更新后新 helper_b 保留', os.path.isfile(os.path.join(BASE, 'plugins', 'upd_plugin', 'helper_b.py')))
+        upd_meta = os.path.join(BASE, 'plugins', 'upd_plugin', 'upd_plugin.json')
         check('v2 清单更新为不含 helper_a',
-              'plugins/helper_a.py' not in json.load(open(meta_file.replace('multi', 'upd'), encoding='utf-8')).get('installed_files', []),
-              str(json.load(open(meta_file.replace('multi', 'upd'), encoding='utf-8')).get('installed_files', [])))
+              'plugins/upd_plugin/helper_a.py' not in json.load(open(upd_meta, encoding='utf-8')).get('installed_files', []),
+              str(json.load(open(upd_meta, encoding='utf-8')).get('installed_files', [])))
         cleanup_plugin_resources('upd_plugin')
 
         # ---------- 4. 边界：installed_files 被手工篡改注入越界路径 ----------

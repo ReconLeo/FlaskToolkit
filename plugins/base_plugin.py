@@ -858,6 +858,30 @@ class BasePlugin(ABC):
         return {'limit_mb': limit, 'usage_mb': usage,
                 'remaining_mb': None if not limit else max(0.0, limit - usage)}
 
+    def get_lang(self):
+        """v4.21 语言易用化：当前框架语言代码。
+
+        解析链 Cookie ``lang`` > 用户配置 ``LANGUAGE`` > 默认 zh-CN（与 core/i18n.get_lang 一致）。
+        模板层经 context_processor 已自动注入 ``lang``；后端插件取语言时用本方法，
+        免去自行组装 ``from core import i18n`` 导入链。
+        """
+        from core import i18n
+        return i18n.get_lang()
+
+    def t(self, key, **params):
+        """v4.21 语言易用化：按当前框架语言翻译词条（缺省回退原文，支持 {placeholder} 插值）。
+
+        模板层经 context_processor 已自动注入 ``t``；后端插件返回文本时用本方法翻译。
+        内部基于 ``make_translator(get_lang())``，规避 ``get_translator()`` 在线程局部
+        翻译器未设置（如 API 视图未渲染模板时 context_processor 不执行）回退默认语言的问题。
+        """
+        from core import i18n
+        return i18n.make_translator(i18n.get_lang())(key, **params)
+
+    def available_langs(self):
+        """v4.21 语言易用化：框架可用语言映射 {code: name}（供插件渲染语言选择器/语言提示等）。"""
+        from core import i18n
+        return i18n.available_languages()
 
 
     def render_index(self):

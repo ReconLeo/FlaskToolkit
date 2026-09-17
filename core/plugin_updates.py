@@ -152,3 +152,88 @@ def check_all_plugin_updates(force: bool = False) -> list:
         if p.get('update_feed'):
             out.append(check_plugin_update(str(p.get('name')), force=force))
     return out
+
+
+def _download_to_file(url: str, dest: str, max_bytes: int, timeout: float = 60.0) -> int:
+    """流式下载 url 到 dest，限制总大小 max_bytes（0=不限制）；失败清理半成品并抛异常。"""
+    import urllib.request
+    req = urllib.request.Request(url, headers={'User-Agent': 'FlaskToolkit/plugin-update'})
+    written = 0
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp, open(dest, 'wb') as f:
+            while True:
+                chunk = resp.read(64 * 1024)
+                if not chunk:
+                    break
+                written += len(chunk)
+                if max_bytes and written > max_bytes:
+                    raise ValueError(f'更新包超过大小上限 {max_bytes} 字节')
+                f.write(chunk)
+        return written
+    except Exception:
+        try:
+            if os.path.exists(dest):
+                os.remove(dest)
+        except OSError:
+            pass
+        raise
+
+
+def update_from_feed(plugin_name: str, force: bool = False) -> tuple:
+    """按插件 update_feed 一键下载 + 校验 + 更新（v4.21，打通检查→应用闭环）。
+
+    流程：拉取 feed（force 跳过缓存）→ 判断有新版本 → 流式下载 download_url（限包大小）
+    → sha256 校验（feed 提供时）→ 复用 plugin_admin.update_from_package 走完整门禁
+    （verify_package + scan_gate + enforce），更新源不绕过安全链路。
+    返回 (ok, message, extra)。权限：framework:manage（由 plugin_admin 门禁判定）。
+    """
+    import hashlib
+    from core import plugin_admin
+
+    feed_url = ''
+    for p in global_var.plugin_catalog:
+        if p.get('name') == plugin_name:
+            feed_url = str(p.get('update_feed') or '')
+            break
+    if not feed_url:
+        return False, f'插件 {plugin_name} 未声明更新源', {}
+
+    cur = _current_version(plugin_name)
+    check = check_plugin_update(plugin_name, force=force)
+    if check.get('error'):
+        return False, f'更新源检查失败: {check["error"]}', {}
+    if not check.get('available'):
+        return False, f'插件 {plugin_name} 已是最新（当前 v{cur}）', {}
+
+    url = check.get('download_url')
+    if not url:
+        return False, f'更新源未提供 download_url，无法自动更新', {}
+
+    tmp_dir = global_var.UPLOAD_TEMP_DIR
+    try:
+        os.makedirs(tmp_dir, exist_ok=True)
+    except OSError:
+        tmp_dir = global_var.PLUGIN_TEMP_DIR
+    dest = os.path.join(tmp_dir, f'plugin_update_{plugin_name}_{int(time.time() * 1000)}.zip')
+    try:
+        _download_to_file(url, dest, global_var.PACKAGE_MAX_UPLOAD_SIZE)
+        _sha = (check.get('sha256') or '').strip().lower()
+        if _sha:
+            h = hashlib.sha256()
+            with open(dest, 'rb') as f:
+                for chunk in iter(lambda: f.read(64 * 1024), b''):
+                    h.update(chunk)
+            if h.hexdigest() != _sha:
+                raise ValueError('sha256 校验失败（下载包不完整或被篡改）')
+        ok, msg, extra = plugin_admin.update_from_package(
+            dest, plugin_name, source_label=f'update_feed:{url}')
+        return ok, msg, extra
+    except Exception as e:
+        logger.warning("插件 %s 自动更新下载/校验失败: %s", plugin_name, e)
+        return False, f'更新包下载/校验失败: {str(e)[:200]}', {}
+    finally:
+        try:
+            if os.path.exists(dest):
+                os.remove(dest)
+        except OSError:
+            pass

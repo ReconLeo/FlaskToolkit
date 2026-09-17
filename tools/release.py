@@ -43,6 +43,8 @@ RUNTIME_TOP = ['app.py', 'global_var.py', 'requirements.txt', 'core', 'routes', 
 RUNTIME_EXAMPLE_THEME = ['themes/sepia/theme.css', 'themes/sepia/theme.json', 'themes/sepia/background-sepia.png']
 # 内置插件白名单（用户插件不入精简包；plugins/configs|data|temp 为运行时数据不入包）
 RUNTIME_PLUGIN_FILES = {'__init__.py', 'base_plugin.py', 'auth.py', 'user_manage.py'}
+# v4.21 目录化内置插件（精简包放行其整个 plugins/<name>/ 目录，如 user_manage）
+RUNTIME_PLUGIN_DIRS = {'user_manage'}
 # templates 下排除的用户内容子目录（前端工具模板）。
 # 注：'plugins' 不在此处整体排除——精简包需保留内置插件 user_manage 的模板/静态资源
 #     （render_template('plugins/user_manage.html')），由 collect_runtime_files 单独过滤。
@@ -138,8 +140,12 @@ def collect_runtime_files():
                     continue
                 if top == 'plugins':
                     sub = rel[len('plugins/'):]
-                    if '/' in sub or fn not in RUNTIME_PLUGIN_FILES:
-                        continue  # 子目录/非内置插件跳过
+                    parts = sub.split('/')
+                    if len(parts) == 1:
+                        if fn not in RUNTIME_PLUGIN_FILES:
+                            continue  # 非内置扁平插件跳过
+                    elif parts[0] not in RUNTIME_PLUGIN_DIRS:
+                        continue  # 非目录化内置插件的子目录跳过
                 if top == 'templates':
                     first = rel.split('/')[1] if '/' in rel else ''
                     if first in RUNTIME_TEMPLATE_EXCLUDE:
@@ -148,7 +154,8 @@ def collect_runtime_files():
                         # 精简包仅内置插件 user_manage 需自带模板/静态资源
                         # （auth 无独立模板；airdrop/kaleido 为示例插件，不进 runtime 包）
                         rest = rel[len('templates/plugins/'):]
-                        if not (rest == 'user_manage.html' or rest.startswith('static/user_manage/')):
+                        if not (rest == 'user_manage.html' or rest.startswith('user_manage/')
+                                or rest.startswith('static/user_manage/')):
                             continue
                 files.append(rel)
     # 追加框架自带示例主题 sepia（放行 USER_DATA 过滤，见 RUNTIME_EXAMPLE_THEME 注释）

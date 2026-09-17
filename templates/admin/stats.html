@@ -244,11 +244,11 @@
                           ['desktop', '🖥 ' + window.T('桌面')], ['bot', '🤖 ' + window.T('爬虫/脚本')]];
         const maxDev = Math.max(1, ...devNames.map(d => dev[d[0]] || 0));
         document.getElementById('profileUsers').innerHTML = users.length
-            ? users.map(u => `<div style="display:flex; justify-content:space-between; border-bottom:1px dashed #ecf0f1;">` +
+            ? users.map(u => `<div style="display:flex; justify-content:space-between; border-bottom:1px dashed var(--adm-border);">` +
                 `<span>👤 ${esc(u.username)}</span><b>${fmt(u.count)}</b></div>`).join('')
             : '<span style="color: var(--adm-text-light);">' + window.T('暂无登录用户访问') + '</span>';
         document.getElementById('profileIps').innerHTML = ips.length
-            ? ips.map(u => `<div style="display:flex; justify-content:space-between; border-bottom:1px dashed #ecf0f1;">` +
+            ? ips.map(u => `<div style="display:flex; justify-content:space-between; border-bottom:1px dashed var(--adm-border);">` +
                 `<span style="font-family:monospace; font-size:12px;">${esc(u.ip)}` +
                 (u.users && u.users.length ? ` <span style="color: var(--adm-text-light); font-size:11px;">(${u.users.join('/')})</span>` : '') +
                 `</span><b>${fmt(u.count)}</b></div>`).join('')
@@ -258,7 +258,7 @@
             const w = Math.max(2, v / maxDev * 100);
             return `<div style="display:flex; align-items:center; gap:8px;">` +
                 `<span style="width:80px;">${d[1]}</span>` +
-                `<div style="flex:1; background:#ecf0f1; border-radius:4px; height:14px;">` +
+                `<div style="flex:1; background:var(--adm-border-light); border-radius:4px; height:14px;">` +
                 `<div style="width:${w}%; background:#16a085; border-radius:4px; height:14px;"></div></div>` +
                 `<b style="width:40px; text-align:right;">${fmt(v)}</b></div>`;
         }).join('');

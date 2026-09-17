@@ -229,7 +229,7 @@ class DynamicPlugin(BasePlugin):
 
 
 def test_extract_writes_aligned_meta():
-    """落盘 plugins/<name>.json 为对齐后的描述（含类兜底字段）"""
+    """落盘 plugins/<name>/<name>.json 为对齐后的描述（含类兜底字段，v4.21 目录化）"""
     with TmpBase() as root:
         zp = os.path.join(root, 'p.zip')
         # plugin.json 缺 version/dependencies，期望落盘时已补齐
@@ -238,8 +238,8 @@ def test_extract_writes_aligned_meta():
         desc = parse_plugin_pack(zp)
         extract_plugin_pack(zp, 'user_manage', meta_override=desc)
 
-        meta_path = os.path.join(root, 'plugins', 'user_manage.json')
-        check('描述文件已落盘', os.path.isfile(meta_path), f"exists={os.path.isfile(meta_path)}")
+        meta_path = os.path.join(root, 'plugins', 'user_manage', 'user_manage.json')
+        check('描述文件已落盘(目录化 plugins/user_manage/user_manage.json)', os.path.isfile(meta_path), f"exists={os.path.isfile(meta_path)}")
         if os.path.isfile(meta_path):
             with open(meta_path, 'r', encoding='utf-8') as f:
                 landed = json.load(f)
@@ -248,6 +248,42 @@ def test_extract_writes_aligned_meta():
                   and landed.get('name') == 'user_manage')
             check('落盘描述已对齐补全', ok, f"landed={landed}")
 
+
+def test_extract_locales_plugin_pack():
+    """v4.21 插件语言包安装：locales/ 解压到 plugins/<name>/locales/ 并记入 installed_files
+    （修复：extract_plugin_pack 曾把 locales/ 当未知条目忽略，导致插件 self.t() 翻译不生效）"""
+    with TmpBase() as root:
+        zp = os.path.join(root, 'p.zip')
+        # 构造含 locales/ 的插件包
+        with zipfile.ZipFile(zp, 'w', zipfile.ZIP_DEFLATED) as zf:
+            zf.writestr('plugin.json', json.dumps(GOOD_JSON, ensure_ascii=False).encode('utf-8'))
+            zf.writestr('user_manage.py', GOOD_PY)
+            zf.writestr('locales/en.json', json.dumps({'用户账号管理': 'User Management'}, ensure_ascii=False).encode('utf-8'))
+            zf.writestr('locales/fr.json', json.dumps({'用户账号管理': 'Gestion des utilisateurs'}, ensure_ascii=False).encode('utf-8'))
+        desc = parse_plugin_pack(zp)
+        res = extract_plugin_pack(zp, 'user_manage', meta_override=desc)
+
+        # 1. locales 解压到 plugins/<name>/locales/
+        en_p = os.path.join(root, 'plugins', 'user_manage', 'locales', 'en.json')
+        fr_p = os.path.join(root, 'plugins', 'user_manage', 'locales', 'fr.json')
+        check('插件语言包解压到 plugins/<name>/locales/en.json', os.path.isfile(en_p), f"exists={os.path.isfile(en_p)}")
+        check('插件语言包解压到 plugins/<name>/locales/fr.json', os.path.isfile(fr_p), f"exists={os.path.isfile(fr_p)}")
+
+        # 2. 返回结果 dict 含 locales 清单
+        check('extract 返回 locales 清单', res.get('locales') == [en_p, fr_p], f"locales={res.get('locales')}")
+
+        # 3. installed_files 记入 locales（供卸载/更新清理）
+        with open(os.path.join(root, 'plugins', 'user_manage', 'user_manage.json'), encoding='utf-8') as f:
+            landed = json.load(f)
+        inst = [x for x in landed.get('installed_files', []) if 'locales' in x]
+        check('installed_files 含 locales 条目',
+              set(inst) == {'plugins/user_manage/locales/en.json', 'plugins/user_manage/locales/fr.json'},
+              f"inst={inst}")
+
+        # 4. 内容正确写入
+        with open(en_p, encoding='utf-8') as f:
+            d = json.load(f)
+        check('语言包内容正确', d.get('用户账号管理') == 'User Management', f"d={d}")
 
 def test_pip_dependencies():
     """pip_dependencies 字段：plugin.json 透传 / 类兜底 / 冲突拒绝（v4.10）"""
@@ -277,6 +313,7 @@ if __name__ == '__main__':
     test_conflicts()
     test_name_consistency()
     test_extract_writes_aligned_meta()
+    test_extract_locales_plugin_pack()
     test_pip_dependencies()
 
     passed = sum(1 for _, c, _ in results if c)

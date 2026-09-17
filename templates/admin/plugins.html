@@ -6,13 +6,13 @@
     .file-info.error { color: #e74c3c; }
     .hidden { display: none !important; } /* v4.15.4：通用隐藏类（修复安装前确认区初始可见） */
     .drop-zone {
-        border: 2px dashed #bdc3c7; border-radius: 10px; padding: 28px 16px;
-        text-align: center; cursor: pointer; transition: all 0.2s; background: #fafbfc;
+        border: 2px dashed var(--adm-input-border); border-radius: 10px; padding: 28px 16px;
+        text-align: center; cursor: pointer; transition: all 0.2s; background: var(--adm-input-bg);
     }
-    .drop-zone:hover, .drop-zone.dragover { border-color: #3498db; background: #eef6fd; }
+    .drop-zone:hover, .drop-zone.dragover { border-color: var(--adm-primary); background: var(--adm-th-bg); }
     .drop-zone .drop-hint { font-size: 14px; color: var(--adm-text-muted); }
     .drop-zone.dragover .drop-hint { color: #2980b9; }
-    .upload-progress { height: 8px; background: #ecf0f1; border-radius: 4px; margin-top: 10px; overflow: hidden; }
+    .upload-progress { height: 8px; background: var(--adm-border-light); border-radius: 4px; margin-top: 10px; overflow: hidden; }
     .upload-progress.hidden { display: none; }
     .upload-progress-bar { height: 100%; width: 0; background: #3498db; border-radius: 4px; transition: width 0.2s; }
     .upload-progress-bar.error { background: #e74c3c; }
@@ -25,11 +25,11 @@
     .plg-badges { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
     .plg-badges .badge { margin-left: 0 !important; }
     .plg-meta { font-size: 13px; color: var(--adm-text-muted); line-height: 1.9; display: flex; flex-wrap: wrap; gap: 4px 0; }
-    .plg-meta .meta-item { background: #f0f2f5; padding: 1px 7px; border-radius: 3px; margin-right: 6px; white-space: nowrap; }
+    .plg-meta .meta-item { background: var(--adm-border-light); padding: 1px 7px; border-radius: 3px; margin-right: 6px; white-space: nowrap; }
     .plg-meta .meta-item b { color: var(--adm-text); font-weight: 600; }
     .plg-meta .meta-issue { width: 100%; color: #e74c3c; margin-top: 4px; }
     .plg-meta .meta-select { display: flex; align-items: center; gap: 6px; margin-top: 2px; }
-    .plg-meta .meta-select select { font-size: 12px; padding: 2px 4px; border: 1px solid #ccc; border-radius: 4px; background: #fff; }
+    .plg-meta .meta-select select { font-size: 12px; padding: 2px 4px; border: 1px solid var(--adm-input-border); border-radius: 4px; background: var(--adm-input-bg); color: var(--adm-text); }
     .plg-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 </style>
 {% endblock %}
@@ -114,7 +114,7 @@
             <p id="upload-tip">{{ t('上传的 .zip 插件包需包含 plugin.json 和主插件 .py（可附带 templates/static 资源）。后端插件包将先展示安装前能力清单，确认后安装。') }}</p>
         </div>
         <!-- v4.10 安装前能力清单确认区 -->
-        <div id="upload-preview" class="hidden" style="border:1px solid #d5dbdb; border-radius:6px; padding:12px; margin-bottom:12px; background:#f8f9fa;">
+        <div id="upload-preview" class="hidden" style="border:1px solid var(--adm-input-border); border-radius:6px; padding:12px; margin-bottom:12px; background:var(--adm-th-bg);">
             <h4 style="margin:0 0 10px; font-size:14px;">{{ t('安装前确认（能力清单）') }}</h4>
             <div id="upload-preview-content" style="font-size:13px; max-height:260px; overflow-y:auto; line-height:1.7;"></div>
             <div style="margin-top:10px; display:flex; gap:10px;">
@@ -315,6 +315,28 @@
         }
     }
 
+    async function updateFromFeed(name) {
+        // v4.21：按 update_feed 一键下载+校验+更新（走完整安装门禁），打通检查→应用闭环
+        if (!confirm(window.T('将从更新源下载最新版并更新插件') + ' ' + name + '？')) return;
+        try {
+            const resp = await fetch(`/api/admin/plugins/${name}/update-from-feed`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ force: false })
+            });
+            const data = await resp.json();
+            if (data.code === 200) {
+                showToast(window.T('插件已更新') + ': ' + (data.message || ''), 'success');
+                loadPlugins();
+                checkPluginUpdates(true);
+            } else {
+                showToast(window.T('更新失败') + ': ' + (data.message || window.T('未知错误')), 'error');
+            }
+        } catch (e) {
+            showToast(window.T('更新失败') + ': ' + e.message, 'error');
+        }
+    }
+
     // 页面加载时静默检查一次（缓存 TTL 内不触发网络）
     setTimeout(() => { checkPluginUpdates(false); }, 500);
 
@@ -386,6 +408,7 @@
                                 : `<button class="btn btn-success btn-sm" onclick="togglePlugin('${plugin.name}', true)">${window.T('启用')}</button>`)}
                         ${(plugin.type !== 'frontend' && plugin.has_config) ? `<button class="btn btn-info btn-sm" onclick="toggleConfig('${plugin.name}')">${window.T('配置')}</button>` : ''}
                         ${plugin.type !== 'frontend' ? `<a class="btn btn-info btn-sm" href="/__plugin_api__/${plugin.name}" target="_blank" title="${window.T('API 文档与调试')}">${window.T('API 文档')}</a>` : ''}
+                        ${(pluginUpdates[plugin.name] && pluginUpdates[plugin.name].available) ? `<button class="btn btn-success btn-sm" onclick="updateFromFeed('${plugin.name}')">⬆ ${window.T('一键更新')}</button>` : ''}
                         <button class="btn btn-primary btn-sm" onclick="openUpdateModal('${plugin.name}', '${plugin.type || 'backend'}')">${window.T('更新')}</button>
                         <button class="btn btn-danger btn-sm" onclick="confirmUninstall('${plugin.name}', '${plugin.type || 'backend'}')">${window.T('卸载')}</button>
                     </div>
@@ -639,11 +662,11 @@
         // v4.15：framework 域高危警示条（core=红色强警示 / manage=橙色 / read=蓝色提示）
         let fwHtml = '';
         if (pv.framework_level === 'core') {
-            fwHtml = '<div style="background:#fdecea; border:1px solid #e74c3c; color:#c0392b; border-radius:6px; padding:8px 10px; margin-bottom:8px; font-weight:600;">⚠️ ' + window.T('本插件声明 <code>framework:core</code>（Root 权限）：可读写框架核心文件与全局状态，等同于授予管理员级系统权限。请确认来源可信，其造成的任何破坏由使用者自行承担（MIT 协议）。') + '</div>';
+            fwHtml = '<div style="background:var(--adm-card-bg); border:1px solid #e74c3c; color:var(--adm-text); border-radius:6px; padding:8px 10px; margin-bottom:8px; font-weight:600;">⚠️ ' + window.T('本插件声明 <code>framework:core</code>（Root 权限）：可读写框架核心文件与全局状态，等同于授予管理员级系统权限。请确认来源可信，其造成的任何破坏由使用者自行承担（MIT 协议）。') + '</div>';
         } else if (pv.framework_level === 'manage') {
-            fwHtml = '<div style="background:#fef9e7; border:1px solid #e67e22; color:#b9770e; border-radius:6px; padding:8px 10px; margin-bottom:8px;">⚠️ ' + window.T('本插件声明 <code>framework:manage</code>：可程序化安装/更新/卸载其他插件（市场/管理类插件）。') + '</div>';
+            fwHtml = '<div style="background:var(--adm-card-bg); border:1px solid #e67e22; color:var(--adm-text); border-radius:6px; padding:8px 10px; margin-bottom:8px;">⚠️ ' + window.T('本插件声明 <code>framework:manage</code>：可程序化安装/更新/卸载其他插件（市场/管理类插件）。') + '</div>';
         } else if (pv.framework_level === 'read') {
-            fwHtml = '<div style="background:#eaf4fd; border:1px solid #3498db; color:#21618c; border-radius:6px; padding:8px 10px; margin-bottom:8px;">ℹ️ ' + window.T('本插件声明 <code>framework:read</code>：可读取框架级数据（配置/系统信息/插件元数据）。') + '</div>';
+            fwHtml = '<div style="background:var(--adm-card-bg); border:1px solid var(--adm-primary); color:var(--adm-text); border-radius:6px; padding:8px 10px; margin-bottom:8px;">ℹ️ ' + window.T('本插件声明 <code>framework:read</code>：可读取框架级数据（配置/系统信息/插件元数据）。') + '</div>';
         }
         document.getElementById('upload-preview-content').innerHTML =
             fwHtml +

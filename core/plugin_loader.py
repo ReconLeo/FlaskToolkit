@@ -23,7 +23,7 @@ from core.plugin_cache import (is_cache_valid, load_plugin_cache, save_plugin_ca
 from core.capabilities import (clear_capabilities, load_capabilities_from_desc,
                               parse_capabilities, register_capabilities)
 from core.audit_hook import clear_violations
-from core.plugin_pack import check_framework_version
+from core.plugin_pack import check_framework_version, plugin_meta_file
 from core.plugin_status import load_plugin_status
 from core.stats import save_stats
 from core.utils import parse_path_pattern
@@ -153,7 +153,7 @@ def load_plugins():
     # 构建插件元信息字典
     plugin_meta = {}
     for info in discovered_plugins:
-        module_name = f'plugins.{info["file"][:-3]}'
+        module_name = info['module_name']
         try:
             module = importlib.import_module(module_name)
             global_var.loaded_module_names.add(module_name)
@@ -212,7 +212,7 @@ def load_plugins():
 
             # 注册能力声明（v4.3.2）：从插件描述文件读取 capabilities 并注册
             caps = load_capabilities_from_desc(
-                os.path.join(global_var.BASE_DIR, 'plugins', f'{plugin_name}.json'))
+                plugin_meta_file(global_var.BASE_DIR, plugin_name))
             register_capabilities(plugin_instance.name, caps)
 
             # v4.15：Root 权限加载横幅（framework:core 插件醒目告警）
@@ -393,7 +393,7 @@ def load_plugins():
             'repo': info.get('repo', ''),
             'update_feed': info.get('update_feed', ''),
             'capabilities': load_capabilities_from_desc(
-                os.path.join(global_var.BASE_DIR, 'plugins', f'{_name}.json')) or [],
+                plugin_meta_file(global_var.BASE_DIR, _name)) or [],
             'type': 'backend',
             'builtin': _name in global_var.BUILTIN_PLUGINS,
             'enabled': global_var.plugin_status.get(_name, {}).get('enabled', True),

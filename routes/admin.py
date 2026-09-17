@@ -18,7 +18,8 @@ from core.permission import admin_api
 from core.plugin_cache import compute_directory_fingerprint, load_plugin_cache
 from core.plugin_loader import load_plugins
 from core.plugin_pack import (cleanup_plugin_data, cleanup_plugin_resources,
-                              compare_versions, extract_plugin_pack, parse_plugin_pack)
+                              compare_versions, extract_plugin_pack, parse_plugin_pack,
+                              plugin_main_file)
 from core.quota import invalidate_cache as invalidate_quota_cache
 from core.plugin_status import load_plugin_status, save_plugin_status
 from core.audit import log_audit
@@ -111,6 +112,18 @@ def register(app):
         results = check_all_plugin_updates(force=bool(body.get('force')))
         return jsonify({"code": 200, "data": results})
 
+    @app.route('/api/admin/plugins/<plugin_name>/update-from-feed', methods=['POST'])
+    @admin_api
+    def plugin_update_from_feed(plugin_name):
+        """一键应用插件更新源（v4.21，打通检查→更新闭环）：按 update_feed 下载 + sha256 校验
+        + 复用 plugin_admin.update_from_package 完整门禁更新，更新源不绕过安全链路。
+        body {"force": true} 跳过缓存 TTL 重新拉取。返回 {ok, message, extra}。"""
+        from core.plugin_updates import update_from_feed
+        body = request.get_json(silent=True) or {}
+        ok, msg, extra = update_from_feed(plugin_name, force=bool(body.get('force')))
+        return jsonify({"code": 200 if ok else 400, "ok": ok,
+                        "message": msg, "msg": msg, "extra": extra})
+
     @app.route('/api/admin/quota', methods=['GET'])
     @admin_api
     def get_all_quota():
@@ -156,7 +169,7 @@ def register(app):
     @admin_api
     def uninstall_plugin(plugin_name):
         """卸载插件（v4.15 服务层：core/plugin_admin.uninstall）"""
-        plugin_file = os.path.join(global_var.BASE_DIR, 'plugins', f'{plugin_name}.py')
+        plugin_file = plugin_main_file(global_var.BASE_DIR, plugin_name)
         if not os.path.exists(plugin_file):
             return jsonify({"code": 404, "message": "插件文件不存在"}), 404
         try:
@@ -172,7 +185,7 @@ def register(app):
     def purge_plugin_data(plugin_name):
         """清理单插件空间（v4.15 服务层：core/plugin_admin.purge_data）
         body {"scope": "temp"}（默认，临时目录）| {"scope": "all"}（全部数据）"""
-        plugin_file = os.path.join(global_var.BASE_DIR, 'plugins', f'{plugin_name}.py')
+        plugin_file = plugin_main_file(global_var.BASE_DIR, plugin_name)
         if not os.path.exists(plugin_file):
             return jsonify({"code": 404, "message": "插件文件不存在"}), 404
         body = request.get_json(silent=True) or {}
@@ -393,7 +406,7 @@ def register(app):
                 if 'plugin_name' in dir():
                     _pn = locals().get('plugin_name')
                     if _pn:
-                        _pf = os.path.join(global_var.BASE_DIR, 'plugins', f'{_pn}.py')
+                        _pf = plugin_main_file(global_var.BASE_DIR, _pn)
                         if os.path.exists(_pf):
                             os.remove(_pf)
                         cleanup_plugin_resources(_pn)

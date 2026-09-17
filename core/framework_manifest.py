@@ -52,7 +52,8 @@ CORE_FILES = [
     # v4.19 界面主题能力（app inject_i18n / routes public 引用 get_theme，缺失即 import 崩）
     'core/theme.py',
     'plugins/__init__.py', 'plugins/base_plugin.py',
-    'plugins/auth.py', 'plugins/user_manage.py',
+    'plugins/auth.py',
+    'plugins/user_manage/__init__.py', 'plugins/user_manage/user_manage.py',
 ]
 
 

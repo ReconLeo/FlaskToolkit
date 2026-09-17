@@ -17,7 +17,7 @@ from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
 
 import global_var
-from core.plugin_pack import META_FIELDS
+from core.plugin_pack import META_FIELDS, plugin_meta_file
 from core.frontend_tools import load_frontend_tools
 from core.plugin_cache import (compute_directory_fingerprint, compute_file_fingerprint, load_plugin_cache)
 from core.plugin_loader import load_plugins
@@ -72,6 +72,38 @@ class PluginFileHandler(FileSystemEventHandler):
                     logger.error(f"前端工具重载失败: {str(e)}\n{traceback.format_exc()}", extra={'plugin': 'system'})
 
 
+def _infer_plugin_target(changed_filepath):
+    """从变更文件路径推断插件目标（兼容扁平 plugins/<name>.py 与目录化 plugins/<name>/<name>.py）。
+
+    目录化布局下辅助模块/主文件同属 plugins/<name>/ 目录，统一归到该插件。
+    返回 (plugin_name, main_file_key, main_meta_file, main_module_name)；
+    非插件 .py 或无法推断返回 (None, None, None, None)。
+    """
+    plugin_dir = os.path.join(global_var.BASE_DIR, 'plugins')
+    try:
+        rel = os.path.relpath(changed_filepath, plugin_dir).replace('\\', '/')
+    except ValueError:
+        return None, None, None, None
+    parts = rel.split('/')
+    if len(parts) < 1 or not parts[0]:
+        return None, None, None, None
+    # 目录化：plugins/<name>/<name>.py（含辅助模块 xxx.py 同目录）
+    if len(parts) >= 2:
+        plugin_name = parts[0]
+        return (plugin_name,
+                f'plugins/{plugin_name}/{plugin_name}.py',
+                plugin_meta_file(global_var.BASE_DIR, plugin_name),
+                f'plugins.{plugin_name}.{plugin_name}')
+    # 扁平：plugins/<name>.py
+    if not parts[0].endswith('.py'):
+        return None, None, None, None
+    plugin_name = parts[0][:-3]
+    return (plugin_name,
+            parts[0],
+            plugin_meta_file(global_var.BASE_DIR, plugin_name),
+            f'plugins.{plugin_name}')
+
+
 def incremental_update_cache(changed_filepath: str):
     """
     增量更新缓存：只更新变更文件对应的缓存条目
@@ -98,9 +130,11 @@ def incremental_update_cache(changed_filepath: str):
         save_cache_internal(cache)
         return
 
-    # ====== 情况2：插件 .py 文件变更 ======
+    # ====== 情况2：插件 .py 文件变更（主文件/辅助模块，兼容扁平与目录化布局） ======
     if filename.endswith('.py') and filename not in ['__init__.py', 'base_plugin.py']:
-        plugin_name = filename[:-3]  # 去掉 .py
+        plugin_name, file_key, meta_file, module_name = _infer_plugin_target(changed_filepath)
+        if plugin_name is None:
+            return
 
         # 检查文件是否存在（可能被删除）
         if not os.path.exists(changed_filepath):
@@ -108,19 +142,20 @@ def incremental_update_cache(changed_filepath: str):
             logger.info(f"插件文件 {filename} 已被删除，从缓存中移除", extra={'plugin': 'system'})
             cache['discovered_plugins'] = [
                 info for info in cache['discovered_plugins']
-                if info['file'] != filename
+                if info['file'] != file_key
             ]
             cache['fingerprints'].pop(plugin_name, None)
         else:
             # ====== 插件被新增或修改 ======
             logger.info(f"插件文件 {filename} 已变更，更新缓存", extra={'plugin': 'system'})
 
-            # 重新扫描该文件
-            module_name = f'plugins.{plugin_name}'
             try:
-                # 清理模块缓存确保重新导入
-                if module_name in sys.modules:
-                    del sys.modules[module_name]
+                # 清理模块缓存确保重新导入：目录化下删插件包全部子模块（含辅助模块）
+                _parts = module_name.split('.')
+                _prefix = f'plugins.{_parts[1]}.' if len(_parts) >= 3 else module_name
+                for _mn in list(sys.modules.keys()):
+                    if _mn == module_name or _mn.startswith(_prefix):
+                        del sys.modules[_mn]
 
                 module = importlib.import_module(module_name)
 
@@ -132,7 +167,7 @@ def incremental_update_cache(changed_filepath: str):
                             temp_inst = attr()
                             new_plugin_info = {
                                 'name': temp_inst.name,
-                                'file': filename,
+                                'file': file_key,
                                 'class_name': attr.__name__,
                                 'dependencies': temp_inst.dependencies,
                                 'category': getattr(temp_inst, 'category', 'uncategorized'),
@@ -147,7 +182,6 @@ def incremental_update_cache(changed_filepath: str):
 
                 if new_plugin_info:
                     # 插件包描述文件为权威：整体覆盖（与 scan_plugin_metadata 保持一致）
-                    meta_file = os.path.join(global_var.BASE_DIR, 'plugins', f"{new_plugin_info['name']}.json")
                     if os.path.isfile(meta_file):
                         try:
                             with open(meta_file, 'r', encoding='utf-8') as _mf:
@@ -165,11 +199,11 @@ def incremental_update_cache(changed_filepath: str):
                         except (json.JSONDecodeError, UnicodeDecodeError, OSError):
                             logger.warning(f"读取插件描述文件失败，忽略: {meta_file}", extra={'plugin': 'system'})
                     # 更新缓存中的条目
-                    existing = [i for i in cache['discovered_plugins'] if i['file'] == filename]
+                    existing = [i for i in cache['discovered_plugins'] if i['file'] == file_key]
                     if existing:
                         # 更新已有条目
                         for i, info in enumerate(cache['discovered_plugins']):
-                            if info['file'] == filename:
+                            if info['file'] == file_key:
                                 cache['discovered_plugins'][i] = new_plugin_info
                                 break
                     else:

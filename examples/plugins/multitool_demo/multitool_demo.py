@@ -24,7 +24,7 @@ from typing import List, Dict
 from flask import request
 
 from plugins.base_plugin import BasePlugin, permission as permission_required
-from plugins import multitool_utils  # 辅助模块（插件包内多 .py，复用其纯函数）
+from plugins.multitool_demo import multitool_utils  # 辅助模块（插件包内多 .py，复用其纯函数）
 
 
 class MultiToolDemo(BasePlugin):

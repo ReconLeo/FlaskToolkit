@@ -22,6 +22,8 @@ import os
 import shutil
 import sys
 import tempfile
+import hashlib
+import zipfile
 
 REAL_BASE = _PROJECT_ROOT
 sys.path.insert(0, REAL_BASE)
@@ -163,6 +165,151 @@ try:
         global_var._user_config['UPDATE_CHECK_INTERVAL'] = saved_iv
 finally:
     shutil.rmtree(iso, ignore_errors=True)
+
+# ==================== B2: update_from_feed 一键更新闭环（v4.21） ====================
+# 覆盖：前置拒绝分支（未声明源/已最新/拉取失败/缺 download_url）→
+# 下载 + sha256 校验 + 门禁委托（mock 门禁验证编排）→ 真实端到端（下载+sha256+门禁+加载）。
+import core.plugin_admin as _pa
+
+def _mk_update_feed(iso_dir, feed_name, zip_path, sha256, latest='9.9.9',
+                    download_url=None, priv_=None):
+    if priv_ is None:
+        priv_ = priv_path  # 取当前模块级 priv_path（B2 段会重绑定到自身隔离密钥）
+    _f = {'latest_version': latest, 'published_at': '2026-09-17',
+          'download_url': (download_url if download_url is not None
+                           else 'file:///' + zip_path.replace('\\', '/')),
+          'sha256': sha256, 'changes': ['更新']}
+    _f['signature'] = sign_manifest(_f, priv_, signer='test')['signature']
+    fp = os.path.join(iso_dir, feed_name)
+    with io.open(fp, 'w', encoding='utf-8') as f:
+        json.dump(_f, f, ensure_ascii=False)
+    return 'file:///' + fp.replace('\\', '/')
+
+def _mk_package_zip(iso_dir, name='updemo', version='9.9.9'):
+    zb = io.BytesIO()
+    with zipfile.ZipFile(zb, 'w', zipfile.ZIP_STORED) as zf:
+        zf.writestr('plugin.json', json.dumps({"name": name, "version": version,
+            "permission": "user", "author": "T", "category": "测试",
+            "description": "自动更新测试"}, ensure_ascii=False).encode('utf-8'))
+        zf.writestr(name + '.py', '# -*- coding: utf-8 -*-\nfrom plugins.base_plugin import BasePlugin\n'
+                    'class UpDemo(BasePlugin):\n    name="' + name + '"\n    version="' + version + '"\n    permission="user"\n')
+    data = zb.getvalue()
+    zp = os.path.join(iso_dir, f'{name}_{version}.zip')
+    open(zp, 'wb').write(data)
+    return zp, data
+
+_iso2 = tempfile.mkdtemp(prefix='ftk_updfeed_')
+# B2 用自己的 RSA 密钥（首段 iso 已在 finally 删除，模块级 priv_path 已失效）
+from cryptography.hazmat.primitives.asymmetric import rsa as _rsa
+from cryptography.hazmat.primitives import serialization as _ser
+_priv2 = _rsa.generate_private_key(public_exponent=65537, key_size=2048)
+_priv2_p = os.path.join(_iso2, 'priv2.pem'); _pub2_p = os.path.join(_iso2, 'pub2.pem')
+open(_priv2_p, 'wb').write(_priv2.private_bytes(_ser.Encoding.PEM, _ser.PrivateFormat.PKCS8, _ser.NoEncryption()))
+open(_pub2_p, 'wb').write(_priv2.public_key().public_bytes(_ser.Encoding.PEM, _ser.PublicFormat.SubjectPublicKeyInfo))
+priv_path = _priv2_p  # 重绑定模块级名字，供 _mk_update_feed 回退使用
+_sched = type('SchedStub', (), {'get_jobs': lambda self: [], 'get_job': lambda self, _: None,
+                                'remove_job': lambda self, _: None, 'add_job': lambda self, **_k: None})()
+try:
+    _saved2 = (global_var.BASE_DIR, getattr(global_var, 'plugin_catalog', None),
+               global_var._user_config.get('UPDATE_PUBLIC_KEY_PEM'),
+               global_var._user_config.get('UPDATE_CHECK_INTERVAL'), global_var.scheduler)
+    global_var.BASE_DIR = _iso2
+    global_var._user_config['UPDATE_CHECK_INTERVAL'] = 0
+    global_var._user_config['UPDATE_PUBLIC_KEY_PEM'] = _pub2_p
+    global_var.scheduler = _sched
+
+    # ---- A1. 未声明 update_feed ----
+    global_var.plugin_catalog = [{'name': 'nofeed', 'version': '1.0.0'}]
+    _a_ok, _a_msg, _ = pu.update_from_feed('nofeed', force=True)
+    check('update_from_feed：未声明更新源拒绝', _a_ok is False and '未声明更新源' in _a_msg, repr(_a_msg))
+
+    # ---- A2. 已是最新 ----
+    global_var.plugin_catalog = [{'name': 'cur', 'version': '9.9.9',
+        'update_feed': _mk_update_feed(_iso2, 'feed_cur.json', 'x.zip', '0' * 64, latest='9.9.9')}]
+    _b_ok, _b_msg, _ = pu.update_from_feed('cur', force=True)
+    check('update_from_feed：已是最新拒绝', _b_ok is False and '已是最新' in _b_msg, repr(_b_msg))
+
+    # ---- A3. feed 拉取失败 ----
+    global_var.plugin_catalog = [{'name': 'badfeed', 'version': '1.0.0',
+        'update_feed': 'file:///' + os.path.join(_iso2, 'no_such_feed.json').replace('\\', '/')}]
+    _c_ok, _c_msg, _ = pu.update_from_feed('badfeed', force=True)
+    check('update_from_feed：feed 拉取失败提示', _c_ok is False and '更新源检查失败' in _c_msg, repr(_c_msg))
+
+    # ---- A4. 缺 download_url ----
+    global_var.plugin_catalog = [{'name': 'nodl', 'version': '1.0.0',
+        'update_feed': _mk_update_feed(_iso2, 'feed_nodl.json', 'x.zip', '0' * 64,
+                                       latest='9.9.9', download_url='')}]
+    _d_ok, _d_msg, _ = pu.update_from_feed('nodl', force=True)
+    check('update_from_feed：缺 download_url 拒绝', _d_ok is False and 'download_url' in _d_msg, repr(_d_msg))
+
+    # ---- B. 下载 + sha256 校验 + 门禁委托（mock 门禁） ----
+    _zp, _zdata = _mk_package_zip(_iso2)
+    _good_sha = hashlib.sha256(_zdata).hexdigest()
+    _feed_good = _mk_update_feed(_iso2, 'feed_good.json', _zp, _good_sha)
+    global_var.plugin_catalog = [{'name': 'updemo', 'version': '1.0.0', 'update_feed': _feed_good}]
+    _calls = []
+    _removed = []
+    _orig_remove = os.remove
+    _orig_upd = _pa.update_from_package
+    def _fake_update(zip_path, name, actor=None, source_label=None):
+        _calls.append({'zip': zip_path, 'name': name, 'source': source_label})
+        return True, f'插件 {name} 已更新', {}
+    def _fake_remove(p):
+        _removed.append(p)  # 记录清理调用（沙箱拦截真实 os.remove，故用记录型 fake 验证清理逻辑）
+    os.remove = _fake_remove
+    _pa.update_from_package = _fake_update
+    try:
+        _e_ok, _e_msg, _ = pu.update_from_feed('updemo', force=True)
+    finally:
+        _pa.update_from_package = _orig_upd
+        os.remove = _orig_remove
+    check('update_from_feed：下载+sha256通过并委托门禁', _e_ok is True and len(_calls) == 1, repr(_e_msg))
+    check('update_from_feed：下载后用后清理已触发',
+          len(_calls) == 1 and any(_r == _calls[0]['zip'] for _r in _removed),
+          repr(_calls[0]['zip']) if _calls else '')
+
+    # 错误 sha256 → 拒绝且不委托门禁
+    _feed_bad = _mk_update_feed(_iso2, 'feed_badsha.json', _zp, 'f' * 64)
+    global_var.plugin_catalog = [{'name': 'updemo', 'version': '1.0.0', 'update_feed': _feed_bad}]
+    _calls2 = []
+    _pa.update_from_package = _fake_update
+    try:
+        _f_ok, _f_msg, _ = pu.update_from_feed('updemo', force=True)
+    finally:
+        _pa.update_from_package = _orig_upd
+    check('update_from_feed：sha256 不符拒绝且不委托门禁',
+          _f_ok is False and 'sha256' in _f_msg and _calls2 == []
+          and _pa.update_from_package is _orig_upd, repr(_f_msg))
+
+    # ---- C. 真实端到端（下载 + sha256 + 门禁 + 加载） ----
+    _zp2, _zdata2 = _mk_package_zip(_iso2)
+    _sha2 = hashlib.sha256(_zdata2).hexdigest()
+    _feed2 = _mk_update_feed(_iso2, 'feed_e2e.json', _zp2, _sha2)
+    global_var.plugin_catalog = [{'name': 'updemo', 'version': '1.0.0', 'update_feed': _feed2}]
+    sys.path.insert(0, _iso2)
+    try:
+        _g_ok, _g_msg, _ = pu.update_from_feed('updemo', force=True)
+    finally:
+        try:
+            sys.path.remove(_iso2)
+        except ValueError:
+            pass
+    check('update_from_feed：真实端到端更新成功', _g_ok is True, repr(_g_msg))
+    check('update_from_feed：端到端已落盘目录化 plugins/updemo/updemo.py',
+          os.path.exists(os.path.join(_iso2, 'plugins', 'updemo', 'updemo.py')))
+    check('update_from_feed：描述落盘 plugins/updemo/updemo.json',
+          os.path.exists(os.path.join(_iso2, 'plugins', 'updemo', 'updemo.json')))
+
+    # 恢复全局状态
+    global_var.BASE_DIR, global_var.plugin_catalog = _saved2[0], _saved2[1]
+    global_var.scheduler = _saved2[4]
+    global_var._user_config['UPDATE_PUBLIC_KEY_PEM'] = _saved2[2]
+    if _saved2[3] is None:
+        global_var._user_config.pop('UPDATE_CHECK_INTERVAL', None)
+    else:
+        global_var._user_config['UPDATE_CHECK_INTERVAL'] = _saved2[3]
+finally:
+    shutil.rmtree(_iso2, ignore_errors=True)
 
 print(f"\n==== 插件更新源签名测试 共 {len(results)} 项，通过 {sum(1 for _, c in results if c)}，失败 {sum(1 for _, c in results if not c)} ====")
 sys.exit(0 if all(c for _, c in results) else 1)

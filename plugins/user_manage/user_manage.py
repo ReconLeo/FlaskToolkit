@@ -1,5 +1,5 @@
 from plugins.base_plugin import BasePlugin
-from flask import request, render_template
+from flask import request
 from global_var import plugins
 from typing import List, Dict
 
@@ -144,9 +144,10 @@ class UserManagePlugin(BasePlugin):
         self.logger.info("用户管理插件加载完成，已关联鉴权插件")
 
     # 重写页面渲染方法，加载用户管理专属前端页面
+    # v4.21 目录化：模板位于 templates/plugins/user_manage/user_manage.html，用 self.render 定位
     def render_plugin_page(self):
-        return render_template(
-            'plugins/user_manage.html',
+        return self.render(
+            'user_manage.html',
             plugin_name=self.name,
             plugin_version=self.version,
             plugin_description=self.description

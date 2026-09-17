@@ -80,6 +80,11 @@ def reset_custom_plugins(results: dict):
             if name in global_var.BUILTIN_PLUGINS or name == 'status':
                 continue
             _safe_remove(full, results, f'插件描述 {fn}')
+        elif os.path.isdir(full) and fn not in ('temp', 'data', 'configs', '__pycache__'):
+            # v4.21 目录化插件：整删非内置插件目录 plugins/<name>/（含主/辅助/描述/locales）
+            if fn in global_var.BUILTIN_PLUGINS:
+                continue
+            _safe_remove(full, results, f'插件目录 {fn}')
         elif fn == 'temp' and os.path.isdir(full):
             # 清除非内置插件临时子目录
             for sub in sorted(os.listdir(full)):

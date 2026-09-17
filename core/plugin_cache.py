@@ -13,7 +13,7 @@ import os
 import time
 
 import global_var
-from core.plugin_pack import META_FIELDS
+from core.plugin_pack import META_FIELDS, plugin_meta_file, plugin_main_file
 from core.plugin_status import load_plugin_status
 
 logger = logging.getLogger('flask.app')
@@ -38,40 +38,43 @@ def compute_file_fingerprint(filepath: str) -> str:
     return f"{sha1.hexdigest()}+{md5.hexdigest()}"
 
 
+def _iter_plugin_files(plugin_dir: str):
+    """产出插件相关文件的相对路径（正斜杠）：扁平主文件 + 目录化插件目录内 .py/.json。
+
+    覆盖 v4.21 目录化布局：每个插件一个自包含目录 plugins/<name>/，其内文件均算插件文件
+    （否则目录化插件变更不反映在目录指纹，缓存失效判断失效）。
+    """
+    _skip_top = ('__init__.py', 'base_plugin.py', 'status.json',
+                 'configs', 'temp', 'data', '__pycache__')
+    for fn in sorted(os.listdir(plugin_dir)):
+        full = os.path.join(plugin_dir, fn)
+        if fn in _skip_top:
+            continue
+        if os.path.isfile(full):
+            if (fn.endswith('.py') or fn.endswith('.json')):
+                yield fn
+        elif os.path.isdir(full):
+            for root, dirs, files in os.walk(full):
+                dirs[:] = [d for d in dirs if d not in ('__pycache__',)]
+                for f in files:
+                    if f.endswith(('.py', '.json')):
+                        rel = os.path.relpath(os.path.join(root, f), plugin_dir)
+                        yield rel.replace(os.sep, '/')
+
 def compute_directory_fingerprint(plugin_dir: str) -> str:
     """
-    计算插件目录的整体指纹
-    包含：目录下所有 .py 文件的相对路径 + 对应指纹
-    用于快速判断是否有新增/删除/修改文件
+    计算插件目录的整体指纹（含目录化插件子目录）。
+    包含：插件相关文件的相对路径 + 对应指纹，用于快速判断新增/删除/修改。
     """
     hasher = hashlib.sha256()
-
-    def _is_plugin_file(name: str) -> bool:
-        # 主插件 .py（排除基类/包初始化）或插件包描述文件 plugins/<name>.json
-        if name.endswith('.py') and name not in ['__init__.py', 'base_plugin.py']:
-            return True
-        if name.endswith('.json') and name not in ['status.json']:
-            return True
-        return False
-
-    # 收集所有插件文件信息
+    rel_files = sorted(_iter_plugin_files(plugin_dir))
     plugin_files = []
-    for filename in sorted(os.listdir(plugin_dir)):
-        if not _is_plugin_file(filename):
-            continue
-        filepath = os.path.join(plugin_dir, filename)
-        if os.path.isfile(filepath):
-            fingerprint = compute_file_fingerprint(filepath)
-            plugin_files.append(f"{filename}:{fingerprint}")
-
-    # 将文件名列表本身也纳入指纹（用于检测新增/删除）
-    file_list_str = ",".join(
-        f for f in sorted(os.listdir(plugin_dir))
-        if _is_plugin_file(f)
-    )
-    hasher.update(file_list_str.encode('utf-8'))
+    for rel in rel_files:
+        filepath = os.path.join(plugin_dir, rel.replace('/', os.sep))
+        fingerprint = compute_file_fingerprint(filepath)
+        plugin_files.append(f"{rel}:{fingerprint}")
+    hasher.update(",".join(rel_files).encode('utf-8'))
     hasher.update("|".join(plugin_files).encode('utf-8'))
-
     return hasher.hexdigest()
 
 
@@ -173,68 +176,93 @@ def is_cache_valid(cache: dict, plugin_dir: str, current_status_hash: str) -> bo
     return True
 
 
+def _scan_plugin_module(module_name: str, file_key: str, plugin_dir: str):
+    """扫描单个插件模块，返回插件元信息 dict；非插件模块或异常返回 None。"""
+    try:
+        module = importlib.import_module(module_name)
+    except Exception as e:
+        logger.error(f"导入插件 {module_name} 失败: {str(e)}", extra={'plugin': 'system'})
+        return None
+    for attr_name in dir(module):
+        attr = getattr(module, attr_name)
+        if isinstance(attr, type) and \
+                any(base.__name__ == 'BasePlugin' for base in attr.__mro__) and \
+                attr.__name__ != 'BasePlugin':
+            try:
+                temp_inst = attr()
+            except Exception as e:
+                logger.error(f"实例化插件 {module_name} 失败: {str(e)}", extra={'plugin': 'system'})
+                return None
+            info = {
+                'name': temp_inst.name,
+                'file': file_key,
+                'module_name': module_name,
+                'class_name': attr.__name__,
+                'dependencies': temp_inst.dependencies,
+                'pip_dependencies': getattr(temp_inst, 'pip_dependencies', []) or [],
+                'category': getattr(temp_inst, 'category', 'uncategorized'),
+                'description': getattr(temp_inst, 'description', ''),
+                'version': getattr(temp_inst, 'version', '0.0.0'),
+                'title': getattr(temp_inst, 'title', temp_inst.name),
+                'author': getattr(temp_inst, 'author', '佚名'),
+                'permission': getattr(temp_inst, 'permission', 'user'),
+                'require_framework_version': getattr(temp_inst, 'require_framework_version', '')
+            }
+            # 插件包描述文件（plugins/<name>.json 或 plugins/<name>/<name>.json）为权威：整体覆盖类属性
+            # （缺失字段保留类属性兜底，兼容存量无描述文件插件）
+            meta_file = plugin_meta_file(global_var.BASE_DIR, temp_inst.name)
+            if os.path.isfile(meta_file):
+                try:
+                    with open(meta_file, 'r', encoding='utf-8') as _mf:
+                        meta = json.load(_mf)
+                    if isinstance(meta, dict):
+                        if meta.get('name') and meta['name'] != temp_inst.name:
+                            logger.error(
+                                f"插件描述文件 name 与插件类 name 不一致，跳过加载: "
+                                f"{meta.get('name')} vs {temp_inst.name}",
+                                extra={'plugin': 'system'})
+                            return None
+                        for _k in META_FIELDS:
+                            if _k in meta:
+                                info[_k] = meta[_k]
+                except (json.JSONDecodeError, UnicodeDecodeError, OSError):
+                    # v4.17.2：描述文件失效时告警升级并打标，供后台/调试页提示（否则 json 内
+                    # capabilities/require_framework_version 等声明静默丢失，enforce 下莫名失败）
+                    info['meta_invalid'] = True
+                    logger.error(
+                        f"插件描述文件失效，已回退插件类属性（json 内 capabilities/"
+                        f"require_framework_version 等声明将被忽略）: {meta_file}",
+                        extra={'plugin': 'system'})
+                else:
+                    info.pop('meta_invalid', None)
+            return info
+    return None
+
 def scan_plugin_metadata(plugin_dir: str) -> list[dict]:
     """
-    仅扫描插件元信息，不加载插件实例
-    返回发现结果列表
+    仅扫描插件元信息，不加载插件实例。
+    双布局发现（v4.21 目录化）：
+    - 扁平主文件：plugins/*.py（内置 auth 及历史扁平主文件）→ module=plugins.<name>
+    - 目录化主文件：plugins/<name>/<name>.py → module=plugins.<name>.<name>
+    返回发现结果列表（info 含 'module_name' 供 loader 直接导入）。
     """
     discovered = []
-
-    for filename in os.listdir(plugin_dir):
-        if not (filename.endswith('.py') and filename not in ['__init__.py', 'base_plugin.py']):
+    _skip_top = ('configs', 'temp', 'data', '__pycache__')
+    for fn in sorted(os.listdir(plugin_dir)):
+        full = os.path.join(plugin_dir, fn)
+        # ---- 扁平主文件：plugins/*.py ----
+        if os.path.isfile(full) and fn.endswith('.py') and \
+                fn not in ('__init__.py', 'base_plugin.py'):
+            info = _scan_plugin_module(f'plugins.{fn[:-3]}', fn, plugin_dir)
+            if info:
+                discovered.append(info)
             continue
-
-        module_name = f'plugins.{filename[:-3]}'
-        try:
-            module = importlib.import_module(module_name)
-            for attr_name in dir(module):
-                attr = getattr(module, attr_name)
-                if isinstance(attr, type):
-                    if any(base.__name__ == 'BasePlugin' for base in attr.__mro__) and attr.__name__ != 'BasePlugin':
-                        temp_inst = attr()
-                        info = {
-                            'name': temp_inst.name,
-                            'file': filename,
-                            'class_name': attr.__name__,
-                            'dependencies': temp_inst.dependencies,
-                            'pip_dependencies': getattr(temp_inst, 'pip_dependencies', []) or [],
-                            'category': getattr(temp_inst, 'category', 'uncategorized'),
-                            'description': getattr(temp_inst, 'description', ''),
-                            'version': getattr(temp_inst, 'version', '0.0.0'),
-                            'title': getattr(temp_inst, 'title', temp_inst.name),
-                            'author': getattr(temp_inst, 'author', '佚名'),
-                            'permission': getattr(temp_inst, 'permission', 'user'),
-                            'require_framework_version': getattr(temp_inst, 'require_framework_version', '')
-                        }
-                        # 插件包描述文件（plugins/<name>.json）为权威：整体覆盖类属性
-                        # （缺失字段保留类属性兜底，兼容存量无描述文件插件）
-                        meta_file = os.path.join(plugin_dir, f"{temp_inst.name}.json")
-                        if os.path.isfile(meta_file):
-                            try:
-                                with open(meta_file, 'r', encoding='utf-8') as _mf:
-                                    meta = json.load(_mf)
-                                if isinstance(meta, dict):
-                                    if meta.get('name') and meta['name'] != temp_inst.name:
-                                        logger.error(
-                                            f"插件描述文件 name 与插件类 name 不一致，跳过加载: "
-                                            f"{meta.get('name')} vs {temp_inst.name}",
-                                            extra={'plugin': 'system'})
-                                        continue
-                                    for _k in META_FIELDS:
-                                        if _k in meta:
-                                            info[_k] = meta[_k]
-                            except (json.JSONDecodeError, UnicodeDecodeError, OSError):
-                                # v4.17.2：描述文件失效时告警升级并打标，供后台/调试页提示（否则 json 内
-                                # capabilities/require_framework_version 等声明静默丢失，enforce 下莫名失败）
-                                info['meta_invalid'] = True
-                                logger.error(
-                                    f"插件描述文件失效，已回退插件类属性（json 内 capabilities/"
-                                    f"require_framework_version 等声明将被忽略）: {meta_file}",
-                                    extra={'plugin': 'system'})
-                            else:
-                                info.pop('meta_invalid', None)
-                        discovered.append(info)
-        except Exception as e:
-            logger.error(f"扫描插件 {filename} 元信息失败: {str(e)}", extra={'plugin': 'system'})
-
+        # ---- 目录化主文件：plugins/<name>/<name>.py ----
+        if os.path.isdir(full) and fn not in _skip_top:
+            main_py = os.path.join(full, f'{fn}.py')
+            if os.path.isfile(main_py):
+                file_key = f'plugins/{fn}/{fn}.py'
+                info = _scan_plugin_module(f'plugins.{fn}.{fn}', file_key, plugin_dir)
+                if info:
+                    discovered.append(info)
     return discovered

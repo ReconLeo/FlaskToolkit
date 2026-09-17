@@ -195,24 +195,30 @@ def extract_class_meta_from_py(py_source: str) -> dict:
 def extract_plugin_pack(zip_path: str, plugin_name: str, meta_override: dict = None,
                         clean_old: bool = True) -> dict:
     """
-    安全解压插件包到对应位置（防 zip slip 路径穿越）：
-    - 根目录 .py 文件     → plugins/
-    - templates/ 目录文件 → templates/plugins/
-    - static/ 目录文件    → templates/plugins/static/<plugin_name>/
+    安全解压插件包到对应位置（v4.21 目录化布局，防 zip slip 路径穿越）：
+    - 根目录 .py（主 + 辅助模块）→ plugins/<plugin_name>/
+    - plugin.json            → plugins/<plugin_name>/<plugin_name>.json
+    - templates/ 目录文件     → templates/plugins/<plugin_name>/
+    - static/ 目录文件       → templates/plugins/static/<plugin_name>/
+    - locales/ 目录文件      → plugins/<plugin_name>/locales/（插件语言包，自动并入 i18n 查找链）
 
-    安装/更新时把“引入的全部文件”相对路径清单写入 plugins/<plugin_name>.json 的
+    每个插件一个自包含目录 plugins/<plugin_name>/，消除多插件同名辅助模块/模板的全局命名空间冲突。
+    自动生成 plugins/<plugin_name>/__init__.py（包标记，使 plugins.<name> 可作包导入）。
+
+    安装/更新时把“引入的全部文件”相对路径清单写入 plugins/<plugin_name>/<plugin_name>.json 的
     installed_files 字段；clean_old=True 时先按旧清单删除旧版本引入的文件
     （解决多 .py 插件包卸载/更新时辅助模块残留问题）。
 
-    返回解压结果 dict: {'main': 主文件路径, 'py': [...], 'templates': [...], 'static': [...], 'meta': None}
+    返回解压结果 dict: {'main': 主文件路径, 'py': [...], 'templates': [...], 'static': [...], 'locales': [...], 'meta': None}
     """
     base = global_var.BASE_DIR
     # 0. 更新场景：先按旧 installed_files 清单删除旧版本引入的文件（容错，文件不存在则忽略）
     if clean_old:
         _delete_installed_files(plugin_name)
 
-    result = {'main': None, 'py': [], 'templates': [], 'static': [], 'meta': None}
+    result = {'main': None, 'py': [], 'templates': [], 'static': [], 'locales': [], 'meta': None}
     meta_dest = None
+    init_dest = os.path.join(base, 'plugins', plugin_name, '__init__.py')
     with zipfile.ZipFile(zip_path, 'r') as zf:
         for member in zf.namelist():
             # zip 内路径统一用 '/' 分隔（不能用 os.path.normpath，Windows 下会把 '/' 转成 '\\'）
@@ -228,12 +234,12 @@ def extract_plugin_pack(zip_path: str, plugin_name: str, meta_override: dict = N
                 raise ValueError(f"插件包包含绝对路径（非法）: {member}")
 
             if normalized == PLUGIN_PACK_DESC_FILE:
-                # 描述文件 → plugins/<plugin_name>.json（作为插件包元信息真相来源，循环后统一落盘）
-                meta_dest = os.path.join(base, 'plugins', f"{plugin_name}.json")
+                # 描述文件 → plugins/<plugin_name>/<plugin_name>.json（插件包元信息真相来源，循环后统一落盘）
+                meta_dest = os.path.join(base, 'plugins', plugin_name, f"{plugin_name}.json")
                 result['meta'] = meta_dest
             elif len(parts) == 1 and parts[0].endswith('.py'):
-                # 根目录 .py → plugins/
-                dest = os.path.join(base, 'plugins', parts[0])
+                # 根目录 .py（主 + 辅助模块）→ plugins/<plugin_name>/（插件私有命名空间）
+                dest = os.path.join(base, 'plugins', plugin_name, parts[0])
                 _write_member(zf, member, dest)
                 if parts[0] == f"{plugin_name}.py":
                     result['main'] = dest
@@ -252,8 +258,19 @@ def extract_plugin_pack(zip_path: str, plugin_name: str, meta_override: dict = N
                 dest = os.path.join(base, 'templates', 'plugins', 'static', plugin_name, *parts[1:])
                 _write_member(zf, member, dest)
                 result['static'].append(dest)
+            elif parts[0] == 'locales':
+                # 插件语言包 → plugins/<plugin_name>/locales/<lang>.json（i18n 自动并入查找链）
+                dest = os.path.join(base, 'plugins', plugin_name, 'locales', *parts[1:])
+                _write_member(zf, member, dest)
+                result['locales'].append(dest)
             else:
                 logger.warning(f"插件包包含未知条目，已忽略: {member}", extra={'plugin': 'system'})
+
+        # 生成 __init__.py（包标记；计入 installed_files 供卸载/更新清理）
+        if not os.path.isfile(init_dest):
+            os.makedirs(os.path.dirname(init_dest), exist_ok=True)
+            with open(init_dest, 'w', encoding='utf-8') as _f:
+                _f.write('# -*- coding: utf-8 -*-\n')
 
         # 统一落盘描述文件（合并 installed_files 安装文件清单）
         if meta_dest:
@@ -264,7 +281,8 @@ def extract_plugin_pack(zip_path: str, plugin_name: str, meta_override: dict = N
                     meta = json.loads(zf.read(PLUGIN_PACK_DESC_FILE).decode('utf-8'))
                 except Exception:
                     meta = {}
-            _all_files = [meta_dest] + result['py'] + result['templates'] + result['static']
+            _all_files = ([meta_dest, init_dest] + result['py']
+                          + result['templates'] + result['static'] + result['locales'])
             meta['installed_files'] = [
                 os.path.relpath(p, base).replace(os.sep, '/') for p in _all_files
             ]
@@ -294,9 +312,24 @@ def _write_member(zf: zipfile.ZipFile, member: str, dest: str):
         shutil.copyfileobj(src, out)
 
 
+def plugin_meta_file(base, plugin_name: str) -> str:
+    """定位插件描述文件：目录化 plugins/<name>/<name>.json 优先，回退扁平 plugins/<name>.json。"""
+    d = os.path.join(base, 'plugins', plugin_name, f'{plugin_name}.json')
+    if os.path.isfile(d):
+        return d
+    f = os.path.join(base, 'plugins', f'{plugin_name}.json')
+    return d if not os.path.isfile(f) else f
+
+def plugin_main_file(base, plugin_name: str) -> str:
+    """定位插件主文件：目录化 plugins/<name>/<name>.py 优先，回退扁平 plugins/<name>.py。"""
+    d = os.path.join(base, 'plugins', plugin_name, f'{plugin_name}.py')
+    if os.path.isfile(d):
+        return d
+    return os.path.join(base, 'plugins', f'{plugin_name}.py')
+
 def _read_installed_files(plugin_name: str) -> list:
     """读取插件描述文件中的安装文件清单（相对路径），无则返回空列表"""
-    meta_file = os.path.join(global_var.BASE_DIR, 'plugins', f"{plugin_name}.json")
+    meta_file = plugin_meta_file(global_var.BASE_DIR, plugin_name)
     if not os.path.isfile(meta_file):
         return []
     try:
@@ -358,12 +391,19 @@ def cleanup_plugin_resources(plugin_name: str) -> list:
     if _read_installed_files(plugin_name):
         return _delete_installed_files(plugin_name)
 
-    # 2. 回退：无清单的老插件（按命名约定删除）
+    # 2. 回退：无清单的老插件（按命名约定删除目录化插件目录 + 旧扁平文件）
     removed = []
-    meta_file = os.path.join(base, 'plugins', f"{plugin_name}.json")
-    if os.path.isfile(meta_file):
-        os.remove(meta_file)
-        removed.append(meta_file)
+    # 目录化插件目录 plugins/<name>/（含主/辅助 .py 与描述）
+    pkg_dir = os.path.join(base, 'plugins', plugin_name)
+    if os.path.isdir(pkg_dir):
+        shutil.rmtree(pkg_dir, ignore_errors=True)
+        removed.append(pkg_dir)
+    # 旧扁平：plugins/<name>.json、plugins/<name>.py、模板、静态
+    for _p in (os.path.join(base, 'plugins', f'{plugin_name}.json'),
+               os.path.join(base, 'plugins', f'{plugin_name}.py')):
+        if os.path.isfile(_p):
+            os.remove(_p)
+            removed.append(_p)
     main_tpl = os.path.join(base, 'templates', 'plugins', f"{plugin_name}.html")
     if os.path.isfile(main_tpl):
         os.remove(main_tpl)

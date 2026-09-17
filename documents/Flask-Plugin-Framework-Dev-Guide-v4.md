@@ -72,8 +72,8 @@ FlaskToolkit/
 │   └── admin.py               #   插件管理 API / 统计 / 日志 / 审计
 ├── plugins/                   # 插件目录
 │   ├── base_plugin.py         #   插件基类 + @permission 装饰器 + 生命周期钩子
-│   ├── auth.py                #   可选鉴权插件（PBKDF2 / HttpOnly Cookie + CSRF）
-│   └── user_manage.py         #   内置用户管理插件（BUILTIN，受 Factory Reset 保护）
+│   ├── auth.py                #   可选鉴权插件（PBKDF2 / HttpOnly Cookie + CSRF，扁平，无辅助模块）
+│   └── user_manage/           #   内置用户管理插件（BUILTIN，受 Factory Reset 保护，目录化自包含）
 ├── examples/                  # 官方示例插件/工具包（8 个）+ install_all.py 一键安装
 ├── tools/                     # 开发运维命令行工具（python tools/xxx.py）
 │   ├── config.py              #   配置管理 CLI（show/set/unset/reset/check/env/profile 预设）
@@ -489,7 +489,7 @@ def get_item(self, item_id):
 | `repo`                      | 否   | 插件源码/发布仓库地址（v4.15，市场铺路元数据；不进描述一致性冲突比对）                                                                                    |
 | `update_feed`               | 否   | 插件级更新源 feed URL（v4.15，JSON {latest_version,published_at,download_url,sha256,changes[,signature]}，RSA 验签，应用内 check-updates 触达，见 5.6.8） |
 
-版本以 `plugin.json` 声明为准：上传/更新后描述文件落盘为 `plugins/<name>.json`，插件扫描与目录指纹均优先读取该文件，保证 catalog 显示版本与包内声明一致。
+版本以 `plugin.json` 声明为准：上传/更新后描述文件落盘为目录化 `plugins/<name>/<name>.json`（v4.21），插件扫描与目录指纹均优先读取该文件，保证 catalog 显示版本与包内声明一致。
 
 #### 5.6.2.1 依赖声明与版本约束（v4.16）
 
@@ -519,22 +519,27 @@ def get_item(self, item_id):
 | name 三处一致 | `plugin.json.name` == 主 `.py` 文件名 == 插件类 `name`（AST 可提取时），任一不一致拒绝上传                                                                |
 | 冲突字段拒绝  | `version`/`title`/`author`/`permission`/`category`/`description`/`dependencies`/`require_framework_version` 两处同时声明且不一致 → 拒绝并报告具体冲突字段及两处各自的值（v4.17.2，便于定位改哪边） |
 | 缺失补全      | `plugin.json` 缺失字段回退插件类属性（`version` 缺失用类兜底并告警）                                                                                      |
-| 对齐落盘      | 对齐后的完整描述落盘为 `plugins/<name>.json`，为运行时唯一权威                                                                                            |
+| 对齐落盘      | 对齐后的完整描述落盘为 `plugins/<name>/<name>.json`（v4.21 目录化），为运行时唯一权威                                                                                            |
 
 > **对开发者**：修改插件元信息（版本/标题/权限等）时，需同步更新 `plugin.json` 与插件类属性，否则上传/更新会被拒绝。
 >
 > 运行时插件扫描以落盘描述文件为权威（缺失字段保留类属性兜底，兼容存量无描述文件插件）；若描述文件 `name` 与类 `name` 不一致则跳过加载并报错。
 >
-> **描述文件失效打标（v4.17.2）**：运行时若插件落盘描述文件（`plugins/<name>.json`）**解析失败/损坏**（`JSONDecodeError`/`UnicodeDecodeError`/`OSError`），`core/plugin_cache` 会给该插件打 `meta_invalid` 标记（后台/调试页提示），并回退插件类属性兜底——否则 json 内 `capabilities`/`require_framework_version` 等声明会静默丢失，在 enforce 严格模式下莫名失败。`test_meta_e2e` 的“描述文件失效打标”用例固化该行为。
+> **描述文件失效打标（v4.17.2）**：运行时若插件落盘描述文件（目录化 `plugins/<name>/<name>.json`）**解析失败/损坏**（`JSONDecodeError`/`UnicodeDecodeError`/`OSError`），`core/plugin_cache` 会给该插件打 `meta_invalid` 标记（后台/调试页提示），并回退插件类属性兜底——否则 json 内 `capabilities`/`require_framework_version` 等声明会静默丢失，在 enforce 严格模式下莫名失败。`test_meta_e2e` 的“描述文件失效打标”用例固化该行为。
 
-#### 5.6.4 解压映射
+#### 5.6.4 解压映射（v4.21 目录化自包含布局）
+
+> **v4.21 插件自包含目录化**：每个插件一个自包含目录 `plugins/<name>/`，主 `.py`、辅助 `.py` 模块、描述文件、`locales/` 全部进入插件私有命名空间，消除多插件同名辅助模块/模板的全局冲突。
+> 分发包（zip）内仍为扁平布局（根 `plugin.json` + 主 `.py` + 辅助 `.py` + `templates/` + `static/` + `locales/`），仅**安装解压时映射**到 `plugins/<name>/`。
+> 内置 `auth` 保留扁平（无辅助模块）；`user_manage` 已目录化。旧扁平第三方插件用 `tools/migrate_plugin_layout.py` 迁移。
 
 | 包内路径      | 解压目标                            |
 | ------------- | ----------------------------------- |
-| `<name>.py`   | `plugins/<name>.py`                 |
-| `plugin.json` | `plugins/<name>.json`               |
-| `templates/*` | `templates/plugins/*`               |
+| `<name>.py`（主/辅助模块） | `plugins/<name>/<basename>.py`      |
+| `plugin.json` | `plugins/<name>/<name>.json`（并自动生成 `plugins/<name>/__init__.py` 包标记） |
+| `templates/*` | `templates/plugins/<name>/*`        |
 | `static/*`    | `templates/plugins/static/<name>/*` |
+| `locales/*`   | `plugins/<name>/locales/*`          |
 
 解压内置 **zip slip 路径穿越防护**：拒绝 `..`、绝对路径、盘符路径条目（基于 zip 内 `/` 分隔的纯字符串检查，不依赖平台分隔符）。
 
@@ -550,7 +555,7 @@ def get_item(self, item_id):
 
 - **上传**：校验描述文件 + 主 `.py` 文件名一致性 → 安全解压 → 自动加载（`load_plugins`）。
 - **更新**：校验包内插件名与目标一致 + 新版本必须高于当前版本 → 覆盖解压 → 重载。
-- **卸载**：按安装时写入 `plugins/<name>.json` 的 `installed_files` 清单（相对路径）逐个删除插件引入的文件（主 `.py`、辅助 `.py` 模块、描述文件、模板、静态资源），并清理残留空目录；老插件无清单时回退为删除主 `.py`、描述文件 `plugins/<name>.json`、`templates/plugins/<name>.html` 与 `templates/plugins/static/<name>/` 目录。
+- **卸载**：按安装时写入 `plugins/<name>/<name>.json` 的 `installed_files` 清单（相对路径）逐个删除插件引入的文件（主 `.py`、辅助 `.py` 模块、描述文件、模板、静态资源），并清理残留空目录（含 `plugins/<name>/` 目录本体）；老插件无清单时回退为删除目录化插件目录 `plugins/<name>/`、旧扁平文件、`templates/plugins/<name>.html` 与 `templates/plugins/static/<name>/` 目录。
 
 #### 5.6.7 Demo：UserManage 插件包
 
@@ -587,6 +592,11 @@ UserManage/
 - **缓存**：`data/cache/plugin_updates.json`（`UPDATE_CHECK_INTERVAL` 小时，默认 24）。
 - **静默失败**：网络 3s 超时 / 校验失败不阻断，仅标记该插件不可更新。
 - **入口**：后台插件页"检查更新"按钮 / catalog 更新徽章（⬆ vX 可更新）。
+- **一键更新闭环（v4.21）**：更新徽章/操作区的"一键更新"调 `core/plugin_updates.update_from_feed(name)`
+  （HTTP `POST /api/admin/plugins/<name>/update-from-feed`）——拉取 feed → 判断有新版本 → 流式下载
+  `download_url`（限 `PACKAGE_MAX_UPLOAD_SIZE`）→ **sha256 比对**（feed 提供时）→ 复用
+  `plugin_admin.update_from_package` 走完整门禁（`verify_package` + `scan_gate` + enforce）→ 更新后落盘
+  `plugins/` 并清理临时包。**更新源只提供元数据，不绕过安全链路**；临时包用后即删。
 
 **framework 能力域（core/capabilities.py）**：插件声明 `framework:read` / `framework:manage` / `framework:core` 可操作**框架自身核心文件**（core/routes/templates 框架部分/app.py/global_var.py/data/user_config.json/plugins/status.json，豁免 templates/plugins/、templates/frontend_tools/、plugins/data|temp|configs）。`core` 为最高档（隐含 manage/read，≈Linux **root**，可修改/删除核心文件）。运行时由 `check_framework(plugin_name, level)` 判定；`filesystem:write` 命中核心路径会被拒绝并要求改用 `framework:core`；放行的核心路径写自动落 **root-access 审计事件**。⚠️ **MIT 协议下框架概不负责**，仅应在充分信任的可信插件上使用。
 
@@ -1289,7 +1299,7 @@ python tools/config.py set PLUGIN_SCAN_MODE enforce   # 单项覆盖
 
 **向后兼容**：旧插件无 `capabilities` 字段——report 模式放行附告警；enforce 模式下若有未声明检出行为则拒绝（良性插件扫描范围通常为空，不受影响）。plugin.json 在 manifest.json 完整性清单内，装后私改 capabilities 会被完整性校验拦截。
 
-> **官方示例维护约定**：`examples/` 下的示例插件须与最新开发规范保持同步——`require_framework_version` 需高于所用框架 API 的引入版本（如使用 `get_data_path` 的示例要求 ≥ 4.3.2）；示例内容变更时同步升级 `version`（plugin.json 与插件类属性两处一致，见 5.6.3），保证 `update` 可重复安装。综合示例 `corp_tools`（企业内网工具箱）演示 capabilities 网络白名单与权限过滤导航，设计见 `documents/archive/Plugin-Design-corp_tools.md`。
+> **官方示例维护约定**：`examples/` 下的示例插件须与最新开发规范保持同步——`require_framework_version` 需高于所用框架 API 的引入版本（如使用 `get_data_path` 的示例要求 ≥ 4.3.2）；示例内容变更时同步升级 `version`（plugin.json 与插件类属性两处一致，见 5.6.3），保证 `update` 可重复安装。综合示例 `corp_tools`（企业内网工具箱）演示 capabilities 网络白名单与权限过滤导航，且自 v1.2.0（require 4.21.0）演示 v4.21 语言便捷方法（`self.t()`/`self.get_lang()`/`self.available_langs()`）与插件自带 `locales/` 语言包安装，设计见 `documents/archive/Plugin-Design-corp_tools.md`。
 
 ---
 
@@ -1767,9 +1777,12 @@ GUI 内含 **HTTPS 复选框**（按现有配置预选，勾选后自动生成/�
 → 框架语言包（`locales/<lang>.json`）→ key 原文（缺省回退）。
 
 - 模板：`{{ t('登录') }}`（Jinja 全局注入，无需传参）
-- 后端：`from core import i18n; tr = i18n.make_translator(i18n.get_lang()); tr('登录')`
+- 后端（推荐，v4.21 起）：插件类内直接用 `self.t('登录')`（支持 `**params` 插值）、`self.get_lang()`、`self.available_langs()`——BasePlugin 已封装，免去自行导入 i18n
+- 后端（底层/自定义）：`from core import i18n; tr = i18n.make_translator(i18n.get_lang()); tr('登录')`
 - 前端：`window.T('登录')`（翻译表由服务端以 `t_json` 注入 `window.__I18N`）
 - 参数插值：`t('请求体超过大小限制', size=50)` → `{size}` 占位符替换
+
+> ⚠️ **后端取翻译器陷阱（v4.21 提示）**：优先用 `make_translator(get_lang())` 或 `self.t()`，不要用 `get_translator()`——后者读取 context_processor 注入的线程局部翻译器，**API 视图（不渲染模板）时 context_processor 不执行**，会静默回退默认语言（zh-CN）。`self.t()`/`self.get_lang()` 内部即 `make_translator(get_lang())`，无此问题。
 
 ### 15.3 语言选择
 
@@ -1783,10 +1796,17 @@ GUI 内含 **HTTPS 复选框**（按现有配置预选，勾选后自动生成/�
 
 插件可在插件包内携带 `locales/<lang>.json`，安装后自动合并进查找链（插件词条覆盖框架词条）；
 插件模板直接使用 `{{ t('...') }}` 即随框架语言联动。框架不翻译插件内容，由插件作者自行提供语言包。
-官方示例 `corp_tools`（v4.9.1）演示完整插件多语言：自带 `locales/en.json`（含 `__name__`），4 个模板
-`{{ t('...') }}` 迁移 + 后端消息经 `_tr()`（`i18n.make_translator(i18n.get_lang())`）+ 前端 `window.T`
-（模板内注入 `window.__I18N = {{ t_json | tojson }}`）；页面顶部自动出现语言切换入口
-（`/lang/<code>?next=<当前路径>`）。
+
+**BasePlugin 语言便捷方法（v4.21）**：模板层经 `inject_i18n` context_processor 全局注入 `lang` / `t` /
+`available_langs` / `t_json`，插件 `self.render()` 渲染的模板自动可用；后端代码取语言用 `self.get_lang()`、
+翻译用 `self.t('词条', **params)`、可用语言表用 `self.available_langs()`（三者均委托 `core.i18n`，
+`self.t()` 内部 `make_translator(get_lang())`，规避 API 视图下 `get_translator()` 回退默认语言）。
+官方示例 `corp_tools`（v1.2.0）演示完整插件多语言：自带 `locales/en.json`（含 `__name__`），4 个模板
+`{{ t('...') }}` + 后端消息统一用 `self.t('词条')`（v4.21 便捷方法，替代旧 `_tr()` helper）+ 前端 `window.T`
+（模板内注入 `window.__I18N = {{ t_json | tojson }}`）；`render_index()` 额外注入 `current_lang` / `available_langs`
+供页面渲染当前语言与可用语言选择；页面顶部自动出现语言切换入口
+（`/lang/<code>?next=<当前路径>`）。插件语言包随包安装：`extract_plugin_pack` 将 `locales/` 解压到
+`plugins/<name>/locales/`（v4.21 修复，此前被当未知条目忽略），并记入 `installed_files` 清单供卸载/更新清理。
 
 ### 15.5 各页面语言切换 + 翻译工具（v4.15.4）
 

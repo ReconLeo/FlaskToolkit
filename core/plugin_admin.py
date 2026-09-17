@@ -23,7 +23,8 @@ from core.watcher import save_cache_internal
 from core.plugin_loader import load_plugins
 from core.package_sign import verify_package
 from core.plugin_pack import (cleanup_plugin_data, cleanup_plugin_resources,
-                              compare_versions, extract_plugin_pack, parse_plugin_pack)
+                              compare_versions, extract_plugin_pack, parse_plugin_pack,
+                              plugin_main_file)
 from core.plugin_scanner import scan_plugin_zip, should_block
 from core.plugin_status import load_plugin_status, save_plugin_status
 from core.quota import invalidate_cache as invalidate_quota_cache
@@ -117,7 +118,7 @@ def _set_enabled(plugin_name, enabled, actor=None):
     require_manage(actor)
     if enabled and plugin_name not in global_var.plugins:
         return False, '插件不存在'
-    plugin_file = os.path.join(global_var.BASE_DIR, 'plugins', f'{plugin_name}.py')
+    plugin_file = plugin_main_file(global_var.BASE_DIR, plugin_name)
     if not os.path.exists(plugin_file):
         return False, '插件文件不存在'
     global_var.plugin_status[plugin_name] = global_var.plugin_status.get(plugin_name, {})
@@ -168,7 +169,7 @@ def disable(plugin_name, actor=None):
 def uninstall(plugin_name, actor=None):
     """卸载插件（删除文件 + 附带资源 + 配置 + 状态）"""
     require_manage(actor)
-    plugin_file = os.path.join(global_var.BASE_DIR, 'plugins', f'{plugin_name}.py')
+    plugin_file = plugin_main_file(global_var.BASE_DIR, plugin_name)
     if not os.path.exists(plugin_file):
         return False, '插件文件不存在'
     # v4.16：反向依赖检查——若仍有插件依赖本插件，阻止卸载（避免产生悬空依赖）
@@ -232,7 +233,7 @@ def uninstall(plugin_name, actor=None):
 def purge_data(plugin_name, scope='temp', actor=None):
     """清理单插件空间：scope=temp（默认）| all（全部数据，含 filesystem:write 声明目录）"""
     require_manage(actor)
-    plugin_file = os.path.join(global_var.BASE_DIR, 'plugins', f'{plugin_name}.py')
+    plugin_file = plugin_main_file(global_var.BASE_DIR, plugin_name)
     if not os.path.exists(plugin_file):
         return False, '插件文件不存在'
     include_data = scope == 'all'
@@ -264,7 +265,7 @@ def install_from_package(zip_path, plugin_name=None, actor=None, source_label=No
     name = plugin_name or desc['name']
     if name != desc['name']:
         return False, f'包内插件名 {desc["name"]} 与目标 {name} 不一致', {}
-    plugin_file = os.path.join(global_var.BASE_DIR, 'plugins', f'{name}.py')
+    plugin_file = plugin_main_file(global_var.BASE_DIR, name)
     if os.path.exists(plugin_file):
         return False, f'插件 {name} 已存在，如需更新请使用更新功能', {}
     extract_plugin_pack(temp_path, name, meta_override=desc)

@@ -69,6 +69,9 @@ def _src_to_dist(name, rel):
         return 'plugin.json'
     if rel == f"{name}.py":
         return rel
+    if rel.endswith('.py') and '/' not in rel and rel != '__init__.py':
+        # v4.21 辅助模块一并收录（zip 根；安装时 extract 映射进 plugins/<name>/）
+        return rel
     if rel.startswith('frontend/'):
         rest = rel[len('frontend/'):]
         if rest.startswith('static/'):
