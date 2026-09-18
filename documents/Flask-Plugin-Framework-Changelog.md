@@ -66,7 +66,7 @@ Kaleido 同样开源（自托管题库系统）：[github.com/ReconLeo/Kaleido](
 | **v4.20.6（收编，未推送）** | 2026-09-13 | 前端 index.html 桌面端 tool-footer 始终位于 tool-card 内部底部（flex 列布局 + margin-top:auto）；所有 index.html / mobile/index.html「打开工具」新页面打开（target=_blank + rel=noopener）；**新功能：前端工具 / 插件包支持自定义图标（.ico 文件，建议 1:1），index.html tool-icon 渲染 img 展示、未定义时 fallback 原样（emoji）**（core/plugin_pack.py META_FIELDS + plugin_loader _meta + frontend_tools valid_tool 组装 icon URL）；示例插件 corp_tools 展示自定义图标（corp.ico，Pillow 生成多尺寸） | tag `v4.20.6` |
 | **v4.20.7（收编，未推送）** | 2026-09-13 | 修复浏览器扩展注入元素（plasmo-csui）撑高 index 页面导致底部大量空白（main.css 防御性 position:fixed 脱离文档流）；登录页用户名回车跳转密码输入框；管理后台 system 页加入隐藏彩蛋（连点 about-brand-icon / 框架版本行，30s 内 >5 次触发，第 6-11 次拟人化逃跑动画、第 12 次图标消失，计数仅内存） | tag `v4.20.7` |
 | **v4.21.0（收编，未推送）** | 2026-09-17 | 插件自包含目录化（插件私有目录 `plugins/<name>/` + 双布局扫描 + migrate 工具 + updateFromFeed 一键更新 + 语言易用化）+ 暗色模式修复 + Factory Reset 边界修复（temp 补全 plugins/temp + 前端工具白名单 + static 子目录保护 + API 可选自动备份）+ 插件名保留名黑名单（PLUGIN_RESERVED_NAMES，parse_plugin_pack 入口统一拦截） | tag `v4.21.0`（bump，未推送） |
-| **v4.21.1（收编，未推送）** | 2026-09-18 | tools/package.py 非 src_layout 打包排除 __pycache__/.pyc/.pyo + 统一 PACK_SKIP_DIRS（configs/tests 进包策略两分支对齐，修复标准插件包结构打包把编译产物/配置样例/测试混入 zip 的污染缺陷）+ 版本号 4.21.0→4.21.1；新增 test_pack_no_pyc.py（10 项），回归 49 脚本 | tag `v4.21.1`（bump，未推送） |
+| **v4.21.1（收编，未推送）** | 2026-09-18 | tools/package.py 非 src_layout 打包排除 __pycache__/.pyc/.pyo + 统一 PACK_SKIP_DIRS（configs/tests 进包策略两分支对齐，修复标准插件包结构打包把编译产物/配置样例/测试混入 zip 的污染缺陷）+ 版本号 4.21.0→4.21.1；新增 test_pack_no_pyc.py（10 项），回归 49 脚本；品牌文本统一（Flask 独立品牌词→FlaskToolkit，BSD-3 合规）+ 免责声明落地（README 双版/License，声明非官方、与 Pallets 无关联） | tag `v4.21.1`（bump，未推送） |
 
 ## 3. 版本详情
 
@@ -573,6 +573,12 @@ Flask 为 Pallets 的 BSD-3-Clause 项目，其 BSD 协议第 3 条禁止未经�
 - **模板**：`index.html`/`mobile/index.html` title `t('FlaskToolkit 工具集')`；`setup.html` "FlaskToolkit 插件化全栈工具集 / FlaskToolkit Plugin Toolset"。
 - **文档/README 链接文本与标题**：`Flask Plugin Framework Development Guide/Roadmap`→`FlaskToolkit Development Guide/Roadmap`（README 双版）、Dev-Guide 标题 `# FlaskToolkit 开发规范`、CONTRIBUTING 链接文本；文件名路径保留。
 - **测试**：jsdom fixtures（render_mobile_index.html / render_setup.html）与 test_layout_verify.js 断言同步；i18n 覆盖校验 29 项通过。
+
+##### 免责声明落地（本会话）
+
+品牌统一未能根除连写品牌词 FlaskToolkit 中嵌入的 "Flask" 商标（连写非根除，现实侵权风险低但无法归零）。采用最稳妥的合规姿态：在对外可见的最显眼处落地免责声明，明确项目独立性、与 Pallets 无关联、未获背书，并把 "Flask" 商标使用限定为技术性描述依赖关系。
+- **README 双版顶部**（标题/徽章/语言切换之后、正文之前）：英文版 `Disclaimer`、中文版 `免责声明`，口径一致（独立项目、非官方、与 Pallets 及其维护者无关联、未获认可背书、"Flask" 为 Pallets 商标、使用仅作技术性依赖描述）。
+- **LICENSE**：版权声明后新增 `Note:` 段（英文，同口径）。
 
 ## 4. 发布实践沉淀
 

@@ -13,6 +13,8 @@
 
 > **English**: this page · **中文**：[中文](README.zh-CN.md)
 
+> **Disclaimer**: FlaskToolkit is an **independent project**. It is **not** an official Flask product, is **not** affiliated with, endorsed by, or sponsored by the Pallets project or any of its maintainers. "Flask" is a trademark of Pallets; our use of the name is a technical description of the dependency on the Flask library.
+
 ## Why FlaskToolkit (Author's Story)
 
 I have written a lot of "little things": sign-in scripts, scheduled tasks, file handlers, chart pages… Most are in Python, many are Flask pages with the frontend and backend in one, and quite a few are pure-frontend HTML. Each works well on its own, but they are scattered across folders — every time I wanted to add a feature, I had to reinvent login/auth, upload/download, page skeletons, and scheduled jobs from scratch.
