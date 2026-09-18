@@ -6,7 +6,7 @@ function pass(msg,c){ console.log((c?'PASS ':'FAIL ')+msg); if(!c) process.exitC
 // 1. 桌面 index.html：主标题跟随 system_name
 {
   const html = fs.readFileSync('templates/index.html','utf8');
-  pass('桌面主标题用 system_name', html.includes('{{ system_name }}</h1>') && !html.includes("t('Flask 全栈工具集')"));
+  pass('桌面主标题用 system_name', html.includes('{{ system_name }}</h1>') && !html.includes("t('FlaskToolkit 全栈工具集')"));
   pass('桌面 navbar-brand 含 system_name', html.includes('{{ system_name }} {{ system_version }}'));
 }
 

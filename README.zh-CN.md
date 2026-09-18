@@ -127,11 +127,11 @@ python examples/install_all.py                            # 一键安装 8 个�
 
 ## 文档
 
-详细规格都在 [Flask 插件框架开发规范](documents/Flask-Plugin-Framework-Dev-Guide-v4.md)（插件开发、权限模型、前端工具规范、插件包格式、安全设计、运维工具）：
+详细规格都在 [FlaskToolkit 开发规范](documents/Flask-Plugin-Framework-Dev-Guide-v4.md)（插件开发、权限模型、前端工具规范、插件包格式、安全设计、运维工具）：
 
 - [官方示例说明](examples/README.md)
 - [版本演进记录](documents/Flask-Plugin-Framework-Changelog.md)
-- [Flask 插件框架 Roadmap](documents/Flask-Plugin-Framework-Roadmap-v4.md)
+- [FlaskToolkit Roadmap](documents/Flask-Plugin-Framework-Roadmap-v4.md)
 - [版本收尾 checklist](documents/Release-Wrapup-Checklist.md)
 - [GitHub Actions 上手与开源发布指南](documents/GitHub-Actions-Guide.md)
 - [Enterprise Edition 交接与路线（v5.x）](documents/Enterprise-Edition-Handover-Roadmap.md)

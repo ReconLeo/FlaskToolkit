@@ -566,6 +566,14 @@ P1 安全强化至此全部完成，形成纵深防御：**静态扫描 → 能�
 - **版本**：FRAMEWORK_VERSION / SYSTEM_VERSION_LABEL 4.21.0 → 4.21.1；README 双版版本徽章同步。
 - **测试**：新增 `tests/test_pack_no_pyc.py`（非 src_layout 打包不含 __pycache__/.pyc/.pyo、configs/tests、正常成员全进包、parse 可解析，10 项）；`test_admin_api` framework_version 断言改为动态引用 `global_var.FRAMEWORK_VERSION`（避免版本提升后硬编码失效）。回归 49 脚本。
 
+#### 品牌文本统一（BSD-3 合规，本会话）
+
+Flask 为 Pallets 的 BSD-3-Clause 项目，其 BSD 协议第 3 条禁止未经书面许可使用版权方名称背书/推广衍生品。框架界面/文档曾把 "Flask" 单独用作自家产品品牌（"Flask 工具集""Flask Toolkit""Flask Plugin Toolset""Flask Plugin Framework"等），有合规风险。本次统一为完整品牌词 **FlaskToolkit**（技术性引用 "基于 Flask"、"runs on Flask"、"Flask 3.x" 与文件名 `Flask-Plugin-Framework-*.md` 路径标识保留）：
+- **locales**：`en.json`/`fr.json` 品牌词条 key（Flask 工具集/全栈工具集/插件化全栈工具集 → FlaskToolkit 工具集/全栈工具集/插件化全栈工具集），value 统一为 `FlaskToolkit`。
+- **模板**：`index.html`/`mobile/index.html` title `t('FlaskToolkit 工具集')`；`setup.html` "FlaskToolkit 插件化全栈工具集 / FlaskToolkit Plugin Toolset"。
+- **文档/README 链接文本与标题**：`Flask Plugin Framework Development Guide/Roadmap`→`FlaskToolkit Development Guide/Roadmap`（README 双版）、Dev-Guide 标题 `# FlaskToolkit 开发规范`、CONTRIBUTING 链接文本；文件名路径保留。
+- **测试**：jsdom fixtures（render_mobile_index.html / render_setup.html）与 test_layout_verify.js 断言同步；i18n 覆盖校验 29 项通过。
+
 ## 4. 发布实践沉淀
 
 - **changelog.json 是发布强制同步点**：`tools/release.py build` 会重写（latest_version/sha256/download_url/changes），须随 Release 一起 commit + push（v4.9.0/v4.9.1 曾漏同步，v4.9.2 补齐并固化）。

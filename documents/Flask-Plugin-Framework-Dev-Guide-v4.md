@@ -1,4 +1,4 @@
-# Flask插件框架开发规范
+# FlaskToolkit 开发规范
 
 > 版本特性与演进史（来龙去脉）见 [Flask-Plugin-Framework-Changelog.md](Flask-Plugin-Framework-Changelog.md)。
 

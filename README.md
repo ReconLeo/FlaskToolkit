@@ -127,11 +127,11 @@ See [examples/README.md](examples/README.md).
 
 ## Documentation
 
-Detailed specs live in the [Flask Plugin Framework Development Guide](documents/Flask-Plugin-Framework-Dev-Guide-v4.md) (plugin development, permission model, frontend-tool spec, plugin-package format, security design, ops tools):
+Detailed specs live in the [FlaskToolkit Development Guide](documents/Flask-Plugin-Framework-Dev-Guide-v4.md) (plugin development, permission model, frontend-tool spec, plugin-package format, security design, ops tools):
 
 - [Official examples guide](examples/README.md)
 - [Version history & evolution](documents/Flask-Plugin-Framework-Changelog.md)
-- [Flask Plugin Framework Roadmap](documents/Flask-Plugin-Framework-Roadmap-v4.md)
+- [FlaskToolkit Roadmap](documents/Flask-Plugin-Framework-Roadmap-v4.md)
 - [Version wrap-up checklist](documents/Release-Wrapup-Checklist.md)
 - [GitHub Actions setup & open-source publishing guide](documents/GitHub-Actions-Guide.md)
 - [Enterprise Edition handover & roadmap (v5.x)](documents/Enterprise-Edition-Handover-Roadmap.md)
