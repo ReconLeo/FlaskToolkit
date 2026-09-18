@@ -5,8 +5,8 @@ Copyright (c) 2026 FlaskToolkit Contributors
 
 Note: FlaskToolkit is an independent project. It is not an official Flask product and
 is not affiliated with, endorsed by, or sponsored by the Pallets project or any of
-its maintainers. "Flask" is a trademark of Pallets; use of the name here is a
-technical description of the dependency on the Flask library.
+its maintainers. "Flask" is used here as a technical description of the dependency
+on the Flask library.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

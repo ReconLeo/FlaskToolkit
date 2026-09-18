@@ -13,7 +13,7 @@
 
 > **English**: this page · **中文**：[中文](README.zh-CN.md)
 
-> **Disclaimer**: FlaskToolkit is an **independent project**. It is **not** an official Flask product, is **not** affiliated with, endorsed by, or sponsored by the Pallets project or any of its maintainers. "Flask" is a trademark of Pallets; our use of the name is a technical description of the dependency on the Flask library.
+> **Disclaimer**: FlaskToolkit is an **independent project**. It is **not** an official Flask product, is **not** affiliated with, endorsed by, or sponsored by the Pallets project or any of its maintainers. "Flask" is used here as a technical description of the dependency on the Flask library.
 
 ## Why FlaskToolkit (Author's Story)
 

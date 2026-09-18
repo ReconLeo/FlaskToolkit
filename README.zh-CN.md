@@ -13,7 +13,7 @@
 >
 > **English**：[English](README.md) · **中文**：本页
 
-> **免责声明**：FlaskToolkit 是**独立项目**，并非 Flask 官方产品，与 Pallets 项目及其维护者无关联，也未获得其认可或背书。"Flask" 为 Pallets 的商标；本项目对该名称的使用，仅用于技术性地描述对 Flask 库的依赖关系。
+> **免责声明**：FlaskToolkit 是**独立项目**，并非 Flask 官方产品，与 Pallets 项目及其维护者无关联，也未获得其认可或背书。"Flask" 在此仅用于技术性地描述对 Flask 库的依赖关系。
 
 ## 为什么会有 FlaskToolkit（作者自述）
 
