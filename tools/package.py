@@ -41,6 +41,9 @@ from core.package_sign import (MANIFEST_FILE, read_manifest, make_manifest,
 
 DEFAULT_PUBLIC_KEY = 'tools/public.pem'
 
+# 打包时排除的目录（src_layout 与标准布局两个分支共用，避免进包策略漂移）
+PACK_SKIP_DIRS = frozenset({'configs', '__pycache__', 'temp', '.git', 'node_modules', 'tests'})
+
 
 def cmd_genkey(args):
     from cryptography.hazmat.primitives import serialization
@@ -108,7 +111,7 @@ def _collect_src_layout(src):
         return [], None
 
     file_list = []
-    skip_dirs = {'configs', '__pycache__', 'temp', '.git', 'node_modules', 'tests'}
+    skip_dirs = PACK_SKIP_DIRS
     for root, dirs, files in os.walk(src):
         dirs[:] = [d for d in dirs if d not in skip_dirs]
         for fn in sorted(files):
@@ -148,11 +151,16 @@ def cmd_pack(args):
         if not os.path.exists(os.path.join(src, manifest_file)):
             print(f"错误：{args.type} 包缺少清单文件 {manifest_file}（应在源目录根下）", file=sys.stderr)
             sys.exit(1)
-        # 收集全部文件（相对路径）
+        # 收集全部文件（相对路径）；排除 __pycache__ 目录与 .pyc/.pyo，避免把编译产物混入分发包
+        # （v4.21.1 修复：与 src_layout 分支对齐，此前 os.walk 未应用 skip_dirs）
+        skip_dirs = PACK_SKIP_DIRS
         file_list = []
         for root, dirs, files in os.walk(src):
+            dirs[:] = [d for d in dirs if d not in skip_dirs]
             dirs.sort()
             for fn in sorted(files):
+                if fn.endswith('.pyc') or fn.endswith('.pyo'):
+                    continue
                 full = os.path.join(root, fn)
                 rel = os.path.relpath(full, src).replace('\\', '/')
                 file_list.append((rel, full))

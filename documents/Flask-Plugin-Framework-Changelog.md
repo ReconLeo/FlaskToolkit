@@ -66,6 +66,7 @@ Kaleido 同样开源（自托管题库系统）：[github.com/ReconLeo/Kaleido](
 | **v4.20.6（收编，未推送）** | 2026-09-13 | 前端 index.html 桌面端 tool-footer 始终位于 tool-card 内部底部（flex 列布局 + margin-top:auto）；所有 index.html / mobile/index.html「打开工具」新页面打开（target=_blank + rel=noopener）；**新功能：前端工具 / 插件包支持自定义图标（.ico 文件，建议 1:1），index.html tool-icon 渲染 img 展示、未定义时 fallback 原样（emoji）**（core/plugin_pack.py META_FIELDS + plugin_loader _meta + frontend_tools valid_tool 组装 icon URL）；示例插件 corp_tools 展示自定义图标（corp.ico，Pillow 生成多尺寸） | tag `v4.20.6` |
 | **v4.20.7（收编，未推送）** | 2026-09-13 | 修复浏览器扩展注入元素（plasmo-csui）撑高 index 页面导致底部大量空白（main.css 防御性 position:fixed 脱离文档流）；登录页用户名回车跳转密码输入框；管理后台 system 页加入隐藏彩蛋（连点 about-brand-icon / 框架版本行，30s 内 >5 次触发，第 6-11 次拟人化逃跑动画、第 12 次图标消失，计数仅内存） | tag `v4.20.7` |
 | **v4.21.0（收编，未推送）** | 2026-09-17 | 插件自包含目录化（插件私有目录 `plugins/<name>/` + 双布局扫描 + migrate 工具 + updateFromFeed 一键更新 + 语言易用化）+ 暗色模式修复 + Factory Reset 边界修复（temp 补全 plugins/temp + 前端工具白名单 + static 子目录保护 + API 可选自动备份）+ 插件名保留名黑名单（PLUGIN_RESERVED_NAMES，parse_plugin_pack 入口统一拦截） | tag `v4.21.0`（bump，未推送） |
+| **v4.21.1（收编，未推送）** | 2026-09-18 | tools/package.py 非 src_layout 打包排除 __pycache__/.pyc/.pyo + 统一 PACK_SKIP_DIRS（configs/tests 进包策略两分支对齐，修复标准插件包结构打包把编译产物/配置样例/测试混入 zip 的污染缺陷）+ 版本号 4.21.0→4.21.1；新增 test_pack_no_pyc.py（10 项），回归 49 脚本 | tag `v4.21.1`（bump，未推送） |
 
 ## 3. 版本详情
 
@@ -556,6 +557,14 @@ P1 安全强化至此全部完成，形成纵深防御：**静态扫描 → 能�
 - 不改 `plugin_cache._skip_top`（黑名单与其目录化 skip 语义一致）；不扩展前端工具名校验；不做历史遗留 name=data 插件迁移。
 - 测试：新增 test_reserved_name.py（数据驱动拒绝全部保留名 + 普通名回归 + 黑名单关键项断言，20 项）；test_pack_meta / test_zip_slip 的普通样本名 `user_manage` → `demo_meta`（避免误触黑名单）。
 - 全量回归 48 脚本 0 失败。
+
+### 3.44 v4.21.1（2026-09-18，package.py 非 src_layout 打包排除 pyc）
+
+子项目（tts_toolchain）迁出主框架打包验证时发现的缺陷：`tools/package.py cmd_pack` 的非 src_layout 分支（标准插件包结构）用普通 `os.walk` 收集全部文件，未应用 src_layout 分支的 `skip_dirs`，导致源目录 `__pycache__/*.pyc/.pyo` 混入分发包，污染包内容。
+
+- **修复**：①非 src_layout 分支 `os.walk` 加 `dirs[:] = [d for d in dirs if d not in PACK_SKIP_DIRS]` 并跳过 `.pyc/.pyo` 文件（此前 `__pycache__/*.pyc` 混入 zip）；②提取模块级 `PACK_SKIP_DIRS = {'configs','__pycache__','temp','.git','node_modules','tests'}`，两个布局分支共用，消除非 src_layout 不排除 configs/tests 的进包策略漂移（`tools/package.py`）。
+- **版本**：FRAMEWORK_VERSION / SYSTEM_VERSION_LABEL 4.21.0 → 4.21.1；README 双版版本徽章同步。
+- **测试**：新增 `tests/test_pack_no_pyc.py`（非 src_layout 打包不含 __pycache__/.pyc/.pyo、configs/tests、正常成员全进包、parse 可解析，10 项）；`test_admin_api` framework_version 断言改为动态引用 `global_var.FRAMEWORK_VERSION`（避免版本提升后硬编码失效）。回归 49 脚本。
 
 ## 4. 发布实践沉淀
 

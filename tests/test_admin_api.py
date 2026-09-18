@@ -111,8 +111,9 @@ def main():
     r = client.get('/api/admin/system/info')
     data = r.get_json().get('data', {}) if r.status_code == 200 else {}
     check('system/info 返回 200', r.status_code == 200, f'status={r.status_code}')
-    check('system/info framework_version=4.2.2',
-          data.get('framework_version') == '4.21.0', f"{data.get('framework_version')}")
+    check('system/info framework_version 与 global_var 一致',
+          data.get('framework_version') == global_var.FRAMEWORK_VERSION,
+          f"{data.get('framework_version')}")
     check('system/info builtin_plugins 含 auth/user_manage',
           set(data.get('builtin_plugins', [])) == {'auth', 'user_manage'},
           f"{data.get('builtin_plugins')}")

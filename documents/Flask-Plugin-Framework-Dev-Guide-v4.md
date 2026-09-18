@@ -654,7 +654,7 @@ python tools/package.py pack ./my_plugin -o my_plugin.zip --type backend --src-l
 后端插件可声明 `require_framework_version`（`plugin.json` 或插件类属性，非强制），用于声明插件所需的最低框架版本，以支撑框架持续迭代：
 
 - **未声明**：不检查，任意框架版本可用。
-- **声明了**：上传/更新时与 `global_var.FRAMEWORK_VERSION`（当前 `4.21.0`）做点分版本比较（`compare_versions`，修复了前端工具原先字符串比较的缺陷）；插件要求高于框架版本 → 拒绝安装并报告。
+- **声明了**：上传/更新时与 `global_var.FRAMEWORK_VERSION`（当前 `4.21.1`）做点分版本比较（`compare_versions`，修复了前端工具原先字符串比较的缺陷）；插件要求高于框架版本 → 拒绝安装并报告。
 - **运行时双重校验**：`load_plugins` 加载时同样校验（防止手工放置插件绕过上传校验），不满足则跳过加载并报错。
 - 参与描述一致性对齐（冲突拒绝/缺失补全），见 5.6.3。
 
@@ -1465,6 +1465,7 @@ FLASKTOOLKIT_HOST=0.0.0.0 FLASKTOOLKIT_PORT=8000 python app.py
 | `test_error_pages.py`         | 统一错误码页面渲染（404/405 真实触发 + 400/401/403/500 模板，双环境无 auth/带 auth）                                                                                                                                                                                                                                                                                                                              | 12 项 |
 | `test_package_sign.py`        | 插件包完整性校验与签名专项（篡改/加料/缺失检测、签名验证、strict/warn/off 模式、路由集成、配公钥后签名端到端（v4.17.1）                                                                                                                                                                                                                                                                                                                        | 25 项 |
 | `test_src_layout.py`         | tools/package.py 源码布局自动映射专项（v4.17.2）：<name>.json+<name>.py+frontend/ → plugin.json+主.py+templates/static 映射、configs/__pycache__ 排除、cmd_pack 产物、parse 可解析                                                                                                                                                                                                                                                             | 16 项 |
+| `test_pack_no_pyc.py`        | tools/package.py 非 src_layout 打包排除 __pycache__/.pyc/.pyo + configs/tests 专项（v4.21.1）：标准插件包结构 cmd_pack 产物不含编译产物/配置样例/测试、正常成员全进包、parse 可解析                                                                                                                                                                                                                 | 10 项 |
 | `test_plugin_cleanup.py`      | 插件卸载 installed_files 清单专项（多 .py 包安装清单完整/卸载全清/clean_old 更新清理/越界路径防御）                                                                                                                                                                                                                                                                                                               | 26 项 |
 | `test_frontend_permission.py` | 前端工具访问控制（三层权限 + 改权限 API 鉴权/边界 + 静态资源一致 + update 保留 permission）                                                                                                                                                                                                                                                                                                                       | 25 项 |
 | `test_tools_ops.py`           | 开发运维工具回归（backup 创建/恢复、reset 范围、config 设置/非法值/unset）                                                                                                                                                                                                                                                                                                                                        | 19 项 |
@@ -1510,6 +1511,7 @@ python tests/test_pack_meta.py        # 28 项
 python tests/test_reload_race.py      # 1 项
 python tests/test_meta_e2e.py         # 11 项（隔离目录模式）
 python tests/test_src_layout.py       # 16 项（package.py 源码布局自动映射）
+python tests/test_pack_no_pyc.py      # 10 项（package.py 非 src_layout 排除 pyc + configs/tests）
 python tests/test_frontend_zip_slip.py# 21 项
 python tests/test_frontend_chain.py   # 23 项（前端工具链路，隔离目录）
 python tests/test_admin_api.py        # 70 项（管理端 API + purge-data + 网络接口，隔离目录）
@@ -1605,7 +1607,7 @@ python tools/config.py profile <daily|strict|lan-open>   # 套用安全配置预
 | `LANGUAGE`                   | zh-CN                             | 系统显示语言（v4.9.0，可选值由 locales/ 语言包决定，Cookie `lang` 可覆盖）                                                                     |
 | `THEME`                      | auto                              | 界面主题（v4.19，可选 auto/light/dark，可扩展；auto=跟随系统 prefers-color-scheme；Cookie `theme` 可覆盖，见 5.11）                            |
 | `SYSTEM_NAME`                | FlaskToolkit                      | 系统显示名称（v4.7.0，仅装饰，不影响内部标识）                                                                                                 |
-| `SYSTEM_VERSION_LABEL`       | v4.21.0                           | 系统版本显示标签（v4.7.0，仅装饰，升级框架时建议同步更新）                                                                                     |
+| `SYSTEM_VERSION_LABEL`       | v4.21.1                           | 系统版本显示标签（v4.7.0，仅装饰，升级框架时建议同步更新）                                                                                     |
 | `PLUGIN_DATA_LIMIT_MB`       | 50                                | 单插件数据目录配额（MB，0=禁用，v4.9.0 见 10.10）                                                                                              |
 | `PLUGIN_DATA_TOTAL_LIMIT_MB` | 0                                 | 全部插件数据总量配额（MB，0=无限制，v4.9.2 见 10.11）                                                                                          |
 | `MDNS_ENABLED`               | false                             | mDNS 服务注册开关（v4.11，需重启生效，需 pip install zeroconf）                                                                                |
