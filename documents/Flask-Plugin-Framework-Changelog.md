@@ -67,6 +67,7 @@ Kaleido 同样开源（自托管题库系统）：[github.com/ReconLeo/Kaleido](
 | **v4.20.7（收编，未推送）** | 2026-09-13 | 修复浏览器扩展注入元素（plasmo-csui）撑高 index 页面导致底部大量空白（main.css 防御性 position:fixed 脱离文档流）；登录页用户名回车跳转密码输入框；管理后台 system 页加入隐藏彩蛋（连点 about-brand-icon / 框架版本行，30s 内 >5 次触发，第 6-11 次拟人化逃跑动画、第 12 次图标消失，计数仅内存） | tag `v4.20.7` |
 | **v4.21.0（收编，未推送）** | 2026-09-17 | 插件自包含目录化（插件私有目录 `plugins/<name>/` + 双布局扫描 + migrate 工具 + updateFromFeed 一键更新 + 语言易用化）+ 暗色模式修复 + Factory Reset 边界修复（temp 补全 plugins/temp + 前端工具白名单 + static 子目录保护 + API 可选自动备份）+ 插件名保留名黑名单（PLUGIN_RESERVED_NAMES，parse_plugin_pack 入口统一拦截） | tag `v4.21.0`（bump，未推送） |
 | **v4.21.1（收编，未推送）** | 2026-09-18 | tools/package.py 非 src_layout 打包排除 __pycache__/.pyc/.pyo + 统一 PACK_SKIP_DIRS（configs/tests 进包策略两分支对齐，修复标准插件包结构打包把编译产物/配置样例/测试混入 zip 的污染缺陷）+ 版本号 4.21.0→4.21.1；新增 test_pack_no_pyc.py（10 项），回归 49 脚本；品牌文本统一（Flask 独立品牌词→FlaskToolkit，BSD-3 合规）+ 免责声明落地（README 双版/License，声明非官方、与 Pallets 无关联） | tag `v4.21.1`（bump，未推送） |
+| **v4.22.0（已发布）** | 2026-09-19 | 插件安全 enforce 归因豁免 + scan:ignore 逃生舱（AirDrop 协调清单 5）：可约束 high（shutil.rmtree 路径常量）按 capabilities filesystem:write 声明/自属路径归因豁免、不可约束 high 恒拒、动态 rmtree 经 `# scan:ignore` 显式豁免；上传两段式门禁（预览不阻断/确认拦截）+ 后台前端豁免提示（scan_block_high/exempt_high + 明细）；scan.py/install_plugin.py/admin.py 分层门禁 + capabilities.high_exempt_paths/high_missing；精简运行包白名单 RUNTIME_* 迁入 framework_manifest 统一管理；test_admin_api 75 项（+5 enforce 两段式）、test_framework_manifest 65 项（+A6/F）、regress 49 脚本；版本号 4.21.1→4.22.0 | tag `v4.22.0` |
 
 ## 3. 版本详情
 
@@ -579,6 +580,23 @@ Flask 为 Pallets 的 BSD-3-Clause 项目，其 BSD 协议第 3 条禁止未经�
 品牌统一未能根除连写品牌词 FlaskToolkit 中嵌入的 "Flask" 字样（连写非根除，现实风险低但无法归零）。采用最稳妥的合规姿态：在对外可见的最显眼处落地免责声明，明确项目独立性、非官方、与 Pallets 无关联、未获背书。免责声明的法律根基是 Flask 的 BSD-3 第 3 条（未经书面许可不得用版权方 Pallets 名称背书/推广衍生品），而非商标权——经核实 "Flask" 商标归 Flask Holdings, LLC（厨具/玻璃器皿类，与软件框架无关），Pallets 不拥有该商标，故免责声明刻意不断言商标归属，仅聚焦无关联/非官方/未背书，并把 "Flask" 使用限定为技术性依赖描述。
 - **README 双版顶部**（标题/徽章/语言切换之后、正文之前）：英文版 `Disclaimer`、中文版 `免责声明`，口径一致（独立项目、非官方、与 Pallets 及其维护者无关联、未获认可背书、"Flask" 仅作技术性依赖描述，不断言商标归属）。
 - **LICENSE**：版权声明后新增 `Note:` 段（英文，同口径）。
+
+### 3.45 v4.22.0（2026-09-19，enforce 归因豁免 + scan:ignore 逃生舱 + RUNTIME_* manifest 统一）
+
+AirDrop 协调清单第 5 项落地：原 enforce 下 `should_block` 一刀切（`high > 0` 即拒）无法区分「不可约束的根深高风险」（eval/subprocess/反序列化/混淆/动态导入/socket-server 等）与「可约束合法行为」（`shutil.rmtree` 路径常量的目录删除）。合法插件一旦含可归因 rmtree 即被误拒，AirDrop 的动态 rmtree 更无法归因只能 `--no-scan` 绕过。本次改为「归因豁免 + scan:ignore 逃生舱」分层门禁。
+
+- **enforce 分层决策**（core/plugin_scanner.py）：
+  - `should_block_unconstrainable`：不可约束 high（eval/subprocess 等）+ 未 scan:ignore 者恒拒（保留原始 `should_block` 向后兼容，供 CLI/独立调用）。
+  - `should_block_constrained`：可约束 high（rmtree）按 capabilities `filesystem:write` 声明/自属路径隐式豁免覆盖放行，未归因或动态路径拒。
+  - `scan:ignore` 逃生舱：`# scan:ignore` / `# scan:ignore:rmtree` 命中行（含紧邻上方连续注释行）标 `ignored`，透明展示不计入阻断；被 ignore 的 rmtree 路径不进 delete_paths。
+  - 扫描 scope 新增 `delete_paths`（rmtree 可归因路径），capabilities 交叉校验新增 `high_exempt_paths`（已豁免）/`high_missing`（未覆盖，enforce 拒绝依据）。
+- **上传两段式 enforce 语义**（routes/admin.py `_scan_gate(..., preview=True)`）：预览阶段（preview=1）不阻断，返回 200 + 完整 preview（含 `scan_block_high`/`scan_exempt_high`/`scan_high_findings` 豁免明细）；enforce 门禁在确认安装阶段（confirm=1&preview_id）才拒。is_preview 从 `request.form.get('preview')` 读取（非 query_string）。
+- **CLI 分层门禁**（tools/scan.py / tools/install_plugin.py）：`should_block` → `should_block_unconstrainable` + `should_block_constrained`；scan.py CLI 分层打印「不可豁免/可约束未归因」结论与 exit 1；install_plugin 读包 capabilities 归因 + 打印 `[已 # scan:ignore 豁免]`/`[已归因 filesystem:write 豁免]` 标签。
+- **后台前端豁免提示**（templates/admin/plugins.html + locales/en.json/fr.json 补 4 词条）：区分「不可豁免高风险（enforce 将拒绝安装）」「高风险已全部豁免」「静态扫描未发现高风险行为」，逐条明细标注 `[已豁免·filesystem:write 归因]`/`[已豁免·scan:ignore]`/`[未豁免]`，避免对已豁免合法插件误报红色。
+- **精简运行包白名单统一**（core/framework_manifest.py + tools/release.py）：RUNTIME_TOP / RUNTIME_EXAMPLE_THEME / RUNTIME_PLUGIN_FILES / RUNTIME_PLUGIN_DIRS / RUNTIME_TEMPLATE_EXCLUDE 自 release.py 硬编码迁入 manifest 单一清单（USER_DATA_PATHS 亦从 manifest 导入），消除精简包白名单漂移点；新增框架顶层文件/目录时在此登记。
+- **frontend.py 不改**：前端 HTML 扫描 high 仅 eval/new Function（不可约束），`should_block` 语义正确，无需分层。
+- **版本**：FRAMEWORK_VERSION / SYSTEM_VERSION_LABEL 4.21.1 → 4.22.0；README 双版徽章、Dev-Guide 版本引用同步。
+- **测试**：`test_admin_api` 70→75 项（+5 enforce 两段式：预览放行/不可豁免拒/scan:ignore 放行/未声明 rmtree 拒/归因放行）；`test_framework_manifest` 55→65 项（+A6 release 复用 RUNTIME_* + F collect_runtime_files 行为）；`test_plugin_scan`/`test_capabilities` 相应扩展；`ci.yml` TESTS 数组补 test_pack_no_pyc/test_reserved_name（49 个）。全量回归 49 脚本 全部通过。
 
 ## 4. 发布实践沉淀
 

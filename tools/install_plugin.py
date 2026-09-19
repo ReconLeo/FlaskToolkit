@@ -51,7 +51,10 @@ from core.plugin_pack import (cleanup_plugin_data, cleanup_plugin_resources,  # 
 from core.package_sign import verify_package  # noqa: E402
 from routes.frontend import cleanup_frontend_resources, safe_extract_frontend  # noqa: E402
 from core.frontend_tools import load_frontend_tools  # noqa: E402
-from core.plugin_scanner import scan_plugin_zip, scan_frontend_zip, should_block  # noqa: E402
+from core.plugin_scanner import (  # noqa: E402
+    scan_plugin_zip, scan_frontend_zip, should_block_unconstrainable, should_block_constrained,
+)
+from core.capabilities import read_pack_capabilities, cross_validate  # noqa: E402
 
 DEFAULT_BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -76,17 +79,46 @@ def resolve_base(base: str) -> str:
     return base
 
 
-def _scan_gate_cli(zip_path: str, kind: str, name: str, no_scan: bool):
-    """静态扫描门禁（与框架行为一致：off 跳过 / report 打印摘要 / enforce 高风险拒绝）"""
+def _scan_gate_cli(zip_path: str, kind: str, name: str, no_scan: bool, base=None):
+    """静态扫描门禁（与框架行为一致：off 跳过 / report 打印摘要 / enforce 分层拒绝）。
+    分层：不可约束 high（eval/subprocess 等）恒拒绝；可约束 high（rmtree）按 capabilities 归因
+    （filesystem:write 声明覆盖或 # scan:ignore）豁免，未归因则拒绝。"""
     if no_scan or global_var.PLUGIN_SCAN_MODE == 'off':
         return
     report = scan_plugin_zip(zip_path) if kind == 'backend' else scan_frontend_zip(zip_path)
+    cap_res = None
+    if kind == 'backend':
+        try:
+            caps = read_pack_capabilities(zip_path)
+            cap_res = cross_validate(name, report, caps, base_dir=base)
+            report['capabilities'] = cap_res
+        except Exception:
+            cap_res = None
+    cap_exempt = (cap_res or {}).get('high_exempt_paths') or []
+    high_u = should_block_unconstrainable(report)
+    rmtree_ua = should_block_constrained(report, cap_exempt)
+    cap_bad = cap_res is not None and not cap_res['ok']
+    blocked = high_u or rmtree_ua or cap_bad
     if report['summary']['high'] > 0:
-        print(f"[扫描] {name} 发现 {report['summary']['high']} 项高风险行为（report 模式放行）:")
+        print(f"[扫描] {name} 发现 {report['summary']['high']} 项高风险行为:")
         for item in report['findings'][:10]:
-            print(f"       - {item.get('type', '?')}: {item.get('desc', '')}")
-        if global_var.PLUGIN_SCAN_MODE == 'enforce' and should_block(report):
-            raise ValueError(f"静态扫描存在高风险行为，PLUGIN_SCAN_MODE=enforce 已拒绝安装（--no-scan 可跳过）")
+            tag = ''
+            if item.get('ignored'):
+                tag = '[已 # scan:ignore 豁免] '
+            elif item.get('constrainable') and item.get('delete_path') in set(cap_exempt):
+                tag = '[已归因 filesystem:write 豁免] '
+            print(f"       - {tag}{item.get('category', '?')}: {item.get('message', '')} "
+                  f"({item.get('file')}:{item.get('line')})")
+        if global_var.PLUGIN_SCAN_MODE == 'enforce' and blocked:
+            reasons = []
+            if high_u:
+                reasons.append('不可豁免的高风险行为')
+            if rmtree_ua:
+                reasons.append('rmtree 未归因到 filesystem:write 声明且未 # scan:ignore')
+            if cap_bad:
+                reasons.append(f"capabilities 未声明行为 {len(cap_res['missing'])} 项")
+            raise ValueError("静态扫描存在 " + '；'.join(reasons)
+                             + f"，PLUGIN_SCAN_MODE=enforce 已拒绝安装（--no-scan 可跳过）")
     elif report['summary']['high'] == 0:
         print(f"[扫描] {name} 静态扫描通过（{report['summary'].get('info', 0)} 项提示）")
 
@@ -127,7 +159,7 @@ def install_backend(args, base: str) -> int:
     version = str(desc.get('version', '1.0.0'))
 
     # 3. 静态扫描门禁
-    _scan_gate_cli(pack, 'backend', name, args.no_scan)
+    _scan_gate_cli(pack, 'backend', name, args.no_scan, base)
 
     # 4. 同名与版本检查
     plugin_file = plugin_main_file(base, name)
@@ -236,7 +268,7 @@ def install_frontend(args, base: str) -> int:
                 return 1
 
         # 4. 静态扫描门禁
-        _scan_gate_cli(pack, 'frontend', tool_name, args.no_scan)
+        _scan_gate_cli(pack, 'frontend', tool_name, args.no_scan, base)
 
         # 5. 同名与版本检查
         tools = _load_frontend_config(base)

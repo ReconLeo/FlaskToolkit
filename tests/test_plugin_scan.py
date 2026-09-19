@@ -32,6 +32,7 @@ sys.path.insert(0, REAL_BASE)
 import global_var
 from core.plugin_scanner import (
     scan_code, scan_plugin_zip, scan_frontend_html, scan_frontend_zip, should_block,
+    should_block_unconstrainable, should_block_constrained,
 )
 
 results = []
@@ -74,9 +75,12 @@ check("A6 __import__ 拼接动态导入+混淆", 'dynamic-import' in cats and 'o
       f"cats={cats}")
 
 r = scan_code("import os, shutil\nshutil.rmtree('/data')\nos.remove('/tmp/x')\n", 'a.py')
-check("A7 rmtree 高风险 / os.remove 中风险",
-      any(f['category'] == 'dangerous-call' and f['severity'] == 'high' for f in r['findings'])
-      and any(f['severity'] == 'medium' for f in r['findings']), f"summary={r['summary']}")
+check("A7 rmtree 可约束高风险 + os.remove 中风险",
+      any(f['category'] == 'rmtree' and f['severity'] == 'high' and f.get('constrainable')
+          and f.get('delete_path') == '/data' for f in r['findings'])
+      and '/data' in r['scope']['delete_paths']
+      and any(f['severity'] == 'medium' for f in r['findings']),
+      f"summary={r['summary']} delete_paths={r['scope']['delete_paths']}")
 
 r = scan_code("import pickle\npickle.loads(b'x')\n", 'a.py')
 check("A8 pickle.loads 高风险", r['summary']['high'] >= 2, f"summary={r['summary']}")
@@ -107,6 +111,41 @@ check("A14 语法错误高风险（疑似混淆）", r['summary']['high'] == 1
 
 check("A15 should_block 决策", should_block({'summary': {'high': 1}}) is True
       and should_block({'summary': {'high': 0, 'medium': 9}}) is False)
+
+# ---- 可约束 high（rmtree）+ scan:ignore 逃生舱 ----
+r = scan_code("import shutil\nshutil.rmtree(cdir)\n", 'a.py')
+f = [x for x in r['findings'] if x['category'] == 'rmtree'][0]
+check("A16 rmtree 动态路径无常量归因", f.get('constrainable') and not f.get('delete_path')
+      and r['scope']['delete_paths'] == [], f"f={f} delete_paths={r['scope']['delete_paths']}")
+
+r = scan_code("import shutil\nshutil.rmtree(cdir)  # scan:ignore\n", 'a.py')
+f = [x for x in r['findings'] if x['category'] == 'rmtree'][0]
+check("A17 scan:ignore 行尾注释忽略 high", f.get('ignored') is True
+      and r['scope']['delete_paths'] == [], f"f={f} delete_paths={r['scope']['delete_paths']}")
+
+r = scan_code("import shutil\n# scan:ignore:rmtree\nshutil.rmtree(cdir)\n", 'a.py')
+f = [x for x in r['findings'] if x['category'] == 'rmtree'][0]
+check("A18 scan:ignore 上方注释+类别限定忽略", f.get('ignored') is True, f"f={f}")
+
+r = scan_code("import shutil\nshutil.rmtree('/data')  # scan:ignore:dynamic-exec\n", 'a.py')
+f = [x for x in r['findings'] if x['category'] == 'rmtree'][0]
+check("A19 类别不匹配不忽略", f.get('ignored') is None and '/data' in r['scope']['delete_paths'],
+      f"f={f} delete_paths={r['scope']['delete_paths']}")
+
+check("A20 分层决策",
+      not should_block_unconstrainable(
+          {'findings': [{'severity': 'high', 'category': 'rmtree', 'constrainable': True}]})
+      and should_block_unconstrainable(
+          {'findings': [{'severity': 'high', 'category': 'dynamic-exec'}]})
+      and should_block_constrained(
+          {'findings': [{'severity': 'high', 'category': 'rmtree', 'constrainable': True,
+                         'delete_path': '/x'}]}, [])
+      and not should_block_constrained(
+          {'findings': [{'severity': 'high', 'category': 'rmtree', 'constrainable': True,
+                         'delete_path': '/x'}]}, ['/x'])
+      and not should_block_constrained(
+          {'findings': [{'severity': 'high', 'category': 'rmtree', 'constrainable': True,
+                         'ignored': True}]}, []))
 
 # ============ B：插件包（zip）扫描 ============
 def make_zip(path, members):
@@ -214,6 +253,62 @@ check("D2 拒绝响应附完整扫描报告",
       f"msg={body.get('message', '')[:60]}")
 check("D3 恶意插件未落盘",
       not os.path.isfile(os.path.join(_isolated, 'plugins', 'evil.py')))
+
+# ---- 可约束 high（rmtree）+ scan:ignore 的 enforce 分层行为 ----
+def py_plugin_body(name, body):
+    cls = ''.join(w.capitalize() for w in name.split('_'))
+    return ('import json\nfrom plugins.base_plugin import BasePlugin\n'
+            f'class {cls}Plugin(BasePlugin):\n'
+            f'    name = "{name}"\n'
+            '    title = "t"\n'
+            '    description = "d"\n'
+            '    version = "1.0.0"\n'
+            '    author = "t"\n'
+            '    category = "测试"\n'
+            '    @property\n'
+            '    def routes(self):\n        return []\n' + body)
+
+# D8：可约束 rmtree 常量路径 + 声明齐全 → enforce 放行
+rm_zip = os.path.join(_tmp, 'rm.zip')
+make_zip(rm_zip, {
+    'plugin.json': json.dumps({'name': 'rmdemo', 'version': '1.0.0',
+                               'capabilities': ['filesystem:write:D:/rmt']}),
+    'rmdemo.py': py_plugin_body('rmdemo',
+        '    def run(self):\n'
+        '        import shutil\n'
+        '        shutil.rmtree("D:/rmt/tmp/x")\n'),
+})
+r = upload(rm_zip, 'rm.zip')
+check("D8 可约束 rmtree 声明齐全 enforce 放行 200", r.status_code == 200,
+      f"status={r.status_code} msg={(r.get_json() or {}).get('message', '')[:60]}")
+
+# D9：可约束 rmtree 动态路径 + scan:ignore → enforce 放行
+rm2_zip = os.path.join(_tmp, 'rm2.zip')
+make_zip(rm2_zip, {
+    'plugin.json': json.dumps({'name': 'rmdemo2', 'version': '1.0.0', 'capabilities': []}),
+    'rmdemo2.py': py_plugin_body('rmdemo2',
+        '    def run(self, cdir):\n'
+        '        import shutil\n'
+        '        shutil.rmtree(cdir)  # scan:ignore\n'),
+})
+r = upload(rm2_zip, 'rm2.zip')
+check("D9 可约束 rmtree 动态+scan:ignore enforce 放行 200", r.status_code == 200,
+      f"status={r.status_code} msg={(r.get_json() or {}).get('message', '')[:60]}")
+
+# D10：可约束 rmtree 常量路径未声明 → enforce 拒绝（未归因）
+rm3_zip = os.path.join(_tmp, 'rm3.zip')
+make_zip(rm3_zip, {
+    'plugin.json': json.dumps({'name': 'rmdemo3', 'version': '1.0.0', 'capabilities': []}),
+    'rmdemo3.py': py_plugin_body('rmdemo3',
+        '    def run(self):\n'
+        '        import shutil\n'
+        '        shutil.rmtree("D:/noshare/x")\n'),
+})
+r = upload(rm3_zip, 'rm3.zip')
+body10 = r.get_json() or {}
+check("D10 可约束 rmtree 未声明 enforce 拒绝 400", r.status_code == 400
+      and 'rmtree' in (body10.get('message') or ''),
+      f"status={r.status_code} msg={body10.get('message', '')[:80]}")
 
 # report 模式良性包放行 + 附摘要
 global_var.PLUGIN_SCAN_MODE = 'report'

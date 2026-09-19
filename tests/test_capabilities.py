@@ -295,7 +295,49 @@ make_zip(evil_zip, {
         '        subprocess.Popen(["curl", "http://evil.com"])\n'),
 })
 r = upload(evil_zip, 'evil.zip')
-check("E8 高风险行为 enforce 仍拒绝（即使声明齐全）", r.status_code == 400, f"status={r.status_code}")
+check("E8 不可约束高风险（subprocess）声明齐全仍拒绝", r.status_code == 400, f"status={r.status_code}")
+
+# E8b：可约束 high（rmtree 常量路径）声明齐全 → enforce 放行
+rm_zip = os.path.join(_tmp, 'rm.zip')
+make_zip(rm_zip, {
+    'plugin.json': json.dumps({'name': 'rmcap', 'version': '1.0.0',
+                               'capabilities': ['filesystem:write:D:/rmcap']}),
+    'rmcap.py': py_plugin('rmcap',
+        '    def run(self):\n'
+        '        import shutil\n'
+        '        shutil.rmtree("D:/rmcap/tmp/x")\n'),
+})
+r = upload(rm_zip, 'rm.zip')
+check("E8b 可约束 rmtree 声明齐全 enforce 放行 200", r.status_code == 200,
+      f"status={r.status_code} msg={(r.get_json() or {}).get('message', '')[:60]}")
+
+# E8c：可约束 high（rmtree 动态路径）scan:ignore → enforce 放行
+rm2_zip = os.path.join(_tmp, 'rm2.zip')
+make_zip(rm2_zip, {
+    'plugin.json': json.dumps({'name': 'rmcap2', 'version': '1.0.0', 'capabilities': []}),
+    'rmcap2.py': py_plugin('rmcap2',
+        '    def run(self, cdir):\n'
+        '        import shutil\n'
+        '        shutil.rmtree(cdir)  # scan:ignore\n'),
+})
+r = upload(rm2_zip, 'rm2.zip')
+check("E8c 可约束 rmtree 动态+scan:ignore enforce 放行 200", r.status_code == 200,
+      f"status={r.status_code} msg={(r.get_json() or {}).get('message', '')[:60]}")
+
+# E8d：可约束 high（rmtree 常量路径）未声明 → enforce 拒绝（未归因）
+rm3_zip = os.path.join(_tmp, 'rm3.zip')
+make_zip(rm3_zip, {
+    'plugin.json': json.dumps({'name': 'rmcap3', 'version': '1.0.0', 'capabilities': []}),
+    'rmcap3.py': py_plugin('rmcap3',
+        '    def run(self):\n'
+        '        import shutil\n'
+        '        shutil.rmtree("D:/noshare/x")\n'),
+})
+r = upload(rm3_zip, 'rm3.zip')
+body8d = r.get_json() or {}
+check("E8d 可约束 rmtree 未声明 enforce 拒绝 400", r.status_code == 400
+      and 'rmtree' in (body8d.get('message') or ''),
+      f"status={r.status_code} msg={body8d.get('message', '')[:80]}")
 
 # E9：report 模式缺声明放行 + 附摘要
 global_var.PLUGIN_SCAN_MODE = 'report'

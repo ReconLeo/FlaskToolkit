@@ -55,7 +55,7 @@ FlaskToolkit/
 │   ├── i18n.py             #   国际化语言包框架（zh-CN/en/fr 内置可扩展，v4.9）
 │   ├── quota.py            #   插件数据配额（路径判定 / 用量统计 / enforce / 全局总量，v4.9）
 │   ├── update_checker.py   #   版本检查推送（changelog feed + 双后端更新校验，v4.8）
-│   ├── framework_manifest.py # 框架目录清单（核心文件/用户数据单一事实来源，v4.15.1）
+│   ├── framework_manifest.py # 框架目录清单（核心文件/用户数据/精简包白名单 RUNTIME_* 单一事实来源，v4.15.1）
 │   ├── plugin_admin.py     #   程序化插件管理服务层（v4.15，市场铺路）
 │   ├── plugin_updates.py   #   插件级更新源（RSA 验签 feed，v4.15）
 │   ├── events.py           #   事件总线（进程内发布-订阅，纯 stdlib，v4.16）
@@ -86,7 +86,7 @@ FlaskToolkit/
 │   ├── desktop_launcher.py  #   桌面启动器（tkinter GUI，subprocess 启动服务，v4.11 M5；HTTPS 复选框 + 证书自动生成，v4.12）
 │   ├── i18n_status.py         #   翻译状态工具（扫描 locales/ 以 en.json 为基准报告各语言进度，v4.15.4）
 │   ├── update.py              #   版本更新脚本（git/archive 双后端，检查/备份/应用/回滚，保留用户数据，v4.8）
-│   ├── release.py             #   框架发布工具链（版本号同步/更新包构建/changelog 生成与签名，v4.8）
+│   ├── release.py             #   框架发布工具链（版本号同步/更新包构建/changelog 生成与签名，v4.8；精简包白名单复用 framework_manifest）
 │   ├── scan_missing_i18n.py   #   框架模板缺失中文 key 扫描（与 i18n_status 语言包侧互补）
 │   ├── migrate_plugin_layout.py #   旧扁平插件 → v4.21 目录化自包含布局迁移工具
 │   ├── reset.py               #   深度重置工具（服务停止时使用，绕过运行时文件锁定）
@@ -654,7 +654,7 @@ python tools/package.py pack ./my_plugin -o my_plugin.zip --type backend --src-l
 后端插件可声明 `require_framework_version`（`plugin.json` 或插件类属性，非强制），用于声明插件所需的最低框架版本，以支撑框架持续迭代：
 
 - **未声明**：不检查，任意框架版本可用。
-- **声明了**：上传/更新时与 `global_var.FRAMEWORK_VERSION`（当前 `4.21.1`）做点分版本比较（`compare_versions`，修复了前端工具原先字符串比较的缺陷）；插件要求高于框架版本 → 拒绝安装并报告。
+- **声明了**：上传/更新时与 `global_var.FRAMEWORK_VERSION`（当前 `4.22.0`）做点分版本比较（`compare_versions`，修复了前端工具原先字符串比较的缺陷）；插件要求高于框架版本 → 拒绝安装并报告。
 - **运行时双重校验**：`load_plugins` 加载时同样校验（防止手工放置插件绕过上传校验），不满足则跳过加载并报错。
 - 参与描述一致性对齐（冲突拒绝/缺失补全），见 5.6.3。
 
@@ -1198,11 +1198,11 @@ python tools/package.py show my_plugin.zip
 **后端扫描能力（AST 级）**：
 
 - 危险导入：high——`subprocess` / `ctypes` / `pickle` / `marshal` / `dill` 等；medium——`socket` / `ssl` / `requests` / `httpx` / `urllib.request` / `importlib` 等
-- 危险调用：high——`os.system` / `subprocess.Popen` / `eval` / `exec` / `compile` / `__import__` / `shutil.rmtree` / `pickle.loads` 等；medium——`os.remove` / `os.chmod` / `requests.*` / `socket.socket` 等
+- 危险调用：high——`os.system` / `subprocess.Popen` / `eval` / `exec` / `compile` / `__import__` / `pickle.loads` 等（**不可约束**，恒阻断）；`shutil.rmtree` 属**可约束 high**（路径可归因或 `# scan:ignore` 可豁免，见下）；medium——`os.remove` / `os.chmod` / `requests.*` / `socket.socket` 等
 - socket 服务端（`bind` / `listen`）视为 high；`import as` 别名与实例别名（`s = socket.socket()` 后 `s.connect(...)`）均可归因
 - 混淆检测：`eval`/`exec` 参数含 `base64.b64decode` / `zlib.decompress` 等 → obfuscation high；`__import__` 参数非常量 → 混淆告警
 - 语法错误（可能是人为规避解析）→ high
-- **范围提取**：`paths_read` / `paths_written`（`open` 路径字面量按读写模式分类）/ `network_endpoints`（requests URL、`socket.connect` 主机、字符串常量中的 URL 兜底）——P1 阶段二 capabilities 声明交叉校验的基准
+- **范围提取**：`paths_read` / `paths_written`（`open` 路径字面量按读写模式分类）/ `delete_paths`（`shutil.rmtree` 常量路径）/ `network_endpoints`（requests URL、`socket.connect` 主机、字符串常量中的 URL 兜底）——P1 阶段二 capabilities 声明交叉校验的基准
 - 插件包（.zip）扫描跳过 `__pycache__` / `templates/` / `static/` 中的模板静态内容
 
 **前端扫描（HTML，正则级）**：`eval` / `new Function`（high）、外部 `<script src>` 与 fetch/XHR 外链（medium）、`document.cookie` / `localStorage`（low），并提取外链端点。
@@ -1213,7 +1213,16 @@ python tools/package.py show my_plugin.zip
 | ---------------- | ------------------------------------------------------------------------------------- |
 | `off`            | 跳过扫描                                                                              |
 | `report`（默认） | 放行安装，响应附 `scan` 摘要与 `scan_scope` 范围，审计日志记录                        |
-| `enforce`        | 检出高风险（high > 0）即拒绝安装，返回 400 附完整 `scan_report`，审计日志记录 blocked |
+| `enforce`        | **不可约束高风险**（eval/subprocess/反序列化/混淆/动态导入/网络服务端/syntax 等）或**可约束高风险未归因**（rmtree 路径未命中 `filesystem:write` 声明且未 `# scan:ignore`）即拒绝安装，返回 400 附完整 `scan_report`，审计日志记录 blocked |
+
+**上传预览两段式下的 enforce 语义**：上传接口 `preview=1`（能力预览）阶段**不阻断**，即使 enforce 下存在未豁免高风险也返回 200 与完整 `preview`（新增 `scan_block_high`/`scan_exempt_high`/`scan_high_findings` 字段，供前端区分「不可豁免 / 已豁免」并展示豁免明细）；enforce 门禁在**确认安装（`confirm=1&preview_id=xxx`）阶段**才真正拒绝（400 附 `scan_report`）。即「预览展示风险、确认才拦截」——避免前端因预览被拒而拿不到豁免提示。
+
+**可约束 high 与 `# scan:ignore` 逃生舱**：为兼顾 enforce 可用性（避免合法插件因单个可归因项被误伤而降级 report，从而让全部插件失去保护），`shutil.rmtree` 作为**可约束 high**，满足其一即豁免：
+
+- **路径归因**：扫描器能静态提取 `rmtree` 的常量路径（`delete_paths`），且该路径被 `capabilities` 的 `filesystem:write:<dir>` 声明（或自属路径隐式豁免）覆盖；
+- **`# scan:ignore` 逃生舱**：作者在调用行或紧邻上方注释行标注 `# scan:ignore`（全量）或 `# scan:ignore:rmtree`（限定类别），显式声明"该处受控"。动态路径（`rmtree(cdir)`）静态无法归因，只能靠逃生舱。
+
+被豁免的 high 仍保留在 `scan_report` 中**透明展示**（不隐藏），仅不计入阻断。其余不可约束 high（eval/exec/compile、pickle/marshal、混淆、动态导入、socket.bind/listen、syntax、subprocess 等）无法用范围约束，**始终保持阻断**（声明 capabilities 也不能为其背书）。**适用边界**：归因豁免 + `scan:ignore` 属 Community（小型局域网/个人，enforce 退化为知情声明防线）；Enterprise（企业级深层安全）应走签名者背书 / 管理员确认白名单，见 [Enterprise-Edition-Handover-Roadmap](Enterprise-Edition-Handover-Roadmap.md)。
 
 接入端点：后端插件上传/更新（`routes/admin.py`）与前端工具上传/更新（`routes/frontend.py`）共四处。
 
@@ -1460,7 +1469,7 @@ FLASKTOOLKIT_HOST=0.0.0.0 FLASKTOOLKIT_PORT=8000 python app.py
 | `test_meta_e2e.py`            | 插件包元信息端到端（上传/冲突/已存在/update 刷新/降级拒绝/require 拒绝/描述文件失效打标，隔离目录模式可重复运行）                                                                                                                                                                                                                                                                                                                  | 11 项 |
 | `test_frontend_zip_slip.py`   | 前端工具包安全解压 zip slip 专项（`..`/绝对路径/盘符拒绝 + 正常落位 + clean_static 更新清理 + 卸载资源清理）                                                                                                                                                                                                                                                                                                      | 21 项 |
 | `test_frontend_chain.py`      | 前端工具上传/更新/卸载端到端（含页面/静态资源渲染、clean_static、413 上传大小限制）                                                                                                                                                                                                                                                                                                                               | 23 项 |
-| `test_admin_api.py`           | 管理端 API 单测（system/info、plugins、stats、logs、factory-reset scope 校验、上传 413/400、空间管理、能力预览两段式、单插件空间清理 purge-data v4.10、网络与访问页接口 v4.11）                                                                                                                                                                                                                                   | 70 项 |
+| `test_admin_api.py`           | 管理端 API 单测（system/info、plugins、stats、logs、factory-reset scope 校验、上传 413/400、空间管理、能力预览两段式、单插件空间清理 purge-data v4.10、网络与访问页接口 v4.11、**enforce 上传两段式 v4.22：未归因 rmtree 预览放行(block>=1)/确认拒绝、声明齐全 rmtree 预览 block=0/exempt=1/确认放行**）                                                                                                                                                                                                                                                                   | 75 项 |
 | `test_factory_reset.py`       | Factory Reset 范围测试（部分/全部删除与保留、内置插件保护、插件数据目录清理 v4.10 M6-Extra、空/非法 scope 无副作用）                                                                                                                                                                                                                                                                                              | 46 项 |
 | `test_error_pages.py`         | 统一错误码页面渲染（404/405 真实触发 + 400/401/403/500 模板，双环境无 auth/带 auth）                                                                                                                                                                                                                                                                                                                              | 12 项 |
 | `test_package_sign.py`        | 插件包完整性校验与签名专项（篡改/加料/缺失检测、签名验证、strict/warn/off 模式、路由集成、配公钥后签名端到端（v4.17.1）                                                                                                                                                                                                                                                                                                                        | 25 项 |
@@ -1474,10 +1483,10 @@ FLASKTOOLKIT_HOST=0.0.0.0 FLASKTOOLKIT_PORT=8000 python app.py
 | `test_file_transfer.py`       | 文件传输强化（v4.2.2）：全局 413 / 插件级 max_upload_size 预检 / route 级 max_upload 覆盖 / 中文名下载 / 下载统计 / Range / on_ready 顺序                                                                                                                                                                                                                                                                         | 12 项 |
 | `test_plugin_uploads.py`     | 同步持久化上传助手 save_uploads（v4.18）：单/多文件 / 大小与配额预检 / 净化防穿越 / 中文名 / 去重 / 类型拒绝 / 部分成功 / enforce 交叉校验（隔离目录）                                                                                                                                                                                                                                                          | 21 项 |
 | `test_security.py`            | 系统安全回归（v4.3.0）：安全响应头注入与开关 / 指纹头移除 / Cookie HttpOnly+SameSite+Secure 联动 / 会话空闲超时 / 登录失败锁定三档（ip_username/username/off）+ 通用 429 + 成功重置 + 解封（v4.5.1）                                                                                                                                                                                                              | 45 项 |
-| `test_plugin_scan.py`         | 插件静态扫描回归（v4.3.1）：扫描器单元（危险导入/调用/混淆/范围提取/别名归因）/ 插件包扫描 / 前端 HTML 扫描 / enforce 门禁集成（拒绝 400 + 附报告 + 未落盘 + 真实项目未污染）/ 配置预设三套                                                                                                                                                                                                                       | 35 项 |
-| `test_capabilities.py`        | 插件能力声明回归（v4.3.2）：解析器（合法/非法/未知域/裸 * 拒绝）/ 匹配语义（路径前缀递归/URL host·path·端口/子域通配/tcp/env）/ 交叉校验（隐式豁免/跨插件越界/建议声明/unused）/ 运行时授权 API（fail-closed/process 细粒度）/ 安装链路集成（enforce 拒绝与放行/响应附摘要/loader 注册）/ base_plugin data API + hello_plugin 示例端到端 / **storage 域解析与目录推导（v4.9.1）** + **framework 域三档（v4.15）** | 70 项 |
+| `test_plugin_scan.py`         | 插件静态扫描回归（v4.3.1）：扫描器单元（危险导入/调用/混淆/范围提取/别名归因）/ 插件包扫描 / 前端 HTML 扫描 / enforce 门禁集成（拒绝 400 + 附报告 + 未落盘 + 真实项目未污染）/ 可约束 high（rmtree）归因豁免与 scan:ignore 逃生舱 / 配置预设三套                                                                                                                                                                                                                       | 43 项 |
+| `test_capabilities.py`        | 插件能力声明回归（v4.3.2）：解析器（合法/非法/未知域/裸 * 拒绝）/ 匹配语义（路径前缀递归/URL host·path·端口/子域通配/tcp/env）/ 交叉校验（隐式豁免/跨插件越界/建议声明/unused）/ 运行时授权 API（fail-closed/process 细粒度）/ 安装链路集成（enforce 拒绝与放行/响应附摘要/loader 注册）/ base_plugin data API + hello_plugin 示例端到端 / **storage 域解析与目录推导（v4.9.1）** + **framework 域三档（v4.15）** / **可约束 high（rmtree）归因豁免与 scan:ignore 逃生舱（enforce 分层门禁）** | 73 项 |
 | `test_root_domain.py`         | Root 域与市场骨架（v4.15）：framework 三档 read/manage/core / 核心路径判定 / root 写放行与拒绝 / 服务层 require_manage / 市场写 core 拒绝 / 插件级更新源                                                                                                                                                                                                                                                          | 18 项 |
-| `test_framework_manifest.py`  | 框架目录清单统一（v4.15.1）：selfcheck/update/backup 复用同一对象 + CORE_FILES/CORE_DIRS 完整性 + Root 域路径判定边界（含插件内容/自属目录豁免）+ is_user_data_path 语义 + BACKUP_ITEMS 派生                                                                                                                                                                                                                      | 55 项 |
+| `test_framework_manifest.py`  | 框架目录清单统一（v4.15.1）：selfcheck/update/backup/release 复用同一对象（含精简包白名单 RUNTIME_*）+ CORE_FILES/CORE_DIRS 完整性 + Root 域路径判定边界（含插件内容/自属目录豁免）+ is_user_data_path 语义 + BACKUP_ITEMS 派生 + **collect_runtime_files 精简包行为（含关键文件/排除用户数据与示例插件）**                                                                                                                                                                                                                      | 65 项 |
 | `test_root_demo.py`           | 示例插件 root_demo（v4.15.1）：plugin.json 声明一致 + framework:core 授权/写核心放行/读核心/对照拒绝/自属豁免/模块可加载                                                                                                                                                                                                                                                                                          | 19 项 |
 | `test_audit_hook.py`          | 运行时审计钩子回归（v4.4.0）：事件映射（open 读写/删除族/sqlite/socket）/ 栈定位（plugins 帧/框架放行/嵌套归因）/ observe 聚合（按插件/建议声明/事件样本）/ enforce 阻断（异常传播/授权放行/自属豁免/fail-closed）/ 隔离集成（真实钩子+栈归因端到端/stats 按插件分组/重载清零/审计落盘/未污染）                                                                                                                   | 39 项 |
 | `test_update_checker.py`      | 版本检查推送（v4.8.0）：版本比较（parse_version/is_newer）/ 用户数据路径判定（v4.9.2 补 users/locales）/ zip slip 防护 / archive 校验链（sha256 必选 + 签名可选）/ 数据源缓存 TTL / 数据源结构校验 / 自更新签名验签（v4.17.1）                                                                                                                                                                                                                | 52 项 |
@@ -1526,10 +1535,10 @@ python tests/test_framework_fixes.py    # 12 项（public_page 豁免 + CSRF 单
 python tests/test_file_transfer.py       # 12 项（文件传输强化，隔离目录）
 python tests/test_plugin_uploads.py     # 21 项（save_uploads 同步上传助手，隔离目录）
 python tests/test_security.py            # 45 项（系统安全回归 v4.3.0 + 解封，隔离目录）
-python tests/test_plugin_scan.py           # 35 项（插件静态扫描回归 v4.3.1，隔离目录）
-python tests/test_capabilities.py          # 70 项（插件能力声明回归 v4.3.2 + storage/framework 域，隔离目录）
+python tests/test_plugin_scan.py           # 43 项（插件静态扫描回归 v4.3.1，隔离目录）
+python tests/test_capabilities.py          # 73 项（插件能力声明回归 v4.3.2 + storage/framework 域，隔离目录）
 python tests/test_root_domain.py         # 18 项（Root 域与市场骨架 v4.15，隔离目录）
-python tests/test_framework_manifest.py   # 55 项（框架目录清单 v4.15.1，隔离目录）
+python tests/test_framework_manifest.py   # 65 项（框架目录清单 v4.15.1，隔离目录）
 python tests/test_root_demo.py            # 19 项（示例插件 root_demo v4.15.1，隔离目录）
 python tests/test_audit_hook.py            # 39 项（运行时审计钩子回归 v4.4.0，隔离目录）
 python tests/test_update_checker.py     # 52 项（版本检查推送回归 v4.8.0 + 自更新签名验签，隔离目录）
@@ -1732,7 +1741,7 @@ python tools/release.py build --full         # 全量包（含 tests/documents/e
 python tools/release.py build --include src:dest   # 定制包（叠加企业私有插件/文档）
 ```
 
-- `build` 默认**精简运行包**（仅运行必需：core/routes/plugins 内置/templates/static/locales），用户数据路径清单始终保留；
+- `build` 默认**精简运行包**（仅运行必需：core/routes/plugins 内置/templates/static/locales），用户数据路径清单始终保留；精简包顶层白名单（`RUNTIME_TOP`/`RUNTIME_EXAMPLE_THEME`/`RUNTIME_PLUGIN_FILES`/`RUNTIME_PLUGIN_DIRS`/`RUNTIME_TEMPLATE_EXCLUDE`）由 `core/framework_manifest.py` 单一清单提供，新增框架顶层内容须同步登记（防精简包漏带）；
 - `changelog.json` 是发布强制同步点（latest_version/sha256/download_url/changes），须随 Release 一起提交推送。
 
 ### 14.7 插件脚手架（tools/scaffold.py，v4.10）
@@ -1756,7 +1765,7 @@ python tools/install_plugin.py uninstall frontend my_tool --purge-data   # 卸�
 python tools/install_plugin.py list                           # 列出已安装插件与前端工具
 ```
 
-- 安装链路与在线一致：完整性校验 → 描述一致性 → 框架版本门槛 → 静态扫描门禁 → 安全解压 + installed_files 落盘；缺失 pip 依赖仅提示并附 `pip install` 命令（不自动安装）；
+- 安装链路与在线一致：完整性校验 → 描述一致性 → 框架版本门槛 → 静态扫描门禁 → 安全解压 + installed_files 落盘；缺失 pip 依赖仅提示并附 `pip install` 命令（不自动安装）；静态扫描门禁与框架同构分层（v4.22）：`enforce` 下**不可约束 high 恒拒**、**可约束 high（rmtree）按 `filesystem:write` 归因或 `# scan:ignore` 豁免**、capabilities 未声明行为拒，明细打印每项高风险的豁免标签（`[已 # scan:ignore 豁免]` / `[已归因 filesystem:write 豁免]`），`--no-scan` 可跳过；
 - `--base` 指定框架根目录（默认自动探测）；离线卸载不执行插件 `on_uninstall` 钩子（框架未运行）；
 - `--purge-data` 与后台 `purge-data` API（10.10）语义一致：临时目录 + 数据目录 + capabilities `filesystem:write` 声明写目录。
 

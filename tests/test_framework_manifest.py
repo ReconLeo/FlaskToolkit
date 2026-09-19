@@ -46,6 +46,13 @@ check("A4 tools.update path_is_user_data 复用 manifest",
 from tools.backup import BACKUP_ITEMS
 check("A5 tools.backup BACKUP_ITEMS 复用 manifest",
       BACKUP_ITEMS is FM.BACKUP_ITEMS, '')
+from tools.release import (RUNTIME_TOP, RUNTIME_EXAMPLE_THEME, RUNTIME_PLUGIN_FILES,
+                           RUNTIME_PLUGIN_DIRS, RUNTIME_TEMPLATE_EXCLUDE)
+check("A6 tools.release RUNTIME_TOP 复用 manifest", RUNTIME_TOP is FM.RUNTIME_TOP, '')
+check("A6 tools.release RUNTIME_EXAMPLE_THEME 复用 manifest", RUNTIME_EXAMPLE_THEME is FM.RUNTIME_EXAMPLE_THEME, '')
+check("A6 tools.release RUNTIME_PLUGIN_FILES 复用 manifest", RUNTIME_PLUGIN_FILES is FM.RUNTIME_PLUGIN_FILES, '')
+check("A6 tools.release RUNTIME_PLUGIN_DIRS 复用 manifest", RUNTIME_PLUGIN_DIRS is FM.RUNTIME_PLUGIN_DIRS, '')
+check("A6 tools.release RUNTIME_TEMPLATE_EXCLUDE 复用 manifest", RUNTIME_TEMPLATE_EXCLUDE is FM.RUNTIME_TEMPLATE_EXCLUDE, '')
 
 # ------------------------------ B. 完整性 ------------------------------
 miss = [f for f in FM.CORE_FILES if not os.path.exists(os.path.join(_PROJECT_ROOT, f))]
@@ -95,6 +102,28 @@ expect = {'data', 'plugins/configs', 'plugins/data', 'logs', 'plugins/status.jso
 check("E1 BACKUP_ITEMS 与原语义一致", items == expect, 'got=%s' % sorted(items))
 check("E2 纯临时目录不入备份", not (items & {'.plugin_cache', 'workspace', 'temp', 'backups', 'users', 'plugins/temp'}),
       '')
+
+# ------------------------------ F. 精简运行包白名单（RUNTIME_*） ------------------------------
+_miss_top = [t for t in FM.RUNTIME_TOP if not os.path.exists(os.path.join(_PROJECT_ROOT, t))]
+check("F1 RUNTIME_TOP 顶层白名单全存在（%d 个）" % len(FM.RUNTIME_TOP), not _miss_top, 'missing=%s' % _miss_top)
+check("F1 RUNTIME_EXAMPLE_THEME 示例主题文件存在",
+      all(os.path.isfile(os.path.join(_PROJECT_ROOT, r)) for r in FM.RUNTIME_EXAMPLE_THEME), '')
+
+from tools.release import collect_runtime_files
+_rt = set(collect_runtime_files())
+_need = ['app.py', 'global_var.py', 'requirements.txt', 'tools/update.py', 'tools/release.py',
+         'core/selfcheck.py', 'core/framework_manifest.py', 'locales/en.json',
+         'static/js/main.js', 'plugins/base_plugin.py', 'templates/admin/plugins.html',
+         'themes/sepia/theme.css']
+check("F2 collect_runtime_files 含关键文件（%d 个）" % len(_need),
+      all(k in _rt for k in _need), 'missing=%s' % [k for k in _need if k not in _rt])
+_user = [u for u in ['data/', 'logs/', 'temp/', 'backups/', 'plugins/data/', 'plugins/temp/',
+                     'plugins/configs/', '.plugin_cache/']
+         if any(k.startswith(u) for k in _rt)]
+check("F3 collect_runtime_files 排除用户数据", not _user, '泄漏=%s' % _user)
+_ex = [e for e in ['plugins/airdrop/', 'plugins/kaleido', 'templates/frontend_tools/']
+       if any(k.startswith(e) for k in _rt)]
+check("F4 collect_runtime_files 排除示例插件/前端工具模板", not _ex, '泄漏=%s' % _ex)
 
 # ============ 汇总 ============
 n_pass = sum(1 for _, c, _ in results if c)

@@ -331,6 +331,8 @@ def cross_validate(plugin_name, scan_report, capabilities, base_dir=None):
       'implicit_granted': [...], # 命中自属路径豁免的检出（透明展示）
       'unused': [...],           # 声明了但未检出使用（info 提示，不阻断）
       'suggested': [...],        # 建议声明（可整段复制回 plugin.json）
+      'high_exempt_paths': [...],# 可约束 high（rmtree）路径被 filesystem:write 声明/隐式豁免覆盖（enforce 放行依据）
+      'high_missing': [...],     # 可约束 high 路径未被声明覆盖（enforce 拒绝依据，由 scan_gate 综合判定）
       'ok': bool                 # enforce 门禁判定：missing 为空
     }"""
     base = base_dir or global_var.BASE_DIR
@@ -341,6 +343,7 @@ def cross_validate(plugin_name, scan_report, capabilities, base_dir=None):
         'errors': parsed['errors'],
         'unknown': parsed['unknown'],
         'missing': [], 'implicit_granted': [], 'unused': [], 'suggested': [],
+        'high_exempt_paths': [], 'high_missing': [],
     }
     used_raw = set()
     report = scan_report or {}
@@ -362,6 +365,20 @@ def cross_validate(plugin_name, scan_report, capabilities, base_dir=None):
                 used_raw.update(c['raw'] for c in hit)
             else:
                 res['missing'].append(f'filesystem:{kind}:{p}')
+
+    # 1b. rmtree 删除路径归因（可约束 high）：命中 filesystem:write 声明或自属路径隐式豁免
+    #     → high_exempt_paths（enforce 放行依据）；未命中 → high_missing（拒绝依据）
+    for p in scope.get('delete_paths', []):
+        if is_implicit_grant(plugin_name, p, base):
+            res['high_exempt_paths'].append(p)
+            continue
+        hit = [c for c in valid if c['domain'] == 'filesystem' and c['sub'] == 'write'
+               and match_path_decl(c['param'], p)]
+        if hit:
+            used_raw.update(c['raw'] for c in hit)
+            res['high_exempt_paths'].append(p)
+        else:
+            res['high_missing'].append(p)
 
     # 2. 网络端点
     for ep in scope.get('network_endpoints', []):

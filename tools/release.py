@@ -28,27 +28,13 @@ import zipfile
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, BASE_DIR)
 
-# 与 tools/update.py 保持一致的用户数据路径（打包/更新保留语义统一）
-from tools.update import USER_DATA_PATHS, path_is_user_data
-
-# 精简包顶层白名单
-# locales/ 为框架内置 i18n 语言包（v4.9.0），精简运行包必须包含（否则更新后界面翻译缺失）
-# v4.10: 加入 tools（scaffold/install_plugin 离线 CLI、update/backup/reset 运维工具，面向使用者）
-RUNTIME_TOP = ['app.py', 'global_var.py', 'requirements.txt', 'core', 'routes', 'plugins', 'templates', 'static', 'locales', 'tools']
-# 注：themes/（v4.19.2 可扩展主题）整体归 USER_DATA_PATHS（升级/备份保留用户主题，
-#     不随精简运行包打包——themes 为可选目录，缺失不致命（selfcheck 不强求，见 CORE_DIRS））。
-#     例外：框架自带的示例主题 themes/sepia（v4.20.4 用于展示主题 CSS url 相对资源能力）
-#     作为固定示例随精简运行包分发——仅对全新部署生效；升级落地时仍按 USER_DATA_PATHS
-#     语义跳过保留用户主题，不影响已存在 themes（见 tools/update.py apply_archive）。
-RUNTIME_EXAMPLE_THEME = ['themes/sepia/theme.css', 'themes/sepia/theme.json', 'themes/sepia/background-sepia.png']
-# 内置插件白名单（用户插件不入精简包；plugins/configs|data|temp 为运行时数据不入包）
-RUNTIME_PLUGIN_FILES = {'__init__.py', 'base_plugin.py', 'auth.py', 'user_manage.py'}
-# v4.21 目录化内置插件（精简包放行其整个 plugins/<name>/ 目录，如 user_manage）
-RUNTIME_PLUGIN_DIRS = {'user_manage'}
-# templates 下排除的用户内容子目录（前端工具模板）。
-# 注：'plugins' 不在此处整体排除——精简包需保留内置插件 user_manage 的模板/静态资源
-#     （render_template('plugins/user_manage.html')），由 collect_runtime_files 单独过滤。
-RUNTIME_TEMPLATE_EXCLUDE = {'frontend_tools'}
+# 与 tools/update.py 保持一致的用户数据路径（打包/更新保留语义统一）；精简运行包白名单
+# （RUNTIME_TOP / RUNTIME_EXAMPLE_THEME / RUNTIME_PLUGIN_FILES / RUNTIME_PLUGIN_DIRS /
+#  RUNTIME_TEMPLATE_EXCLUDE）由 core/framework_manifest.py 单一清单提供（原硬编码迁移至此，防漂移）。
+from core.framework_manifest import (USER_DATA_PATHS, path_is_user_data,
+                                     RUNTIME_TOP, RUNTIME_EXAMPLE_THEME,
+                                     RUNTIME_PLUGIN_FILES, RUNTIME_PLUGIN_DIRS,
+                                     RUNTIME_TEMPLATE_EXCLUDE)
 
 # changelog 签名覆盖字段（与 core/update_checker.SIGNED_FIELDS 对齐）
 SIGNED_FIELDS = ('latest_version', 'published_at', 'download_url', 'sha256', 'changes')
@@ -100,9 +86,13 @@ def cmd_bump(args):
     replace_first(gv_path,
                   f"'SYSTEM_VERSION_LABEL': {{'default': '{old_label}'",
                   f"'SYSTEM_VERSION_LABEL': {{'default': '{vlabel}'")
-    # tests/test_admin_api.py：framework_version 断言
-    replace_first(os.path.join(BASE_DIR, 'tests', 'test_admin_api.py'),
-                  f"== '{old_ver}'", f"== '{ver}'")
+    # tests/test_admin_api.py：framework_version 断言（v4.22 起改用 global_var.FRAMEWORK_VERSION
+    # 变量比较，bump 无需改硬编码；仅存在旧式硬编码 `== '<ver>'` 时替换，否则跳过）
+    _tapi = os.path.join(BASE_DIR, 'tests', 'test_admin_api.py')
+    with io.open(_tapi, encoding='utf-8', newline='') as _f:
+        _tc = _f.read()
+    if f"== '{old_ver}'" in _tc:
+        replace_first(_tapi, f"== '{old_ver}'", f"== '{ver}'")
     # README 双版徽章
     for p in ('README.md', 'README.zh-CN.md'):
         path = os.path.join(BASE_DIR, p)

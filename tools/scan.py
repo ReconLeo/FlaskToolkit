@@ -19,7 +19,8 @@ import zipfile
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.plugin_scanner import (  # noqa: E402
-    scan_file, scan_plugin_zip, scan_frontend_zip, format_report, should_block, _new_report, _merge, _dedupe,
+    scan_file, scan_plugin_zip, scan_frontend_zip, format_report,
+    should_block_unconstrainable, should_block_constrained, _new_report, _merge, _dedupe,
 )
 
 
@@ -67,8 +68,12 @@ def main():
     else:
         print(format_report(report, title=f'扫描报告: {args.path}'))
 
-    if should_block(report):
-        print('\n结论: 存在高风险行为（enforce 模式将拒绝安装）')
+    if should_block_unconstrainable(report):
+        print('\n结论: 存在不可豁免的高风险行为（enforce 模式将拒绝安装；对已受控的行可加 # scan:ignore 逃生舱）')
+        sys.exit(1)
+    if should_block_constrained(report, []):
+        print('\n结论: 存在可约束高风险（shutil.rmtree），其路径未被 filesystem:write 声明覆盖且未 # scan:ignore'
+              '（enforce 模式将拒绝；请在 plugin.json capabilities 补齐声明，或对受控行加 # scan:ignore）')
         sys.exit(1)
     print('\n结论: 无高风险行为')
 

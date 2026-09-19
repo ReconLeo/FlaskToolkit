@@ -63,7 +63,7 @@ jobs:
                  test_data_limit test_desktop_launcher test_framework_manifest test_i18n \
                  test_ip_watcher test_mdns test_network test_register test_root_demo \
                  test_root_domain test_scaffold_tools test_selfcheck test_setup test_stats \
-                 test_user_center)
+                 test_user_center test_pack_no_pyc test_reserved_name)
           for t in "${TESTS[@]}"; do
             echo "===== $t ====="
             python "tests/$t.py"

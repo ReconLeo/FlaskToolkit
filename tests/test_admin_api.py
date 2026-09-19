@@ -104,6 +104,32 @@ def build_full_plugin_zip(name='demo_pack'):
     return buf
 
 
+def build_rmtree_zip(name='rmtest', capabilities=None, rmtree_line='shutil.rmtree("D:/decl/x", ignore_errors=True)'):
+    """构造含可约束 high（shutil.rmtree 常量路径）的插件包 zip（BytesIO），供 v4.22 enforce 预览/确认两段式测试"""
+    cls = ''.join(w.capitalize() for w in name.split('_')) + 'Plugin'
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, 'w', zipfile.ZIP_STORED) as zf:
+        desc = {"name": name, "version": "1.0.0", "permission": "user",
+                "author": "T", "category": "测试", "description": "enforce 预览确认两段式测试"}
+        if capabilities:
+            desc["capabilities"] = capabilities
+        zf.writestr('plugin.json', json.dumps(desc, ensure_ascii=False).encode('utf-8'))
+        zf.writestr(name + '.py',
+                    '# -*- coding: utf-8 -*-\n'
+                    'from plugins.base_plugin import BasePlugin\n'
+                    'class ' + cls + '(BasePlugin):\n'
+                    '    name = "' + name + '"\n'
+                    '    version = "1.0.0"\n'
+                    '    permission = "user"\n'
+                    '    def routes(self):\n'
+                    '        return []\n'
+                    '    def run(self):\n'
+                    '        import shutil\n'
+                    '        ' + rmtree_line + '\n')
+    buf.seek(0)
+    return buf
+
+
 def main():
     client = app.test_client()
 
@@ -370,6 +396,44 @@ def main():
     check('network config 空更新 400', r.status_code == 400, f'{r.status_code}')
     r = client.post('/api/admin/network/config', json={'UNKNOWN_KEY': 1})
     check('network config 未知键 400', r.status_code == 400, f'{r.status_code}')
+
+    # ---------- 14.5 v4.22 enforce 上传两段式：预览放行（返回豁免字段）→ 确认拒绝/放行 ----------
+    _saved_scan_mode = global_var.PLUGIN_SCAN_MODE
+    try:
+        global_var.PLUGIN_SCAN_MODE = 'enforce'
+        # (a) 未声明 rmtree（常量路径未在 capabilities 声明）→ 预览 200 + block>=1；确认 400
+        _bad = build_rmtree_zip('rmun', [], 'shutil.rmtree("D:/noshare/x", ignore_errors=True)')
+        r = client.post('/api/admin/plugins/upload',
+                        data={'file': (_bad, 'rmun.zip', 'application/zip'), 'preview': '1'},
+                        content_type='multipart/form-data')
+        pv = (r.get_json() or {}).get('preview', {}) if r.status_code == 200 else {}
+        check('enforce 未归因 rmtree 预览 200 + block>=1',
+              r.status_code == 200 and (pv.get('scan_block_high') or 0) >= 1,
+              f"status={r.status_code} block={pv.get('scan_block_high')}")
+        check('enforce 未归因 rmtree 预览 exempt=0 + reason=未归因',
+              pv.get('scan_exempt_high') == 0 and pv.get('scan_high_findings')
+              and pv['scan_high_findings'][0]['reason'] == '未归因',
+              f"exempt={pv.get('scan_exempt_high')} findings={pv.get('scan_high_findings')}")
+        _pid = (r.get_json() or {}).get('preview_id', '')
+        rc = client.post('/api/admin/plugins/upload',
+                         data={'confirm': '1', 'preview_id': _pid}, content_type='multipart/form-data')
+        check('enforce 未归因 rmtree 确认安装被拒(400)', rc.status_code == 400, f"status={rc.status_code}")
+
+        # (b) 声明齐全 rmtree（filesystem:write 覆盖常量路径）→ 预览 block=0/exempt=1；确认 200
+        _good = build_rmtree_zip('rmok', ['filesystem:write:D:/decl'], 'shutil.rmtree("D:/decl/x", ignore_errors=True)')
+        r = client.post('/api/admin/plugins/upload',
+                        data={'file': (_good, 'rmok.zip', 'application/zip'), 'preview': '1'},
+                        content_type='multipart/form-data')
+        pv = (r.get_json() or {}).get('preview', {}) if r.status_code == 200 else {}
+        check('enforce 声明齐全 rmtree 预览 block=0/exempt=1',
+              r.status_code == 200 and pv.get('scan_block_high') == 0 and pv.get('scan_exempt_high') == 1,
+              f"status={r.status_code} block={pv.get('scan_block_high')} exempt={pv.get('scan_exempt_high')}")
+        _pid = (r.get_json() or {}).get('preview_id', '')
+        rc = client.post('/api/admin/plugins/upload',
+                         data={'confirm': '1', 'preview_id': _pid}, content_type='multipart/form-data')
+        check('enforce 声明齐全 rmtree 确认安装成功(200)', rc.status_code == 200, f"status={rc.status_code}")
+    finally:
+        global_var.PLUGIN_SCAN_MODE = _saved_scan_mode
 
     # ---------- 15. 反向代理头信任（apply_proxy_fix，v4.12） ----------
     saved_wsgi = appmod.app.wsgi_app

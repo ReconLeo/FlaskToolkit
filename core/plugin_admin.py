@@ -25,7 +25,8 @@ from core.package_sign import verify_package
 from core.plugin_pack import (cleanup_plugin_data, cleanup_plugin_resources,
                               compare_versions, extract_plugin_pack, parse_plugin_pack,
                               plugin_main_file)
-from core.plugin_scanner import scan_plugin_zip, should_block
+from core.plugin_scanner import (scan_plugin_zip, should_block_unconstrainable,
+                                   should_block_constrained)
 from core.plugin_status import load_plugin_status, save_plugin_status
 from core.quota import invalidate_cache as invalidate_quota_cache
 
@@ -77,11 +78,19 @@ def scan_gate(temp_path, action, plugin_name):
     caps = read_pack_capabilities(temp_path)
     cap_res = cross_validate(plugin_name, report, caps)
     report['capabilities'] = cap_res
-    blocked = should_block(report) or not cap_res['ok']
+    # enforce 分层门禁：不可约束 high + 可约束 high（rmtree）未归因 + capabilities 缺声明
+    cap_exempt = cap_res.get('high_exempt_paths', [])
+    high_unresolvable = should_block_unconstrainable(report)
+    rmtree_unattributed = should_block_constrained(report, cap_exempt)
+    blocked = high_unresolvable or rmtree_unattributed or not cap_res['ok']
     if global_var.PLUGIN_SCAN_MODE == 'enforce' and blocked:
         reasons = []
-        if report['summary']['high']:
-            reasons.append(f"静态扫描 {report['summary']['high']} 项高风险行为")
+        if high_unresolvable:
+            reasons.append('静态扫描存在不可约束的高风险行为')
+        if rmtree_unattributed:
+            reasons.append(
+                '递归删除目录（rmtree）未归因到声明的 filesystem:write'
+                '（动态路径或未声明；可 # scan:ignore 显式声明受控，或补齐声明）')
         if not cap_res['ok']:
             reasons.append(
                 f"capabilities 未声明行为 {len(cap_res['missing'])} 项"

@@ -650,9 +650,28 @@
             : window.T('无');
         const sum = pv.scan_summary || {};
         const scope = pv.scan_scope || {};
-        const scanHtml = (sum.high || 0) > 0
-            ? '<span style="color:#e74c3c; font-weight:600;">' + window.T('静态扫描发现') + ' ' + sum.high + ' ' + window.T('项高风险') + '</span>'
-            : '<span style="color:#27ae60;">' + window.T('静态扫描未发现高风险行为') + '</span>';
+        const blockHigh = pv.scan_block_high || 0;
+        const exemptHigh = pv.scan_exempt_high || 0;
+        const highFindings = pv.scan_high_findings || [];
+        // v4.22：区分可约束 high（rmtree）归因/# scan:ignore 豁免，避免对已豁免合法插件误报红色
+        let scanHtml;
+        if (blockHigh > 0) {
+            scanHtml = '<span style="color:#e74c3c; font-weight:600;">' + window.T('静态扫描发现') + ' ' + blockHigh + ' ' + window.T('项不可豁免高风险（enforce 将拒绝安装）') + '</span>';
+        } else if (exemptHigh > 0) {
+            scanHtml = '<span style="color:#27ae60; font-weight:600;">' + window.T('高风险已全部豁免') + ' (' + exemptHigh + ' ' + window.T('项') + ')</span>';
+        } else {
+            scanHtml = '<span style="color:#27ae60;">' + window.T('静态扫描未发现高风险行为') + '</span>';
+        }
+        let scanDetail = '';
+        if (highFindings.length) {
+            scanDetail = highFindings.map(f => {
+                const tagCls = f.exempt ? '#27ae60' : '#e74c3c';
+                const tagTxt = f.exempt
+                    ? '[' + window.T('已豁免') + '·' + (f.reason || '') + ']'
+                    : '[' + window.T('未豁免') + '·' + (f.reason || '') + ']';
+                return '<div style="margin-left:10px;">· <span style="color:' + tagCls + ';">' + tagTxt + '</span> ' + escapeHtml(f.message || '') + ' <code>' + escapeHtml((f.file || '') + ':' + (f.line || '')) + '</code></div>';
+            }).join('');
+        }
         const scopeHtml = (scope.paths_written && scope.paths_written.length) || (scope.network_endpoints && scope.network_endpoints.length)
             ? '<div style="margin-top:4px; color: var(--adm-text-muted);">' + window.T('写入路径') + ': ' + escapeHtml((scope.paths_written || []).join(', ')) + '<br>' + window.T('网络端点') + ': ' + escapeHtml((scope.network_endpoints || []).join(', ')) + '</div>'
             : '';
@@ -678,7 +697,7 @@
             '<div>' + window.T('pip 依赖') + ': ' + pipHtml + '</div>' +
             '<div style="margin-top:6px; font-weight:600;">' + window.T('能力声明') + ':</div>' + capHtml + missingHtml +
             '<hr style="border:none; border-top:1px solid #e5e7eb; margin:8px 0;">' +
-            '<div>' + scanHtml + '</div>' + scopeHtml;
+            '<div>' + scanHtml + '</div>' + (scanDetail ? '<div style="margin-top:4px;">' + scanDetail + '</div>' : '') + scopeHtml;
     }
 
     function cancelPreview() {

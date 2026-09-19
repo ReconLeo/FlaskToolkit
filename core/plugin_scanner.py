@@ -86,7 +86,7 @@ _URL_RE = re.compile(r'https?://[A-Za-z0-9\-._~:/?#\[\]@!$&\'()*+,;=%]+|wss?://[
 
 def _new_report():
     return {'findings': [], 'summary': {'high': 0, 'medium': 0, 'low': 0, 'info': 0},
-            'scope': {'paths_read': [], 'paths_written': [], 'network_endpoints': []}}
+            'scope': {'paths_read': [], 'paths_written': [], 'network_endpoints': [], 'delete_paths': []}}
 
 
 def _add(report, severity, category, message, filename, line):
@@ -110,7 +110,7 @@ def _dedupe(report):
     report['summary'] = {'high': 0, 'medium': 0, 'low': 0, 'info': 0}
     for f in findings:
         report['summary'][f['severity']] += 1
-    for k in ('paths_read', 'paths_written', 'network_endpoints'):
+    for k in ('paths_read', 'paths_written', 'network_endpoints', 'delete_paths'):
         seen_v, out = set(), []
         for v in report['scope'][k]:
             if v not in seen_v:
@@ -176,10 +176,55 @@ def _is_write_mode(mode_str):
         return False
     return any(c in WRITE_MODE_CHARS for c in mode_str)
 
+# ------------------------------ scan:ignore 逃生舱 ------------------------------
+
+_IGNORE_RE = re.compile(r'#\s*scan:ignore(?::([A-Za-z0-9_\-]+))?')
+
+
+_MISSING = object()
+
+
+def _scan_ignore_lines(code):
+    """解析源码中 # scan:ignore / # scan:ignore:<category> 注释。
+    返回 {行号: None(全量忽略) 或 set(仅忽略这些类别)}。"""
+    out = {}
+    for i, line in enumerate(code.split('\n'), 1):
+        for m in _IGNORE_RE.finditer(line):
+            cat = m.group(1)
+            if cat is None:
+                out[i] = None          # 全量忽略，覆盖任何类别集
+            elif i not in out:
+                out[i] = {cat}
+            elif isinstance(out[i], set):
+                out[i].add(cat)
+            # out[i] 为 None 表示已全量忽略，保持不动
+    return out
+
+
+def _line_ignored(ignore_map, lines, line_no, category):
+    """判断 (line_no, category) 是否被 scan:ignore 覆盖：检查 finding 行（含行尾注释）
+    及紧邻上方的连续注释行（作者通常在调用前一行写注释）。"""
+    entry = ignore_map.get(line_no, _MISSING)
+    if entry is not _MISSING and (entry is None or category in entry):
+        return True
+    ln = line_no - 1
+    while ln >= 1 and ln - 1 < len(lines):
+        raw = lines[ln - 1].lstrip()
+        if not raw.startswith('#'):
+            break
+        e2 = ignore_map.get(ln, _MISSING)
+        if e2 is not _MISSING and (e2 is None or category in e2):
+            return True
+        ln -= 1
+    return False
+
 
 def scan_code(code: str, filename: str = '<code>') -> dict:
     """扫描一段 Python 源码，返回风险报告"""
     report = _new_report()
+    _lines = code.split('\n') if isinstance(code, str) else []
+    _ignore_map = _scan_ignore_lines(code) if isinstance(code, str) else {}
+    _delete_candidates = []   # (line, path)：待 scan:ignore 过滤的 rmtree 可归因路径
     try:
         tree = ast.parse(code)
     except SyntaxError as e:
@@ -281,6 +326,26 @@ def scan_code(code: str, filename: str = '<code>') -> dict:
                 _add(report, 'high', 'obfuscation', '动态导入参数为非常量（拼接/解码构造）', filename, line)
             continue
 
+        # 可约束 high：shutil.rmtree（路径常量可归因进 delete_paths，供 capabilities filesystem:write 归因豁免；
+        # 动态路径无法归因，只能靠 # scan:ignore 逃生舱或保持 block）
+        if name == 'shutil.rmtree':
+            _add(report, 'high', 'rmtree',
+                 '递归删除目录（可约束：需 filesystem:write 声明或 # scan:ignore）', filename, line)
+            _f = report['findings'][-1]
+            _f['constrainable'] = True
+            _path = None
+            if node.args:
+                _path = _str_value(node.args[0])
+            else:
+                for kw in (node.keywords or []):
+                    if kw.arg == 'path':
+                        _path = _str_value(kw.value)
+                        break
+            if _path:
+                _f['delete_path'] = _path
+                _delete_candidates.append((line, _path))
+            continue
+
         if name in HIGH_CALLS:
             _add(report, 'high', HIGH_CALLS[name].split('（')[0] if '（' in HIGH_CALLS[name] else 'dangerous-call',
                  HIGH_CALLS[name], filename, line)
@@ -294,6 +359,16 @@ def scan_code(code: str, filename: str = '<code>') -> dict:
         if isinstance(node, ast.Constant) and isinstance(node.value, str):
             for m in _URL_RE.findall(node.value):
                 report['scope']['network_endpoints'].append(m)
+
+    # scan:ignore 逃生舱统一应用：命中行/上方连续注释块的 high finding 标 ignored（保留展示，不参与阻断）
+    for f in report['findings']:
+        if _line_ignored(_ignore_map, _lines, f.get('line', 0), f.get('category', '')):
+            f['ignored'] = True
+    # 被 ignore 的 rmtree 路径不进 delete_paths（已豁免，capabilities 仅归因未忽略项）
+    report['scope']['delete_paths'] = [
+        p for ln, p in _delete_candidates
+        if not _line_ignored(_ignore_map, _lines, ln, 'rmtree')
+    ]
 
     return _dedupe(report)
 
@@ -363,8 +438,36 @@ def scan_frontend_zip(zip_path: str) -> dict:
 # ------------------------------ 决策辅助 ------------------------------
 
 def should_block(report: dict) -> bool:
-    """enforce 模式决策：存在任一高风险即阻断"""
+    """enforce 模式决策：存在任一高风险即阻断（原始一刀切语义，向后兼容，供 CLI/独立调用）。"""
     return report['summary']['high'] > 0
+
+
+def should_block_unconstrainable(report: dict) -> bool:
+    """enforce 分层决策：仅不可约束（且未 scan:ignore）的高风险阻断。
+    可约束 high（rmtree）不计入——其是否阻断交由 should_block_constrained 按 capabilities 归因判定。"""
+    for f in report.get('findings', []):
+        if f.get('severity') != 'high':
+            continue
+        if f.get('ignored'):
+            continue
+        if f.get('constrainable'):
+            continue
+        return True
+    return False
+
+
+def should_block_constrained(report: dict, exempt_paths) -> bool:
+    """enforce 分层决策：可约束 high（rmtree）中未被归因豁免者阻断。
+    exempt_paths 为 capabilities 判定被声明的 filesystem:write:<dir> 覆盖的路径集合。
+    动态路径（无常量 delete_path）或路径未被声明覆盖 → 阻断；被 scan:ignore 者豁免。"""
+    exempt = set(exempt_paths or [])
+    for f in report.get('findings', []):
+        if f.get('severity') != 'high' or not f.get('constrainable') or f.get('ignored'):
+            continue
+        p = f.get('delete_path')
+        if not p or p not in exempt:
+            return True
+    return False
 
 
 def format_report(report: dict, title: str = '静态扫描报告') -> str:

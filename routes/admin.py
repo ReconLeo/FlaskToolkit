@@ -24,7 +24,8 @@ from core.quota import invalidate_cache as invalidate_quota_cache
 from core.plugin_status import load_plugin_status, save_plugin_status
 from core.audit import log_audit
 from core.utils import check_upload_size, secure_filename_cn
-from core.plugin_scanner import scan_plugin_zip, should_block
+from core.plugin_scanner import (scan_plugin_zip, should_block_unconstrainable,
+                                   should_block_constrained)
 from core.capabilities import cross_validate, read_pack_capabilities
 from core.plugin_admin import (PluginAdminPermissionError, disable, enable,
                                install_from_package, purge_data, uninstall,
@@ -247,10 +248,12 @@ def register(app):
                 # 临时文件清理失败不影响业务（如运行环境禁止永久删除）
                 pass
 
-    def _scan_gate(temp_path, action, plugin_name):
+    def _scan_gate(temp_path, action, plugin_name, preview=False):
         """静态扫描 + capabilities 交叉校验门禁（v4.3.1/v4.3.2）：返回 (scan_report|None, 错误响应|None)
         - PLUGIN_SCAN_MODE=off：跳过；report：仅报告（告警日志 + 响应附扫描/能力摘要）；
-        - enforce：存在高风险 **或 capabilities 未声明行为** 即拒绝安装/更新，响应附完整报告。"""
+        - enforce：存在高风险 **或 capabilities 未声明行为** 即拒绝安装/更新，响应附完整报告。
+        - preview=True（上传预览）：enforce 下也仅返回扫描报告，不阻断（阻断在确认安装阶段生效），
+          供前端展示 scan_block_high / scan_exempt_high 豁免提示。"""
         if global_var.PLUGIN_SCAN_MODE == 'off':
             return None, None
         report = scan_plugin_zip(temp_path)
@@ -258,11 +261,18 @@ def register(app):
         caps = read_pack_capabilities(temp_path)
         cap_res = cross_validate(plugin_name, report, caps)
         report['capabilities'] = cap_res
-        blocked = should_block(report) or not cap_res['ok']
-        if global_var.PLUGIN_SCAN_MODE == 'enforce' and blocked:
+        # enforce 分层门禁：不可约束 high + 可约束 high（rmtree）未归因 + capabilities 缺声明
+        cap_exempt = cap_res.get('high_exempt_paths', [])
+        high_unresolvable = should_block_unconstrainable(report)
+        rmtree_unattributed = should_block_constrained(report, cap_exempt)
+        blocked = high_unresolvable or rmtree_unattributed or not cap_res['ok']
+        # 预览阶段不阻断：返回完整扫描报告供前端区分「不可豁免 / 已豁免」，确认安装阶段才执行门禁
+        if global_var.PLUGIN_SCAN_MODE == 'enforce' and blocked and not preview:
             reasons = []
-            if report['summary']['high']:
-                reasons.append(f"静态扫描 {report['summary']['high']} 项高风险行为")
+            if high_unresolvable:
+                reasons.append('静态扫描存在不可约束的高风险行为')
+            if rmtree_unattributed:
+                reasons.append('递归删除目录（rmtree）未归因到声明的 filesystem:write（动态路径或未声明；可 # scan:ignore 显式声明受控，或补齐声明）')
             if not cap_res['ok']:
                 reasons.append(f"capabilities 未声明行为 {len(cap_res['missing'])} 项（{'; '.join(cap_res['missing'][:5])}）")
             log_audit(action, plugin_name, 'blocked',
@@ -339,7 +349,7 @@ def register(app):
                 vres = verify_package(temp_path, 'backend')
                 if not vres['ok']:
                     return jsonify({"code": 400, "message": vres['message']}), 400
-                scan_report, scan_err = _scan_gate(temp_path, '插件安装预览', desc['name'])
+                scan_report, scan_err = _scan_gate(temp_path, '插件安装预览', desc['name'], preview=True)
                 if scan_err:
                     return scan_err
                 caps = {}
@@ -378,7 +388,29 @@ def register(app):
                     'cap_missing': cap_res.get('missing', []) or [],
                     'scan_summary': (scan_report or {}).get('summary', {}),
                     'scan_scope': (scan_report or {}).get('scope', {}),
+                    # v4.22：可约束 high（rmtree）归因/scan:ignore 豁免区分——供前端避免误报
+                    # scan_block_high：enforce 下实际拒绝的 high；scan_exempt_high：已豁免的 high
+                    'scan_block_high': 0,
+                    'scan_exempt_high': 0,
+                    'scan_high_findings': [],
                 }
+                if scan_report:
+                    _exempt_paths = set(cap_res.get('high_exempt_paths') or [])
+                    _high = [f for f in scan_report.get('findings', []) if f.get('severity') == 'high']
+                    _exempt_high = sum(1 for f in _high
+                                       if f.get('ignored')
+                                       or (f.get('constrainable') and f.get('delete_path') in _exempt_paths))
+                    preview['scan_block_high'] = len(_high) - _exempt_high
+                    preview['scan_exempt_high'] = _exempt_high
+                    preview['scan_high_findings'] = [
+                        {'category': f.get('category'), 'message': f.get('message'),
+                         'file': f.get('file'), 'line': f.get('line'),
+                         'exempt': bool(f.get('ignored')
+                                        or (f.get('constrainable') and f.get('delete_path') in _exempt_paths)),
+                         'reason': ('# scan:ignore' if f.get('ignored')
+                                    else ('filesystem:write 归因' if f.get('constrainable')
+                                           and f.get('delete_path') in _exempt_paths else '未归因'))}
+                        for f in _high[:10]]
                 return jsonify({"code": 200, "preview": preview, "preview_id": temp_filename})
 
             # v4.15 服务层安装（完整门禁：完整性校验 + 静态扫描 + capabilities 交叉校验）

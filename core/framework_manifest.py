@@ -161,6 +161,28 @@ RESET_AUTH_CONFIG_FILE = 'plugins/configs/auth.json'  # 内置插件配置（aut
 RESET_TEMP_DIRS = ['.plugin_cache', 'temp', 'plugins/temp']  # 临时清理目标（相对 BASE_DIR，plugins/temp 为各插件运行时临时目录）
 
 
+# ============================ 精简运行包白名单（发布 release.py） ============================
+# 相对项目根；release.py 构建精简运行包/更新包时的顶层白名单（原 tools/release.py 硬编码迁移至此），
+# 供 collect_runtime_files()/build_package() 判断哪些框架内容入精简包。新增框架顶层文件/目录时
+# 须在此登记，避免精简包漏带（与 CORE_FILES/CORE_DIRS/USER_DATA_PATHS 同一清单体系防漂移）。
+# locales/ 为框架内置 i18n 语言包（v4.9.0），精简运行包必须包含（否则更新后界面翻译缺失）；
+# v4.10 加入 tools（scaffold/install_plugin 离线 CLI、update/backup/reset 运维工具，面向使用者）。
+RUNTIME_TOP = ['app.py', 'global_var.py', 'requirements.txt', 'core', 'routes', 'plugins', 'templates', 'static', 'locales', 'tools']
+# 注：themes/（v4.19.2 可扩展主题）整体归 USER_DATA_PATHS（升级/备份保留用户主题，
+#     不随精简运行包打包——themes 为可选目录，缺失不致命（selfcheck 不强求，见 CORE_DIRS））。
+#     例外：框架自带的示例主题 themes/sepia（v4.20.4 用于展示主题 CSS url 相对资源能力）
+#     作为固定示例随精简运行包分发——仅对全新部署生效；升级落地时仍按 USER_DATA_PATHS
+#     语义跳过保留用户主题，不影响已存在 themes（见 tools/update.py apply_archive）。
+RUNTIME_EXAMPLE_THEME = ['themes/sepia/theme.css', 'themes/sepia/theme.json', 'themes/sepia/background-sepia.png']
+# 内置插件白名单（用户插件不入精简包；plugins/configs|data|temp 为运行时数据不入包）
+RUNTIME_PLUGIN_FILES = {'__init__.py', 'base_plugin.py', 'auth.py', 'user_manage.py'}
+# v4.21 目录化内置插件（精简包放行其整个 plugins/<name>/ 目录，如 user_manage）
+RUNTIME_PLUGIN_DIRS = {'user_manage'}
+# templates 下排除的用户内容子目录（前端工具模板）。
+# 注：'plugins' 不在此处整体排除——精简包需保留内置插件 user_manage 的模板/静态资源
+#     （render_template('plugins/user_manage.html')），由 collect_runtime_files 单独过滤。
+RUNTIME_TEMPLATE_EXCLUDE = {'frontend_tools'}
+
 # ============================ 判定函数 ============================
 
 def _norm_path(p):
