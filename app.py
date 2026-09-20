@@ -3,6 +3,14 @@ import os
 import sys
 import time
 
+# 修复 Windows 下 mimetypes 把 .js 误判为 text/plain（受系统注册表干扰），
+# 导致浏览器 strict MIME 检查拒绝执行静态 JS（登录页 theme.js/login.js 等）。
+# 先 init 再 add_type，确保注册表猜测不覆盖手动注册的 MIME（send_static_file / send_from_directory 全局生效）。
+import mimetypes
+mimetypes.init()
+mimetypes.add_type('application/javascript', '.js')
+mimetypes.add_type('text/javascript', '.mjs')
+
 # ------------------------------ 第三方库 ------------------------------
 from flask import Flask
 from flask_cors import CORS
