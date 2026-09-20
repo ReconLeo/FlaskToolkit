@@ -359,6 +359,13 @@ def register(app):
                     caps = read_pack_capabilities(temp_path) or {}
                 except Exception:
                     pass
+                # v4.23：预览阶段预检 pip 依赖，前端据此在确认安装前警示缺失项
+                _pip_missing_preview = []
+                try:
+                    from core.plugin_deps import check_pip_dependencies
+                    _pip_missing_preview = check_pip_dependencies(desc.get('pip_dependencies'))
+                except Exception:
+                    pass
                 cap_res = (scan_report or {}).get('capabilities') or {}
                 # v4.15：framework 域最高等级（core/manage/read/None）供安装警示条
                 framework_level = None
@@ -382,6 +389,7 @@ def register(app):
                     'description': desc.get('description', ''),
                     'dependencies': desc.get('dependencies', []),
                     'pip_dependencies': desc.get('pip_dependencies', []),
+                    'pip_missing': _pip_missing_preview,
                     'capabilities': caps,
                     'framework_level': framework_level,
                     'cap_ok': bool(cap_res.get('ok', True)),

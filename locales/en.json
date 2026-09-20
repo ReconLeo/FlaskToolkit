@@ -261,6 +261,7 @@
   "JSON数组，如": "JSON array, e.g.",
   "QR 组件缺失": "QR component missing",
   "pip 依赖": "pip Dependencies",
+  "缺失 pip 依赖": "Missing pip dependencies",
   "上传失败": "Upload Failed",
   "上传安装": "Upload & Install",
   "上传新前端工具": "Upload New Frontend Tool",

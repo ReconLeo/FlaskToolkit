@@ -277,6 +277,20 @@ def install_from_package(zip_path, plugin_name=None, actor=None, source_label=No
     plugin_file = plugin_main_file(global_var.BASE_DIR, name)
     if os.path.exists(plugin_file):
         return False, f'插件 {name} 已存在，如需更新请使用更新功能', {}
+    # v4.23：安装阶段检查 pip 依赖存在性（原仅在加载阶段跳过加载，导致"装成功但前端/API 全不可用"的困惑）
+    _pip_missing = []
+    try:
+        from core.plugin_deps import check_pip_dependencies
+        _pip_missing = check_pip_dependencies(desc.get('pip_dependencies'))
+    except Exception:
+        pass
+    if _pip_missing:
+        _specs = ', '.join(m[0] for m in _pip_missing)
+        _why = '；'.join(f'{m[0]}（{m[1]}）' for m in _pip_missing)
+        return False, (
+            f'当前环境缺失插件依赖: {_specs}。原因: {_why}。'
+            '请先 pip install 后再安装，否则插件虽装上但会因缺依赖被跳过加载、前端/API 不可用。'
+        ), {}
     extract_plugin_pack(temp_path, name, meta_override=desc)
     load_plugins()
     logger.info(f"新插件包 {name} v{desc.get('version', '?')} 已上传并加载",
@@ -334,6 +348,20 @@ def update_from_package(zip_path, plugin_name, actor=None, source_label=None):
     if current_version and new_version and compare_versions(str(new_version), str(current_version)) <= 0:
         return False, (f'更新包版本必须高于当前版本'
                        f'（当前: {current_version}，更新包: {new_version}）'), {}
+    # v4.23：更新阶段同安装一样拦截缺 pip 依赖，避免更新后加载被跳过
+    _pip_missing = []
+    try:
+        from core.plugin_deps import check_pip_dependencies
+        _pip_missing = check_pip_dependencies(desc.get('pip_dependencies'))
+    except Exception:
+        pass
+    if _pip_missing:
+        _specs = ', '.join(m[0] for m in _pip_missing)
+        _why = '；'.join(f'{m[0]}（{m[1]}）' for m in _pip_missing)
+        return False, (
+            f'当前环境缺失插件依赖: {_specs}。原因: {_why}。'
+            '请先 pip install 后再更新，否则插件虽更新但会因缺依赖被跳过加载、前端/API 不可用。'
+        ), {}
     extract_plugin_pack(temp_path, plugin_name, meta_override=desc)
     load_plugins()
     logger.info(f"插件包 {plugin_name} 已更新至 v{new_version or '?'}", extra={'plugin': 'system'})

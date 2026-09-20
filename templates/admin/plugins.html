@@ -49,19 +49,19 @@
 <!-- 统计概览 -->
 <div class="stats-grid">
     <div class="stat-card c-blue">
-        <span class="stat-value">{{ stats.total_plugins }}</span>
+        <span class="stat-value" id="stat-total-plugins">{{ stats.total_plugins }}</span>
         <span class="stat-label">{{ t('后端插件总数（已加载）') }}</span>
     </div>
     <div class="stat-card c-purple">
-        <span class="stat-value">{{ stats.total_plugins_catalog }}</span>
+        <span class="stat-value" id="stat-total-plugins-catalog">{{ stats.total_plugins_catalog }}</span>
         <span class="stat-label">{{ t('插件目录（含禁用/未加载）') }}</span>
     </div>
     <div class="stat-card c-green">
-        <span class="stat-value">{{ stats.total_frontend_tools }}</span>
+        <span class="stat-value" id="stat-total-frontend-tools">{{ stats.total_frontend_tools }}</span>
         <span class="stat-label">{{ t('前端工具总数') }}</span>
     </div>
     <div class="stat-card c-orange">
-        <span class="stat-value">{{ stats.total_calls }}</span>
+        <span class="stat-value" id="stat-total-calls">{{ stats.total_calls }}</span>
         <span class="stat-label">{{ t('累计调用（API + 前端访问）') }}</span>
     </div>
 </div>
@@ -341,6 +341,7 @@
     setTimeout(() => { checkPluginUpdates(false); }, 500);
 
     async function loadPlugins() {
+        refreshStats(); // v4.23：列表刷新时同步刷新顶部统计卡片（后端插件总数等），避免安装/启用/卸载后统计滞后
         const container = document.getElementById('plugin-list');
         container.innerHTML = '<div class="loading">' + window.T('加载中') + '...</div>';
         try {
@@ -354,6 +355,21 @@
         } catch (e) {
             container.innerHTML = `<div class="empty-state">${window.T('加载失败')}：${e.message}</div>`;
         }
+    }
+
+    // v4.23：从 /api/admin/stats 拉取统计并刷新顶部统计卡片（服务端初始渲染的 {{ stats.* }} 是静态值，需前端主动更新）
+    async function refreshStats() {
+        try {
+            const response = await fetch('/api/admin/stats');
+            const data = await response.json();
+            if (data.code !== 200 || !data.data) return;
+            const d = data.data;
+            const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+            set('stat-total-plugins', d.total_plugins);
+            set('stat-total-plugins-catalog', d.total_plugins_catalog);
+            set('stat-total-frontend-tools', d.total_frontend_tools);
+            set('stat-total-calls', d.total_calls);
+        } catch (e) { /* 统计刷新失败不阻断插件列表 */ }
     }
 
     function renderPluginList(plugins) {
@@ -648,6 +664,10 @@
         const pipHtml = (pv.pip_dependencies || []).length
             ? (pv.pip_dependencies || []).map(d => '<code>' + escapeHtml(d) + '</code>').join(', ')
             : window.T('无');
+        // v4.23：pip 依赖缺失警示（安装阶段会拦截，预览阶段提前提示）
+        const pipMissing = (pv.pip_missing || []).length
+            ? '<div style="color:#e74c3c;">⚠ ' + window.T('缺失 pip 依赖') + ': ' + escapeHtml(pv.pip_missing.map(m => m[0]).join(', ')) + '</div>'
+            : '';
         const sum = pv.scan_summary || {};
         const scope = pv.scan_scope || {};
         const blockHigh = pv.scan_block_high || 0;
@@ -694,7 +714,7 @@
             '<div style="color: var(--adm-text-muted); margin-top:2px;">' + escapeHtml(pv.description || '') + '</div>' +
             '<hr style="border:none; border-top:1px solid #e5e7eb; margin:8px 0;">' +
             '<div>' + window.T('依赖插件') + ': ' + depHtml + '</div>' +
-            '<div>' + window.T('pip 依赖') + ': ' + pipHtml + '</div>' +
+            '<div>' + window.T('pip 依赖') + ': ' + pipHtml + '</div>' + pipMissing +
             '<div style="margin-top:6px; font-weight:600;">' + window.T('能力声明') + ':</div>' + capHtml + missingHtml +
             '<hr style="border:none; border-top:1px solid #e5e7eb; margin:8px 0;">' +
             '<div>' + scanHtml + '</div>' + (scanDetail ? '<div style="margin-top:4px;">' + scanDetail + '</div>' : '') + scopeHtml;

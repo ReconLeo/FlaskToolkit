@@ -12,7 +12,8 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.plugin_deps import (parse_dep_spec, dep_name, version_satisfies,
-                              resolve_dependency_order, _version_tuple)
+                              resolve_dependency_order, _version_tuple,
+                              check_pip_dependencies)
 
 
 def test_parse_bare():
@@ -99,6 +100,26 @@ def test_missing_dep_excluded_from_order():
     order, cycles = resolve_dependency_order(filtered)
     assert 'b' in order and 'a' not in order, order
 
+
+
+def test_check_pip_dependencies():
+    """check_pip_dependencies：不存在包→未安装；空→[]；已装包→[]；版本约束缺失→未安装。"""
+    assert check_pip_dependencies([]) == []
+    miss = check_pip_dependencies(['definitely_not_a_real_pkg_xyz'])
+    assert miss == [('definitely_not_a_real_pkg_xyz', '未安装')], miss
+    miss2 = check_pip_dependencies(['definitely_not_a_real_pkg_xyz>=1.0'])
+    assert miss2 == [('definitely_not_a_real_pkg_xyz>=1.0', '未安装')], miss2
+    import importlib.metadata
+    present = None
+    for candidate in ('requests', 'setuptools', 'pip'):
+        try:
+            importlib.metadata.distribution(candidate)
+            present = candidate
+            break
+        except importlib.metadata.PackageNotFoundError:
+            continue
+    if present:
+        assert check_pip_dependencies([present]) == [], check_pip_dependencies([present])
 
 def run():
     fns = [v for k, v in sorted(globals().items()) if k.startswith('test_')]

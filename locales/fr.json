@@ -261,6 +261,7 @@
   "JSON数组，如": "Tableau JSON, p.ex.",
   "QR 组件缺失": "Composant QR manquant",
   "pip 依赖": "Dépendances pip",
+  "缺失 pip 依赖": "Dépendances pip manquantes",
   "上传失败": "Échec de l'upload",
   "上传安装": "Uploader et installer",
   "上传新前端工具": "Uploader un nouvel outil front-end",

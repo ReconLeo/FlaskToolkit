@@ -10,10 +10,11 @@
 拓扑排序只认插件名；版本约束仅做存在性+满足性校验（由调用方结合目标插件/pip 包版本判断）。
 """
 import heapq
+import importlib.metadata
 import re
 
 __all__ = ['parse_dep_spec', 'dep_name', 'version_satisfies',
-           'resolve_dependency_order', '_version_tuple']
+           'resolve_dependency_order', '_version_tuple', 'check_pip_dependencies']
 
 _OPS = ('>=', '<=', '==', '!=', '>', '<')
 # 预发布标记权重（越小越"早期"），正式版 weight=0
@@ -53,6 +54,32 @@ def parse_dep_spec(spec):
                 raise ValueError(f'不支持的版本运算符: "{op}"')
             constraints.append((op, ver))
     return (name, constraints)
+
+
+def check_pip_dependencies(pip_dependencies):
+    """描述级 pip 依赖存在性检查（安装阶段用，无需插件实例）。
+
+    逐个对 pip_dependencies（支持 name>=x 约束）做 importlib.metadata 检测，
+    返回未就绪项 [(spec, 原因)]，全部就绪返回 []。
+    - 原因 '未安装'：包在环境中不存在
+    - 原因 '版本不满足'：已安装但版本不满足声明的约束
+
+    复用 parse_dep_spec / version_satisfies，与 plugin_loader.check_dependencies
+    加载阶段语义一致（安装阶段提前拦截，避免"装成功却因缺依赖被跳过加载"的困惑）。
+    """
+    missing = []
+    for spec in (pip_dependencies or []):
+        name, constraints = parse_dep_spec(spec)
+        if not name:
+            continue
+        try:
+            dist = importlib.metadata.distribution(name)
+        except importlib.metadata.PackageNotFoundError:
+            missing.append((spec, '未安装'))
+            continue
+        if constraints and not version_satisfies(dist.version, constraints):
+            missing.append((spec, f'版本不满足（已装 {dist.version}）'))
+    return missing
 
 
 def _version_tuple(v):

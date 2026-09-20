@@ -27,6 +27,7 @@
 - 包结构（frontend）：config.json + 入口 .html + 可选 static/ + manifest.json
 """
 import argparse
+import fnmatch
 import json
 import os
 import sys
@@ -123,6 +124,63 @@ def _collect_src_layout(src):
     return file_list, name
 
 
+def _filter_excluded(file_list, excludes):
+    """按 --exclude 清单过滤 file_list（相对路径）。
+
+    支持：
+    - 通配符（fnmatch）：`--exclude '*.log'`、`--exclude 'static/*.min.js'`
+    - 精确文件：`--exclude configs/secret.json`
+    - 目录前缀：`--exclude docs`（含 docs/ 下所有文件）
+    相对路径以 / 归一。返回过滤后的 file_list。"""
+    if not excludes:
+        return file_list
+    out = []
+    for rel, full in file_list:
+        drop = False
+        for e in excludes:
+            e = str(e).replace('\\', '/').lstrip('/')
+            if not e:
+                continue
+            if any(ch in e for ch in '*?['):
+                if fnmatch.fnmatch(rel, e):
+                    drop = True
+                    break
+            else:
+                if rel == e or rel.startswith(e + '/'):
+                    drop = True
+                    break
+        if not drop:
+            out.append((rel, full))
+    return out
+
+
+def _resolve_output(out, yes=False):
+    """输出路径已存在时的处理：-y 直接覆写；否则交互提示 覆写/重命名/取消。
+    返回最终输出绝对路径。"""
+    out = os.path.abspath(out)
+    if not os.path.exists(out):
+        return out
+    if yes:
+        print(f"警告：输出文件已存在，按 -y 直接覆写: {out}")
+        return out
+    print(f"输出文件已存在: {out}")
+    ans = input("  输入 [o] 覆写 / [r] 重命名 / [Enter] 取消: ").strip().lower()
+    if ans == 'o':
+        return out
+    if ans == 'r':
+        new_name = input("  输入新文件名（自动追加 .zip，含扩展名原样使用）: ").strip()
+        if not new_name:
+            print("未提供新文件名，已取消", file=sys.stderr)
+            sys.exit(1)
+        if not os.path.splitext(new_name)[1]:
+            new_name += '.zip'
+        out = os.path.abspath(new_name)
+        print(f"输出改为: {out}")
+        return out
+    print("已取消", file=sys.stderr)
+    sys.exit(1)
+
+
 def cmd_pack(args):
     src = os.path.abspath(args.src_dir)
     if not os.path.isdir(src):
@@ -168,6 +226,16 @@ def cmd_pack(args):
             print("错误：源目录为空", file=sys.stderr)
             sys.exit(1)
 
+    # v4.23：--exclude 自定义排除（在哈希前过滤，含 src_layout 与标准布局两分支）
+    excludes = getattr(args, 'exclude', None) or []
+    if excludes:
+        before = len(file_list)
+        file_list = _filter_excluded(file_list, excludes)
+        print(f"按 --exclude 排除 {before - len(file_list)} 个文件（剩余 {len(file_list)} 个）")
+        if not file_list:
+            print("错误：排除后源目录无剩余文件", file=sys.stderr)
+            sys.exit(1)
+
     # 计算哈希 → manifest
     files_map = {rel: sha256_hex(open(full, 'rb').read()) for rel, full in file_list}
     manifest = {
@@ -178,8 +246,9 @@ def cmd_pack(args):
     if args.sign:
         manifest = sign_manifest(manifest, args.sign, args.signer or '')
 
+    # v4.23：输出已存在时交互确认覆写/重命名（-y 直接覆写）
+    out = _resolve_output(args.output, getattr(args, 'yes', False))
     # 写 zip（manifest.json 在前）
-    out = os.path.abspath(args.output)
     with zipfile.ZipFile(out, 'w', zipfile.ZIP_DEFLATED) as zf:
         zf.writestr(MANIFEST_FILE, json.dumps(manifest, ensure_ascii=False, indent=2))
         for rel, full in file_list:
@@ -249,6 +318,10 @@ def main():
                    help='源码布局自动映射（backend）：把 <name>.json+<name>.py+frontend/ 目录映射为分发包布局')
     p.add_argument('--sign', metavar='PRIVATE_KEY', help='用该私钥对清单签名（需先 genkey）')
     p.add_argument('--signer', default='', help='签名者署名（随签名记录）')
+    p.add_argument('--exclude', action='append', default=[], metavar='GLOB',
+                   help='排除匹配的文件/目录（可多次；支持通配符 fnmatch、精确路径、目录前缀，均相对源目录）')
+    p.add_argument('-y', '--yes', action='store_true',
+                   help='输出文件已存在时直接覆写，跳过交互确认')
     p.set_defaults(func=cmd_pack)
 
     v = sub.add_parser('verify', help='校验包完整性（+可选签名）')
