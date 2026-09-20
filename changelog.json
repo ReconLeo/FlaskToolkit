@@ -2,7 +2,7 @@
   "latest_version": "4.22.0",
   "published_at": "2026-09-19",
   "download_url": "https://github.com/ReconLeo/FlaskToolkit/releases/download/v4.22.0/FlaskToolkit-4.22.0-runtime.zip",
-  "sha256": "219be421cff47223dc8e15c3c0703ac44f681665df5abf47cb628c34f67d8820",
+  "sha256": "09581cbfe5ba282816c9cb4cd944c27d79c3dfa214b0c3dffb93398cfe42ad75",
   "changes": [
     "插件安全 enforce 归因豁免 + scan:ignore 逃生舱：不可约束 high 恒拒、可约束 rmtree 按 capabilities filesystem:write 归因豁免、动态路径经 # scan:ignore 显式豁免",
     "上传两段式门禁：预览不阻断返回豁免明细，确认安装阶段才拒；后台前端区分不可豁免/已豁免 + 明细",
