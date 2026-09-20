@@ -357,7 +357,7 @@
         }
     }
 
-    // v4.23：从 /api/admin/stats 拉取统计并刷新顶部统计卡片（服务端初始渲染的 {{ stats.* }} 是静态值，需前端主动更新）
+    // v4.23：从 /api/admin/stats 拉取统计并刷新顶部统计卡片（服务端初始渲染的 stats.* 是静态值，需前端主动更新）
     async function refreshStats() {
         try {
             const response = await fetch('/api/admin/stats');
