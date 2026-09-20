@@ -158,6 +158,7 @@
   "运行平台": "Plateforme",
   "绑定地址": "Adresse de liaison",
   "项目目录": "Répertoire du projet",
+  "点击在文件管理器中打开": "Cliquer pour ouvrir dans le gestionnaire de fichiers",
   "（调试模式）": " (mode débogage)",
   "无": "Aucun",
   "API 调用与前端工具访问明细（数据来源 data/stats.json）": "Détails des appels API et des accès aux outils front-end (source : data/stats.json)",

@@ -3,6 +3,8 @@
 import os
 import re
 import socket
+import subprocess
+import sys
 
 import global_var
 
@@ -68,6 +70,34 @@ def parse_path_pattern(path: str) -> tuple[re.Pattern, list[str]]:
 
     pattern_str = '/' + '/'.join(regex_parts)
     return re.compile(f'^{pattern_str}$'), param_names
+
+
+def open_in_file_manager(path):
+    """用系统文件管理器打开目录（管理后台点击目录行调用）。
+
+    - 平台适配：Windows os.startfile / macOS `open` / Linux `xdg-open`
+    - 安全：仅允许打开 BASE_DIR 项目内目录（realpath 归一后前缀校验），防路径穿越/任意路径
+    - 静默：任何失败（路径不存在 / 平台不支持 / 命令缺失）一律吞掉不抛错、不提示
+    返回 True/False（调用方也不应提示，供日志/后续扩展）。"""
+    try:
+        path = str(path or '').strip()
+        if not path:
+            return False  # 空路径拒绝
+        path = os.path.realpath(path)
+        base = os.path.realpath(global_var.BASE_DIR)
+        if not (path == base or path.startswith(base + os.sep)):
+            return False  # 非项目内路径，拒绝（静默）
+        if not os.path.isdir(path):
+            return False
+        if sys.platform.startswith('win'):
+            os.startfile(path)  # type: ignore[attr-defined]
+        elif sys.platform == 'darwin':
+            subprocess.Popen(['open', path], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        else:  # linux / 其他 unix
+            subprocess.Popen(['xdg-open', path], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return True
+    except Exception:
+        return False
 
 
 def check_upload_size(file, max_size: int) -> int:

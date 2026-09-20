@@ -23,7 +23,7 @@ from core.plugin_pack import (cleanup_plugin_data, cleanup_plugin_resources,
 from core.quota import invalidate_cache as invalidate_quota_cache
 from core.plugin_status import load_plugin_status, save_plugin_status
 from core.audit import log_audit
-from core.utils import check_upload_size, secure_filename_cn
+from core.utils import check_upload_size, open_in_file_manager, secure_filename_cn
 from core.plugin_scanner import (scan_plugin_zip, should_block_unconstrainable,
                                    should_block_constrained)
 from core.capabilities import cross_validate, read_pack_capabilities
@@ -546,6 +546,17 @@ def register(app):
                 "stats_retention_days": getattr(global_var, 'STATS_RETENTION_DAYS', 30),
             }
         })
+
+    @app.route('/api/admin/open-dir', methods=['POST'])
+    @admin_api
+    def open_dir_api():
+        """打开项目内目录（管理后台点击目录行触发）。
+        - 仅允许打开 BASE_DIR 项目内目录（core.utils.open_in_file_manager 内部做前缀校验防穿越）
+        - 失败一律静默（返回 ok=False 但不提示前端），与前端点击无反馈一致"""
+        data = request.get_json(silent=True) or {}
+        path = (data.get('path') or '').strip()
+        ok = bool(path) and open_in_file_manager(path)
+        return jsonify({"code": 200, "ok": ok})
 
     @app.route('/api/admin/logs', methods=['GET'])
     @admin_api

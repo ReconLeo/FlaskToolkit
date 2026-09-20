@@ -249,8 +249,19 @@
                     [window.T('前端工具'), fmt(d.total_frontend_tools) + ' ' + window.T('项')],
                 ];
                 document.getElementById('sysInfoBody').innerHTML = rows.map(r =>
-                    `<tr><td style="width:130px; color: var(--adm-text-muted); font-weight:600;">${r[0]}</td><td>${r[1]}</td></tr>`
+                    `<tr${r[0] === window.T('项目目录') ? ' data-open-dir="' + d.base_dir + '" style="cursor:pointer;" title="' + window.T('点击在文件管理器中打开') + '"' : ''}><td style="width:130px; color: var(--adm-text-muted); font-weight:600;">${r[0]}</td><td>${r[1]}</td></tr>`
                 ).join('');
+                // v4.23：点击项目目录行 → 用系统文件管理器打开该目录（静默失败）
+                document.getElementById('sysInfoBody').addEventListener('click', function (ev) {
+                    const tr = ev.target.closest ? ev.target.closest('tr[data-open-dir]') : null;
+                    if (tr) {
+                        fetch('/api/admin/open-dir', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ path: tr.getAttribute('data-open-dir') })
+                        }).catch(function () { /* 静默 */ });
+                    }
+                });
                 // 内置插件
                 const builtins = (d.builtin_plugins || []).map(name =>
                     `<span class="badge badge-orange" style="margin-right:6px;">${name}</span>`

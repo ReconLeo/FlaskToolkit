@@ -158,6 +158,7 @@
   "运行平台": "Platform",
   "绑定地址": "Bind address",
   "项目目录": "Project directory",
+  "点击在文件管理器中打开": "Click to open in file manager",
   "（调试模式）": " (debug mode)",
   "无": "None",
   "API 调用与前端工具访问明细（数据来源 data/stats.json）": "API call & frontend tool access details (source: data/stats.json)",
