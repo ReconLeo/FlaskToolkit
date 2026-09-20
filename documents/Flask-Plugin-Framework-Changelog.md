@@ -70,6 +70,7 @@ Kaleido 同样开源（自托管题库系统）：[github.com/ReconLeo/Kaleido](
 | **v4.22.0（已发布）** | 2026-09-19 | 插件安全 enforce 归因豁免 + scan:ignore 逃生舱（AirDrop 协调清单 5）：可约束 high（shutil.rmtree 路径常量）按 capabilities filesystem:write 声明/自属路径归因豁免、不可约束 high 恒拒、动态 rmtree 经 `# scan:ignore` 显式豁免；上传两段式门禁（预览不阻断/确认拦截）+ 后台前端豁免提示（scan_block_high/exempt_high + 明细）；scan.py/install_plugin.py/admin.py 分层门禁 + capabilities.high_exempt_paths/high_missing；精简运行包白名单 RUNTIME_* 迁入 framework_manifest 统一管理；test_admin_api 75 项（+5 enforce 两段式）、test_framework_manifest 65 项（+A6/F）、regress 49 脚本；版本号 4.21.1→4.22.0 | tag `v4.22.0` |
 | **v4.23.0（已发布）** | 2026-09-20 | pip 依赖安装拦截（install/update 前硬拦 + preview 红色警示）+ 前端统计实时刷新 + 打包工具 package.py 增强（--exclude / 覆写提示）+ 跨平台目录打开 + Windows .js MIME 修复；test_dependency 12 项，全量回归 49 脚本 1324 项 | tag `v4.23.0` |
 | **v4.23.1（已发布）** | 2026-09-20 | 修复批次（todo_quickhelper 安全意识演示隔离测试）：user_config.json UTF-8 BOM 配置静默失效（读统一 utf-8-sig + 解析失败留痕 + 写回前中止，防安全开关静默降级与丢配置）+ 静态扫描器点分模块名（urllib.request/http.client）网络调用漏报 + 离线卸载残留 __pycache__；新增 6 项断言（cleanup 26→27 / tools_ops 19→21 / scan 43→46），全量回归 49 脚本 1330 项 | tag `v4.23.1` |
+| **v4.23.2（已发布）** | 2026-09-20 | 版本检查强制语义收紧：`check_for_update(force=True)` 网络/解析失败不再回退过期缓存（明确感知强制检查失败）+ `tools/update.py check --force` 忽略缓存有效期立即拉取（失败不回退缓存）+ 补 test_update_checker force 回归（52→55 项）；全量回归 49 脚本 1333 项 | tag `v4.23.2` |
 
 ## 3. 版本详情
 
@@ -620,6 +621,14 @@ pip 依赖安装拦截 + 统计实时刷新 + 打包工具增强 + 跨平台目�
 - **静态扫描器点分模块名网络调用漏报**（FTK-002）：`import urllib.request` 记为首段 `urllib` 配不上 MEDIUM_IMPORTS 的 `'urllib.request'`；`_import_context` 别名把 urllib 映射成 urllib.request，`_full_call_name` 解析出 `urllib.request.request.urlopen` 匹配不上 MEDIUM_CALLS。修复：别名只登记「首段→首段」；导入检查同时加入完整名与首段（urllib.request/http.client/asyncio.subprocess 全部命中）；MEDIUM_CALLS 补 urllib.request.Request/build_opener/urlretrieve。
 - **离线卸载残留 plugins/<name>/__pycache__**（FTK-003）：`_delete_installed_files` 按清单删除后只剪枝空目录，`__pycache__/*.pyc` 是运行时编译产物不在清单内，卸载残留空壳目录。修复：按清单删除后显式清理 `plugins/<name>/__pycache__` 再统一剪枝，范围限定插件自有编译产物不误删数据目录。
 - **测试与文档**：新增 6 项断言——test_tools_ops（BOM 下 set 不丢键 / load_user_config 读 BOM 后 AUDIT_HOOK_MODE=enforce）、test_plugin_scan（A21–A23 点分模块）、test_plugin_cleanup（卸载后 __pycache__ 清理）；dev guide 十二章与 README 双版断言数同步 49 脚本 / 1330 assertions（cleanup 26→27 / tools_ops 19→21 / scan 43→46）。全量回归 49 脚本 0 失败。tag `v4.23.1`。
+
+### 3.48 v4.23.2（2026-09-20，版本检查强制语义收紧）
+
+版本检查「强制检查」语义收紧（`tools/update.py check --force`），全量回归 49 脚本 0 失败。
+
+- **force 强制检查语义收紧**（core/update_checker.py）：此前 `check_for_update(force=True)` 网络/解析失败时仍回退返回过期缓存，被当作「已检查到最新」，没做到「忽视缓存有效期」。修复：force 强制检查网络/解析失败时**不回退过期缓存**、明确返回检查失败（打 warning 留痕）；非 force 检查失败仍静默回退旧缓存（有则），保证启动可用性。
+- **CLI 参数说明**（tools/update.py）：`check --force` 帮助文本与顶部 docstring 明确「忽略缓存有效期，立即重新拉取数据源（拉取失败不回退缓存）」。
+- **测试与文档**：新增 3 项断言——test_update_checker（force 强制检查失败不回退过期缓存 / 非 force 失败仍回退旧缓存），52→55 项；dev guide 十二章项数与 README 双版断言数同步 49 脚本 / 1333 assertions，并补充 14.5 节 `check --force` 说明。全量回归 49 脚本 0 失败。tag `v4.23.2`。
 
 ## 4. 发布实践沉淀
 

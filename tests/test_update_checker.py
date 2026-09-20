@@ -12,7 +12,7 @@ _sys.path.insert(0, _PROJECT_ROOT)
 - 用户数据路径判定（tools/update.py path_is_user_data，与 .gitignore 语义对齐）
 - zip slip 防护（check_zip_slip：绝对路径 / 上级目录穿越拒绝）
 - 更新包校验链（verify_update_archive：sha256 必选比对、manifest 版本一致性、zip slip）
-- 版本检查缓存（update_checker：缓存 TTL 生效 / force 跳过 / 缓存读写）
+- 版本检查缓存（update_checker：缓存 TTL 生效 / force 跳过 / 缓存读写 / force 强制检查失败不回退过期缓存）
 - changelog 数据源结构校验（缺字段拒绝）
 - archive 替换保留用户数据（解压目录路径判定，data/plugins/configs 等保留）
 
@@ -199,6 +199,24 @@ try:
           repr(after_bg['latest_version'] if after_bg else None))
     global_var.BASE_DIR = saved3
     global_var._user_config = old_cfg3
+
+    # ---------- 5c. force 强制检查失败不回退过期缓存（v4.23.2 修复） ----------
+    # 语义收紧：force 强制检查网络/解析失败时明确返回 None，而非把旧缓存当作最新；
+    # 非 force 检查失败仍回退旧缓存（保证启动可用性）。
+    saved5 = global_var.BASE_DIR
+    old_cfg5 = dict(global_var._user_config or {})
+    global_var.BASE_DIR = iso
+    global_var._user_config['UPDATE_CHECK_INTERVAL'] = 0  # 缓存立即过期
+    global_var._user_config['UPDATE_FEED_URL'] = 'file:///' + os.path.join(iso, 'no_such_feed.json').replace('\\', '/')
+    _write_cache(UpdateInfo(latest_version='1.0.0', changes=['旧缓存']))
+    check('force失败前置：存在旧缓存', bool(_read_cache()) and _read_cache()['latest_version'] == '1.0.0')
+    r_force = check_for_update(force=True)  # 强制检查：跳过缓存 → feed 拉取失败 → 不回退旧缓存
+    check('force 强制检查失败不回退过期缓存（返回 None）', r_force is None, repr(r_force.latest_version if r_force else None))
+    r_normal = check_for_update(force=False)  # 非 force：缓存过期 → feed 拉取失败 → 回退旧缓存
+    check('非 force 检查失败仍回退旧缓存', r_normal is not None and r_normal.latest_version == '1.0.0',
+          repr(r_normal.latest_version if r_normal else None))
+    global_var.BASE_DIR = saved5
+    global_var._user_config = old_cfg5
 
     # ---------- 6. changelog 数据源结构校验 ----------
     ch_bad = os.path.join(iso, 'bad_feed.json')

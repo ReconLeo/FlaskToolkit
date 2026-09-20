@@ -4,7 +4,8 @@
 
 - 数据源：默认 GitHub raw changelog.json（只存最新版本变化），可配 UPDATE_FEED_URL 指向内网镜像。
 - 异步惰性：app 启动后由调用方在后台线程触发；网络 3s 超时，失败静默（仅日志），不阻塞启动。
-- 缓存：data/cache/update_check.json，TTL = UPDATE_CHECK_INTERVAL 小时（默认 24），force 可跳过。
+- 缓存：data/cache/update_check.json，TTL = UPDATE_CHECK_INTERVAL 小时（默认 24）；force 强制检查跳过缓存有效期，
+  且强制检查网络/解析失败时不回退过期缓存（明确感知失败，而非把旧缓存当作最新）。
 - 校验：sha256 字段必检（若存在）；配置 UPDATE_PUBLIC_KEY_PEM 后强制验签 changelog signature
   （复用 core/package_sign.verify_signature 的 RSA-SHA256 方案）。
 - 版本比较：tuple 化逐位比较（如 4.8.0 > 4.7.0），不引第三方依赖。
@@ -152,8 +153,13 @@ def _verify_feed_signature(d: dict) -> tuple:
 
 
 def check_for_update(force: bool = False, feed_url: str = None) -> Optional[UpdateInfo]:
-    """版本检查主入口：缓存优先；force 强制拉取。失败静默返回缓存（有则）或 None。"""
-    # 缓存优先
+    """版本检查主入口：缓存优先；force 强制拉取并忽略缓存有效期。
+
+    - 非 force：命中缓存 TTL 直接返回缓存；网络/解析失败静默回退旧缓存（有则），保证启动不报错。
+    - force：跳过缓存直接拉取数据源；网络/解析失败**不回退过期缓存**，明确返回 None（
+      让调用方感知强制检查失败，而非把旧缓存当作"已检查到最新"）。
+    """
+    # 缓存优先（force 时 _cache_fresh 直接返回 None，跳过缓存有效期）
     cached = _cache_fresh(force)
     if cached is not None:
         return cached
@@ -180,8 +186,11 @@ def check_for_update(force: bool = False, feed_url: str = None) -> Optional[Upda
         _write_cache(info)
         return info
     except Exception as e:
-        # 网络/解析失败：静默（有旧缓存则返回旧缓存，保证启动不报错）
+        # 网络/解析失败：非 force 静默回退旧缓存（保证启动不报错）；force 强制检查不回退过期缓存
         logger.debug("版本检查失败: %s", e)
+        if force:
+            logger.warning("强制版本检查失败（不回退缓存）: %s", e)
+            return None
         old = _read_cache()
         return UpdateInfo.from_dict(old) if old and old.get('latest_version') else None
 

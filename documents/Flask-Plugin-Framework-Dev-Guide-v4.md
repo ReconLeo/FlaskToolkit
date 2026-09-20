@@ -1489,7 +1489,7 @@ FLASKTOOLKIT_HOST=0.0.0.0 FLASKTOOLKIT_PORT=8000 python app.py
 | `test_framework_manifest.py`  | 框架目录清单统一（v4.15.1）：selfcheck/update/backup/release 复用同一对象（含精简包白名单 RUNTIME_*）+ CORE_FILES/CORE_DIRS 完整性 + Root 域路径判定边界（含插件内容/自属目录豁免）+ is_user_data_path 语义 + BACKUP_ITEMS 派生 + **collect_runtime_files 精简包行为（含关键文件/排除用户数据与示例插件）**                                                                                                                                                                                                                      | 65 项 |
 | `test_root_demo.py`           | 示例插件 root_demo（v4.15.1）：plugin.json 声明一致 + framework:core 授权/写核心放行/读核心/对照拒绝/自属豁免/模块可加载                                                                                                                                                                                                                                                                                          | 19 项 |
 | `test_audit_hook.py`          | 运行时审计钩子回归（v4.4.0）：事件映射（open 读写/删除族/sqlite/socket）/ 栈定位（plugins 帧/框架放行/嵌套归因）/ observe 聚合（按插件/建议声明/事件样本）/ enforce 阻断（异常传播/授权放行/自属豁免/fail-closed）/ 隔离集成（真实钩子+栈归因端到端/stats 按插件分组/重载清零/审计落盘/未污染）                                                                                                                   | 39 项 |
-| `test_update_checker.py`      | 版本检查推送（v4.8.0）：版本比较（parse_version/is_newer）/ 用户数据路径判定（v4.9.2 补 users/locales）/ zip slip 防护 / archive 校验链（sha256 必选 + 签名可选）/ 数据源缓存 TTL / 数据源结构校验 / 自更新签名验签（v4.17.1）                                                                                                                                                                                                                | 52 项 |
+| `test_update_checker.py`      | 版本检查推送（v4.8.0）：版本比较（parse_version/is_newer）/ 用户数据路径判定（v4.9.2 补 users/locales）/ zip slip 防护 / archive 校验链（sha256 必选 + 签名可选）/ 数据源缓存 TTL / 数据源结构校验 / 自更新签名验签（v4.17.1）/ force 强制检查失败不回退缓存（v4.23.2）                                                                                                                                                                                                                | 55 项 |
 | `test_plugin_updates.py`      | 插件级更新源签名（v4.15/v4.17.1）：未配公钥放行 / 有效签名通过 / 篡改·无签名·错误公钥·公钥文件不存在拒绝 / 未声明更新源 | 18 项 |
 | `test_release_sign.py`        | 发布签名联动（v4.17.1）：release --sign 产出含 signature / 配公钥验证通过 / 篡改拒绝 / 签名失败不写缓存 / 错误公钥拒绝 | 5 项 |
 | `test_reserved_name.py`       | 插件名保留名黑名单（v4.21）：PLUGIN_RESERVED_NAMES（data/configs/temp/__pycache__/static/auth/user_manage/__init__/base_plugin/status）拒绝安装 + 普通名放行 | 20 项 |
@@ -1541,7 +1541,7 @@ python tests/test_root_domain.py         # 18 项（Root 域与市场骨架 v4.1
 python tests/test_framework_manifest.py   # 65 项（框架目录清单 v4.15.1，隔离目录）
 python tests/test_root_demo.py            # 19 项（示例插件 root_demo v4.15.1，隔离目录）
 python tests/test_audit_hook.py            # 39 项（运行时审计钩子回归 v4.4.0，隔离目录）
-python tests/test_update_checker.py     # 52 项（版本检查推送回归 v4.8.0 + 自更新签名验签，隔离目录）
+python tests/test_update_checker.py     # 55 项（版本检查推送回归 v4.8.0 + 自更新签名验签，隔离目录）
 python tests/test_plugin_updates.py    # 18 项（插件级更新源签名 v4.15/v4.17.1，隔离目录）
 python tests/test_release_sign.py      # 5 项（发布签名联动 v4.17.1，隔离目录）
 python tests/test_reserved_name.py      # 20 项（插件名保留名黑名单 v4.21，隔离目录）
@@ -1722,6 +1722,7 @@ python tools/gen_cert.py --san IP:192.168.1.10   # 追加局域网访问地址�
 
 ```bash
 python tools/update.py check                 # 检查新版本（changelog.json 数据源，24h TTL）
+python tools/update.py check --force  # 强制检查：忽略缓存有效期，立即重新拉取数据源（拉取失败不回退缓存）
 python tools/update.py backup                # 更新前备份当前框架
 python tools/update.py apply                 # 应用更新（自动探测 git/archive 后端）
 python tools/update.py apply --backend archive --dry-run   # 指定后端 + 演练

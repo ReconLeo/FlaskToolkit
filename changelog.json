@@ -1,11 +1,11 @@
 {
-  "latest_version": "4.23.1",
+  "latest_version": "4.23.2",
   "published_at": "2026-09-20",
-  "download_url": "https://github.com/ReconLeo/FlaskToolkit/releases/download/v4.23.1/FlaskToolkit-4.23.1-runtime.zip",
-  "sha256": "7e73d9b9f3521aaf9f7a84fbbe6a8643d7ef7668a77d3b35560e572ea3ae3ab6",
+  "download_url": "https://github.com/ReconLeo/FlaskToolkit/releases/download/v4.23.2/FlaskToolkit-4.23.2-runtime.zip",
+  "sha256": "c15573f7eb742b0dcacd2daa9e36d55d8d123047a2932941929c0825c36fc147",
   "changes": [
-    "修复 user_config.json 带 UTF-8 BOM 时配置静默失效：读统一 utf-8-sig + 解析失败 WARNING 留痕 + 写回前中止（避免 AUDIT_HOOK_MODE 静默降级与丢配置）",
-    "修复静态扫描器对点分模块名（urllib.request/http.client）网络调用漏报：别名首段映射 + 导入比对加完整名 + MEDIUM_CALLS 补全",
-    "修复离线卸载残留 plugins/<name>/__pycache__：卸载按清单删除后显式清理编译产物"
+    "版本检查强制语义收紧：check_for_update(force=True) 网络/解析失败不再回退过期缓存，明确感知强制检查失败",
+    "tools/update.py check 支持 --force：忽略缓存有效期立即重新拉取数据源（拉取失败不回退缓存）",
+    "补 test_update_checker force 失败不回退缓存回归（断言 1330→1333）"
   ]
 }

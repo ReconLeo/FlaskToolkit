@@ -17,6 +17,8 @@
 - 用户数据路径清单（USER_DATA_PATHS）单处定义，git 后端（gitignore 语义）与 archive 后端共用。
 - 更新前 selfcheck 记录当前完整性；更新后 selfcheck 验证；失败自动回滚（archive 后端）。
 - 非 Git 更新本质是执行发布者代码：sha256 必选比对（changelog 内），配置 UPDATE_PUBLIC_KEY_PEM 后强制验签。
+- check --force：强制检查，忽略缓存有效期立即重新拉取数据源；强制检查网络/解析失败时不回退过期缓存，
+  明确提示检查失败（而非把旧缓存当作最新版本）。
 """
 import argparse
 import hashlib
@@ -437,7 +439,8 @@ def main():
     sub = ap.add_subparsers(dest='cmd', required=True)
 
     c = sub.add_parser('check', help='检查新版本')
-    c.add_argument('--force', action='store_true', help='强制拉取数据源（跳过缓存）')
+    c.add_argument('--force', action='store_true',
+                   help='强制检查：忽略缓存有效期，立即重新拉取数据源（拉取失败不回退缓存）')
     c.add_argument('--feed-url', default=None, help='覆盖 UPDATE_FEED_URL')
     c.add_argument('--json', action='store_true', help='JSON 输出')
     c.set_defaults(func=cmd_check)
