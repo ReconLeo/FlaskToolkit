@@ -599,8 +599,10 @@ def register(app):
                 if level_marker:
                     filtered = [line for line in filtered if f' - {level_marker} - ' in line]
 
+                # 插件过滤：日志格式为 `时间 - LEVEL - <plugin> - 消息`，插件段以 ` - <plugin> - ` 分隔（无方括号）。
+                # 修复（v4.23.3）：此前误用 `[{plugin}]` 带方括号匹配，恒不命中 → 插件过滤失效。
                 if plugin:
-                    filtered = [line for line in filtered if f'[{plugin}]' in line]
+                    filtered = [line for line in filtered if f' - {plugin} - ' in line]
 
                 return jsonify({"code": 200, "data": filtered})
         except Exception as e:

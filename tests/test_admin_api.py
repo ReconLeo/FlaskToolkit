@@ -193,6 +193,30 @@ def main():
     r = client.get('/api/admin/logs?level=bogus&lines=abc')
     check('logs 非法 level/lines 容错不 500', r.status_code == 200, f'status={r.status_code}')
 
+    # logs 插件过滤（v4.23.3 修复：过滤格式须匹配日志 ` - <plugin> - ` 段；此前误用 `[plugin]` 带方括号恒不命中）
+    _log_file = os.path.join(_isolated, 'logs', 'app.log')
+    try:
+        with open(_log_file, 'a', encoding='utf-8') as _lf:
+            _lf.write('2026-09-20 10:00:00 - INFO - auth - FILTER_TEST_AUTH 登录\n')
+            _lf.write('2026-09-20 10:00:01 - INFO - user_manage - FILTER_TEST_UM 更新\n')
+    except OSError:
+        pass  # FileHandler 占用时跳过写入，过滤断言用已有行兜底
+    r = client.get('/api/admin/logs?level=info&plugin=auth')
+    _d = r.get_json().get('data') or []
+    check('logs 插件过滤 auth 命中（含 auth 行、不含 user_manage 行）',
+          any('FILTER_TEST_AUTH' in x for x in _d) and not any('FILTER_TEST_UM' in x for x in _d),
+          f'len={len(_d)}')
+    r = client.get('/api/admin/logs?level=info&plugin=user_manage')
+    _d = r.get_json().get('data') or []
+    check('logs 插件过滤 user_manage 命中（含 user_manage 行、不含 auth 行）',
+          any('FILTER_TEST_UM' in x for x in _d) and not any('FILTER_TEST_AUTH' in x for x in _d),
+          f'len={len(_d)}')
+    r = client.get('/api/admin/logs?level=info&plugin=no_such_plugin')
+    _d = r.get_json().get('data') or []
+    check('logs 插件过滤 不存在插件 → 不返回目标行',
+          not any(('FILTER_TEST_AUTH' in x or 'FILTER_TEST_UM' in x) for x in _d),
+          f'len={len(_d)}')
+
     # 5. factory-reset scope 校验
     r = client.post('/api/admin/factory-reset', json={'scope': []})
     check('factory-reset 空 scope 列表 → 400',
