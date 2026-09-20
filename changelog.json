@@ -1,11 +1,14 @@
 {
-  "latest_version": "4.22.0",
-  "published_at": "2026-09-19",
-  "download_url": "https://github.com/ReconLeo/FlaskToolkit/releases/download/v4.22.0/FlaskToolkit-4.22.0-runtime.zip",
-  "sha256": "09581cbfe5ba282816c9cb4cd944c27d79c3dfa214b0c3dffb93398cfe42ad75",
+  "latest_version": "4.23.0",
+  "published_at": "2026-09-20",
+  "download_url": "https://github.com/ReconLeo/FlaskToolkit/releases/download/v4.23.0/FlaskToolkit-4.23.0-runtime.zip",
+  "sha256": "d6e3637021c9ec3ce5579fa57d5ff6b1df9e0bf0bb1d39e4460622a8364d6ce6",
   "changes": [
-    "插件安全 enforce 归因豁免 + scan:ignore 逃生舱：不可约束 high 恒拒、可约束 rmtree 按 capabilities filesystem:write 归因豁免、动态路径经 # scan:ignore 显式豁免",
-    "上传两段式门禁：预览不阻断返回豁免明细，确认安装阶段才拒；后台前端区分不可豁免/已豁免 + 明细",
-    "scan.py/install_plugin.py/admin.py 分层门禁；精简运行包白名单 RUNTIME_* 迁入 framework_manifest 统一管理"
+    "插件安装拦截缺 pip 依赖：install/update 前硬拦截 + preview 前端红色警示",
+    "前端统计实时刷新：plugins.html 统计卡片 refreshStats() 免刷新页面",
+    "打包工具 package.py 增强：--exclude 排除文件 + 输出已存在时提示覆写/重命名",
+    "修复 Windows 下静态 .js 被误判 text/plain 拒执行（登录/主题脚本）",
+    "修复 plugins.html Jinja 注释误写致模板语法错误",
+    "管理后台点击项目目录行用系统文件管理器打开文件夹（跨平台，静默失败）"
   ]
 }

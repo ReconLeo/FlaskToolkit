@@ -91,7 +91,7 @@ FlaskToolkit/
 │   ├── migrate_plugin_layout.py #   旧扁平插件 → v4.21 目录化自包含布局迁移工具
 │   ├── reset.py               #   深度重置工具（服务停止时使用，绕过运行时文件锁定）
 │   └── run_all_tests.py       #   全量回归脚本（运维手动：遍历 tests/test_*.py 串行执行，超时控制/日志/汇总/退出码/告警，-p 过滤）
-├── tests/                     # 回归测试套件（48 脚本 + 端到端链路验证）
+├── tests/                     # 回归测试套件（49 脚本 + 端到端链路验证）
 ├── templates/                 # 页面模板（首页/登录/错误码页 400-500/admin 管理后台/插件页）
 │   ├── admin/                 #   管理后台（dashboard / plugins / logs / stats / system）
 │   ├── frontend_tools/        #   前端工具模板
@@ -1505,7 +1505,7 @@ FLASKTOOLKIT_HOST=0.0.0.0 FLASKTOOLKIT_PORT=8000 python app.py
 | `test_stats.py`               | 数据统计洞察（v4.14）：时间桶 + 访问画像双维数据模型 / dashboard 总览化 / 14 天趋势 + 错误 Top + 画像卡                                                                                                                                                                                                                                                                                                           | 55 项 |
 | `test_selfcheck.py`           | 启动完整性自检（v4.15）：CORE_FILES 完整性 / 时区（tzdata）探测 / 完整自检                                                                                                                                                                                                                                                                                                                                        | 17 项 |
 | `test_events.py`              | 事件总线（v4.16）：priority / once / off / weakref 失效清理 / 绑定方法强引用 / async 非阻塞 / 异常隔离 / 内置事件                                                                                                                                                                                                                                                                                                 | 11 项 |
-| `test_dependency.py`          | 依赖解析（v4.16）：dep_spec 解析 / semver 含预发布 / Kahn 拓扑 / 环 / 缺失排除                                                                                                                                                                                                                                                                                                                                    | 11 项 |
+| `test_dependency.py`          | 依赖解析（v4.16）：dep_spec 解析 / semver 含预发布 / Kahn 拓扑 / 环 / 缺失排除 + check_pip_dependencies 缺依赖拦截（v4.23）                                                                                                                                                                                                                                                                               | 12 项 |
 | `test_plugin_events.py`       | BasePlugin 事件集成 + 示例演示（v4.16）：scheduler_demo 事件订阅/定时/手动发布/清空/清理防泄漏 + dependent_demo 跨插件事件来源归因                                                                                                                                                                                                                                                                                | 28 项 |
 | `test_device.py`              | 设备检测 + 移动端模板分发（v4.17）：UA 分类 / 配置开关 / resolve_template 分发 / 公开页移动端模板 / BasePlugin 移动端命名空间                                                                                                                                                                                                                                                                                     | 20 项 |
 | `test_theme.py`               | 界面主题（v4.19）：主题白名单解析与非法回退 / Cookie 与用户配置优先级 / auto 深浅解析 / 公开页 data-theme-init / 主题入口链接 / 开放重定向防护 / setup 双语主次切换 / resolve_effective_theme 解析 / themes/ 扫描与自定义主题兑底                                                                                                                                                                                                                                            | 36 项 |
@@ -1557,11 +1557,11 @@ python tests/test_scaffold_tools.py  # 53 项（M6 脚手架 + 离线安装/卸�
 python tests/test_stats.py               # 55 项（数据统计洞察 v4.14，隔离目录）
 python tests/test_selfcheck.py           # 17 项（启动完整性自检 v4.15，隔离目录）
 python tests/test_events.py              # 11 项（事件总线 v4.16，隔离目录）
-python tests/test_dependency.py          # 11 项（依赖解析 v4.16，隔离目录）
+python tests/test_dependency.py          # 12 项（依赖解析 v4.16 + pip 依赖拦截 v4.23，隔离目录）
 python tests/test_plugin_events.py       # 28 项（BasePlugin 事件集成 + 示例演示 v4.16，隔离目录）
 python tests/test_device.py              # 20 项（设备检测 + 移动端模板分发 v4.17，隔离目录）
 python tests/test_theme.py               # 36 项（界面主题 v4.19：主题解析/Cookie 优先级/setup 双语/resolve_effective_theme + themes 扫描兑底，隔离目录）
-# 合计 48 个脚本（本地全量实测）
+# 合计 49 个脚本（本地全量实测）
 # （AirDrop 插件加载回归 test_airdrop_loader.py 8 项已移交 AirDrop 子项目维护，不入主仓库）
 ```
 

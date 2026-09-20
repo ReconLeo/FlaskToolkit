@@ -4,7 +4,7 @@
   <img src="https://github.com/ReconLeo/FlaskToolkit/actions/workflows/ci.yml/badge.svg" alt="CI">
   <img src="https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB?logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/License-MIT-yellow" alt="License">
-  <img src="https://img.shields.io/badge/version-4.22.0-blue" alt="Version">
+  <img src="https://img.shields.io/badge/version-4.23.0-blue" alt="Version">
   <a href="https://github.com/ReconLeo/FlaskToolkit-Lite"><img src="https://img.shields.io/badge/Lite%20Edition-v4.2.2-lightgrey" alt="Lite Edition"></a>
 </p>
 
@@ -41,7 +41,7 @@ Over time it grew into what it is today — a few highlights:
 - **Event bus & true dependency resolution**: a lightweight in-process pub/sub bus lets plugins talk without knowing who’s listening; dependencies resolve with version constraints and cycle detection.
 - **Dark mode**: full-interface light/dark themes with `auto` (follow the OS) plus manual override; the CSS-variable system is **extensible by dropping in a `themes/<name>/` folder** (a `sepia` example ships); theme CSS `url()`/`@import` references are controlled by `THEME_CSS_URLS` (`allow`/`relative`/`deny`), and the first-run `setup` page renders bilingual side by side.
 - **User center**: logged-in users self-manage their **nickname and password** at `/user-center` (usernames are immutable; self-service only).
-- **Ops & tooling**: version check + dual-backend updater, Factory Reset, backup/restore, startup self-check, integrity signing, plugin scaffolding & offline install/uninstall CLI, plus a **47-script regression suite and GitHub Actions CI**.
+- **Ops & tooling**: version check + dual-backend updater, Factory Reset, backup/restore, startup self-check, integrity signing, plugin scaffolding & offline install/uninstall CLI, plus a **49-script regression suite and GitHub Actions CI**.
 
 The full feature specification lives in the [development guide](documents/Flask-Plugin-Framework-Dev-Guide-v4.md).
 
@@ -145,7 +145,7 @@ Detailed specs live in the [FlaskToolkit Development Guide](documents/Flask-Plug
 
 ## Edition Status
 
-- **Community Edition (v4.x)**: feature development continues with a deliberately controlled architectural scale, focused on small-LAN / personal-use scenarios; we maintain and release regularly (48-script regression suite + CI).
+- **Community Edition (v4.x)**: feature development continues with a deliberately controlled architectural scale, focused on small-LAN / personal-use scenarios; we maintain and release regularly (49-script regression suite + CI).
 - **Lite Edition (v4.2.2)**: a lightweight single-machine sibling repo for personal developers and small self-hosted setups — a minimal, readable subset of FlaskToolkit (anything that runs on Lite also runs on the main framework). First release: [FlaskToolkit-Lite v4.2.2](https://github.com/ReconLeo/FlaskToolkit-Lite).
 - **Enterprise Edition (v5.x)**: planned to carry the long-term roadmap (refined permission model, process-level sandboxing, stricter CSP, enterprise identity integration, etc.). Due to limited team capacity, we are openly looking for maintainers to take over — see the [Enterprise Edition handover & roadmap](documents/Enterprise-Edition-Handover-Roadmap.md).
 
