@@ -68,6 +68,8 @@ Kaleido 同样开源（自托管题库系统）：[github.com/ReconLeo/Kaleido](
 | **v4.21.0（收编，未推送）** | 2026-09-17 | 插件自包含目录化（插件私有目录 `plugins/<name>/` + 双布局扫描 + migrate 工具 + updateFromFeed 一键更新 + 语言易用化）+ 暗色模式修复 + Factory Reset 边界修复（temp 补全 plugins/temp + 前端工具白名单 + static 子目录保护 + API 可选自动备份）+ 插件名保留名黑名单（PLUGIN_RESERVED_NAMES，parse_plugin_pack 入口统一拦截） | tag `v4.21.0`（bump，未推送） |
 | **v4.21.1（收编，未推送）** | 2026-09-18 | tools/package.py 非 src_layout 打包排除 __pycache__/.pyc/.pyo + 统一 PACK_SKIP_DIRS（configs/tests 进包策略两分支对齐，修复标准插件包结构打包把编译产物/配置样例/测试混入 zip 的污染缺陷）+ 版本号 4.21.0→4.21.1；新增 test_pack_no_pyc.py（10 项），回归 49 脚本；品牌文本统一（Flask 独立品牌词→FlaskToolkit，BSD-3 合规）+ 免责声明落地（README 双版/License，声明非官方、与 Pallets 无关联） | tag `v4.21.1`（bump，未推送） |
 | **v4.22.0（已发布）** | 2026-09-19 | 插件安全 enforce 归因豁免 + scan:ignore 逃生舱（AirDrop 协调清单 5）：可约束 high（shutil.rmtree 路径常量）按 capabilities filesystem:write 声明/自属路径归因豁免、不可约束 high 恒拒、动态 rmtree 经 `# scan:ignore` 显式豁免；上传两段式门禁（预览不阻断/确认拦截）+ 后台前端豁免提示（scan_block_high/exempt_high + 明细）；scan.py/install_plugin.py/admin.py 分层门禁 + capabilities.high_exempt_paths/high_missing；精简运行包白名单 RUNTIME_* 迁入 framework_manifest 统一管理；test_admin_api 75 项（+5 enforce 两段式）、test_framework_manifest 65 项（+A6/F）、regress 49 脚本；版本号 4.21.1→4.22.0 | tag `v4.22.0` |
+| **v4.23.0（已发布）** | 2026-09-20 | pip 依赖安装拦截（install/update 前硬拦 + preview 红色警示）+ 前端统计实时刷新 + 打包工具 package.py 增强（--exclude / 覆写提示）+ 跨平台目录打开 + Windows .js MIME 修复；test_dependency 12 项，全量回归 49 脚本 1324 项 | tag `v4.23.0` |
+| **v4.23.1（已发布）** | 2026-09-20 | 修复批次（todo_quickhelper 安全意识演示隔离测试）：user_config.json UTF-8 BOM 配置静默失效（读统一 utf-8-sig + 解析失败留痕 + 写回前中止，防安全开关静默降级与丢配置）+ 静态扫描器点分模块名（urllib.request/http.client）网络调用漏报 + 离线卸载残留 __pycache__；新增 6 项断言（cleanup 26→27 / tools_ops 19→21 / scan 43→46），全量回归 49 脚本 1330 项 | tag `v4.23.1` |
 
 ## 3. 版本详情
 
@@ -597,6 +599,27 @@ AirDrop 协调清单第 5 项落地：原 enforce 下 `should_block` 一刀切�
 - **frontend.py 不改**：前端 HTML 扫描 high 仅 eval/new Function（不可约束），`should_block` 语义正确，无需分层。
 - **版本**：FRAMEWORK_VERSION / SYSTEM_VERSION_LABEL 4.21.1 → 4.22.0；README 双版徽章、Dev-Guide 版本引用同步。
 - **测试**：`test_admin_api` 70→75 项（+5 enforce 两段式：预览放行/不可豁免拒/scan:ignore 放行/未声明 rmtree 拒/归因放行）；`test_framework_manifest` 55→65 项（+A6 release 复用 RUNTIME_* + F collect_runtime_files 行为）；`test_plugin_scan`/`test_capabilities` 相应扩展；`ci.yml` TESTS 数组补 test_pack_no_pyc/test_reserved_name（49 个）。全量回归 49 脚本 全部通过。
+
+### 3.46 v4.23.0（2026-09-20，pip 依赖拦截 + 统计实时刷新 + 打包增强）
+
+pip 依赖安装拦截 + 统计实时刷新 + 打包工具增强 + 跨平台目录打开，全量回归 49 脚本 0 失败。
+
+- **插件安装拦截缺 pip 依赖**：`core/plugin_deps.py` 新增 `check_pip_dependencies`（复用 parse_dep_spec / version_satisfies）；`core/plugin_admin.py` install/update 解包前硬拦截，杜绝「装成功却被跳过加载」困惑；`routes/admin.py` preview 返回 pip_missing，前端红色警示。
+- **前端统计实时刷新**：plugins.html 四张统计卡片加 id + `refreshStats()` 拉 `/api/admin/stats`，安装/卸载后免刷新。
+- **打包工具 package.py 增强**：新增 `--exclude`；`-o` 已存在时提示覆写/重命名，`-y` 自动接受。
+- **修复 Windows 静态 .js 误判 text/plain 拒执行**：app.py 初始化 `mimetypes.init()` + add_type('.js')，一处全局覆盖主/插件/主题/前端所有 static。
+- **修复 plugins.html Jinja 注释误写**：注释内 `{{ stats.* }}` 改 `stats.*`。
+- **管理后台打开项目目录**：点击目录行经 `POST /api/admin/open-dir` 调系统文件管理器（os.startfile/open/xdg-open），realpath 前缀校验限 BASE_DIR 内，失败静默。
+- **测试**：test_dependency 新增 test_check_pip_dependencies（12 项），dev guide 十二章与 README 双版同步 49 脚本 / 1324 assertions。全量回归 49 脚本 0 失败。tag `v4.23.0`。
+
+### 3.47 v4.23.1（2026-09-20，配置 BOM 静默失效 + 点分模块扫描漏报 + 卸载残留 __pycache__ 修复）
+
+安全/健壮性修复批次（来自子插件 todo_quickhelper 安全意识演示的隔离测试，三处均为实测复现），全量回归 49 脚本 0 失败。
+
+- **user_config.json 带 UTF-8 BOM 时配置静默失效**（FTK-001）：Windows 记事本 / PowerShell 5.1 `Set-Content -Encoding UTF8` 默认写 BOM，`encoding='utf-8'` 读取使 json.load 抛异常且被多处静默吞掉——`AUDIT_HOOK_MODE=enforce` 静默回落到 observe（审计防火墙形同未开且无告警）、`tools/config.py set/unset` 读失败后以空 dict 覆盖写回丢其它配置。修复：所有 `USER_CONFIG_FILE` 读取点统一 `utf-8-sig`（global_var/public/admin/config/desktop_launcher）；`load_user_config` 解析失败拆出内层 except 并 `logging.warning` 留痕；`_load_file` 加 strict 参数，`cmd_set`/`cmd_unset`/`apply_profile` 写回前解析失败中止报错，不再空 dict 覆盖。
+- **静态扫描器点分模块名网络调用漏报**（FTK-002）：`import urllib.request` 记为首段 `urllib` 配不上 MEDIUM_IMPORTS 的 `'urllib.request'`；`_import_context` 别名把 urllib 映射成 urllib.request，`_full_call_name` 解析出 `urllib.request.request.urlopen` 匹配不上 MEDIUM_CALLS。修复：别名只登记「首段→首段」；导入检查同时加入完整名与首段（urllib.request/http.client/asyncio.subprocess 全部命中）；MEDIUM_CALLS 补 urllib.request.Request/build_opener/urlretrieve。
+- **离线卸载残留 plugins/<name>/__pycache__**（FTK-003）：`_delete_installed_files` 按清单删除后只剪枝空目录，`__pycache__/*.pyc` 是运行时编译产物不在清单内，卸载残留空壳目录。修复：按清单删除后显式清理 `plugins/<name>/__pycache__` 再统一剪枝，范围限定插件自有编译产物不误删数据目录。
+- **测试与文档**：新增 6 项断言——test_tools_ops（BOM 下 set 不丢键 / load_user_config 读 BOM 后 AUDIT_HOOK_MODE=enforce）、test_plugin_scan（A21–A23 点分模块）、test_plugin_cleanup（卸载后 __pycache__ 清理）；dev guide 十二章与 README 双版断言数同步 49 脚本 / 1330 assertions（cleanup 26→27 / tools_ops 19→21 / scan 43→46）。全量回归 49 脚本 0 失败。tag `v4.23.1`。
 
 ## 4. 发布实践沉淀
 

@@ -147,6 +147,21 @@ check("A20 分层决策",
           {'findings': [{'severity': 'high', 'category': 'rmtree', 'constrainable': True,
                          'ignored': True}]}, []))
 
+# ---- FTK-002：点分模块名（urllib.request / http.client）网络调用识别（v4.23.x 修复） ----
+r = scan_code("import urllib.request\nurllib.request.urlopen('http://h/x')\n", 'dot.py')
+check('A21 urllib.request 点分导入命中 medium',
+      r['summary']['medium'] >= 1 and any('urllib.request' in f['message'] for f in r['findings']),
+      f"summary={r['summary']} messages={[f['message'] for f in r['findings']]}")
+check('A22 urllib.request.urlopen 调用点命中 HTTP',
+      any(f['message'] == '发起 HTTP 请求' for f in r['findings']),
+      f"messages={[f['message'] for f in r['findings']]}")
+r = scan_code("import http.client\nhttp.client.HTTPConnection('h', 80)\n", 'dot2.py')
+check('A23 http.client 点分导入+调用命中 medium',
+      r['summary']['medium'] >= 1
+      and any('http.client' in f['message'] for f in r['findings'])
+      and any(f['message'] == '发起 HTTP 请求' for f in r['findings']),
+      f"summary={r['summary']} messages={[f['message'] for f in r['findings']]}")
+
 # ============ B：插件包（zip）扫描 ============
 def make_zip(path, members):
     with zipfile.ZipFile(path, 'w', zipfile.ZIP_DEFLATED) as zf:

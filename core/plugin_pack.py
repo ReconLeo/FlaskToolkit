@@ -380,6 +380,11 @@ def _delete_installed_files(plugin_name: str) -> list:
                 removed.append(p)
         except OSError:
             pass
+    # 显式清理插件自有编译产物（运行时生成，不在 installed_files 清单内）
+    pycache = os.path.join(base, 'plugins', plugin_name, '__pycache__')
+    if os.path.isdir(pycache):
+        shutil.rmtree(pycache, ignore_errors=True)
+        removed.append(pycache)
     # 清理因删除产生的空目录
     _prune_empty_dirs(base, [os.path.dirname(p) for p in removed])
     return removed

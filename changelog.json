@@ -1,14 +1,11 @@
 {
-  "latest_version": "4.23.0",
+  "latest_version": "4.23.1",
   "published_at": "2026-09-20",
-  "download_url": "https://github.com/ReconLeo/FlaskToolkit/releases/download/v4.23.0/FlaskToolkit-4.23.0-runtime.zip",
-  "sha256": "d6e3637021c9ec3ce5579fa57d5ff6b1df9e0bf0bb1d39e4460622a8364d6ce6",
+  "download_url": "https://github.com/ReconLeo/FlaskToolkit/releases/download/v4.23.1/FlaskToolkit-4.23.1-runtime.zip",
+  "sha256": "7e73d9b9f3521aaf9f7a84fbbe6a8643d7ef7668a77d3b35560e572ea3ae3ab6",
   "changes": [
-    "插件安装拦截缺 pip 依赖：install/update 前硬拦截 + preview 前端红色警示",
-    "前端统计实时刷新：plugins.html 统计卡片 refreshStats() 免刷新页面",
-    "打包工具 package.py 增强：--exclude 排除文件 + 输出已存在时提示覆写/重命名",
-    "修复 Windows 下静态 .js 被误判 text/plain 拒执行（登录/主题脚本）",
-    "修复 plugins.html Jinja 注释误写致模板语法错误",
-    "管理后台点击项目目录行用系统文件管理器打开文件夹（跨平台，静默失败）"
+    "修复 user_config.json 带 UTF-8 BOM 时配置静默失效：读统一 utf-8-sig + 解析失败 WARNING 留痕 + 写回前中止（避免 AUDIT_HOOK_MODE 静默降级与丢配置）",
+    "修复静态扫描器对点分模块名（urllib.request/http.client）网络调用漏报：别名首段映射 + 导入比对加完整名 + MEDIUM_CALLS 补全",
+    "修复离线卸载残留 plugins/<name>/__pycache__：卸载按清单删除后显式清理编译产物"
   ]
 }

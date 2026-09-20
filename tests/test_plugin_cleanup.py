@@ -111,6 +111,10 @@ def main():
         check('installed_files 清单完整', set(installed) == expect, str(installed))
 
         # ---------- 2. 卸载按清单全清 ----------
+        # FTK-003：模拟运行时生成编译产物 __pycache__（不在 installed_files 清单内），卸载后应一并清理
+        pycache_dir = os.path.join(BASE, 'plugins', 'multi_plugin', '__pycache__')
+        os.makedirs(pycache_dir, exist_ok=True)
+        open(os.path.join(pycache_dir, 'multi_plugin.cpython-313.pyc'), 'w').write('PYC')
         removed = cleanup_plugin_resources('multi_plugin')
         check('卸载后主 .py 已删', not os.path.exists(os.path.join(BASE, 'plugins', 'multi_plugin', 'multi_plugin.py')))
         check('卸载后 helper_a 已删', not os.path.exists(os.path.join(BASE, 'plugins', 'multi_plugin', 'helper_a.py')))
@@ -119,6 +123,7 @@ def main():
         check('卸载后模板已删', not os.path.exists(os.path.join(BASE, 'templates', 'plugins', 'multi_plugin', 'multi_plugin.html')))
         check('卸载后描述文件已删', not os.path.exists(meta_file))
         check('卸载后插件目录本体已清', not os.path.exists(os.path.join(BASE, 'plugins', 'multi_plugin')))
+        check('FTK-003 卸载后 __pycache__ 编译产物已清', not os.path.exists(pycache_dir), '')
         check('卸载删除路径数 >= 6', len(removed) >= 6, str(removed))
 
         tpl_plugins = os.path.join(BASE, 'templates', 'plugins')

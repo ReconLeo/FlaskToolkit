@@ -36,13 +36,16 @@ ENV_MAP = {'HOST': 'FLASKTOOLKIT_HOST', 'PORT': 'FLASKTOOLKIT_PORT', 'DEBUG': 'F
 KIND_LABEL = {'path': '路径', 'str': '文本', 'int': '整数', 'bool': '布尔', 'enum': '枚举'}
 
 
-def _load_file() -> dict:
+def _load_file(strict: bool = False) -> dict:
+    """读取用户配置。strict=True 时解析失败抛异常（供写回类命令中止，避免空 dict 覆盖丢配置）"""
     if os.path.exists(USER_CONFIG_FILE):
         try:
-            with open(USER_CONFIG_FILE, encoding='utf-8') as f:
+            with open(USER_CONFIG_FILE, encoding='utf-8-sig') as f:
                 data = json.load(f)
             return data if isinstance(data, dict) else {}
         except Exception:
+            if strict:
+                raise
             return {}
     return {}
 
@@ -101,7 +104,11 @@ def cmd_set(args):
             (f"（需为整数）" if item['kind'] == 'int' else '')
         print(f"错误：{args.value!r} 不是合法的 {KIND_LABEL[item['kind']]} 值 {hint}", file=sys.stderr)
         sys.exit(1)
-    data = _load_file()
+    try:
+        data = _load_file(strict=True)
+    except Exception:
+        print(f"错误：配置文件 {USER_CONFIG_FILE} 解析失败，已中止写入以避免覆盖其它配置", file=sys.stderr)
+        sys.exit(1)
     data[key] = converted
     _save_file(data)
     # 额外提示
@@ -122,7 +129,11 @@ def cmd_unset(args):
     if key not in CONFIG_ITEMS:
         print(f"错误：未知配置项 {key}", file=sys.stderr)
         sys.exit(1)
-    data = _load_file()
+    try:
+        data = _load_file(strict=True)
+    except Exception:
+        print(f"错误：配置文件 {USER_CONFIG_FILE} 解析失败，已中止写入以避免覆盖其它配置", file=sys.stderr)
+        sys.exit(1)
     if key in data:
         del data[key]
         _save_file(data)
@@ -294,11 +305,11 @@ def apply_profile(name: str, config_file: str = None) -> dict:
     data = {}
     if os.path.exists(target):
         try:
-            with open(target, encoding='utf-8') as f:
+            with open(target, encoding='utf-8-sig') as f:
                 data = json.load(f)
             data = data if isinstance(data, dict) else {}
         except Exception:
-            data = {}
+            raise ValueError(f'配置文件解析失败，已中止以避免覆盖: {target}')
     changes = {}
     for key, value in PROFILES[name]['values'].items():
         coerced = coerce_config_value(value, CONFIG_ITEMS[key])

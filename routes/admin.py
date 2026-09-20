@@ -714,7 +714,7 @@ def register(app):
             cfg_path = global_var.USER_CONFIG_FILE
             data = {}
             if os.path.exists(cfg_path):
-                with open(cfg_path, encoding='utf-8') as f:
+                with open(cfg_path, encoding='utf-8-sig') as f:
                     loaded = json.load(f)
                     data = loaded if isinstance(loaded, dict) else {}
             data.update(updates)

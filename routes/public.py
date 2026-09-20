@@ -42,7 +42,7 @@ def register(app):
                     cfg_file = global_var.USER_CONFIG_FILE
                     data = {}
                     if os.path.isfile(cfg_file):
-                        with open(cfg_file, encoding='utf-8') as _f:
+                        with open(cfg_file, encoding='utf-8-sig') as _f:
                             data = _json.load(_f)
                     if not isinstance(data, dict):
                         data = {}

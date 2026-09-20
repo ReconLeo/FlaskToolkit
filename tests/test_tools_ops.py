@@ -134,6 +134,42 @@ def main():
         check('config unset 移除配置',
               'PACKAGE_INTEGRITY_MODE' not in json.load(open(cfg.USER_CONFIG_FILE, encoding='utf-8')), "")
 
+        # ---- FTK-001：带 UTF-8 BOM 的 user_config.json 配置不应静默失效 ----
+        saved_ucfg2 = cfg.USER_CONFIG_FILE
+        saved_ahm = getattr(global_var, 'AUDIT_HOOK_MODE', None)
+        bom_cfg = os.path.join(isolated, 'data', 'user_config_bom.json')
+        with open(bom_cfg, 'wb') as f:
+            f.write(b'\xef\xbb\xbf{"AUDIT_HOOK_MODE": "enforce"}')
+        cfg.USER_CONFIG_FILE = bom_cfg
+        global_var.USER_CONFIG_FILE = bom_cfg
+        try:
+            ns = argparse.Namespace(key='PACKAGE_INTEGRITY_MODE', value='strict')
+            with contextlib.redirect_stdout(io.StringIO()):
+                cfg.cmd_set(ns)
+            after = json.load(open(bom_cfg, encoding='utf-8'))
+            check('FTK-001 BOM 文件下 set 不丢其它配置键',
+                  after.get('AUDIT_HOOK_MODE') == 'enforce' and after.get('PACKAGE_INTEGRITY_MODE') == 'strict',
+                  str(after))
+        finally:
+            cfg.USER_CONFIG_FILE = saved_ucfg2
+            global_var.USER_CONFIG_FILE = saved_ucfg2
+
+        # load_user_config 读 BOM 后安全开关保持 enforce（utf-8-sig 生效，不静默回退 observe）
+        bom_cfg2 = os.path.join(isolated, 'data', 'user_config_bom2.json')
+        with open(bom_cfg2, 'wb') as f:
+            f.write(b'\xef\xbb\xbf{"AUDIT_HOOK_MODE": "enforce"}')
+        saved_ucfg3 = global_var.USER_CONFIG_FILE
+        global_var.USER_CONFIG_FILE = bom_cfg2
+        try:
+            global_var.load_user_config()
+            check('FTK-001 load_user_config 读 BOM 后 AUDIT_HOOK_MODE=enforce',
+                  getattr(global_var, 'AUDIT_HOOK_MODE', None) == 'enforce',
+                  f"{getattr(global_var, 'AUDIT_HOOK_MODE', None)}")
+        finally:
+            global_var.USER_CONFIG_FILE = saved_ucfg3
+            if saved_ahm is not None:
+                global_var.AUDIT_HOOK_MODE = saved_ahm
+
         print(f'\n==== 开发运维工具回归：共 {len(results)} 项，通过 {sum(1 for _, c, _ in results if c)}，'
               f'失败 {sum(1 for _, c, _ in results if not c)} ====')
     finally:

@@ -67,6 +67,9 @@ MEDIUM_CALLS = {
     'requests.delete': '发起 HTTP 请求',
     'requests.request': '发起 HTTP 请求',
     'urllib.request.urlopen': '发起 HTTP 请求',
+    'urllib.request.Request': '发起 HTTP 请求',
+    'urllib.request.build_opener': '发起 HTTP 请求',
+    'urllib.request.urlretrieve': '发起 HTTP 请求',
     'http.client.HTTPConnection': '发起 HTTP 请求',
     'http.client.HTTPSConnection': '发起 HTTP 请求',
 }
@@ -157,7 +160,11 @@ def _import_context(tree):
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             for a in node.names:
-                aliases[a.asname or a.name.split('.')[0]] = a.name
+                if a.asname:
+                    aliases[a.asname] = a.name            # import os.path as p → p
+                else:
+                    top = a.name.split('.')[0]
+                    aliases[top] = top                    # import urllib.request → urllib→urllib
         elif isinstance(node, ast.ImportFrom) and node.module:
             for a in node.names:
                 aliases[a.asname or a.name] = node.module
@@ -247,8 +254,10 @@ def scan_code(code: str, filename: str = '<code>') -> dict:
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             for a in node.names:
-                imported_modules.add(a.name.split('.')[0])
+                imported_modules.add(a.name)               # 完整名（覆盖 urllib.request 等点分条目）
+                imported_modules.add(a.name.split('.')[0])  # 首段
         elif isinstance(node, ast.ImportFrom) and node.module:
+            imported_modules.add(node.module)
             imported_modules.add(node.module.split('.')[0])
 
     for mod in sorted(imported_modules):

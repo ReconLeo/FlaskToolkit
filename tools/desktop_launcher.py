@@ -33,7 +33,7 @@ APP_PY = os.path.join(BASE_DIR, 'app.py')
 
 def load_user_config() -> dict:
     try:
-        with open(USER_CONFIG_FILE, encoding='utf-8') as f:
+        with open(USER_CONFIG_FILE, encoding='utf-8-sig') as f:
             data = json.load(f)
             return data if isinstance(data, dict) else {}
     except Exception:
