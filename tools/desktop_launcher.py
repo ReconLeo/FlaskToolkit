@@ -247,7 +247,14 @@ def run_gui(initial_shared=False, initial_port='', initial_https=False):
         if proc['p'] and proc['p'].poll() is None:
             return
         shared = bool(shared_var.get())
-        prepare_config(shared, bool(https_var.get()))
+        try:
+            prepare_config(shared, bool(https_var.get()))
+        except RuntimeError as e:
+            # HTTPS 证书生成失败（如系统 openssl 默认配置缺失且兜底重试仍失败）：
+            # 提示并中止启动，避免 Tk 回调抛异常导致按钮无反应、用户不知发生了什么
+            messagebox.showerror('HTTPS 证书生成失败',
+                                 f'{e}\n\n可取消勾选 HTTPS 后以 HTTP 方式启动。')
+            return
         proc['p'] = start_server(port_var.get())
         start_btn.config(state='disabled')
         stop_btn.config(state='normal')

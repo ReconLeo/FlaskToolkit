@@ -5,6 +5,10 @@
 不引入 cryptography 等第三方依赖；证书生成后通过 SSL_CERT_FILE / SSL_KEY_FILE 配置启用 HTTPS
 （配置项可用 tools/config.py 管理，或手动写入 data/user_config.json）。
 
+环境兼容：某些发行版（如 conda 打包的 openssl）把 OPENSSLDIR 写死成构建机路径，
+默认 openssl.cnf 不存在会让 `openssl req` 在库初始化阶段直接失败。本工具识别该错误特征后
+自动注入临时空配置（OPENSSL_CONF）重试一次，健康环境下行为不变。详见 _run_openssl。
+
 用法：
   python tools/gen_cert.py                    # 生成默认自签名证书（CN=localhost，SAN 含 localhost/127.0.0.1）
   python tools/gen_cert.py --cn myserver      # 指定通用名称
@@ -19,6 +23,7 @@ import os
 import shutil
 import subprocess
 import sys
+import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -30,6 +35,13 @@ DEFAULT_DAYS = 3650
 DEFAULT_KEY_SIZE = 2048
 # 默认 SAN：本机回环 + 局域网可用主机名（可按需通过 --san 扩展）
 DEFAULT_SAN = ['DNS:localhost', 'IP:127.0.0.1']
+
+# openssl 默认配置文件缺失的识别特征：部分发行版（如 conda 打包的 openssl）把
+# OPENSSLDIR 写死成**构建机路径**（如 D:\bld\openssl_split_*\...\Library），
+# 于是默认配置 <OPENSSLDIR>/openssl.cnf 在本机并不存在 → `openssl req` 在**库初始化阶段**
+# 就报 "Can't open .../openssl.cnf for reading"。
+# 注意：这种失败用 `-config` 参数救不回来（命令行参数晚于库初始化读取配置），只有 OPENSSL_CONF 生效。
+_CONF_FAIL_SIGNS = ("Can't open", 'openssl.cnf')
 
 # 常见 openssl 路径（Windows Git Bash / 系统 PATH / 常见安装位置）
 _OPENSSL_CANDIDATES = [
@@ -52,6 +64,43 @@ def find_openssl() -> str:
     return ''
 
 
+def _run_openssl(cmd: list) -> tuple:
+    """执行 openssl 命令，返回 (退出码, 合并输出)。
+
+    首次按系统默认配置执行；**仅当**失败特征是"默认 openssl.cnf 读不到"时，写一份
+    空配置文件注入 OPENSSL_CONF 重试一次（本工具 CN/days/SAN 等全部从命令行显式传入，
+    空配置足够）。健康机器上首次即成功，行为与原先一致；用户已显式设置且存在的
+    OPENSSL_CONF 会被尊重，不做覆盖（不干扰 FIPS 等依赖配置的场景）。
+    """
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    output = (result.stderr or '') + (result.stdout or '')
+    if result.returncode == 0:
+        return 0, output
+    if not all(sign in output for sign in _CONF_FAIL_SIGNS):
+        return result.returncode, output
+    conf = os.environ.get('OPENSSL_CONF')
+    if conf and os.path.isfile(conf):
+        return result.returncode, output
+
+    fd, tmp_conf = tempfile.mkstemp(prefix='ftk_openssl_', suffix='.cnf')
+    os.close(fd)
+    try:
+        env = dict(os.environ)
+        env['OPENSSL_CONF'] = tmp_conf
+        retry = subprocess.run(cmd, capture_output=True, text=True, env=env)
+        retry_out = (retry.stderr or '') + (retry.stdout or '')
+        if retry.returncode == 0:
+            print("[gen_cert] 提示：系统 openssl 的默认配置（openssl.cnf）不可用，"
+                  "已用临时空配置重试成功。可设置 OPENSSL_CONF 指向有效的 openssl.cnf "
+                  "以消除该提示（如 conda 打包的 openssl 常见此问题）。", file=sys.stderr)
+        return retry.returncode, retry_out
+    finally:
+        try:
+            os.remove(tmp_conf)
+        except OSError:
+            pass
+
+
 def gen_cert(out_dir: str, cn: str, days: int, key_size: int, san: list) -> str:
     """调用 openssl 生成自签名证书，返回证书文件路径"""
     openssl = find_openssl()
@@ -72,10 +121,15 @@ def gen_cert(out_dir: str, cn: str, days: int, key_size: int, san: list) -> str:
     # 合并默认 SAN 与用户追加项（去重），单条 subjectAltName 逗号分隔（openssl 3.x 不支持重复扩展名）
     final_san = list(dict.fromkeys(DEFAULT_SAN + san))
     cmd += ['-addext', 'subjectAltName=' + ','.join(final_san)]
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    if result.returncode != 0:
-        raise RuntimeError(f"openssl 生成证书失败（exit={result.returncode}）：{result.stderr.strip()}")
+    returncode, output = _run_openssl(cmd)
+    if returncode != 0:
+        raise RuntimeError(
+            f"openssl 生成证书失败（exit={returncode}，openssl={openssl}）：{output.strip()}\n"
+            f"  排查：①若提示缺 openssl.cnf，可设置环境变量 OPENSSL_CONF 指向有效的 openssl.cnf；"
+            f"②或改用 Git for Windows / OpenSSL-Win64 的 openssl.exe（置于 PATH 前）；"
+            f"③或用其他方式签发证书后通过 tools/config.py 配置 SSL_CERT_FILE / SSL_KEY_FILE。")
     return cert_path
+
 
 
 def main() -> int:

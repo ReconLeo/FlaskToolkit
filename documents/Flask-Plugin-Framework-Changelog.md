@@ -72,6 +72,7 @@ Kaleido 同样开源（自托管题库系统）：[github.com/ReconLeo/Kaleido](
 | **v4.23.1（已发布）** | 2026-09-20 | 修复批次（todo_quickhelper 安全意识演示隔离测试）：user_config.json UTF-8 BOM 配置静默失效（读统一 utf-8-sig + 解析失败留痕 + 写回前中止，防安全开关静默降级与丢配置）+ 静态扫描器点分模块名（urllib.request/http.client）网络调用漏报 + 离线卸载残留 __pycache__；新增 6 项断言（cleanup 26→27 / tools_ops 19→21 / scan 43→46），全量回归 49 脚本 1330 项 | tag `v4.23.1` |
 | **v4.23.2（已发布）** | 2026-09-20 | 版本检查强制语义收紧：`check_for_update(force=True)` 网络/解析失败不再回退过期缓存（明确感知强制检查失败）+ `tools/update.py check --force` 忽略缓存有效期立即拉取（失败不回退缓存）+ 补 test_update_checker force 回归（52→55 项）；全量回归 49 脚本 1333 项 | tag `v4.23.2` |
 | **v4.23.3** | 2026-11-02 | 子插件协调清单缺陷修复（Kaleido Mini 上报 issue #1/#2/#3）：API 分发器 404/405 语义（未注册路径不再假 405）+ 页面分发器元组直通（权限拒绝 403 不再变 500）+ 开发指南 5 处相对导入示例纠正与 5.2 示例 NameError 修正 + 加载期/安装期导入失败定向提示；test_page_router 23→34、test_framework_fixes 12→15，全量回归 49 脚本 1351 项 | tag `v4.23.3`（仅 tag，无 runtime 制品） |
+| 待发布 | 2026-11-02 | openssl 默认配置缺失时的自签名证书兜底（conda 等打包版 OPENSSLDIR 指向构建机路径 → `openssl req` 读不到 openssl.cnf）：gen_cert 识别该错误特征后注入临时空 `OPENSSL_CONF` 重试一次 + 错误信息给出排查路径 + 启动器证书失败弹窗而非静默；test_desktop_launcher 36→40，全量回归 49 脚本 1355 项 | （未打 tag） |
 
 ## 3. 版本详情
 
@@ -637,7 +638,7 @@ pip 依赖安装拦截 + 统计实时刷新 + 打包工具增强 + 跨平台目�
 
 来源：子项目 Kaleido Mini 开发中实测上报的《框架协调清单》（对应 issue #1 / #2 / #3），三条均在本次核实复现后修复。
 清单第 4 条 FTK-KM-03（打包/安装 CLI 缺非交互开关）上报方已复核为误判并撤回（`package.py pack` 早有 `-y`、`install_plugin.py` 冲突时直接报错而非交互），本次不动。
-全量回归 48/49 通过：`test_desktop_launcher` 因本机 openssl 缺 `openssl.cnf`（`D:\bld\...\Library/openssl.cnf` 不存在）在自签名证书生成处失败，属**本机环境**问题、与本批改动无关。
+全量回归 48/49 通过：`test_desktop_launcher` 因本机 openssl 缺 `openssl.cnf`（`D:\bld\...\Library/openssl.cnf` 不存在）在自签名证书生成处失败，属**本机环境**问题、与本批改动无关（该失败项已在 3.50 修复，修复后全量回归 49/49 通过）。
 
 - **插件 API 分发器 404/405 语义修正**（`routes/plugin.py` `api_dispatcher`，issue #2）：此前用 `any('<' in path for path in plugin._wrapped_routes)` 判定"路径存在"，只要插件注册过任一含路径参数的路由就**恒为真** → 任意未注册路径都返回 405，且「支持的方法」收集为空（自相矛盾：没有支持的方法就不可能只是方法不对）。改为与匹配同源的模式判定（精确 + `parse_path_pattern` 正则），并按"是否真的收集到支持方法"决定：路径存在仅方法不对 → 405（支持方法排序稳定、非空），否则 → 404。
 - **插件页面分发器元组直通**（`routes/plugin.py` `plugin_subpage_dispatcher`，issue #3）：页面视图返回 `(body, code)` 元组时（`@permission_required` 拒绝的 `(403.html, 403)`、`self.error_response()` 的 `(jsonify, 404)`），此前只认 `Response`/`dict`，元组被当成"空上下文"去渲染目标模板 → 模板引用页面上下文即 Jinja `UndefinedError` → **500**，把权限拒绝与页面错误掩盖成服务端故障。现在元组原样下传，由 Flask 按 `(body, status)` 处理；插件不必再为页面路由自造 403/404 Response。
@@ -646,6 +647,25 @@ pip 依赖安装拦截 + 统计实时刷新 + 打包工具增强 + 跨平台目�
 - **安装期提示**（`core/plugin_pack.py` 新增 `_warn_relative_base_import`）：安装落盘时若主文件仅用相对导入 `base_plugin`，立即 warning 提示——安装阶段是唯一的预警窗口（此后只在启动期失败）；带绝对导入的 `try/except` 兼容写法不告警，避免误报。
 - **测试与文档**：`test_page_router` 23→34 项（+API 分发器 404/405 语义 5 项、页面视图元组直通 2 项、页面权限拒绝 403/管理员 200/`/plugin/` 登录守卫/登录用户放行 4 项）；`test_framework_fixes` 12→15 项（+导入失败定向提示 3 项：相对导入提示、缺失同级模块提示、第三方包不误报）；dev guide 十二章两行描述与运行命令、README 双版断言数同步 **49 脚本 / 1351 项断言**（顺带修正 README 原 1336 与十二章表合计 1337 的 1 项漂移）。
 - **版本**：`FRAMEWORK_VERSION` / `SYSTEM_VERSION_LABEL` 4.23.2 → 4.23.3；README 双版徽章同步。附带 `.gitignore` 增补本地开发产物（todo_quickhelper / tts_toolchain 子插件目录与生态宣传文案草稿不入库）。tag `v4.23.3`（无 runtime 制品）。
+
+### 3.50 待发布（openssl 默认配置缺失时的自签名证书兜底）
+
+来源：v4.23.3 本地全量回归中 `test_desktop_launcher` 唯一失败项的根因排查（`ensure_https_cert` → `gen_cert.py` 生成自签证书报 `Can't open "D:\bld\openssl_split_*\_h_env\Library/openssl.cnf" for reading`）。
+
+**根因**：部分发行版的 openssl 把 `OPENSSLDIR` 写死成**构建机路径**（本机 conda 打包的 OpenSSL 3.1.0 即如此，`openssl version -a` 显示 `OPENSSLDIR: "D:\bld\openssl_split_1683022585232\_h_env\Library"`），默认配置 `<OPENSSLDIR>/openssl.cnf` 在本机并不存在。`openssl req` 在**库初始化阶段**（早于命令行解析）读默认配置失败即退出。实测结论：**`-config <file>` 参数救不回来**（B/D/E 三组探针均同样失败），只有环境变量 `OPENSSL_CONF` 生效。
+
+**影响面（实测）**：只影响**自签名证书生成**，不影响框架运行——HTTP 是默认且不需要证书；HTTPS 运行时走 Python `ssl`（libssl 不需要 openssl.cnf，实测本地 TLS 握手成功、`load_cert_chain` 正常）；`SSL_CERT_FILE/SSL_KEY_FILE` 指向坏文件时 `app.py` 本就告警并回退 HTTP。真正受损的是"一键启用 HTTPS"这条便利路径：`tools/gen_cert.py` 报错信息是 openssl 原始 stderr、桌面启动器 HTTPS 复选框则在 Tk 回调里抛 `RuntimeError`（GUI 无任何反应）。
+
+**修复**（`tools/gen_cert.py` 新增 `_run_openssl`）：首次按系统默认配置执行；**仅当**失败特征命中"`Can't open` + `openssl.cnf`"时，写一份**临时空配置**并注入 `OPENSSL_CONF` 重试一次（CN/SAN/days 全部由命令行显式传入，空配置足够——探针 B 已验证），成功后 stderr 打一行提示"可设置 OPENSSL_CONF 消除该提示"。设计取舍：
+
+- **不做无条件注入**：健康机器首次即成功、行为与原先完全一致；也避免覆盖用户/企业的 `OPENSSL_CONF`（FIPS 等依赖配置的场景）；
+- **不做无脑重试**：非"配置缺失"类失败（如密钥不可写）不重试，不掩盖真实错误（有专项断言）；
+- **不引入 cryptography 兜底**：与"仅用 stdlib + 系统 openssl"的既有取向一致，新增依赖换来的收益不足以覆盖包体与供应链成本；
+- 失败时的报错改为带 openssl 路径 + 三条排查路径（设 `OPENSSL_CONF` / 换 Git-for-Windows 或 OpenSSL-Win64 的 `openssl.exe` / 用别的工具签发后配 `SSL_CERT_FILE`）。
+
+**连带**（`tools/desktop_launcher.py`）：GUI `on_start` 捕获 `RuntimeError` 并弹窗提示"可取消勾选 HTTPS 后以 HTTP 启动"，不再在 Tk 回调里裸抛异常导致按钮无响应。
+
+**测试与文档**：`test_desktop_launcher` 36→40 项（+4：配置缺失时重试一次 / 重试注入临时 `OPENSSL_CONF` / 兜底成功返回 0 / 非配置类失败不重试）；dev guide 14.4 补"openssl 默认配置缺失的兜底"小节（含对影响面的说明与 `-config` 无效的实测结论），十二章表格与运行命令、README 双版断言数同步 **49 脚本 / 1355 项断言**。全量回归 49 脚本全部通过（`test_desktop_launcher` 由失败转为通过）。
 
 ## 4. 发布实践沉淀
 

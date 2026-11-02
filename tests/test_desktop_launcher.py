@@ -143,6 +143,53 @@ def main():
         finally:
             desktop_launcher.ensure_https_cert = real_ehc
 
+        # ---------- gen_cert：openssl 默认配置缺失时的兜底重试 ----------
+        # 现象：conda 等打包的 openssl 把 OPENSSLDIR 写死成构建机路径，
+        # 默认 openssl.cnf 不存在 → `openssl req` 库初始化即失败（-config 救不回来）。
+        import gen_cert
+
+        class _R:
+            def __init__(self, rc, out=''):
+                self.returncode = rc
+                self.stderr = out
+                self.stdout = ''
+
+        _real_run = gen_cert.subprocess.run
+        _calls = []
+
+        def _fake_run_conf_missing(cmd, **kw):
+            _calls.append(dict(kw.get('env') or {}))
+            if len(_calls) == 1:
+                return _R(1, 'Can\'t open "D:/bld/openssl_split_x/_h_env/Library/openssl.cnf" '
+                             'for reading, No such file or directory')
+            return _R(0, '')
+
+        gen_cert.subprocess.run = _fake_run_conf_missing
+        try:
+            rc_fb, _out_fb = gen_cert._run_openssl(['openssl', 'version'])
+        finally:
+            gen_cert.subprocess.run = _real_run
+        check('gen_cert 默认配置缺失时重试一次', len(_calls) == 2, f'calls={len(_calls)}')
+        check('gen_cert 重试注入临时空 OPENSSL_CONF',
+              bool(_calls[1].get('OPENSSL_CONF')) and
+              os.path.basename(_calls[1]['OPENSSL_CONF']).startswith('ftk_openssl_'),
+              str(_calls[1].get('OPENSSL_CONF')))
+        check('gen_cert 兜底重试成功返回 0', rc_fb == 0, f'rc={rc_fb}')
+
+        _calls.clear()
+
+        def _fake_run_other_err(cmd, **kw):
+            _calls.append(dict(kw.get('env') or {}))
+            return _R(1, 'unable to load private key')
+
+        gen_cert.subprocess.run = _fake_run_other_err
+        try:
+            rc_no_fb, _out_no_fb = gen_cert._run_openssl(['openssl', 'version'])
+        finally:
+            gen_cert.subprocess.run = _real_run
+        check('gen_cert 非配置类失败不重试（不掩盖真实错误）',
+              len(_calls) == 1 and rc_no_fb == 1, f'calls={len(_calls)} rc={rc_no_fb}')
+
         # ---------- start_server env 注入（mock Popen，不真启动框架） ----------
         captured = {}
         real_popen = desktop_launcher.subprocess.Popen

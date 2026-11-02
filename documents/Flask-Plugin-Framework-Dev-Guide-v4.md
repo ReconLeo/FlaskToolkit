@@ -1514,7 +1514,7 @@ FLASKTOOLKIT_HOST=0.0.0.0 FLASKTOOLKIT_PORT=8000 python app.py
 | `test_network.py`             | 网络与访问（v4.11/v4.12）：局域网地址发现/端口三级优先/访问地址组合/mDNS 集成/**HTTP→HTTPS 308 跳转与 Secure Cookie 四态（v4.12）**                                                                                                                                                                                                                                                                               | 41 项 |
 | `test_mdns.py`                | mDNS 服务注册（v4.11）：ServiceInfo 构造（新旧参数兼容）/ 启动停止幂等 / 依赖缺失降级                                                                                                                                                                                                                                                                                                                             | 22 项 |
 | `test_ip_watcher.py`          | IP 变化检测（v4.11）：快照比较 / 首次不报 / 启停与间隔控制                                                                                                                                                                                                                                                                                                                                                        | 15 项 |
-| `test_desktop_launcher.py`    | 桌面启动器（v4.11/v4.12）：配置写入/访问信息生成/启动与端口解析/**HTTPS 复选框与证书自动生成（v4.12）**                                                                                                                                                                                                                                                                                                           | 36 项 |
+| `test_desktop_launcher.py`    | 桌面启动器（v4.11/v4.12）：配置写入/访问信息生成/启动与端口解析/**HTTPS 复选框与证书自动生成（v4.12）** + gen_cert 在 openssl 默认配置缺失时的兜底重试                                                                                                                                                                                                                                                           | 40 项 |
 | `test_setup.py`               | 首次运行向导 + 强制改密（v4.10 M4）+ setup 双语并显（v4.19）：/setup 路由与标记 / 改密校验与踢会话 / must_change_pwd 标记 / 双语并显主次切换                                                                                                                                                                                                                                                                   | 19 项 |
 | `test_register.py`            | 邀请码自助注册（v4.10 M5）：邀请码生成消费 / pending 拦截 / 审核 API                                                                                                                                                                                                                                                                                                                                              | 25 项 |
 | `test_scaffold_tools.py`      | 脚手架 + 离线安装/卸载闭环（v4.10 M6）：scaffold 骨架 / install_plugin 安装升级降级拒绝 / uninstall 清理                                                                                                                                                                                                                                                                                                          | 53 项 |
@@ -1566,7 +1566,7 @@ python tests/test_data_limit.py            # 32 项（插件数据配额回归 v
 python tests/test_network.py            # 41 项（网络与访问 v4.11 + 308 跳转/Secure 判定 v4.12，隔离目录）
 python tests/test_mdns.py               # 22 项（mDNS 服务注册 v4.11，mock zeroconf，隔离目录）
 python tests/test_ip_watcher.py         # 15 项（IP 变化检测 v4.11，隔离目录）
-python tests/test_desktop_launcher.py   # 36 项（桌面启动器 v4.11 + HTTPS v4.12，隔离目录）
+python tests/test_desktop_launcher.py   # 40 项（桌面启动器 v4.11 + HTTPS v4.12 + gen_cert 兜底重试，隔离目录）
 python tests/test_setup.py             # 19 项（首次运行向导 + 强制改密 v4.10 + 双语并显 v4.19，隔离目录）
 python tests/test_register.py             # 25 项（自助注册 + 邀请码 + 审核 v4.10 M5，隔离目录）
 python tests/test_scaffold_tools.py  # 53 项（M6 脚手架 + 离线安装/卸载闭环，subprocess 驱动 CLI，隔离目录）
@@ -1731,6 +1731,15 @@ python tools/gen_cert.py --san IP:192.168.1.10   # 追加局域网访问地址�
 ```
 
 生成后配置启用 HTTPS（见 10.9）：`tools/config.py set SSL_CERT_FILE data/certs/cert.pem` + `SSL_KEY_FILE` 配对；桌面启动器的 HTTPS 复选框缺证书时也会自动调用本工具生成。
+
+**openssl 默认配置缺失的兜底（重要，环境相关）**：部分发行版的 openssl 把 `OPENSSLDIR` 写死成**构建机路径**（典型：conda 打包的 openssl，`openssl version -a` 显示 `OPENSSLDIR: "D:\bld\openssl_split_*\...\Library"`），导致默认配置 `<OPENSSLDIR>/openssl.cnf` 在本机不存在，`openssl req` 在**库初始化阶段**就报 `Can't open ".../openssl.cnf" for reading`。此时：
+
+- `-config <file>` 参数**救不回来**（命令行参数晚于库初始化读配置），只有环境变量 `OPENSSL_CONF` 生效；
+- 本工具已内置兜底：识别该错误特征后自动写一份**临时空配置**注入 `OPENSSL_CONF` 重试一次（CN/SAN/days 全部由命令行显式传入，空配置足够），并在 stderr 打印一行提示；
+- 健康环境首次即成功，**不做任何覆盖**；用户已显式设置且文件存在的 `OPENSSL_CONF` 会被尊重（不干扰 FIPS 等依赖配置的场景）；
+- 想彻底消除提示：`set OPENSSL_CONF=<有效的 openssl.cnf>`，或换用 Git for Windows / OpenSSL-Win64 的 `openssl.exe`（置于 PATH 前）。
+
+影响面：该问题**只影响自签名证书生成**，不影响框架运行——HTTP 为默认且无需证书；HTTPS 运行时用的是 Python `ssl`（libssl 不需要 openssl.cnf，实测握手正常）；`SSL_CERT_FILE/SSL_KEY_FILE` 指向不可用文件时 `app.py` 会告警并回退 HTTP 启动。
 
 ### 14.5 双后端更新（tools/update.py，v4.8）
 
