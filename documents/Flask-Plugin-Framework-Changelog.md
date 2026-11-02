@@ -72,7 +72,7 @@ Kaleido 同样开源（自托管题库系统）：[github.com/ReconLeo/Kaleido](
 | **v4.23.1（已发布）** | 2026-09-20 | 修复批次（todo_quickhelper 安全意识演示隔离测试）：user_config.json UTF-8 BOM 配置静默失效（读统一 utf-8-sig + 解析失败留痕 + 写回前中止，防安全开关静默降级与丢配置）+ 静态扫描器点分模块名（urllib.request/http.client）网络调用漏报 + 离线卸载残留 __pycache__；新增 6 项断言（cleanup 26→27 / tools_ops 19→21 / scan 43→46），全量回归 49 脚本 1330 项 | tag `v4.23.1` |
 | **v4.23.2（已发布）** | 2026-09-20 | 版本检查强制语义收紧：`check_for_update(force=True)` 网络/解析失败不再回退过期缓存（明确感知强制检查失败）+ `tools/update.py check --force` 忽略缓存有效期立即拉取（失败不回退缓存）+ 补 test_update_checker force 回归（52→55 项）；全量回归 49 脚本 1333 项 | tag `v4.23.2` |
 | **v4.23.3** | 2026-11-02 | 子插件协调清单缺陷修复（Kaleido Mini 上报 issue #1/#2/#3）：API 分发器 404/405 语义（未注册路径不再假 405）+ 页面分发器元组直通（权限拒绝 403 不再变 500）+ 开发指南 5 处相对导入示例纠正与 5.2 示例 NameError 修正 + 加载期/安装期导入失败定向提示；test_page_router 23→34、test_framework_fixes 12→15，全量回归 49 脚本 1351 项 | tag `v4.23.3`（仅 tag，无 runtime 制品） |
-| 待发布 | 2026-11-02 | openssl 默认配置缺失时的自签名证书兜底（conda 等打包版 OPENSSLDIR 指向构建机路径 → `openssl req` 读不到 openssl.cnf）：gen_cert 识别该错误特征后注入临时空 `OPENSSL_CONF` 重试一次 + 错误信息给出排查路径 + 启动器证书失败弹窗而非静默；test_desktop_launcher 36→40，全量回归 49 脚本 1355 项 | （未打 tag） |
+| **v4.23.4** | 2026-11-02 | openssl 默认配置缺失时的自签名证书兜底（conda 等打包版 OPENSSLDIR 指向构建机路径 → `openssl req` 读不到 openssl.cnf）：gen_cert 识别该错误特征后注入临时空 `OPENSSL_CONF` 重试一次 + 错误信息给出排查路径 + 启动器证书失败弹窗而非静默；test_desktop_launcher 36→40，全量回归 49 脚本 1355 项 | tag `v4.23.4` + runtime 更新包 |
 
 ## 3. 版本详情
 
@@ -648,7 +648,9 @@ pip 依赖安装拦截 + 统计实时刷新 + 打包工具增强 + 跨平台目�
 - **测试与文档**：`test_page_router` 23→34 项（+API 分发器 404/405 语义 5 项、页面视图元组直通 2 项、页面权限拒绝 403/管理员 200/`/plugin/` 登录守卫/登录用户放行 4 项）；`test_framework_fixes` 12→15 项（+导入失败定向提示 3 项：相对导入提示、缺失同级模块提示、第三方包不误报）；dev guide 十二章两行描述与运行命令、README 双版断言数同步 **49 脚本 / 1351 项断言**（顺带修正 README 原 1336 与十二章表合计 1337 的 1 项漂移）。
 - **版本**：`FRAMEWORK_VERSION` / `SYSTEM_VERSION_LABEL` 4.23.2 → 4.23.3；README 双版徽章同步。附带 `.gitignore` 增补本地开发产物（todo_quickhelper / tts_toolchain 子插件目录与生态宣传文案草稿不入库）。tag `v4.23.3`（无 runtime 制品）。
 
-### 3.50 待发布（openssl 默认配置缺失时的自签名证书兜底）
+### 3.50 v4.23.4（2026-11-02，openssl 默认配置缺失时的自签名证书兜底）
+
+> 发布形态：**tag `v4.23.4` + runtime 精简更新包**（`FlaskToolkit-4.23.4-runtime.zip`），`changelog.json` 同步指向本版制品。
 
 来源：v4.23.3 本地全量回归中 `test_desktop_launcher` 唯一失败项的根因排查（`ensure_https_cert` → `gen_cert.py` 生成自签证书报 `Can't open "D:\bld\openssl_split_*\_h_env\Library/openssl.cnf" for reading`）。
 
@@ -666,6 +668,8 @@ pip 依赖安装拦截 + 统计实时刷新 + 打包工具增强 + 跨平台目�
 **连带**（`tools/desktop_launcher.py`）：GUI `on_start` 捕获 `RuntimeError` 并弹窗提示"可取消勾选 HTTPS 后以 HTTP 启动"，不再在 Tk 回调里裸抛异常导致按钮无响应。
 
 **测试与文档**：`test_desktop_launcher` 36→40 项（+4：配置缺失时重试一次 / 重试注入临时 `OPENSSL_CONF` / 兜底成功返回 0 / 非配置类失败不重试）；dev guide 14.4 补"openssl 默认配置缺失的兜底"小节（含对影响面的说明与 `-config` 无效的实测结论），十二章表格与运行命令、README 双版断言数同步 **49 脚本 / 1355 项断言**。全量回归 49 脚本全部通过（`test_desktop_launcher` 由失败转为通过）。
+
+**版本**：`FRAMEWORK_VERSION` / `SYSTEM_VERSION_LABEL` 4.23.3 → 4.23.4；README 双版徽章同步；runtime 精简包 `FlaskToolkit-4.23.4-runtime.zip` + `changelog.json` 同步。
 
 ## 4. 发布实践沉淀
 
