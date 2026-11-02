@@ -15,6 +15,9 @@ _sys.path.insert(0, _PROJECT_ROOT)
 - 子页面分发：dict → 渲染命名空间模板；Response → 原样返回；路径参数注入 kwargs
 - 404：不存在的子页面
 - 权限层不破坏页面路由（可选鉴权未装时放行，public/user 均可访问）
+- API 分发器 404/405 语义：未注册路径 404、存在仅方法不对 405 且「支持的方法」非空（FTK-KM-02）
+- 页面视图返回 (body, code) 元组原样下传（error_response 404 不再变 500）
+- 页面 @permission_required("admin") 拒绝 → 403（不再因空上下文渲染变 500，FTK-KM-04）
 运行：python tests/test_page_router.py
 """
 import json
@@ -77,6 +80,10 @@ class Demo(BasePlugin):
              "page": True, "template": "about.html", "view_func": self.page_about},
             {"path": "/user/<username>", "name": "用户子页", "methods": ["GET"],
              "page": True, "template": "user.html", "view_func": self.page_user},
+            {"path": "/missing", "name": "缺失资源子页", "methods": ["GET"],
+             "page": True, "template": "gone.html", "view_func": self.page_missing},
+            {"path": "/secret", "name": "管理员子页", "methods": ["GET"],
+             "page": True, "template": "secret.html", "view_func": self.page_secret},
         ]
 
     def render_index(self):
@@ -91,6 +98,17 @@ class Demo(BasePlugin):
 
     def page_user(self, username):
         return {"username": username}
+
+    def page_missing(self):
+        """页面视图返回 (jsonify, code) 元组（self.error_response）——
+        回归 FTK-KM-04 连带问题：分发器曾把元组当空上下文渲染模板 → 本该 404 变 500"""
+        return self.error_response("题库不存在", 404)
+
+    @permission_required("admin")
+    def page_secret(self):
+        """页面路由加 @permission_required("admin")——
+        回归 FTK-KM-04 主案：非管理员应 403（此前渲染空上下文 → Jinja UndefinedError → 500）"""
+        return {"settings": {"key": {"configured": True}}}
 
 class NoNamePlugin(BasePlugin):
     """纯 API 路由插件（routes 无 name 键、无主模板、无 page()）——
@@ -116,6 +134,18 @@ class NoNamePlugin(BasePlugin):
     def data_api(self, pid):
         return self.success_response(data={"pid": pid})
 
+
+class _FakeAuth:
+    """最小 auth 替身：只实现权限校验所需的 verify_token（模拟"已安装 auth 插件"）"""
+    name = 'auth'
+
+    def verify_token(self, token):
+        if token == 'admin-token':
+            return {'username': 'admin', 'role': 'admin'}
+        if token == 'user-token':
+            return {'username': 'alice', 'role': 'user'}
+        return None
+
 # 模拟 loader：page 路由 → _wrapped_pages（path -> view_func/template）
 _plugin = Demo()
 _plugin._wrapped_pages = {}
@@ -132,6 +162,12 @@ global_var.plugins[_plugin.name] = _plugin
 # 纯 API 插件（无 name 键）只设主入口，验证调试页容错
 _noname = NoNamePlugin()
 _noname._wrapped_page = wrap_page_func(_noname.render_plugin_page, _noname.name)
+# 模拟 loader：API 路由 → _wrapped_routes（path -> {methods: view_func}），供分发器回归
+_noname._wrapped_routes = {}
+for _r in _noname.routes:
+    _methods = tuple(_r.get('methods', ['GET']))
+    _noname._wrapped_routes.setdefault(_r['path'], {})[_methods] = wrap_view_func(
+        _r['view_func'], _noname.name, _r)
 global_var.plugins[_noname.name] = _noname
 
 # ---------- 模板文件写入隔离目录 ----------
@@ -141,6 +177,12 @@ open(os.path.join(_Tpl, 'index.html'), 'w', encoding='utf-8').write(
 open(os.path.join(_Tpl, 'status.html'), 'w', encoding='utf-8').write('<h1>Status</h1><p>{{ data }}</p>')
 open(os.path.join(_Tpl, 'about.html'), 'w', encoding='utf-8').write('<h1>About</h1><p>{{ message }}</p>')
 open(os.path.join(_Tpl, 'user.html'), 'w', encoding='utf-8').write('<h1>User</h1><p>{{ username }}</p>')
+# 两份模板都引用页面上下文属性：分发器若把 (body, code) 元组当"空上下文"渲染，
+# Jinja 会因 {{ settings.key.configured }} 未定义而抛 UndefinedError → 500（回归目标）
+open(os.path.join(_Tpl, 'gone.html'), 'w', encoding='utf-8').write(
+    '<h1>Gone</h1><p>{{ settings.key.configured }}</p>')
+open(os.path.join(_Tpl, 'secret.html'), 'w', encoding='utf-8').write(
+    '<h1>Secret</h1><p>{{ settings.key.configured }}</p>')
 # 旧式单模板（plugins/ 根目录回退）
 open(os.path.join(_isolated, 'templates', 'plugins', 'legacy.html'), 'w', encoding='utf-8').write(
     '<h1>Legacy</h1><p>{{ legacy }}</p>')
@@ -249,12 +291,61 @@ def main():
             check('10 object 类型非 dict 参数报类型错误',
                   len(errs) == 1 and 'obj' in vp and 'bad' not in vp, f'errs={errs!r} vp={vp!r}')
 
+        # ============ 11. API 分发器：404 / 405 语义（FTK-KM-02） ============
+        # 回归：此前 path_exists 用 any('<' in path) 判定，只要注册过任一含路径参数的路由
+        # 就恒为真 → 任意未注册路径都返回 405，且「支持的方法」为空（语义自相矛盾）
+        r = client.get('/api/noname/pure')
+        check('11 已注册精确路径 GET 200', r.status_code == 200, f'status={r.status_code}')
+        r = client.get('/api/noname/nonexist/deep')
+        body = r.get_json() or {}
+        check('11 未注册路径 → 404（不再 405）', r.status_code == 404, f'status={r.status_code} body={body}')
+        r = client.get('/api/noname/data/5')  # 路径存在（<int:pid>），只是方法应为 POST
+        body = r.get_json() or {}
+        check('11 路径存在仅方法不对 → 405', r.status_code == 405, f'status={r.status_code} body={body}')
+        check('11 405 的「支持的方法」非空且含 POST',
+              'POST' in (body.get('message') or ''), f'msg={body.get("message")!r}')
+        r = client.get('/api/noname/data/not-a-number')  # int 转换器不匹配 → 路径不存在
+        check('11 转换器不匹配的路径参数 → 404', r.status_code == 404, f'status={r.status_code}')
+
+        # ============ 12. 页面视图返回元组 → 原样下传（FTK-KM-04 连带问题） ============
+        # 回归：self.error_response() 的 (jsonify, 404) 曾被当成空上下文渲染 gone.html
+        # → Jinja UndefinedError → 本该 404 的页面变成 500
+        r = client.get('/plugin/demo/missing')
+        body = r.get_json() or {}
+        check('12 页面视图返回 (jsonify, 404) 元组 → 404（不再 500）',
+              r.status_code == 404, f'status={r.status_code} body={str(body)[:120]}')
+        check('12 404 响应体沿用视图返回内容',
+              body.get('message') == '题库不存在', f'body={body}')
+
+        # ============ 13. 页面 @permission_required 拒绝 → 403（FTK-KM-04 主案） ============
+        # 回归：wrap_view_func 页面拒绝返回 (403.html, 403) 元组，分发器曾当空上下文渲染
+        # secret.html → UndefinedError → 非管理员拿到 500 而非 403
+        global_var.plugins['auth'] = _FakeAuth()
+        try:
+            r = client.get('/plugin/demo/secret', headers={'X-Token': 'user-token'})
+            check('13 普通用户访问 admin 页面 → 403（不再 500）',
+                  r.status_code == 403, f'status={r.status_code}')
+            r = client.get('/plugin/demo/secret', headers={'X-Token': 'admin-token'})
+            body = r.get_data(as_text=True)
+            check('13 管理员访问同一页面 → 200 + 页面上下文正常',
+                  r.status_code == 200 and 'Secret' in body and 'True' in body,
+                  f'status={r.status_code} body={body[:120]}')
+            r = client.get('/plugin/demo/status')
+            check('13 auth 已装时 /plugin/ 登录守卫先于路由权限（游客 302 跳登录）',
+                  r.status_code == 302, f'status={r.status_code}')
+            r = client.get('/plugin/demo/status', headers={'X-Token': 'user-token'})
+            check('13 登录用户访问 public 子页面 200',
+                  r.status_code == 200, f'status={r.status_code}')
+        finally:
+            global_var.plugins.pop('auth', None)
+
         print(f'\n==== 大插件多模板（页面路由）回归：共 {len(results)} 项，'
               f'通过 {sum(1 for _, c, _ in results if c)}，'
               f'失败 {sum(1 for _, c, _ in results if not c)} ====')
     finally:
         global_var.plugins.pop(_plugin.name, None)
         global_var.plugins.pop(_noname.name, None)
+        global_var.plugins.pop('auth', None)
         for _attr, _val in _SAVED.items():
             setattr(global_var, _attr, _val)
         try:

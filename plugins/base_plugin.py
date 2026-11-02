@@ -29,7 +29,9 @@ def permission(level: str = "user"):
     未标记任何权限的接口默认按 "user"（仅登录）处理。
     注意：若插件类内声明了 permission 属性（如 permission = "admin"），
     类体内的 @permission 会被该类属性遮蔽，请改用别名导入：
-    from .base_plugin import permission as permission_required
+    from plugins.base_plugin import permission as permission_required
+    （插件主文件一律用绝对导入：插件安装后是 plugins/<name>/ 独立子包，
+     相对导入 .base_plugin 会被解析成 plugins.<name>.base_plugin 而必然 ImportError）
     """
     if level not in ("public", "user", "admin"):
         raise ValueError(f"无效权限层级: {level}，可选 public/user/admin")

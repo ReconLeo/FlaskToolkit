@@ -294,7 +294,36 @@ def extract_plugin_pack(zip_path: str, plugin_name: str, meta_override: dict = N
                 os.path.relpath(p, base).replace(os.sep, '/') for p in _all_files
             ]
             _write_text(meta_dest, json.dumps(meta, ensure_ascii=False, indent=2))
+
+    # 安装期提示（子插件协调清单 FTK-KM-01）：主文件用相对导入 base_plugin 时，
+    # 装完必然加载失败（插件目录内没有 base_plugin.py），但安装本身成功、无任何告警。
+    if result['main']:
+        _warn_relative_base_import(result['main'], plugin_name)
     return result
+
+
+def _warn_relative_base_import(main_path: str, plugin_name: str):
+    """主文件仅用相对导入 base_plugin 时告警（安装阶段唯一的提示窗口）。
+
+    插件安装后是 plugins/<name>/ 独立子包，`from .base_plugin import ...` 被解析成
+    plugins.<name>.base_plugin（不存在）→ 启动期 ModuleNotFoundError、插件静默消失。
+    带绝对导入的 try/except 兼容写法不告警（避免误报）。
+    """
+    try:
+        with open(main_path, 'r', encoding='utf-8', errors='replace') as f:
+            source = f.read()
+    except OSError:
+        return
+    has_relative = ('from .base_plugin import' in source
+                    or 'from . import base_plugin' in source)
+    has_absolute = 'from plugins.base_plugin import' in source
+    if has_relative and not has_absolute:
+        logger.warning(
+            f"插件 {plugin_name} 主文件使用相对导入 base_plugin：插件安装后位于 "
+            f"plugins/{plugin_name}/ 独立子包，该导入在启动时必然 ModuleNotFoundError，"
+            f"插件将从注册表消失（安装已完成，请先改为绝对导入再启动框架）："
+            f"from plugins.base_plugin import BasePlugin, permission as permission_required",
+            extra={'plugin': 'system'})
 
 
 def _write_text(dest: str, text: str):

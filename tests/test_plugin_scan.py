@@ -45,7 +45,7 @@ def check(name, cond, detail=''):
 BENIGN = '''
 import json
 import time
-from .base_plugin import BasePlugin
+from plugins.base_plugin import BasePlugin
 
 class HelloPlugin(BasePlugin):
     name = "hello"

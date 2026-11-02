@@ -71,6 +71,7 @@ Kaleido 同样开源（自托管题库系统）：[github.com/ReconLeo/Kaleido](
 | **v4.23.0（已发布）** | 2026-09-20 | pip 依赖安装拦截（install/update 前硬拦 + preview 红色警示）+ 前端统计实时刷新 + 打包工具 package.py 增强（--exclude / 覆写提示）+ 跨平台目录打开 + Windows .js MIME 修复；test_dependency 12 项，全量回归 49 脚本 1324 项 | tag `v4.23.0` |
 | **v4.23.1（已发布）** | 2026-09-20 | 修复批次（todo_quickhelper 安全意识演示隔离测试）：user_config.json UTF-8 BOM 配置静默失效（读统一 utf-8-sig + 解析失败留痕 + 写回前中止，防安全开关静默降级与丢配置）+ 静态扫描器点分模块名（urllib.request/http.client）网络调用漏报 + 离线卸载残留 __pycache__；新增 6 项断言（cleanup 26→27 / tools_ops 19→21 / scan 43→46），全量回归 49 脚本 1330 项 | tag `v4.23.1` |
 | **v4.23.2（已发布）** | 2026-09-20 | 版本检查强制语义收紧：`check_for_update(force=True)` 网络/解析失败不再回退过期缓存（明确感知强制检查失败）+ `tools/update.py check --force` 忽略缓存有效期立即拉取（失败不回退缓存）+ 补 test_update_checker force 回归（52→55 项）；全量回归 49 脚本 1333 项 | tag `v4.23.2` |
+| 待发布 | 2026-11-02 | 子插件协调清单缺陷修复（Kaleido Mini 上报 issue #1/#2/#3）：API 分发器 404/405 语义（未注册路径不再假 405）+ 页面分发器元组直通（权限拒绝 403 不再变 500）+ 开发指南 5 处相对导入示例纠正与 5.2 示例 NameError 修正 + 加载期/安装期导入失败定向提示；test_page_router 23→34、test_framework_fixes 12→15，全量回归 49 脚本 1351 项 | （未打 tag） |
 
 ## 3. 版本详情
 
@@ -629,6 +630,19 @@ pip 依赖安装拦截 + 统计实时刷新 + 打包工具增强 + 跨平台目�
 - **force 强制检查语义收紧**（core/update_checker.py）：此前 `check_for_update(force=True)` 网络/解析失败时仍回退返回过期缓存，被当作「已检查到最新」，没做到「忽视缓存有效期」。修复：force 强制检查网络/解析失败时**不回退过期缓存**、明确返回检查失败（打 warning 留痕）；非 force 检查失败仍静默回退旧缓存（有则），保证启动可用性。
 - **CLI 参数说明**（tools/update.py）：`check --force` 帮助文本与顶部 docstring 明确「忽略缓存有效期，立即重新拉取数据源（拉取失败不回退缓存）」。
 - **测试与文档**：新增 3 项断言——test_update_checker（force 强制检查失败不回退过期缓存 / 非 force 失败仍回退旧缓存），52→55 项；dev guide 十二章项数与 README 双版断言数同步 49 脚本 / 1333 assertions，并补充 14.5 节 `check --force` 说明。全量回归 49 脚本 0 失败。tag `v4.23.2`。
+
+### 3.49 待发布（子插件协调清单 FTK-KM-01/02/04 修复）
+
+来源：子项目 Kaleido Mini 开发中实测上报的《框架协调清单》（对应 issue #1 / #2 / #3），三条均在本次核实复现后修复。
+清单第 4 条 FTK-KM-03（打包/安装 CLI 缺非交互开关）上报方已复核为误判并撤回（`package.py pack` 早有 `-y`、`install_plugin.py` 冲突时直接报错而非交互），本次不动。
+全量回归 48/49 通过：`test_desktop_launcher` 因本机 openssl 缺 `openssl.cnf`（`D:\bld\...\Library/openssl.cnf` 不存在）在自签名证书生成处失败，属**本机环境**问题、与本批改动无关。
+
+- **插件 API 分发器 404/405 语义修正**（`routes/plugin.py` `api_dispatcher`，issue #2）：此前用 `any('<' in path for path in plugin._wrapped_routes)` 判定"路径存在"，只要插件注册过任一含路径参数的路由就**恒为真** → 任意未注册路径都返回 405，且「支持的方法」收集为空（自相矛盾：没有支持的方法就不可能只是方法不对）。改为与匹配同源的模式判定（精确 + `parse_path_pattern` 正则），并按"是否真的收集到支持方法"决定：路径存在仅方法不对 → 405（支持方法排序稳定、非空），否则 → 404。
+- **插件页面分发器元组直通**（`routes/plugin.py` `plugin_subpage_dispatcher`，issue #3）：页面视图返回 `(body, code)` 元组时（`@permission_required` 拒绝的 `(403.html, 403)`、`self.error_response()` 的 `(jsonify, 404)`），此前只认 `Response`/`dict`，元组被当成"空上下文"去渲染目标模板 → 模板引用页面上下文即 Jinja `UndefinedError` → **500**，把权限拒绝与页面错误掩盖成服务端故障。现在元组原样下传，由 Flask 按 `(body, status)` 处理；插件不必再为页面路由自造 403/404 Response。
+- **开发指南导入示例纠正**（`documents/Flask-Plugin-Framework-Dev-Guide-v4.md`，issue #1）：5 处示例 `from .base_plugin import ...` → `from plugins.base_plugin import ...`；4.2 节新增导入说明（插件安装后是 `plugins/<name>/` 独立子包、相对导入只适用于同级辅助模块）；5.1 同步一条提示；并修正 5.2「最简插件示例」类级 `routes` 直接引用未定义方法名（照抄必 `NameError`）→ 改用 `@property routes` + `self.hello_api`，与 `examples/plugins/` 一致。
+- **加载期定向提示**（`core/plugin_loader.py` 新增 `import_error_hint`）：导入失败且缺失模块为 `<plugin>.base_plugin` 时，日志给出"改用绝对导入"的可操作提示，并登记 `global_var.plugin_load_issues`——后台插件列表显示「未加载原因」，插件不再从注册表静默消失；缺失同级辅助模块（`plugins.<name>.<helper>`）提示核对文件名/大小写；第三方包缺失不给误导性提示。
+- **安装期提示**（`core/plugin_pack.py` 新增 `_warn_relative_base_import`）：安装落盘时若主文件仅用相对导入 `base_plugin`，立即 warning 提示——安装阶段是唯一的预警窗口（此后只在启动期失败）；带绝对导入的 `try/except` 兼容写法不告警，避免误报。
+- **测试与文档**：`test_page_router` 23→34 项（+API 分发器 404/405 语义 5 项、页面视图元组直通 2 项、页面权限拒绝 403/管理员 200/`/plugin/` 登录守卫/登录用户放行 4 项）；`test_framework_fixes` 12→15 项（+导入失败定向提示 3 项：相对导入提示、缺失同级模块提示、第三方包不误报）；dev guide 十二章两行描述与运行命令、README 双版断言数同步 **49 脚本 / 1351 项断言**（顺带修正 README 原 1336 与十二章表合计 1337 的 1 项漂移）。
 
 ## 4. 发布实践沉淀
 

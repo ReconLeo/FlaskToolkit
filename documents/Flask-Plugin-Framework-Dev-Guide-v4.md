@@ -199,9 +199,17 @@ server {
 
 权限由插件在路由方法上**自行声明**，框架在请求进入时统一校验：
 
+> ⚠️ **`base_plugin` 必须用绝对导入**：插件安装后位于 `plugins/<插件名>/` **独立子包**（框架安装时
+> 自动生成其 `__init__.py`），而 `base_plugin.py` 在**上级包** `plugins/base_plugin.py`。写成
+> `from .base_plugin import ...` 会被解析成 `plugins.<插件名>.base_plugin`（不存在）→ 启动期
+> `ModuleNotFoundError`，插件从注册表静默消失（后台列表看不到、`/plugin/<插件名>` 404），
+> 而安装阶段一切正常（`[OK] 安装完成`），极易误判为"装好了只是没生效"。
+> 相对导入只适用于**本插件目录内的同级辅助模块**（如 `from . import my_utils` / `from .my_utils import helper`）。
+> 注：内置 `plugins/auth.py` 用相对导入是因其本身就是 `plugins` 包的模块（框架内部文件），**不是**插件包的写法范本。
+
 ```python
-from .base_plugin import BasePlugin
-from .base_plugin import permission as permission_required  # 注意别名！
+from plugins.base_plugin import BasePlugin
+from plugins.base_plugin import permission as permission_required  # 注意别名！
 
 class MyPlugin(BasePlugin):
     @permission_required("public")
@@ -226,7 +234,7 @@ class MyPlugin(BasePlugin):
 `permission` 既是模块级装饰器又是插件类属性。插件类内若声明 `permission = "admin"`（声明插件访问层级），**会遮蔽类体中的 `@permission(...)`**（被解析为字符串）。因此装饰器必须用别名导入：
 
 ```python
-from .base_plugin import permission as permission_required
+from plugins.base_plugin import permission as permission_required
 ```
 
 ### 4.5 可选鉴权（auth 未安装）
@@ -248,8 +256,8 @@ from .base_plugin import permission as permission_required
 ### 5.1 插件基类继承
 
 ```python
-from .base_plugin import BasePlugin
-from .base_plugin import permission as permission_required
+from plugins.base_plugin import BasePlugin
+from plugins.base_plugin import permission as permission_required
 
 class MyPlugin(BasePlugin):
     name = "my_plugin"            # 插件标识（唯一，文件名需与之一致）
@@ -263,11 +271,13 @@ class MyPlugin(BasePlugin):
     scheduled_tasks = []           # 定时任务配置
 ```
 
+> 注意：`base_plugin` 一律用绝对导入（相对导入仅用于本插件目录内的同级辅助模块），原因与失败现象见 4.2 的导入说明。
+
 ### 5.2 最简插件示例
 
 ```python
-from .base_plugin import BasePlugin
-from .base_plugin import permission as permission_required
+from plugins.base_plugin import BasePlugin
+from plugins.base_plugin import permission as permission_required
 
 
 class HelloPlugin(BasePlugin):
@@ -278,9 +288,13 @@ class HelloPlugin(BasePlugin):
     category = "示例"
     description = "最简插件示例"
 
-    routes = [
-        {"path": "/api/hello", "methods": ["GET"], "view_func": hello_api},
-    ]
+    # 路由用 @property 声明：类体内直接引用实例方法（self.hello_api）只能在实例属性求值时拿到，
+    # 写成类级列表 + 裸方法名 hello_api 会在类定义阶段抛 NameError（插件同样加载失败）。
+    @property
+    def routes(self):
+        return [
+            {"path": "/api/hello", "methods": ["GET"], "view_func": self.hello_api},
+        ]
 
     @permission_required("public")
     def hello_api(self):
@@ -337,8 +351,8 @@ scheduled_tasks = [
 BasePlugin 提供事件集成助手，插件无需直接接触 core.events：
 
 ```python
-from .base_plugin import BasePlugin
-from .base_plugin import permission as permission_required
+from plugins.base_plugin import BasePlugin
+from plugins.base_plugin import permission as permission_required
 
 class MyPlugin(BasePlugin):
     name = "my_plugin"
@@ -458,7 +472,7 @@ def get_item(self, item_id):
 - `self.render(template, **context)`：自动定位命名空间（回退旧式 `plugins/<template>`），返回 `Response`，视图函数可直接 `return self.render(...)`；
 - 无任何自定义主入口时，插件 API 文档/调试页经 `/__plugin_api__/<name>` 访问（仅管理员，见 8.1）；`/plugin/<name>` 对无自定义主入口的插件返回 404。
 
-**④ 示例**：`hello_plugin` 展示主入口 `page()` + 子页 `about`/`usage`/`greet/<name>`（路径参数）；`multitool_demo` 完整演示大插件三要素（多模板 + 辅助 .py multitool_utils + 静态资源 css/js，含文本分析 API）；`tests/test_page_router.py` 21 项固化页面路由回归（含纯 API 无 name 插件调试页 500 漏洞）。
+**④ 示例**：`hello_plugin` 展示主入口 `page()` + 子页 `about`/`usage`/`greet/<name>`（路径参数）；`multitool_demo` 完整演示大插件三要素（多模板 + 辅助 .py multitool_utils + 静态资源 css/js，含文本分析 API）；`tests/test_page_router.py` 34 项固化页面路由回归（含纯 API 无 name 插件调试页 500 漏洞、API 分发器 404/405 语义、页面视图元组与权限拒绝 403）。
 
 ### 5.6 插件包（.zip）分发规范（v4.0 新增）
 
@@ -1480,8 +1494,8 @@ FLASKTOOLKIT_HOST=0.0.0.0 FLASKTOOLKIT_PORT=8000 python app.py
 | `test_plugin_cleanup.py`      | 插件卸载 installed_files 清单专项（多 .py 包安装清单完整/卸载全清/clean_old 更新清理/越界路径防御）                                                                                                                                                                                                                                                                                                               | 27 项 |
 | `test_frontend_permission.py` | 前端工具访问控制（三层权限 + 改权限 API 鉴权/边界 + 静态资源一致 + update 保留 permission）                                                                                                                                                                                                                                                                                                                       | 25 项 |
 | `test_tools_ops.py`           | 开发运维工具回归（backup 创建/恢复、reset 范围、config 设置/非法值/unset）                                                                                                                                                                                                                                                                                                                                        | 21 项 |
-| `test_page_router.py`         | 大插件多模板（页面路由 page=True：主入口自动检测、dict/Response 分发、路径参数注入、正斜杠模板名、旧式 page() 兼容）+ 纯 API 无 name 插件调试页回归                                                                                                                                                                                                                                                               | 23 项 |
-| `test_framework_fixes.py`     | 框架小修复（v4.2.1）：public_page 豁免（公开页面免登录 200 / 普通插件页面守卫 302）+ plugin_common.js CSRF 单值注入静态断言 + 调试页权限（v4.10）                                                                                                                                                                                                                                                                 | 12 项 |
+| `test_page_router.py`         | 大插件多模板（页面路由 page=True：主入口自动检测、dict/Response 分发、路径参数注入、正斜杠模板名、旧式 page() 兼容）+ 纯 API 无 name 插件调试页回归 + API 分发器 404/405 语义（未注册路径 404、存在仅方法不对 405 且支持方法非空）+ 页面视图返回元组原样下传 + 页面权限拒绝 403（FTK-KM-02/04）                                                                                                                                                                                                                                                               | 34 项 |
+| `test_framework_fixes.py`     | 框架小修复（v4.2.1）：public_page 豁免（公开页面免登录 200 / 普通插件页面守卫 302）+ plugin_common.js CSRF 单值注入静态断言 + 调试页权限（v4.10）+ 插件导入失败定向提示（相对导入 base_plugin / 缺失同级辅助模块识别，FTK-KM-01）                                                                                                                                                                                                                                                                 | 15 项 |
 | `test_file_transfer.py`       | 文件传输强化（v4.2.2）：全局 413 / 插件级 max_upload_size 预检 / route 级 max_upload 覆盖 / 中文名下载 / 下载统计 / Range / on_ready 顺序                                                                                                                                                                                                                                                                         | 12 项 |
 | `test_plugin_uploads.py`     | 同步持久化上传助手 save_uploads（v4.18）：单/多文件 / 大小与配额预检 / 净化防穿越 / 中文名 / 去重 / 类型拒绝 / 部分成功 / enforce 交叉校验（隔离目录）                                                                                                                                                                                                                                                          | 21 项 |
 | `test_security.py`            | 系统安全回归（v4.3.0）：安全响应头注入与开关 / 指纹头移除 / Cookie HttpOnly+SameSite+Secure 联动 / 会话空闲超时 / 登录失败锁定三档（ip_username/username/off）+ 通用 429 + 成功重置 + 解封（v4.5.1）                                                                                                                                                                                                              | 45 项 |
@@ -1532,8 +1546,8 @@ python tests/test_package_sign.py     # 25 项（完整性校验/签名/配公�
 python tests/test_plugin_cleanup.py    # 27 项（插件卸载 installed_files 清单，隔离目录）
 python tests/test_frontend_permission.py # 25 项（前端工具访问控制，隔离目录）
 python tests/test_tools_ops.py         # 21 项（backup/reset/config 运维工具，隔离目录）
-python tests/test_page_router.py       # 23 项（大插件多模板页面路由 + 纯 API 无 name 插件调试页回归，隔离目录）
-python tests/test_framework_fixes.py    # 12 项（public_page 豁免 + CSRF 单值注入 + 调试页权限，隔离目录）
+python tests/test_page_router.py       # 34 项（大插件多模板页面路由 + 纯 API 无 name 插件调试页回归 + API 404/405 + 页面元组/403，隔离目录）
+python tests/test_framework_fixes.py    # 15 项（public_page 豁免 + CSRF 单值注入 + 调试页权限 + 导入失败定向提示，隔离目录）
 python tests/test_file_transfer.py       # 12 项（文件传输强化，隔离目录）
 python tests/test_plugin_uploads.py     # 21 项（save_uploads 同步上传助手，隔离目录）
 python tests/test_security.py            # 45 项（系统安全回归 v4.3.0 + 解封，隔离目录）

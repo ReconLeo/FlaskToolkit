@@ -44,6 +44,30 @@ def _synchronized_load(func):
     return wrapper
 
 
+def import_error_hint(exc, plugin_name: str):
+    """把插件导入异常翻译成定向提示（子插件协调清单 FTK-KM-01）。
+
+    插件安装后是 plugins/<name>/ 独立子包，主文件照抄 `from .base_plugin import ...`
+    会被解析成 plugins.<name>.base_plugin（不存在）→ 启动期 ModuleNotFoundError，
+    而安装阶段完全正常，插件只是从注册表静默消失。这里给出可操作的改正提示。
+    返回 None 表示无定向提示（保持原始错误信息即可）。
+    """
+    missing = str(getattr(exc, 'name', '') or '')
+    if not missing:
+        return None
+    if missing == f'plugins.{plugin_name}.base_plugin' or missing.endswith('.base_plugin'):
+        return (f"提示：插件 {plugin_name} 缺失模块 {missing} —— base_plugin 位于上级包，"
+                f"请把主文件导入改为绝对导入 "
+                f"`from plugins.base_plugin import BasePlugin, permission as permission_required`；"
+                f"相对导入只适用于本插件目录内的同级辅助模块（如 `from . import my_utils`）")
+    if missing.startswith(f'plugins.{plugin_name}.'):
+        helper = missing.rsplit('.', 1)[-1]
+        return (f"提示：插件 {plugin_name} 引用的同级模块 {missing} 不存在 —— "
+                f"请核对插件目录内是否存在 {helper}.py（注意大小写），"
+                f"同级辅助模块应写 `from .{helper} import ...`")
+    return None
+
+
 def check_dependencies(plugin_instance, available_plugins: set, plugin_versions=None):
     """
     校验插件依赖（v4.10 语义拆分 + v4.16 版本约束 name>=x）：
@@ -169,6 +193,14 @@ def load_plugins():
             }
         except Exception as e:
             logger.error(f"导入插件 {info['name']} 模块失败: {str(e)}", extra={'plugin': 'system'})
+            # 子插件协调清单 FTK-KM-01：相对导入 base_plugin 等高频照抄错误给出定向提示，
+            # 并登记到 plugin_load_issues，让后台插件列表能显示"未加载原因"而非静默消失。
+            _hint = import_error_hint(e, info['name'])
+            if _hint:
+                logger.error(_hint, extra={'plugin': 'system'})
+                _issue = global_var.plugin_load_issues.setdefault(info['name'], {})
+                _issue.setdefault('reason', 'import_failed')
+                _issue['detail'] = _hint
 
     available_plugin_names = set(plugin_meta.keys())
     logger.info(f"发现 {len(available_plugin_names)} 个插件: {', '.join(available_plugin_names)}", extra={'plugin': 'system'})

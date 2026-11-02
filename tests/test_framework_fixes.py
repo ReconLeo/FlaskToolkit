@@ -13,7 +13,7 @@ B. auth 已装 + 插件 public_page=True → /plugin/<name> 页面免登录（20
 C. auth 已装 + 普通插件 → /plugin/<name> 页面仍守卫（302 跳登录）
 D. plugin_common.js 双重 CSRF 注入修复：setRequestHeader('X-CSRF-Token') 全文件恰 1 处（
    全局 XHR send 拦截单次注入；request() 不再手动注入，避免同名头逗号拼接 403）
-运行：python tests/test_framework_fixes.py
+   运行：python tests/test_framework_fixes.py
 """
 import os
 import sys
@@ -140,6 +140,25 @@ def main():
         r = client.get("/__plugin_api__/normal", headers={"X-Token": _tok2})
         check("E3 普通用户访问调试页 403", r.status_code == 403, f"status={r.status_code}")
         # 标题同步：框架小修复回归（public_page 豁免 + CSRF 单值注入 + 调试页权限）
+
+        # ============ F：导入失败定向提示（FTK-KM-01） ============
+        # 回归：插件主文件照抄 `from .base_plugin import ...` 时，启动仅报通用
+        # ModuleNotFoundError 且插件静默消失；现应给出绝对导入的改正提示
+        from core.plugin_loader import import_error_hint
+
+        _hint = import_error_hint(
+            ModuleNotFoundError("No module named 'plugins.demo.base_plugin'",
+                                name='plugins.demo.base_plugin'), 'demo')
+        check("F1 相对导入 base_plugin → 定向提示改用绝对导入",
+              bool(_hint) and 'from plugins.base_plugin import' in _hint, f'hint={_hint!r}')
+        _hint2 = import_error_hint(
+            ModuleNotFoundError("No module named 'plugins.demo.km_store'",
+                                name='plugins.demo.km_store'), 'demo')
+        check("F2 缺失同级辅助模块 → 提示核对文件名",
+              bool(_hint2) and 'km_store.py' in _hint2, f'hint={_hint2!r}')
+        _hint3 = import_error_hint(
+            ModuleNotFoundError("No module named 'requests'", name='requests'), 'demo')
+        check("F3 第三方包缺失不给误导性提示", _hint3 is None, f'hint={_hint3!r}')
 
         print(f'\n==== 框架小修复回归（public_page 豁免 + CSRF 单值注入 + 调试页权限）：共 {len(results)} 项，'
               f'通过 {sum(1 for _, c, _ in results if c)}，'
