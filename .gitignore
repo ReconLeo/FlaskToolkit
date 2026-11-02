@@ -97,3 +97,16 @@ test_server/diagnostics_android/
 plugins/echo_upload.py
 plugins/echo_upload.json
 plugins/data/echo_upload/
+
+# ---------- 本地开发中的子项目插件（todo_quickhelper / tts_toolchain，不入主仓库） ----------
+# 目录化布局（v4.21+）：插件本体在 plugins/<name>/，模板/静态/数据目录一并忽略
+plugins/todo_quickhelper/
+plugins/tts_toolchain/
+templates/plugins/todo_quickhelper/
+templates/plugins/tts_toolchain/
+templates/plugins/static/todo_quickhelper/
+templates/plugins/static/tts_toolchain/
+plugins/data/todo_quickhelper/
+plugins/data/tts_toolchain/
+# 生态宣传文案（本地草稿，不入库）
+documents/FlaskToolkit-生态宣传文案.md
