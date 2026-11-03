@@ -170,6 +170,19 @@ MIT License · 贡献指南见 [CONTRIBUTING.md](CONTRIBUTING.md) · 开发过�
 - AI 生成的代码必须通过项目的回归测试与代码审查（流程见 `CONTRIBUTING.md`）。
 - 若 PR 中大量使用 AI 生成内容，建议在 PR 描述中注明，便于维护者审阅。
 
+#### 仓库内公开的 AgentSkills
+
+开发与维护本项目时实际使用的 AgentSkills 已随仓库公开在 [`skills/`](skills/) 目录，流程可复用、可审计，而不是藏在私有工具链里（采用 AgentSkills 兼容格式：一个目录一个技能，`SKILL.md` 为入口，细节放 `references/`）：
+
+| 技能 | 覆盖内容 |
+| --- | --- |
+| [`skills/flasktoolkit-framework-dev/`](skills/flasktoolkit-framework-dev/) | 开发主框架本身：`core/` · `routes/` · `tools/` 改动、回归与 CI 同步、示例插件、i18n、隔离框架副本、版本发布收尾 |
+| [`skills/flasktoolkit-subproject-dev/`](skills/flasktoolkit-subproject-dev/) | 把独立工具做成子项目插件：脚手架、字段一致性核对、打包、基于 release runtime 包的隔离测试、运行时同步与发布 |
+
+两个技能都按**可移植**原则编写：所有路径在运行时由参数或环境变量提供（`FTK_FRAMEWORK_PATH`、`FTK_RUNTIME_URL`、`FTK_GH_PATH`、`SYSTEM_PYTHON`）——不写死解释器路径、不含机器名、不假设私有环境。只在某一台开发机上出现过的环境怪象单独归档在 [`skills/DEV-ENVIRONMENT-NOTES.md`](skills/DEV-ENVIRONMENT-NOTES.md)，定位为**实例记录**（非技能依赖）；可移植的诊断方法在 `skills/flasktoolkit-framework-dev/references/local-env.md`。
+
+安装到支持 AgentSkills 的 agent、以及维护约定（技能只承载程序性知识，权威规格仍以 `documents/` 下文档为准）见 [`skills/README.md`](skills/README.md)。
+
 ## Star History
 
 用 [Star History](https://www.star-history.com/?repos=ReconLeo%2FFlaskToolkit&type=date&legend=top-left) 记录本项目的成长历程。

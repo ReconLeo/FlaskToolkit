@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ plugin.title }}</title>
+    <!-- 标准鉴权公共逻辑：HttpOnly token Cookie 自动携带 + CSRF 注入 + 401/403 统一处理 -->
+    <script src="/static/js/plugin_common.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: Arial, sans-serif; }
+        body { background-color: #f5f7fa; padding: 24px; }
+        .container { max-width: 900px; margin: 0 auto; }
+        .card {
+            background: white; border-radius: 8px; padding: 20px 24px;
+            margin-bottom: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .page-title { font-size: 22px; color: #2c3e50; margin-bottom: 6px; }
+        .page-subtitle { color: #7f8c8d; font-size: 14px; margin-bottom: 16px; }
+        pre {
+            background: #f8f9fa; border: 1px solid #e1e4e8; border-radius: 6px;
+            padding: 12px; font-size: 13px; overflow-x: auto; margin-top: 8px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="card">
+        <div class="page-title">{{ plugin.title }}</div>
+        <div class="page-subtitle">{{ plugin.description }}</div>
+        <div class="meta">版本 {{ plugin.version }} · 插件名 {{ plugin_name }}</div>
+    </div>
+
+    <div class="card">
+        <button onclick="callApi()">调用 /api/{{ plugin_name }}/hello</button>
+        <pre id="result">点击按钮体验 API。</pre>
+    </div>
+</div>
+
+<script>
+    // 全局 fetch 已被 plugin_common.js 拦截：自动注入 X-CSRF-Token、401 跳登录
+    async function callApi() {
+        const el = document.getElementById('result');
+        el.textContent = '请求中...';
+        try {
+            const resp = await fetch(`/api/{{ plugin_name }}/hello`);
+            const data = await resp.json();
+            el.textContent = `HTTP ${resp.status}\n` + JSON.stringify(data, null, 2);
+        } catch (e) {
+            el.textContent = '请求失败: ' + e.message;
+        }
+    }
+</script>
+</body>
+</html>

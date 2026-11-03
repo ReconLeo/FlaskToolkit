@@ -170,6 +170,19 @@ Transparency conventions for contributors:
 - AI-generated code must pass the project's regression tests and code review (see `CONTRIBUTING.md`).
 - If a PR relies heavily on AI-generated content, please note it in the PR description to help maintainers review.
 
+#### AgentSkills shipped in this repository
+
+The agent skills actually used to develop and maintain this project are published in [`skills/`](skills/) so the workflow is reusable and auditable rather than hidden in a private toolchain (AgentSkills-compatible layout: one directory per skill, `SKILL.md` as entry point, details in `references/`):
+
+| Skill | What it covers |
+| --- | --- |
+| [`skills/flasktoolkit-framework-dev/`](skills/flasktoolkit-framework-dev/) | Developing the framework itself: `core/` · `routes/` · `tools/` changes, regression + CI sync, example plugins, i18n, isolated framework copies, release wrap-up |
+| [`skills/flasktoolkit-subproject-dev/`](skills/flasktoolkit-subproject-dev/) | Building a tool as a sub-project plugin: scaffolding, field consistency checks, packaging, isolated testing against a release runtime package, runtime sync and release |
+
+Both skills are written to be **portable**: every path is supplied at run time via parameters or environment variables (`FTK_FRAMEWORK_PATH`, `FTK_RUNTIME_URL`, `FTK_GH_PATH`, `SYSTEM_PYTHON`) — no hardcoded interpreter paths, no machine names, no private-environment assumptions. Environment quirks that showed up on one specific developer machine are filed separately in [`skills/DEV-ENVIRONMENT-NOTES.md`](skills/DEV-ENVIRONMENT-NOTES.md) as an **instance log** (not a skill dependency); the portable diagnosis procedure lives in `skills/flasktoolkit-framework-dev/references/local-env.md`.
+
+See [`skills/README.md`](skills/README.md) for how to install them into an agent that supports AgentSkills, and for the maintenance conventions (skills carry procedural knowledge only; the authoritative specs remain the documents under `documents/`).
+
 ## Star History
 
 Track the growth of this project with [Star History](https://www.star-history.com/?repos=ReconLeo%2FFlaskToolkit&type=date&legend=top-left).

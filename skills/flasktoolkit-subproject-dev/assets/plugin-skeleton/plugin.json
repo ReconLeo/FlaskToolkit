@@ -1,0 +1,11 @@
+{
+  "name": "my_plugin",
+  "title": "My Plugin",
+  "version": "1.0.0",
+  "author": "Your Name",
+  "category": "工具",
+  "description": "FlaskToolkit 子项目插件骨架，按需修改。",
+  "permission": "user",
+  "require_framework_version": "4.0.0",
+  "capabilities": []
+}

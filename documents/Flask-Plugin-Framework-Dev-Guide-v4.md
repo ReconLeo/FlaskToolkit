@@ -101,6 +101,7 @@ FlaskToolkit/
 ├── data/                      # 运行时数据（统计/审计/用户配置，已 gitignore）
 ├── logs/                      # 运行日志（已 gitignore）
 ├── documents/                 # 开发规范 / Roadmap / CI 上手指南 / 版本收尾 checklist / 版本演进记录
+├── skills/                    # 开发期 AgentSkills（framework-dev / subproject-dev + DEV-ENVIRONMENT-NOTES；仅供开发，不进 runtime 包）
 ├── LICENSE                    # MIT 许可
 ├── CONTRIBUTING.md            # 贡献指南
 └── .gitignore                 # 运行时数据与归档文档忽略规则
