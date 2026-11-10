@@ -71,6 +71,8 @@
 
 ## B. 未修复的框架缺陷（插件内 workaround + 上报协调清单）
 
+> **下一批修复候选**（框架侧登记于 `documents/协调清单-Backlog.md`）：B5（BOM 导致 syntax 误判，误伤类）、B2（temp 无自动清理）、B3（无全局上传上限）。遇到时按各自的"插件侧"列规避，无需重复上报。
+
 ### B1. 插件安装不检查 pip 依赖（**已修复**：v4.23.0 Web 硬拦截 / v4.23.5 CLI 警告）
 - 现象：声明 `pip_dependencies` 的插件在**未装依赖的机器**上上传返回 200"已安装"，但加载阶段 `check_dependencies` 检测缺失跳过加载（`dependency_missing`），前端/API 全不可用且无明确阻断。
 - 现状：Web/服务层安装解包前**硬拦截**缺 pip 依赖（preview 响应带 `pip_missing`，前端红字警示）；离线 CLI `install_plugin.py` 以 `[警告]` 输出未就绪原因 + `${python} -m pip install <pkg>`（不阻断，便于离线部署）；加载期把插件依赖与 pip 依赖**分开告警**并写明"已跳过加载（该插件不会出现在已加载插件中）"，`plugin_load_issues` 明细带修复命令（后台「未加载原因」照做即可）。
@@ -101,6 +103,21 @@
 - 插件侧：直接用绝对导入 `from plugins.base_plugin import BasePlugin`；同包辅助模块
   `from . import km_utils` / `from plugins.<name> import km_utils` 均可。
 - 复现材料与完整分析：`KaleidoMini/docs/框架协调清单.md` FTK-KM-01。
+
+### B5. 插件 `.py` 带 UTF-8 BOM → 被判 `syntax` high 且**无逃生舱**（未修复，已登记待攒批）
+- 现象：`PLUGIN_SCAN_MODE=enforce` 下安装报
+  `[HIGH] xxx.py:1 syntax — 源码无法解析（可能混淆/加密）：invalid non-printable character U+FEFF` → 拒装。
+  该 finding **不可豁免**——`# scan:ignore` 也无效（语法错误分支在忽略过滤之前就 `return`）。
+  而 Python 自身容忍 BOM（插件能正常导入），属**误伤**，且 enforce 下没有任何安装通路。
+- 触发：`.py` 存成**带 BOM 的 UTF-8**（Windows 记事本 / PowerShell 5.1 `Set-Content -Encoding UTF8` 默认写 BOM）。
+- 根因：`core/plugin_scanner.py::scan_file` 用 `encoding='utf-8'`、`scan_plugin_zip` 用 `decode('utf-8')`，
+  BOM 作为 `U+FEFF` 留在源码首字符 → `ast.parse` 失败 → 判 `syntax` high。
+- 插件侧 workaround（**必须**）：源文件存为**无 BOM 的 UTF-8**——VS Code「Save with Encoding: UTF-8」；
+  PowerShell 用 `[System.IO.File]::WriteAllText($p,$s,(New-Object System.Text.UTF8Encoding($false)))`
+  或 PS7 `-Encoding utf8NoBOM`；仓库加 BOM 检查（pre-commit / `git grep -Il $'\xEF\xBB\xBF'`）。
+  **`.gitattributes` 只规范行尾，不处理 BOM**。
+- 建议修复（框架侧，已登记 `documents/协调清单-Backlog.md` FTK-BL-01）：读源码统一 `utf-8-sig`；
+  并对"仅 BOM 前缀"的情况给"请另存为无 BOM"的定向提示，而非"可能混淆/加密"。
 
 ## C. 框架侧缺陷（非插件触发，仅知悉）
 

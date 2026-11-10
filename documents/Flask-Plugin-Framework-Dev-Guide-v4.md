@@ -100,7 +100,7 @@ FlaskToolkit/
 ├── .github/workflows/ci.yml   # GitHub Actions CI 工作流
 ├── data/                      # 运行时数据（统计/审计/用户配置，已 gitignore）
 ├── logs/                      # 运行日志（已 gitignore）
-├── documents/                 # 开发规范 / Roadmap / CI 上手指南 / 版本收尾 checklist / 版本演进记录
+├── documents/                 # 开发规范 / Roadmap / CI 上手指南 / 版本收尾 checklist / 版本演进记录 / 协调清单 Backlog（攒批修复）
 ├── skills/                    # 开发期 AgentSkills（framework-dev / subproject-dev + DEV-ENVIRONMENT-NOTES；仅供开发，不进 runtime 包）
 ├── LICENSE                    # MIT 许可
 ├── CONTRIBUTING.md            # 贡献指南
@@ -1957,8 +1957,15 @@ python tools/i18n_status.py --create <lang> --name "语言名"   # 基于 en.jso
 
 **A.3.2 插件安装被拒绝（400 附 scan_report / capabilities missing）**
 
-- 原因：`PLUGIN_SCAN_MODE=enforce` 下检出高风险（high > 0）或 `missing` 非空（Deny by Default）。
-- 处理：按响应中的 `suggested` 建议声明补齐 `capabilities`（可整段复制回 plugin.json）后重新打包；确属误报可在 `report` 模式放行后人工复核（不建议关扫描）。
+- 原因：`PLUGIN_SCAN_MODE=enforce` 下检出高风险（high > 0）或 `missing` 非空（Deny by Default）。v4.23.5 起拒绝信息会逐条给出"文件:行 + 可执行名 + 缺哪条声明 + 该给哪行加 `# scan:ignore`"。
+- 处理：按响应中的 `suggested` 建议声明补齐 `capabilities`（可整段复制回 plugin.json）后重新打包；确属误报可在 `report` 模式放行后人工复核（不建议关扫描）。子进程类还须对该行标 `# scan:ignore` 且声明精确 `process:exec:<bin>`（见 10.6「子进程归因闸门」）。
+
+**A.3.2.1 安装报 `syntax — invalid non-printable character U+FEFF`（BOM 误伤，**已知未修复**）**
+
+- 原因：插件 `.py` 存成了**带 BOM 的 UTF-8**（Windows 记事本 / PowerShell 5.1 `Set-Content -Encoding UTF8` 默认写 BOM）。扫描器用 `utf-8` 读源码，BOM 作为 `U+FEFF` 留在首字符 → `ast.parse` 失败 → 判为 `syntax` high（"可能混淆/加密"）。
+- 注意：该 finding 在本版**不可豁免**（`# scan:ignore` 也无效：语法错误分支提前返回，忽略过滤不执行），而 Python 本身是容忍 BOM 的 → enforce 下这类插件 100% 装不上。
+- 处理（插件侧规避）：存成**无 BOM 的 UTF-8**——VS Code「Save with Encoding: UTF-8」；PowerShell 用 `[System.IO.File]::WriteAllText($p, $s, (New-Object System.Text.UTF8Encoding($false)))` 或 PS7 的 `-Encoding utf8NoBOM`；仓库加 `.gitattributes`/CI 做 BOM 检查。
+- 已登记待修复（读源码改 `utf-8-sig`），见 `documents/协调清单-Backlog.md`。
 
 **A.3.3 插件包安装报完整性校验失败**
 
