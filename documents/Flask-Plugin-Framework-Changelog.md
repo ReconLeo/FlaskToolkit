@@ -73,6 +73,7 @@ Kaleido 同样开源（自托管题库系统）：[github.com/ReconLeo/Kaleido](
 | **v4.23.2（已发布）** | 2026-09-20 | 版本检查强制语义收紧：`check_for_update(force=True)` 网络/解析失败不再回退过期缓存（明确感知强制检查失败）+ `tools/update.py check --force` 忽略缓存有效期立即拉取（失败不回退缓存）+ 补 test_update_checker force 回归（52→55 项）；全量回归 49 脚本 1333 项 | tag `v4.23.2` |
 | **v4.23.3** | 2026-11-02 | 子插件协调清单缺陷修复（Kaleido Mini 上报 issue #1/#2/#3）：API 分发器 404/405 语义（未注册路径不再假 405）+ 页面分发器元组直通（权限拒绝 403 不再变 500）+ 开发指南 5 处相对导入示例纠正与 5.2 示例 NameError 修正 + 加载期/安装期导入失败定向提示；test_page_router 23→34、test_framework_fixes 12→15，全量回归 49 脚本 1351 项 | tag `v4.23.3`（仅 tag，无 runtime 制品） |
 | **v4.23.4** | 2026-11-02 | openssl 默认配置缺失时的自签名证书兜底（conda 等打包版 OPENSSLDIR 指向构建机路径 → `openssl req` 读不到 openssl.cnf）：gen_cert 识别该错误特征后注入临时空 `OPENSSL_CONF` 重试一次 + 错误信息给出排查路径 + 启动器证书失败弹窗而非静默；test_desktop_launcher 36→40，全量回归 49 脚本 1355 项 | tag `v4.23.4` + runtime 更新包 |
+| 待发布 | 2026-11-10 | 静态扫描门禁可用性修复（xfime_iat 协调清单 FTK-XI-01/02/03）：import 类 finding 记录真实行号（`# scan:ignore` 不再对 import 永久失效）+ 子进程按可执行名归因（须声明 `process:exec:<bin>`，动态构造命令拒绝）+ 门禁判定收敛到 `evaluate_gate` 并给出可操作原因 + `install_plugin --scan-mode` 与模式来源打印 + `package.py` 自动创建输出目录 + pip 依赖缺失改 `[警告]` 报告；test_plugin_scan 46→64、test_capabilities 73→77、test_scaffold_tools 53→61，全量回归 49 脚本 1385 项 | （未打 tag） |
 
 ## 3. 版本详情
 
@@ -670,6 +671,21 @@ pip 依赖安装拦截 + 统计实时刷新 + 打包工具增强 + 跨平台目�
 **测试与文档**：`test_desktop_launcher` 36→40 项（+4：配置缺失时重试一次 / 重试注入临时 `OPENSSL_CONF` / 兜底成功返回 0 / 非配置类失败不重试）；dev guide 14.4 补"openssl 默认配置缺失的兜底"小节（含对影响面的说明与 `-config` 无效的实测结论），十二章表格与运行命令、README 双版断言数同步 **49 脚本 / 1355 项断言**。全量回归 49 脚本全部通过（`test_desktop_launcher` 由失败转为通过）。
 
 **版本**：`FRAMEWORK_VERSION` / `SYSTEM_VERSION_LABEL` 4.23.3 → 4.23.4；README 双版徽章同步；runtime 精简包 `FlaskToolkit-4.23.4-runtime.zip` + `changelog.json` 同步。
+
+### 3.51 待发布（v4.23.5）（2026-11-10，静态扫描门禁可用性修复）
+
+来源：子项目 **xfime_iat** 上报的《框架协调清单》（FTK-XI-01/02/03，实测环境 v4.23.4 本地构建的隔离运行时）。三条均经复现后修复；本次同时按 Community 定位把门禁语义写成明确规则。
+
+**社区定位下的门禁规则（本次固化）**：不可约束 high（eval/exec/compile、pickle/marshal、混淆、动态导入、socket.bind/listen、syntax、**subprocess** 等）**始终保持阻断**，声明 `capabilities` 不能为其背书 —— `# scan:ignore` 是唯一通路（enforce 退化为"知情声明防线"：既向使用者告知高危行为，又对恶意插件开发者形成威慑）。归因豁免（`filesystem:write` for rmtree / `process:exec:<bin>` for 子进程）与 `# scan:ignore` 属 Community 能力范围；动态命令分析、签名者背书、管理员白名单属 Enterprise，不在本版范围。
+
+- **import 类 finding 记录真实行号**（`core/plugin_scanner.py`，FTK-XI-01 根因）：此前 `_add(..., filename, 0)` 把行号写死为 0，而 `_line_ignored()` 按行号匹配 → `# scan:ignore` 对 `import subprocess` **永久失效**；叠加 `should_block_unconstrainable` 只对未 ignore 的不可约束 high 阻断，形成"enforce 下任何调用外部二进制的插件都装不上且无逃生舱"的死路，逼作者改用 `--no-scan`（**整体跳过扫描**，比放行更糟）。现按 `Import`/`ImportFrom` 节点记录首次出现行号。
+- **子进程按可执行名归因**（`core/plugin_scanner.py` + `core/capabilities.py`，FTK-XI-01 建议 2）：新增 `EXEC_CALLS` 与 `_exec_bin()`，从 `subprocess.*` / `os.system` / `os.popen` / `os.exec*` / `os.spawn*` 的首参静态提取可执行名（字面量取首 token、字面量列表/元组取首元素，**basename 小写**），随 finding 写入 `exec_bin` 并汇总到 `scope.exec_bins`；`cross_validate` 改为逐 bin 比对 `process:exec[:<bin>]`（裸 `process:exec` 视为任意可执行的粗声明）——与运行期 `audit_hook.check_process` 的 basename 语义对齐（此前安装期只判"有没有 process 域"，`process:exec:ffmpeg` 与实际执行的二进制毫无关系）。`suggest_for_action('process:exec', bin)` 同步给出精确声明。
+  **归因闸门**：即使调用行已 `# scan:ignore`，仍须声明匹配的能力，否则拒绝；**动态构造的命令**（变量/f-string/拼接）无法静态归因 → 无安装通路（误伤属接受的权衡：把可执行名写成字面量即可），拒绝原因明确说明该限制。
+- **门禁判定统一 + 可诊断性**（FTK-XI-01 建议 3，P1-D）：新增 `core/plugin_scanner.evaluate_gate(report, cap_res)` 作为唯一判定入口，`tools/install_plugin.py`（CLI）、`core/plugin_admin.py`（服务层安装/更新）、`routes/admin.py`（上传预览/确认）三处重复逻辑改为共用；拒绝时按 finding 逐条给出"哪个文件哪一行、可执行什么、缺哪条声明、该给哪行加 `# scan:ignore`"。新增 `format_finding()` 统一输出 `[已 # scan:ignore 豁免]` / `[可执行 ffmpeg（已归因 process:exec）]` / `[动态构造命令（不可归因）]` 标记，`tools/scan.py` 结论也走 `evaluate_gate`（带 plugin.json 时按能力归因），CLI 自检与真实安装判定一致。
+- **`install_plugin.py --scan-mode off|report|enforce`**（FTK-XI-03，P1-E）：`--base` 语义保持不变（只切路径不切配置），新增显式覆盖开关，并**始终打印生效模式与来源**（`模式=enforce（来源：--scan-mode 显式指定）`）。此前把隔离运行时的 `global_var.PLUGIN_SCAN_MODE` 改成 enforce 却看不到效果，容易得出"门禁形同虚设"的错误结论。
+- **`package.py` 自动创建输出目录**（FTK-XI-02，P2-F）：`_resolve_output()` 新增 `_ensure_parent_dir()`，`pack -o dist/x.zip` 在 `dist/` 不存在时自动创建（此前抛 `FileNotFoundError` traceback；重命名分支同样处理）。
+- **pip 依赖缺失改为醒目警告**（xfime_iat 附带反馈）：`tools/install_plugin.py` 复用 `core.plugin_deps.check_pip_dependencies`（支持 `name>=x` 与版本约束，修掉"拿原始 spec 查 distribution"的误报），缺失时以 `[警告]` 级别输出未就绪原因与 `${python} -m pip install <pkg>`（不阻断安装）；加载期把"插件依赖"与"pip 依赖"**分开告警**（后者提示"已跳过加载（该插件不会出现在已加载插件中）"），`plugin_load_issues` 明细带上修复命令，后台「未加载原因」可直接照做。
+- **测试与文档**：`test_plugin_scan` 46→64（新增 F1–F18：import 行号与 ignore 生效、归因闸门 12 种组合、动态命令拒绝、报告标记）；`test_capabilities` 73→77（C13–C16：精确 bin 归因 / 不匹配 / 缺声明建议 / 裸声明覆盖）；`test_scaffold_tools` 53→61（pack 自动建目录、`--scan-mode` 三态与来源打印、pip 缺失 `[警告]`）；dev guide 10.6/10.7/14.x 补"子进程归因闸门"与 CLI 说明，十二章与 README 双版断言数同步 **49 脚本 / 1385 项断言**。全量回归 49 脚本全部通过。
 
 ## 4. 发布实践沉淀
 

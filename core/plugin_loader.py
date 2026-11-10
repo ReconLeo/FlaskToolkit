@@ -291,15 +291,26 @@ def load_plugins():
             missing_deps, version_mismatch = check_dependencies(
                 plugin_instance, available_plugin_names, _pv)
             if missing_deps:
-                _pips = [d for d in missing_deps if d not in available_plugin_names]
-                _hint = f"。pip 包可执行: pip install {' '.join(_pips)}" if _pips else ""
-                logger.warning(
-                    f"插件 {plugin_instance.name} 缺少依赖: {', '.join(missing_deps)}，跳过加载{_hint}",
-                    extra={'plugin': 'system'})
+                # v4.23.5：插件依赖 与 pip 依赖分开报告——pip 缺失是"环境没装包"，
+                # 必须给出可执行的安装命令，否则用户只会看到"插件不见了"而不知道原因。
+                _plugin_missing = [d for d in missing_deps if d in _pv or d in available_plugin_names]
+                _pips = [d for d in missing_deps if d not in _plugin_missing]
+                _hint = ''
+                if _pips:
+                    _hint = f"。修复: pip install {' '.join(_pips)}"
+                if _plugin_missing:
+                    logger.warning(
+                        f"插件 {plugin_instance.name} 缺少插件依赖: {', '.join(_plugin_missing)}，"
+                        f"跳过加载（请先安装对应插件）", extra={'plugin': 'system'})
+                if _pips:
+                    logger.warning(
+                        f"插件 {plugin_instance.name} 缺少 pip 依赖: {', '.join(_pips)}，"
+                        f"已跳过加载（该插件不会出现在已加载插件中）{_hint}",
+                        extra={'plugin': 'system'})
                 global_var.plugin_load_issues.setdefault(
                     plugin_instance.name, {})['reason'] = 'dependency_missing'
-                global_var.plugin_load_issues[
-                    plugin_instance.name]['detail'] = ', '.join(missing_deps)
+                global_var.plugin_load_issues[plugin_instance.name]['detail'] = (
+                    ', '.join(missing_deps) + (_hint if _pips else ''))
                 continue
             if version_mismatch:
                 _vd = ', '.join(f"{n}(需 {' and '.join(op + v for op, v in cs)})"

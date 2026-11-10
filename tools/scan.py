@@ -19,9 +19,10 @@ import zipfile
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.plugin_scanner import (  # noqa: E402
-    scan_file, scan_plugin_zip, scan_frontend_zip, format_report,
-    should_block_unconstrainable, should_block_constrained, _new_report, _merge, _dedupe,
+    scan_file, scan_plugin_zip, scan_frontend_zip, format_report, evaluate_gate,
+    _new_report, _merge, _dedupe,
 )
+from core.capabilities import cross_validate, read_pack_capabilities  # noqa: E402
 
 
 def scan_path(path: str) -> dict:
@@ -68,12 +69,25 @@ def main():
     else:
         print(format_report(report, title=f'扫描报告: {args.path}'))
 
-    if should_block_unconstrainable(report):
-        print('\n结论: 存在不可豁免的高风险行为（enforce 模式将拒绝安装；对已受控的行可加 # scan:ignore 逃生舱）')
-        sys.exit(1)
-    if should_block_constrained(report, []):
-        print('\n结论: 存在可约束高风险（shutil.rmtree），其路径未被 filesystem:write 声明覆盖且未 # scan:ignore'
-              '（enforce 模式将拒绝；请在 plugin.json capabilities 补齐声明，或对受控行加 # scan:ignore）')
+    # v4.23.5：结论统一走 evaluate_gate（与安装链路同一份判定逻辑）；能给 plugin.json 时按能力归因
+    cap_res = None
+    if args.path.lower().endswith('.zip'):
+        try:
+            caps = read_pack_capabilities(args.path)
+            if caps is not None:
+                cap_res = cross_validate('', report, caps)
+                if not args.as_json:
+                    print(format_report(report, title=f'扫描报告（含能力归因）: {args.path}',
+                                        cap_res=cap_res))
+        except Exception:
+            cap_res = None
+    gate = evaluate_gate(report, cap_res)
+    if gate['blocked']:
+        print('\n结论: 存在按 Community 规则不可放行的高风险行为（enforce 模式将拒绝安装）:')
+        for reason in gate['reasons']:
+            print(f'  - {reason}')
+        if cap_res and cap_res.get('suggested'):
+            print(f"  建议声明: {cap_res['suggested']}")
         sys.exit(1)
     print('\n结论: 无高风险行为')
 

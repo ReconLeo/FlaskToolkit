@@ -388,6 +388,83 @@ except ValueError:
     ok = True
 check("E6 未知预设 ValueError", ok)
 
+# ============ F：v4.23.5 门禁语义（FTK-XI-01 修复） ============
+# 规则：不可约束 high 唯一通路是行级 # scan:ignore；子进程另加 process:exec[:<bin>] 归因闸门
+from core.capabilities import cross_validate as _cv
+from core.plugin_scanner import evaluate_gate as _gate, format_finding as _ffmt
+
+_SRC = ('# -*- coding: utf-8 -*-\n'
+        'import json\n'
+        'import subprocess  # 调 ffmpeg\n'
+        '\n'
+        'def decode(path):\n'
+        '    r = subprocess.run(  # scan:ignore\n'
+        '        ["ffmpeg", "-i", path], stdout=subprocess.PIPE)\n'
+        '    return r.stdout\n')
+_SRC_IG = _SRC.replace('import subprocess  # 调 ffmpeg',
+                       'import subprocess  # scan:ignore 调 ffmpeg')
+_SRC_GIT = _SRC_IG.replace('["ffmpeg", "-i"', '["git", "-i"')
+_SRC_DYN = ('# -*- coding: utf-8 -*-\n'
+            'import subprocess\n'
+            '\n'
+            'def run(cmd):\n'
+            '    subprocess.run(cmd.split())  # scan:ignore\n')
+
+
+def _run(src, caps):
+    rep = scan_code(src, 'probe.py')
+    cap_res = _cv('probe', rep, caps) if caps is not None else None
+    return rep, cap_res, _gate(rep, cap_res)
+
+
+_rep, _cr, _g = _run(_SRC, ['process:exec:ffmpeg'])
+_imp = [f for f in _rep['findings'] if f['category'] == 'import' and f['severity'] == 'high']
+check("F1 import finding 记录真实行号（不再恒为 0）", bool(_imp) and _imp[0]['line'] == 3,
+      f"line={_imp[0]['line'] if _imp else None}")
+check("F2 import 行未 ignore → 门禁拒绝", _g['blocked'], f"reasons={_g['reasons'][:1]}")
+check("F3 拒绝原因指出加 # scan:ignore",
+      any('scan:ignore' in r for r in _g['reasons']), f"reasons={_g['reasons']}")
+check("F4 子进程调用归因出可执行名", any(f.get('exec_bin') == 'ffmpeg' for f in _rep['findings']))
+
+_rep2, _cr2, _g2 = _run(_SRC_IG, [])
+check("F5 import 行 ignore 生效（ignored=True）",
+      all(f.get('ignored') for f in _rep2['findings']
+          if f['severity'] == 'high' and f['category'] == 'import'), '')
+check("F6 已 ignore 但未声明能力 → 仍拒绝", _g2['blocked'], f"reasons={_g2['reasons'][:1]}")
+check("F7 拒绝原因给出 process:exec:<bin> 精确声明",
+      any('process:exec:ffmpeg' in r for r in _g2['reasons']), f"reasons={_g2['reasons']}")
+check("F8 suggested 给精确 bin 声明而非笼统 process:exec",
+      'process:exec:ffmpeg' in (_cr2.get('suggested') or []), f"{_cr2.get('suggested')}")
+
+_rep3, _cr3, _g3 = _run(_SRC_IG, ['process:exec:ffmpeg'])
+check("F9 ignore + 精确声明 → 放行", not _g3['blocked'], f"reasons={_g3['reasons']}")
+check("F10 声明与实测一致 → capabilities ok", _cr3['ok'], f"missing={_cr3['missing']}")
+check("F11 归因结果回写 process_observed/declared",
+      _cr3.get('process_observed') == ['ffmpeg'] and _cr3.get('process_declared') == ['ffmpeg'],
+      f"{_cr3.get('process_observed')} / {_cr3.get('process_declared')}")
+
+_rep4, _cr4, _g4 = _run(_SRC_GIT, ['process:exec:ffmpeg'])
+check("F12 声明 ffmpeg 实调 git → 拒绝（bin 不匹配）", _g4['blocked'], f"reasons={_g4['reasons'][:1]}")
+check("F13 提示补 process:exec:git",
+      any('process:exec:git' in r for r in _g4['reasons']), f"reasons={_g4['reasons']}")
+
+_rep5, _cr5, _g5 = _run(_SRC_DYN, ['process:exec'])
+check("F14 动态构造命令（裸 process:exec 已声明）仍拒绝", _g5['blocked'], f"reasons={_g5['reasons'][:1]}")
+check("F15 原因说明动态构造无法归因",
+      any('动态构造' in r for r in _g5['reasons']), f"reasons={_g5['reasons']}")
+
+_rep6, _cr6, _g6 = _run(_SRC_IG, ['process:exec'])
+check("F16 裸 process:exec 覆盖任意可执行名（可见常量）→ 放行",
+      not _g6['blocked'], f"reasons={_g6['reasons']}")
+
+_rep7, _cr7, _g7 = _run('import json\n\ndef f():\n    return json.dumps({})\n', [])
+check("F17 无高风险插件放行（零误报）", not _g7['blocked'], f"reasons={_g7['reasons']}")
+
+_f1 = [f for f in _rep3['findings'] if f.get('exec_bin')][0]
+_line = _ffmt(_f1, _cr3)
+check("F18 报告行展示豁免 + 归因标记",
+      'scan:ignore' in _line and '已归因 process:exec' in _line, _line)
+
 # ============ 清理与汇总 ============
 for k, v in _SAVED.items():
     setattr(global_var, k, v)

@@ -154,10 +154,21 @@ def _filter_excluded(file_list, excludes):
     return out
 
 
+def _ensure_parent_dir(out, quiet=False):
+    """确保输出文件的父目录存在（v4.23.5：此前 pack -o dist/x.zip 在 dist/ 不存在时
+    直接抛 FileNotFoundError traceback，首次打包必踩）。"""
+    parent = os.path.dirname(os.path.abspath(out))
+    if parent and not os.path.isdir(parent):
+        os.makedirs(parent, exist_ok=True)
+        if not quiet:
+            print(f"已创建输出目录: {parent}")
+
+
 def _resolve_output(out, yes=False):
     """输出路径已存在时的处理：-y 直接覆写；否则交互提示 覆写/重命名/取消。
-    返回最终输出绝对路径。"""
+    返回最终输出绝对路径（父目录不存在时自动创建，v4.23.5：此前直接抛 FileNotFoundError traceback）。"""
     out = os.path.abspath(out)
+    _ensure_parent_dir(out)
     if not os.path.exists(out):
         return out
     if yes:
@@ -175,6 +186,7 @@ def _resolve_output(out, yes=False):
         if not os.path.splitext(new_name)[1]:
             new_name += '.zip'
         out = os.path.abspath(new_name)
+        _ensure_parent_dir(out)
         print(f"输出改为: {out}")
         return out
     print("已取消", file=sys.stderr)

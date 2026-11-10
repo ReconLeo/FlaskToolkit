@@ -26,6 +26,9 @@
   配置；--purge-data 一并清理插件全部数据（plugins/data/ + plugins/temp/ + capabilities
   filesystem:write 声明目录）。离线卸载不执行插件 on_uninstall 钩子；内置插件受保护。
 - 静态扫描默认按 PLUGIN_SCAN_MODE（off/report/enforce）执行；--no-scan 完全跳过。
+  v4.23.5：--scan-mode 可显式覆盖扫描模式，并始终打印「生效模式 + 来源」——`--base` 指向
+  隔离运行时时，扫描模式**不读**目标环境配置（仍是工具所在框架的 global_var/user_config），
+  此前容易误判"enforce 生效了/没生效"。判定统一走 core.plugin_scanner.evaluate_gate。
 
 退出码：0 = 成功；1 = 参数/校验/IO 错误。
 """
@@ -52,11 +55,37 @@ from core.package_sign import verify_package  # noqa: E402
 from routes.frontend import cleanup_frontend_resources, safe_extract_frontend  # noqa: E402
 from core.frontend_tools import load_frontend_tools  # noqa: E402
 from core.plugin_scanner import (  # noqa: E402
-    scan_plugin_zip, scan_frontend_zip, should_block_unconstrainable, should_block_constrained,
+    scan_plugin_zip, scan_frontend_zip, evaluate_gate, format_finding,
 )
 from core.capabilities import read_pack_capabilities, cross_validate  # noqa: E402
+from core.plugin_deps import check_pip_dependencies, dep_name  # noqa: E402
 
 DEFAULT_BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# 扫描模式来源（v4.23.5）：--scan-mode 显式覆盖 / 工具所在框架的配置；供 CLI 明确打印
+_SCAN_MODE_SOURCE = 'default'
+
+
+def _scan_mode_source() -> str:
+    """当前生效扫描模式的来源说明（消除「--base 改了 enforce 却不生效」的误判）。"""
+    if _SCAN_MODE_SOURCE == 'cli':
+        return '--scan-mode 显式指定'
+    if _SCAN_MODE_SOURCE == 'no-scan':
+        return '--no-scan 跳过扫描'
+    return (f'{os.path.join(DEFAULT_BASE, "global_var.py")} 的 PLUGIN_SCAN_MODE '
+            f'（或 data/user_config.json 覆盖值）；--base 只影响目标路径，不影响扫描模式')
+
+
+def _apply_scan_mode(args):
+    """应用 --scan-mode 显式覆盖（off/report/enforce）；记录来源供打印。"""
+    global _SCAN_MODE_SOURCE
+    mode = getattr(args, 'scan_mode', None)
+    if mode:
+        global_var.PLUGIN_SCAN_MODE = mode
+        _SCAN_MODE_SOURCE = 'cli'
+    if getattr(args, 'no_scan', False):
+        global_var.PLUGIN_SCAN_MODE = 'off'
+        _SCAN_MODE_SOURCE = 'no-scan'
 
 
 # ---------------- 基础 ----------------
@@ -80,9 +109,13 @@ def resolve_base(base: str) -> str:
 
 
 def _scan_gate_cli(zip_path: str, kind: str, name: str, no_scan: bool, base=None):
-    """静态扫描门禁（与框架行为一致：off 跳过 / report 打印摘要 / enforce 分层拒绝）。
-    分层：不可约束 high（eval/subprocess 等）恒拒绝；可约束 high（rmtree）按 capabilities 归因
-    （filesystem:write 声明覆盖或 # scan:ignore）豁免，未归因则拒绝。"""
+    """静态扫描门禁（与框架行为一致：off 跳过 / report 打印摘要 / enforce 拒绝）。
+    v4.23.5 起判定统一走 core.plugin_scanner.evaluate_gate（与 Web/服务层同一份逻辑）：
+    - 不可约束 high（eval/exec/pickle/混淆/动态导入/socket.bind/subprocess…）：capabilities 不能背书，
+      唯一通路是该行 `# scan:ignore`（Community：enforce 是「知情声明」防线，不是沙箱）；
+    - 可约束 high（shutil.rmtree 常量路径）：按 filesystem:write 归因豁免，未归因仍拒；
+    - 子进程另加归因闸门：即使该行已 `# scan:ignore`，仍须声明匹配的 process:exec[:<bin>]。"""
+    print(f"[扫描] 模式={global_var.PLUGIN_SCAN_MODE}（来源：{_scan_mode_source()}）")
     if no_scan or global_var.PLUGIN_SCAN_MODE == 'off':
         return
     report = scan_plugin_zip(zip_path) if kind == 'backend' else scan_frontend_zip(zip_path)
@@ -94,44 +127,36 @@ def _scan_gate_cli(zip_path: str, kind: str, name: str, no_scan: bool, base=None
             report['capabilities'] = cap_res
         except Exception:
             cap_res = None
-    cap_exempt = (cap_res or {}).get('high_exempt_paths') or []
-    high_u = should_block_unconstrainable(report)
-    rmtree_ua = should_block_constrained(report, cap_exempt)
-    cap_bad = cap_res is not None and not cap_res['ok']
-    blocked = high_u or rmtree_ua or cap_bad
+    gate = evaluate_gate(report, cap_res)
     if report['summary']['high'] > 0:
         print(f"[扫描] {name} 发现 {report['summary']['high']} 项高风险行为:")
-        for item in report['findings'][:10]:
-            tag = ''
-            if item.get('ignored'):
-                tag = '[已 # scan:ignore 豁免] '
-            elif item.get('constrainable') and item.get('delete_path') in set(cap_exempt):
-                tag = '[已归因 filesystem:write 豁免] '
-            print(f"       - {tag}{item.get('category', '?')}: {item.get('message', '')} "
-                  f"({item.get('file')}:{item.get('line')})")
-        if global_var.PLUGIN_SCAN_MODE == 'enforce' and blocked:
-            reasons = []
-            if high_u:
-                reasons.append('不可豁免的高风险行为')
-            if rmtree_ua:
-                reasons.append('rmtree 未归因到 filesystem:write 声明且未 # scan:ignore')
-            if cap_bad:
-                reasons.append(f"capabilities 未声明行为 {len(cap_res['missing'])} 项")
-            raise ValueError("静态扫描存在 " + '；'.join(reasons)
-                             + f"，PLUGIN_SCAN_MODE=enforce 已拒绝安装（--no-scan 可跳过）")
-    elif report['summary']['high'] == 0:
+        for item in report['findings']:
+            if item.get('severity') == 'high':
+                print(f"       - {format_finding(item, cap_res)}")
+    elif not gate['blocked']:
         print(f"[扫描] {name} 静态扫描通过（{report['summary'].get('info', 0)} 项提示）")
+    if gate['blocked']:
+        if global_var.PLUGIN_SCAN_MODE != 'enforce':
+            print("[扫描] 以上高风险在 report 模式下放行（enforce 模式将拒绝安装）")
+            return
+        for reason in gate['reasons']:
+            print(f"[拒绝原因] {reason}", file=sys.stderr)
+        raise ValueError(
+            "静态扫描存在不可放行的高风险行为：" + '；'.join(gate['reasons'])
+            + f"，PLUGIN_SCAN_MODE=enforce 已拒绝安装（--no-scan 会整体跳过扫描门禁，慎用）")
 
 
 def _check_pip_dependencies(pip_deps):
-    """检测 pip_dependencies 缺失项，返回缺失列表（缺失不阻止安装，启动时框架跳过加载并告警）"""
-    missing = []
-    for pkg in (pip_deps or []):
-        try:
-            importlib.metadata.distribution(pkg)
-        except importlib.metadata.PackageNotFoundError:
-            missing.append(pkg)
-    return missing
+    """检测 pip_dependencies 未就绪项（支持 name>=x 与版本约束），返回 [(spec, 原因)]。
+
+    复用 core.plugin_deps.check_pip_dependencies，与加载阶段/Web 安装拦截语义一致
+    （此前自实现的版本直接拿原始 spec 去 importlib.metadata.distribution，带版本约束会误报缺失）。
+    缺失不阻止 CLI 安装，但**必须以警告级别明确提示**：否则用户会得到"插件装上却找不到"的困惑。
+    """
+    try:
+        return check_pip_dependencies(pip_deps)
+    except Exception:
+        return []
 
 
 # ---------------- backend ----------------
@@ -185,12 +210,16 @@ def install_backend(args, base: str) -> int:
     # 5. 安全解压 + 描述落盘（installed_files 清单）
     extract_plugin_pack(pack, name, meta_override=desc, clean_old=args.update)
 
-    # 6. 依赖提示（不阻止安装）
+    # 6. 依赖提示（不阻止安装，但缺失 pip 依赖必须以警告级别醒目提示）
     print(f"[提示] 插件依赖 dependencies={desc.get('dependencies', []) or []}")
-    missing_pip = _check_pip_dependencies(desc.get('pip_dependencies', []))
+    missing_pip = _check_pip_dependencies(desc.get('pip_dependencies'))
     if missing_pip:
-        print(f"[提示] 缺失 pip 依赖: {', '.join(missing_pip)}（插件启动时将跳过加载）")
-        print(f"       安装：pip install {' '.join(missing_pip)}")
+        print(f"[警告] 缺失 pip 依赖 {len(missing_pip)} 项 —— 插件会被跳过加载（后台显示「未加载」）:",
+              file=sys.stderr)
+        for spec, why in missing_pip:
+            print(f"       - {spec}：{why}", file=sys.stderr)
+        _pkg_names = ' '.join(dep_name(spec) for spec, _ in missing_pip)
+        print(f"       安装：{sys.executable} -m pip install {_pkg_names}", file=sys.stderr)
 
     action = '更新' if args.update else '安装'
     print(f"[OK] 插件 {name} v{version} {action}完成（文件已落盘，启动框架后自动加载）")
@@ -423,11 +452,15 @@ def main():
     p_backend.add_argument('pack', help='插件包路径（.zip）')
     p_backend.add_argument('--update', action='store_true', help='更新模式（按旧 installed_files 清理后重装）')
     p_backend.add_argument('--no-scan', action='store_true', help='跳过静态扫描门禁')
+    p_backend.add_argument('--scan-mode', choices=['off', 'report', 'enforce'], default=None,
+                           help='显式指定静态扫描模式（缺省取工具所在框架配置；--base 不影响模式）')
 
     p_frontend = sub.add_parser('frontend', parents=[common], help='安装/更新前端工具包（.zip）')
     p_frontend.add_argument('pack', help='工具包路径（.zip）')
     p_frontend.add_argument('--update', action='store_true', help='更新模式（清理旧静态资源后重装）')
     p_frontend.add_argument('--no-scan', action='store_true', help='跳过静态扫描门禁')
+    p_frontend.add_argument('--scan-mode', choices=['off', 'report', 'enforce'], default=None,
+                            help='显式指定静态扫描模式（缺省取工具所在框架配置；--base 不影响模式）')
 
     p_uninstall = sub.add_parser('uninstall', parents=[common], help='卸载插件/前端工具（离线）')
     un_sub = p_uninstall.add_subparsers(dest='un_kind', required=True, help='backend=后端插件 / frontend=前端工具')
@@ -444,6 +477,7 @@ def main():
     args = ap.parse_args()
     try:
         base = resolve_base(args.base)
+        _apply_scan_mode(args)
         if args.action == 'backend':
             code = install_backend(args, base)
         elif args.action == 'frontend':

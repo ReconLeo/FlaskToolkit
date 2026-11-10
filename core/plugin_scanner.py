@@ -14,6 +14,7 @@
 """
 import ast
 import io
+import os
 import re
 import zipfile
 
@@ -76,6 +77,15 @@ MEDIUM_CALLS = {
 # 网络服务端调用（监听端口）
 SERVER_CALLS = {'socket.bind': '绑定网络端口（开放服务）', 'socket.listen': '监听网络端口'}
 
+# 子进程 / 命令执行类调用：除记 high 外，另从首参提取「可执行名」用于 capabilities
+# process:exec[:<bin>] 归因（与运行期 core/audit_hook.py 的 basename 比对语义一致）
+EXEC_CALLS = {
+    'subprocess.run', 'subprocess.Popen', 'subprocess.call',
+    'subprocess.check_call', 'subprocess.check_output',
+    'os.system', 'os.popen', 'os.execv', 'os.execve', 'os.execvp',
+    'os.spawnv', 'os.spawnve', 'os.spawnl', 'os.spawnle',
+}
+
 # 混淆解码调用（出现在 eval/exec 参数中即判混淆执行）
 OBFUSCATE_CALLS = {'base64.b64decode', 'base64.b64decode', 'codecs.decode',
                    'zlib.decompress', 'gzip.decompress', 'bytes.fromhex', 'binascii.unhexlify'}
@@ -89,7 +99,8 @@ _URL_RE = re.compile(r'https?://[A-Za-z0-9\-._~:/?#\[\]@!$&\'()*+,;=%]+|wss?://[
 
 def _new_report():
     return {'findings': [], 'summary': {'high': 0, 'medium': 0, 'low': 0, 'info': 0},
-            'scope': {'paths_read': [], 'paths_written': [], 'network_endpoints': [], 'delete_paths': []}}
+            'scope': {'paths_read': [], 'paths_written': [], 'network_endpoints': [],
+                      'delete_paths': [], 'exec_bins': []}}
 
 
 def _add(report, severity, category, message, filename, line):
@@ -113,7 +124,7 @@ def _dedupe(report):
     report['summary'] = {'high': 0, 'medium': 0, 'low': 0, 'info': 0}
     for f in findings:
         report['summary'][f['severity']] += 1
-    for k in ('paths_read', 'paths_written', 'network_endpoints', 'delete_paths'):
+    for k in ('paths_read', 'paths_written', 'network_endpoints', 'delete_paths', 'exec_bins'):
         seen_v, out = set(), []
         for v in report['scope'][k]:
             if v not in seen_v:
@@ -183,6 +194,30 @@ def _is_write_mode(mode_str):
         return False
     return any(c in WRITE_MODE_CHARS for c in mode_str)
 
+
+def _exec_bin(node):
+    """从 exec 类调用的首参静态提取「可执行名」（basename、小写）；无法静态确定返回 None。
+
+    覆盖两种常见形态（与运行期 audit_hook 的 basename 比对对齐）：
+    - 字面量列表/元组：subprocess.run(['ffmpeg', '-i', ...]) → ffmpeg
+    - 命令行字符串：os.system('ffmpeg -i x') / subprocess.run('ffmpeg -i x', shell=True) → ffmpeg
+    变量、f-string、拼接构造 → None（属"动态构造"，无法归因）
+    """
+    if not node.args:
+        return None
+    first = node.args[0]
+    if isinstance(first, (ast.List, ast.Tuple)):
+        if not first.elts:
+            return None
+        first = first.elts[0]
+    s = _str_value(first)
+    if not s:
+        return None
+    tokens = s.strip().split()
+    if not tokens:
+        return None
+    return os.path.basename(tokens[0].replace('\\', '/')).lower()
+
 # ------------------------------ scan:ignore 逃生舱 ------------------------------
 
 _IGNORE_RE = re.compile(r'#\s*scan:ignore(?::([A-Za-z0-9_\-]+))?')
@@ -250,21 +285,22 @@ def scan_code(code: str, filename: str = '<code>') -> dict:
                     if isinstance(t, ast.Name):
                         instance_aliases[t.id] = 'socket'
 
-    imported_modules = set()
+    imported_modules = {}   # 模块名 -> 首次出现的 import 行号
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             for a in node.names:
-                imported_modules.add(a.name)               # 完整名（覆盖 urllib.request 等点分条目）
-                imported_modules.add(a.name.split('.')[0])  # 首段
+                for m in (a.name, a.name.split('.')[0]):     # 完整名 + 首段
+                    imported_modules.setdefault(m, getattr(node, 'lineno', 0))
         elif isinstance(node, ast.ImportFrom) and node.module:
-            imported_modules.add(node.module)
-            imported_modules.add(node.module.split('.')[0])
+            for m in (node.module, node.module.split('.')[0]):
+                imported_modules.setdefault(m, getattr(node, 'lineno', 0))
 
     for mod in sorted(imported_modules):
+        line = imported_modules[mod]
         if mod in HIGH_IMPORTS:
-            _add(report, 'high', 'import', f'导入高风险模块 {mod}', filename, 0)
+            _add(report, 'high', 'import', f'导入高风险模块 {mod}', filename, line)
         elif mod in MEDIUM_IMPORTS:
-            _add(report, 'medium', 'import', f'导入网络/动态加载模块 {mod}', filename, 0)
+            _add(report, 'medium', 'import', f'导入网络/动态加载模块 {mod}', filename, line)
 
     for node in ast.walk(tree):
         if not isinstance(node, ast.Call):
@@ -353,6 +389,19 @@ def scan_code(code: str, filename: str = '<code>') -> dict:
             if _path:
                 _f['delete_path'] = _path
                 _delete_candidates.append((line, _path))
+            continue
+
+        # 子进程/命令执行：记 high 并尝试归因可执行名（供 process:exec[:<bin>] 声明比对）
+        if name in EXEC_CALLS:
+            _add(report, 'high', 'dangerous-call',
+                 HIGH_CALLS.get(name, '启动子进程'), filename, line)
+            _f = report['findings'][-1]
+            _bin = _exec_bin(node)
+            if _bin:
+                _f['exec_bin'] = _bin
+                report['scope']['exec_bins'].append(_bin)
+            else:
+                _f['exec_dynamic'] = True   # 动态构造命令：无法静态归因（enforce 下无安装通路）
             continue
 
         if name in HIGH_CALLS:
@@ -479,12 +528,125 @@ def should_block_constrained(report: dict, exempt_paths) -> bool:
     return False
 
 
-def format_report(report: dict, title: str = '静态扫描报告') -> str:
-    """人类可读报告（CLI / 日志用）"""
+def _bin_declared(bin_name, cap_res):
+    """声明的 process 能力是否覆盖该可执行名。
+    process:exec:<bin> 精确匹配（只比 basename，忽略路径/大小写，与运行期语义一致）；
+    裸 process:exec 视为「任意可执行」的粗声明。"""
+    if not cap_res or not bin_name:
+        return False
+    for raw in (cap_res.get('declared') or []):
+        parts = str(raw).split(':')
+        if len(parts) < 2 or parts[0] != 'process' or parts[1] != 'exec':
+            continue
+        if len(parts) < 3 or not parts[2]:
+            return True      # 裸 process:exec
+        if parts[2].replace('\\', '/').rsplit('/', 1)[-1].lower() == bin_name:
+            return True
+    return False
+
+
+def evaluate_gate(report: dict, cap_res=None) -> dict:
+    """enforce 门禁统一判定（v4.23.5）：CLI / Web 预览 / 服务层共用一处，避免三处逻辑漂移。
+
+    Community 分层语义：
+    - **不可约束 high**（eval/exec/compile、pickle/marshal、混淆、动态导入、socket.bind/listen、
+      syntax、subprocess…）：capabilities 不能为其背书，**唯一通路是该行 `# scan:ignore`**（知情声明）；
+    - **可约束 high**（shutil.rmtree 常量路径）：按 filesystem:write 归因豁免，未归因仍阻断；
+    - **子进程归因闸门**：即使该行已 `# scan:ignore`，仍须声明 `process:exec[:<bin>]` 且可执行名
+      能静态归因；动态构造的命令无法归因 → 阻断（动态分析属 Enterprise，Community 不做）。
+
+    :return: {'blocked': bool, 'reasons': [str], 'items': {...}}（items 供展示与细粒度断言）
+    """
+    cap_res = cap_res or report.get('capabilities') or {}
+    findings = report.get('findings') or []
+    items = {'unresolvable': [], 'rmtree_unattributed': [], 'process_unattributed': [],
+             'process_dynamic': [], 'cap_missing': []}
+
+    exempt = set(cap_res.get('high_exempt_paths') or [])
+    for f in findings:
+        if f.get('severity') != 'high':
+            continue
+        if not f.get('ignored') and not f.get('constrainable'):
+            items['unresolvable'].append(f)
+        if (f.get('constrainable') and not f.get('ignored')
+                and (not f.get('delete_path') or f['delete_path'] not in exempt)):
+            items['rmtree_unattributed'].append(f)
+        if f.get('exec_dynamic'):
+            items['process_dynamic'].append(f)
+        elif f.get('exec_bin') and f.get('ignored') and not _bin_declared(f['exec_bin'], cap_res):
+            items['process_unattributed'].append(f)
+
+    # 子进程缺声明（可执行名已归因但完全没写 process 能力）也计入 process 闸门，避免与
+    # capabilities 缺声明重复告警；其余域（filesystem/network/…）仍走 cap_missing。
+    items['cap_missing'] = [m for m in (cap_res.get('missing') or [])
+                            if not str(m).startswith('process:')]
+
+    reasons = []
+    if items['unresolvable']:
+        detail = '；'.join(f"{f['file']}:{f['line']} {f['category']}（{f['message']}）"
+                          for f in items['unresolvable'][:6])
+        more = f" 等 {len(items['unresolvable'])} 项" if len(items['unresolvable']) > 6 else ''
+        reasons.append(
+            '存在不可豁免的高风险行为（capabilities 不能为其背书，唯一通路是对该行加 `# scan:ignore`）: '
+            + detail + more)
+    if items['rmtree_unattributed']:
+        detail = '；'.join(f"{f['file']}:{f['line']}" for f in items['rmtree_unattributed'][:6])
+        reasons.append(
+            '递归删除目录（shutil.rmtree）未归因到声明的 filesystem:write（路径为动态构造或未声明）: '
+            + detail + '（补齐 capabilities 或对该行加 `# scan:ignore`）')
+    if items['process_dynamic']:
+        detail = '；'.join(f"{f['file']}:{f['line']}" for f in items['process_dynamic'][:6])
+        reasons.append(
+            '子进程调用使用动态构造的命令，无法静态归因可执行名: ' + detail
+            + '（把命令写成字面量或字面量列表首元素；动态命令分析属 Enterprise 能力，Community 不支持）')
+    if items['process_unattributed']:
+        want = sorted({f"process:exec:{f['exec_bin']}" for f in items['process_unattributed']})
+        detail = '；'.join(f"{f['file']}:{f['line']}（{f['exec_bin']}）"
+                           for f in items['process_unattributed'][:6])
+        reasons.append(
+            '子进程调用已 `# scan:ignore`，但缺少匹配的能力声明: ' + detail
+            + f"（在 plugin.json capabilities 增加 {', '.join(want)}）")
+    if items['cap_missing']:
+        reasons.append(
+            f"capabilities 未声明行为 {len(items['cap_missing'])} 项"
+            f"（{'; '.join(str(m) for m in items['cap_missing'][:5])}）")
+
+    return {'blocked': any(items.values()), 'reasons': reasons, 'items': items}
+
+
+def format_finding(f: dict, cap_res=None) -> str:
+    """单条 finding 的单行文本（含「已 # scan:ignore / 已归因」标记），报告与 CLI 复用。
+
+    v4.23.5 可诊断性：把"这条到底豁免没有、归因到哪个声明"直接打在行上，避免作者误判
+    「scan:ignore 没生效」而转投 --no-scan（整包跳过门禁）。
+    """
+    cap_res = cap_res or {}
+    exempt = set(cap_res.get('high_exempt_paths') or [])
+    tags = []
+    if f.get('ignored'):
+        tags.append('已 # scan:ignore 豁免')
+    if f.get('exec_bin'):
+        tags.append(f'可执行 {f["exec_bin"]}'
+                    + ('（已归因 process:exec）' if _bin_declared(f['exec_bin'], cap_res)
+                       else '（未声明 process:exec）'))
+    elif f.get('exec_dynamic'):
+        tags.append('动态构造命令（不可归因）')
+    if f.get('constrainable') and f.get('delete_path') and f['delete_path'] in exempt:
+        tags.append('已归因 filesystem:write 豁免')
+    line = (f'[{str(f.get("severity", "")).upper():<6}] '
+            f'{f.get("file")}:{f.get("line")} {f.get("category")} — {f.get("message")}')
+    if tags:
+        line += '  ' + ' '.join(f'[{t}]' for t in tags)
+    return line
+
+
+def format_report(report: dict, title: str = '静态扫描报告', cap_res=None) -> str:
+    """人类可读报告（CLI / 日志用）。cap_res 提供时展示归因/豁免标记。"""
+    cap_res = cap_res or report.get('capabilities') or {}
     s = report['summary']
     lines = [f'==== {title}：high={s["high"]} medium={s["medium"]} low={s["low"]} info={s["info"]} ====']
     for f in report['findings']:
-        lines.append(f'[{f["severity"].upper():<6}] {f["file"]}:{f["line"]} {f["category"]} — {f["message"]}')
+        lines.append(format_finding(f, cap_res))
     scope = report['scope']
     if scope['paths_written'] or scope['paths_read']:
         lines.append(f'范围-路径: 写 {scope["paths_written"]} / 读 {scope["paths_read"]}')

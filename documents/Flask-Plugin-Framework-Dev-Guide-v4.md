@@ -525,6 +525,8 @@ def get_item(self, item_id):
 
 版本比较为纯 stdlib 简化 semver（数字段 + 预发布权重 a/b/rc），如 `1.0 > 1.0rc1 > 1.0b1 > 1.0a1`。
 
+**缺失时的报告口径（v4.23.5）**：`dependencies`（插件间）与 `pip_dependencies`（第三方包）在加载期**分开告警**——插件依赖缺失提示"请先安装对应插件"，pip 依赖缺失提示"已跳过加载（该插件不会出现在已加载插件中）。修复: pip install <pkg>"，并写入 `plugin_load_issues` 供后台插件列表显示「未加载原因」；安装期（Web/服务层）在解包前硬拦截缺 pip 依赖，离线 CLI 则以 `[警告]` 级别列出未就绪项与安装命令（不阻断安装，避免离线部署被卡死）。
+
 - **加载**：插件加载器做 Kahn 拓扑排序，先加载依赖；依赖缺失/版本不满足/存在循环时，该插件不加载，`global_var.plugin_load_issues` 记录原因（`dependency_missing` / `dependency_version` / `dependency_circular`），后台插件列表显示『未加载』徽章 + 原因。
 - **安装**：安装时校验依赖；卸载时做反向依赖检查（仍被其他插件依赖则阻止卸载）。
 - **示例**：`dependent_demo` 声明 `dependencies = ["auth"]`；`scheduler_demo` / `dependent_demo` 通过事件总线松耦合感知彼此（见 5.4.1）。
@@ -1196,6 +1198,8 @@ python tools/package.py genkey -o private.pem --pub public.pem
 # 2. 打包（自动生成 manifest.json；--sign 用私钥签名）
 python tools/package.py pack ./demo_tool -o demo_tool.zip --type frontend
 python tools/package.py pack ./my_plugin -o my_plugin.zip --type backend --sign private.pem --signer "张三"
+#    输出目录不存在时自动创建（v4.23.5：此前 -o dist/x.zip 直接抛 FileNotFoundError traceback）
+python tools/package.py pack ./my_plugin -o dist/nested/my_plugin.zip --type backend
 #    源码布局自动映射（v4.17.2）：<name>.json+<name>.py+frontend/ → plugin.json+主.py+templates/static（见 5.6.9）
 python tools/package.py pack ./my_plugin -o my_plugin.zip --type backend --src-layout
 
@@ -1230,7 +1234,7 @@ python tools/package.py show my_plugin.zip
 | ---------------- | ------------------------------------------------------------------------------------- |
 | `off`            | 跳过扫描                                                                              |
 | `report`（默认） | 放行安装，响应附 `scan` 摘要与 `scan_scope` 范围，审计日志记录                        |
-| `enforce`        | **不可约束高风险**（eval/subprocess/反序列化/混淆/动态导入/网络服务端/syntax 等）或**可约束高风险未归因**（rmtree 路径未命中 `filesystem:write` 声明且未 `# scan:ignore`）即拒绝安装，返回 400 附完整 `scan_report`，审计日志记录 blocked |
+| `enforce`        | **不可约束高风险**（eval/subprocess/反序列化/混淆/动态导入/网络服务端/syntax 等）或**可约束高风险未归因**（rmtree 路径未命中 `filesystem:write` 声明且未 `# scan:ignore`），或**子进程未按可执行名归因**（v4.23.5，见下）即拒绝安装，返回 400 附完整 `scan_report`，审计日志记录 blocked |
 
 **上传预览两段式下的 enforce 语义**：上传接口 `preview=1`（能力预览）阶段**不阻断**，即使 enforce 下存在未豁免高风险也返回 200 与完整 `preview`（新增 `scan_block_high`/`scan_exempt_high`/`scan_high_findings` 字段，供前端区分「不可豁免 / 已豁免」并展示豁免明细）；enforce 门禁在**确认安装（`confirm=1&preview_id=xxx`）阶段**才真正拒绝（400 附 `scan_report`）。即「预览展示风险、确认才拦截」——避免前端因预览被拒而拿不到豁免提示。
 
@@ -1241,17 +1245,31 @@ python tools/package.py show my_plugin.zip
 
 被豁免的 high 仍保留在 `scan_report` 中**透明展示**（不隐藏），仅不计入阻断。其余不可约束 high（eval/exec/compile、pickle/marshal、混淆、动态导入、socket.bind/listen、syntax、subprocess 等）无法用范围约束，**始终保持阻断**（声明 capabilities 也不能为其背书）。**适用边界**：归因豁免 + `scan:ignore` 属 Community（小型局域网/个人，enforce 退化为知情声明防线）；Enterprise（企业级深层安全）应走签名者背书 / 管理员确认白名单，见 [Enterprise-Edition-Handover-Roadmap](Enterprise-Edition-Handover-Roadmap.md)。
 
+**子进程归因闸门（v4.23.5）**：调用外部二进制（ffmpeg/pandoc/git…）的插件在 enforce 下需同时满足两条：
+
+1. **行级知情声明**：对该行（或紧邻上方注释行）标注 `# scan:ignore`——`import subprocess` 与 `subprocess.run(...)` 各自是一处 high，通常两行都要标；
+2. **能力归因**：`capabilities` 中声明匹配的 `process:exec:<bin>`（或粗声明 `process:exec` 表示任意可执行）。
+
+扫描器从调用首参静态提取可执行名（字面量字符串取首个 token、字面量列表/元组取首元素，取 **basename 小写**），与声明逐一比对——**与运行期审计钩子 `check_process` 的 basename 语义一致**（此前安装期只判"有没有 process 域"，`process:exec:ffmpeg` 与实际执行的二进制无关）。以下情况仍拒绝（可诊断原因会直接打印）：
+
+- 声明缺失或 bin 不匹配（如声明 `:ffmpeg` 实调 `git`）→ 提示补 `process:exec:git`；
+- **动态构造命令**（变量、f-string、拼接）无法归因 → 无安装通路，需把可执行文件名写成字面量（动态命令分析属 Enterprise 能力，Community 不做；可能误伤，属接受的设计权衡）。
+
+另：`import` 类 finding 自 v4.23.5 起记录**真实行号**（此前恒为 `0`，导致 `# scan:ignore` 对 import 永久失效——即"enforce 下任何 import subprocess 的插件都装不上且无逃生舱"，会迫使作者用 `--no-scan` 整体绕过关禁）。门禁判定统一收敛到 `core/plugin_scanner.evaluate_gate()`（安装 CLI / Web 上传预览 / 服务层共用一份逻辑），拒绝时按 finding 逐条给出"可执行什么、缺哪条声明、该给哪行加 ignore"。
+
 接入端点：后端插件上传/更新（`routes/admin.py`）与前端工具上传/更新（`routes/frontend.py`）共四处。
 
 **扫描 CLI（`tools/scan.py`）**——发布者分发前自检：
 
 ```bash
 python tools/scan.py my_plugin.py         # 单文件
-python tools/scan.py my_plugin.zip        # 插件包 / 前端工具包（config.json 自动识别）
+python tools/scan.py my_plugin.zip        # 插件包 / 前端工具包（config.json 自动识别；带 plugin.json 时按能力归因）
 python tools/scan.py plugins/             # 目录批量（递归 .py）
 python tools/scan.py my_plugin.zip --json # 机器可读输出
 # 退出码：0 无高风险 / 1 检出高风险 / 2 错误
 ```
+
+报告行会直接标注 `[已 # scan:ignore 豁免]` / `[可执行 ffmpeg（已归因 process:exec）]` 等标记，结论与安装门禁共用 `evaluate_gate`（v4.23.5），因此 CLI 自检与真实安装判定一致。
 
 **安全配置预设（`tools/config.py profile`）**：将分散的安全开关收拢为三套官方预设，一键套用后仍可 `set` 单项微调：
 
@@ -1281,7 +1299,7 @@ python tools/config.py set PLUGIN_SCAN_MODE enforce   # 单项覆盖
 |            | TCP/UDP           | `network:tcp:<host[:port]>` / `network:udp:...`                                      | host 精确；无端口=任意端口                                                                                                                                                                                             |
 |            | 监听服务          | `network:server:<host:port>`                                                         | 插件 bind/listen 监听端口                                                                                                                                                                                              |
 | webhook    | 群机器人          | `webhook:<platform>:<url-pattern>`                                                   | 平台枚举 wecom/dingtalk/feishu；URL 语义同 network:http（兼作 HTTP 出站授权）                                                                                                                                          |
-| process    | 子进程            | `process:exec` / `process:exec:<bin>`                                                | 无参=任意子进程（高危）；带 bin=仅该可执行名（运行时比对）                                                                                                                                                             |
+| process    | 子进程            | `process:exec` / `process:exec:<bin>`                                                | 无参=任意子进程（高危）；带 bin=仅该可执行名（**安装期按扫描器静态归因的 basename 比对 + 运行期 `check_process` 复核**，v4.23.5）                                                                                                                                                             |
 | scheduler  | 定时任务          | `scheduler`                                                                          | 允许注册 APScheduler 任务                                                                                                                                                                                              |
 | database   | 数据库            | `database:sqlite:<path>` / `database:mysql:<host:port/db>` / `database:postgres:...` | 连接目标                                                                                                                                                                                                               |
 | device     | 串口/打印         | `device:serial:<port>` / `device:print`                                              | 串口枚举（如 COM3）                                                                                                                                                                                                    |
@@ -1326,7 +1344,7 @@ python tools/config.py set PLUGIN_SCAN_MODE enforce   # 单项覆盖
 | `report`（默认） | 放行，响应附 `capabilities`（`declared` 已声明 / `missing` 未声明 / `suggested` 建议声明） |
 | `enforce`        | 高风险（high > 0）**或** `missing` 非空 → 400 拒绝，附完整缺失清单与建议声明               |
 
-**建议声明自动生成**：`suggested` 字段按检出行为归一化生成（文件路径→父目录、URL→主机根、端口/子进程→对应能力项），可整段复制回 plugin.json，降低声明编写门槛；声明了但未检出使用的能力仅 `unused` 提示（info 级，不阻断），鼓励最小授权。
+**建议声明自动生成**：`suggested` 字段按检出行为归一化生成（文件路径→父目录、URL→主机根、端口→对应能力项，**子进程→`process:exec:<实测 bin>`**），可整段复制回 plugin.json，降低声明编写门槛；声明了但未检出使用的能力仅 `unused` 提示（info 级，不阻断），鼓励最小授权。
 
 **运行时授权基准**：插件加载时 loader 从描述文件读取 capabilities 注册进 `core/capabilities.py` 内存注册表；`check_filesystem(plugin, path, mode)` / `check_network(plugin, endpoint)` / `check_process(plugin, bin)` 为 4.4.0 运行时审计钩子的授权判定契约——`check_network` 的 host 匹配即网络白名单"防火墙"规则。未注册/未声明一律拒绝（fail-closed）。
 
@@ -1500,8 +1518,8 @@ FLASKTOOLKIT_HOST=0.0.0.0 FLASKTOOLKIT_PORT=8000 python app.py
 | `test_file_transfer.py`       | 文件传输强化（v4.2.2）：全局 413 / 插件级 max_upload_size 预检 / route 级 max_upload 覆盖 / 中文名下载 / 下载统计 / Range / on_ready 顺序                                                                                                                                                                                                                                                                         | 12 项 |
 | `test_plugin_uploads.py`     | 同步持久化上传助手 save_uploads（v4.18）：单/多文件 / 大小与配额预检 / 净化防穿越 / 中文名 / 去重 / 类型拒绝 / 部分成功 / enforce 交叉校验（隔离目录）                                                                                                                                                                                                                                                          | 21 项 |
 | `test_security.py`            | 系统安全回归（v4.3.0）：安全响应头注入与开关 / 指纹头移除 / Cookie HttpOnly+SameSite+Secure 联动 / 会话空闲超时 / 登录失败锁定三档（ip_username/username/off）+ 通用 429 + 成功重置 + 解封（v4.5.1）                                                                                                                                                                                                              | 45 项 |
-| `test_plugin_scan.py`         | 插件静态扫描回归（v4.3.1）：扫描器单元（危险导入/调用/混淆/范围提取/别名归因）/ 插件包扫描 / 前端 HTML 扫描 / enforce 门禁集成（拒绝 400 + 附报告 + 未落盘 + 真实项目未污染）/ 可约束 high（rmtree）归因豁免与 scan:ignore 逃生舱 / 配置预设三套                                                                                                                                                                                                                       | 46 项 |
-| `test_capabilities.py`        | 插件能力声明回归（v4.3.2）：解析器（合法/非法/未知域/裸 * 拒绝）/ 匹配语义（路径前缀递归/URL host·path·端口/子域通配/tcp/env）/ 交叉校验（隐式豁免/跨插件越界/建议声明/unused）/ 运行时授权 API（fail-closed/process 细粒度）/ 安装链路集成（enforce 拒绝与放行/响应附摘要/loader 注册）/ base_plugin data API + hello_plugin 示例端到端 / **storage 域解析与目录推导（v4.9.1）** + **framework 域三档（v4.15）** / **可约束 high（rmtree）归因豁免与 scan:ignore 逃生舱（enforce 分层门禁）** | 73 项 |
+| `test_plugin_scan.py`         | 插件静态扫描回归（v4.3.1）：扫描器单元（危险导入/调用/混淆/范围提取/别名归因）/ 插件包扫描 / 前端 HTML 扫描 / enforce 门禁集成（拒绝 400 + 附报告 + 未落盘 + 真实项目未污染）/ 可约束 high（rmtree）归因豁免与 scan:ignore 逃生舱 / 配置预设三套 / **v4.23.5 门禁语义（import 真实行号与 scan:ignore 生效、子进程 process:exec[:<bin>] 归因闸门、动态命令拒绝、报告豁免标记）**                                                                                                                                                                                                                        | 64 项 |
+| `test_capabilities.py`        | 插件能力声明回归（v4.3.2）：解析器（合法/非法/未知域/裸 * 拒绝）/ 匹配语义（路径前缀递归/URL host·path·端口/子域通配/tcp/env）/ 交叉校验（隐式豁免/跨插件越界/建议声明/unused）/ 运行时授权 API（fail-closed/process 细粒度）/ 安装链路集成（enforce 拒绝与放行/响应附摘要/loader 注册）/ base_plugin data API + hello_plugin 示例端到端 / **storage 域解析与目录推导（v4.9.1）** + **framework 域三档（v4.15）** / **可约束 high（rmtree）归因豁免与 scan:ignore 逃生舱（enforce 分层门禁）** / 子进程按可执行名归因（v4.23.5） | 77 项 |
 | `test_root_domain.py`         | Root 域与市场骨架（v4.15）：framework 三档 read/manage/core / 核心路径判定 / root 写放行与拒绝 / 服务层 require_manage / 市场写 core 拒绝 / 插件级更新源                                                                                                                                                                                                                                                          | 18 项 |
 | `test_framework_manifest.py`  | 框架目录清单统一（v4.15.1）：selfcheck/update/backup/release 复用同一对象（含精简包白名单 RUNTIME_*）+ CORE_FILES/CORE_DIRS 完整性 + Root 域路径判定边界（含插件内容/自属目录豁免）+ is_user_data_path 语义 + BACKUP_ITEMS 派生 + **collect_runtime_files 精简包行为（含关键文件/排除用户数据与示例插件）**                                                                                                                                                                                                                      | 65 项 |
 | `test_root_demo.py`           | 示例插件 root_demo（v4.15.1）：plugin.json 声明一致 + framework:core 授权/写核心放行/读核心/对照拒绝/自属豁免/模块可加载                                                                                                                                                                                                                                                                                          | 19 项 |
@@ -1518,7 +1536,7 @@ FLASKTOOLKIT_HOST=0.0.0.0 FLASKTOOLKIT_PORT=8000 python app.py
 | `test_desktop_launcher.py`    | 桌面启动器（v4.11/v4.12）：配置写入/访问信息生成/启动与端口解析/**HTTPS 复选框与证书自动生成（v4.12）** + gen_cert 在 openssl 默认配置缺失时的兜底重试                                                                                                                                                                                                                                                           | 40 项 |
 | `test_setup.py`               | 首次运行向导 + 强制改密（v4.10 M4）+ setup 双语并显（v4.19）：/setup 路由与标记 / 改密校验与踢会话 / must_change_pwd 标记 / 双语并显主次切换                                                                                                                                                                                                                                                                   | 19 项 |
 | `test_register.py`            | 邀请码自助注册（v4.10 M5）：邀请码生成消费 / pending 拦截 / 审核 API                                                                                                                                                                                                                                                                                                                                              | 25 项 |
-| `test_scaffold_tools.py`      | 脚手架 + 离线安装/卸载闭环（v4.10 M6）：scaffold 骨架 / install_plugin 安装升级降级拒绝 / uninstall 清理                                                                                                                                                                                                                                                                                                          | 53 项 |
+| `test_scaffold_tools.py`      | 脚手架 + 离线安装/卸载闭环（v4.10 M6）：scaffold 骨架 / install_plugin 安装升级降级拒绝 / uninstall 清理 / pack 自动建输出目录 + --scan-mode + pip 缺失警告（v4.23.5） | 61 项 |
 | `test_stats.py`               | 数据统计洞察（v4.14）：时间桶 + 访问画像双维数据模型 / dashboard 总览化 / 14 天趋势 + 错误 Top + 画像卡                                                                                                                                                                                                                                                                                                           | 55 项 |
 | `test_selfcheck.py`           | 启动完整性自检（v4.15）：CORE_FILES 完整性 / 时区（tzdata）探测 / 完整自检                                                                                                                                                                                                                                                                                                                                        | 17 项 |
 | `test_events.py`              | 事件总线（v4.16）：priority / once / off / weakref 失效清理 / 绑定方法强引用 / async 非阻塞 / 异常隔离 / 内置事件                                                                                                                                                                                                                                                                                                 | 11 项 |
@@ -1552,8 +1570,8 @@ python tests/test_framework_fixes.py    # 15 项（public_page 豁免 + CSRF 单
 python tests/test_file_transfer.py       # 12 项（文件传输强化，隔离目录）
 python tests/test_plugin_uploads.py     # 21 项（save_uploads 同步上传助手，隔离目录）
 python tests/test_security.py            # 45 项（系统安全回归 v4.3.0 + 解封，隔离目录）
-python tests/test_plugin_scan.py           # 46 项（插件静态扫描回归 v4.3.1，隔离目录）
-python tests/test_capabilities.py          # 73 项（插件能力声明回归 v4.3.2 + storage/framework 域，隔离目录）
+python tests/test_plugin_scan.py           # 64 项（插件静态扫描回归 v4.3.1，隔离目录）
+python tests/test_capabilities.py          # 77 项（插件能力声明回归 v4.3.2 + storage/framework 域，隔离目录）
 python tests/test_root_domain.py         # 18 项（Root 域与市场骨架 v4.15，隔离目录）
 python tests/test_framework_manifest.py   # 65 项（框架目录清单 v4.15.1，隔离目录）
 python tests/test_root_demo.py            # 19 项（示例插件 root_demo v4.15.1，隔离目录）
@@ -1570,7 +1588,7 @@ python tests/test_ip_watcher.py         # 15 项（IP 变化检测 v4.11，隔�
 python tests/test_desktop_launcher.py   # 40 项（桌面启动器 v4.11 + HTTPS v4.12 + gen_cert 兜底重试，隔离目录）
 python tests/test_setup.py             # 19 项（首次运行向导 + 强制改密 v4.10 + 双语并显 v4.19，隔离目录）
 python tests/test_register.py             # 25 项（自助注册 + 邀请码 + 审核 v4.10 M5，隔离目录）
-python tests/test_scaffold_tools.py  # 53 项（M6 脚手架 + 离线安装/卸载闭环，subprocess 驱动 CLI，隔离目录）
+python tests/test_scaffold_tools.py  # 61 项（M6 脚手架 + 离线安装/卸载闭环，subprocess 驱动 CLI，隔离目录）
 python tests/test_stats.py               # 55 项（数据统计洞察 v4.14，隔离目录）
 python tests/test_selfcheck.py           # 17 项（启动完整性自检 v4.15，隔离目录）
 python tests/test_events.py              # 11 项（事件总线 v4.16，隔离目录）
@@ -1792,7 +1810,8 @@ python tools/install_plugin.py uninstall frontend my_tool --purge-data   # 卸�
 python tools/install_plugin.py list                           # 列出已安装插件与前端工具
 ```
 
-- 安装链路与在线一致：完整性校验 → 描述一致性 → 框架版本门槛 → 静态扫描门禁 → 安全解压 + installed_files 落盘；缺失 pip 依赖仅提示并附 `pip install` 命令（不自动安装）；静态扫描门禁与框架同构分层（v4.22）：`enforce` 下**不可约束 high 恒拒**、**可约束 high（rmtree）按 `filesystem:write` 归因或 `# scan:ignore` 豁免**、capabilities 未声明行为拒，明细打印每项高风险的豁免标签（`[已 # scan:ignore 豁免]` / `[已归因 filesystem:write 豁免]`），`--no-scan` 可跳过；
+- 安装链路与在线一致：完整性校验 → 描述一致性 → 框架版本门槛 → 静态扫描门禁 → 安全解压 + installed_files 落盘；缺失 pip 依赖**以 `[警告]` 级别醒目提示**（列出未就绪原因 `${python} -m pip install <pkg>`，不自动安装；插件装得上但启动时会被跳过加载、后台显示「未加载」）；静态扫描门禁与框架同构分层（v4.22，判定统一走 `evaluate_gate`）：`enforce` 下**不可约束 high 恒拒**（capabilities 不能背书，唯一通路是该行 `# scan:ignore`）、**可约束 high（rmtree）按 `filesystem:write` 归因或 `# scan:ignore` 豁免**、**子进程另需匹配的 `process:exec:<bin>` 声明**（v4.23.5），明细逐条打印豁免/归因标签与缺声明建议，`--no-scan` 可跳过（会**整体**跳过扫描门禁，慎用）；
+- `--scan-mode off|report|enforce`（v4.23.5）：显式覆盖扫描模式；CLI 始终打印「生效模式 + 来源」——`--base` 只影响目标路径，**不读**目标环境的扫描配置（隔离测试时最容易误判 enforce 是否生效）；
 - `--base` 指定框架根目录（默认自动探测）；离线卸载不执行插件 `on_uninstall` 钩子（框架未运行）；
 - `--purge-data` 与后台 `purge-data` API（10.10）语义一致：临时目录 + 数据目录 + capabilities `filesystem:write` 声明写目录。
 

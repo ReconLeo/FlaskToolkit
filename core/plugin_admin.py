@@ -25,8 +25,7 @@ from core.package_sign import verify_package
 from core.plugin_pack import (cleanup_plugin_data, cleanup_plugin_resources,
                               compare_versions, extract_plugin_pack, parse_plugin_pack,
                               plugin_main_file)
-from core.plugin_scanner import (scan_plugin_zip, should_block_unconstrainable,
-                                   should_block_constrained)
+from core.plugin_scanner import (scan_plugin_zip, evaluate_gate)
 from core.plugin_status import load_plugin_status, save_plugin_status
 from core.quota import invalidate_cache as invalidate_quota_cache
 
@@ -69,8 +68,8 @@ def _audit(action, plugin, result, detail, actor=None):
 
 
 def scan_gate(temp_path, action, plugin_name):
-    """静态扫描 + capabilities 交叉校验门禁（v4.3.1/v4.3.2，自 routes/admin 提取）：
-    返回 (report|None, error_message|None)；enforce 命中拒绝时 error_message 含原因。
+    """静态扫描 + capabilities 交叉校验门禁（v4.3.1/v4.3.2；v4.23.5 起统一走 evaluate_gate）：
+    返回 (report|None, error_message|None)；enforce 命中拒绝时 error_message 含可操作原因。
     PLUGIN_SCAN_MODE=off 直接放行；report 模式高风险仅告警放行。"""
     if global_var.PLUGIN_SCAN_MODE == 'off':
         return None, None
@@ -78,23 +77,9 @@ def scan_gate(temp_path, action, plugin_name):
     caps = read_pack_capabilities(temp_path)
     cap_res = cross_validate(plugin_name, report, caps)
     report['capabilities'] = cap_res
-    # enforce 分层门禁：不可约束 high + 可约束 high（rmtree）未归因 + capabilities 缺声明
-    cap_exempt = cap_res.get('high_exempt_paths', [])
-    high_unresolvable = should_block_unconstrainable(report)
-    rmtree_unattributed = should_block_constrained(report, cap_exempt)
-    blocked = high_unresolvable or rmtree_unattributed or not cap_res['ok']
-    if global_var.PLUGIN_SCAN_MODE == 'enforce' and blocked:
-        reasons = []
-        if high_unresolvable:
-            reasons.append('静态扫描存在不可约束的高风险行为')
-        if rmtree_unattributed:
-            reasons.append(
-                '递归删除目录（rmtree）未归因到声明的 filesystem:write'
-                '（动态路径或未声明；可 # scan:ignore 显式声明受控，或补齐声明）')
-        if not cap_res['ok']:
-            reasons.append(
-                f"capabilities 未声明行为 {len(cap_res['missing'])} 项"
-                f"（{'; '.join(cap_res['missing'][:5])}）")
+    gate = evaluate_gate(report, cap_res)
+    if global_var.PLUGIN_SCAN_MODE == 'enforce' and gate['blocked']:
+        reasons = gate['reasons']
         log_audit(action, plugin_name, 'blocked',
                   '；'.join(reasons) + '，PLUGIN_SCAN_MODE=enforce 拒绝')
         return report, '；'.join(reasons) + f'（PLUGIN_SCAN_MODE=enforce 已拒绝{action}）'

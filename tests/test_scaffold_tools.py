@@ -178,6 +178,9 @@ def main():
     check("F0 升级安装（F 组前置）成功", ok, f"code={code}")
     check("F1 缺失 pip 依赖提示", 'pip install nonexistent_pkg_ftk_xyz' in fout,
           'install 输出包含缺失包名与 pip 命令')
+    # v4.23.5：pip 缺失改为警告级别醒目提示（此前是 [提示]，容易淹没在输出里），并给出缺失原因
+    check("F2 缺失 pip 依赖以 [警告] 输出", '[警告] 缺失 pip 依赖' in fout, fout[-200:])
+    check("F3 提示插件将被跳过加载", '跳过加载' in fout and '未加载' in fout, '')
 
     # ================= G. frontend 安装 =================
     ok, code, out = run_cli('package.py', 'pack', os.path.join(skel, 'my_tool'),
@@ -265,6 +268,39 @@ def main():
     ok, code, out = run_cli('install_plugin.py', 'uninstall', 'frontend', 'my_tool', '--base', base,
                             expect_code=1)
     check("I14 二次卸载报错", ok, f"code={code}")
+
+    # ================= J. v4.23.5：输出目录自动创建 + --scan-mode 显式模式 =================
+    # J1 输出目录不存在时 pack 自动创建（FTK-XI-02：此前直接抛 FileNotFoundError traceback）
+    _newout = os.path.join(work, 'dist_new', 'nested', 'demo_tool.zip')
+    ok, code, out = run_cli('package.py', 'pack', os.path.join(skel, 'demo_tool'),
+                            '-o', _newout, '--type', 'backend', '-y')
+    check("J1 pack 自动创建输出目录", ok and os.path.isfile(_newout), f"code={code}")
+
+    # J2-J6 --scan-mode（FTK-XI-03：--base 不影响扫描模式，显式覆盖 + 打印来源）
+    risky = os.path.join(skel, 'risky_tool')
+    ok, code, out = run_cli('scaffold.py', 'backend', 'risky_tool', '--output', skel)
+    risky_main = os.path.join(risky, 'risky_tool.py')
+    if os.path.isfile(risky_main):
+        src = open(risky_main, encoding='utf-8').read()
+        src = src.replace('from plugins.base_plugin import',
+                          'import subprocess\nfrom plugins.base_plugin import', 1)
+        src += ('\n\ndef run_external():\n'
+                '    return subprocess.run(["ffmpeg", "-version"])\n')
+        open(risky_main, 'w', encoding='utf-8').write(src)
+    ok, code, out = run_cli('package.py', 'pack', risky,
+                            '-o', os.path.join(work, 'risky.zip'), '--type', 'backend', '-y')
+    check("J2 高风险插件包打包成功", ok, f"code={code}")
+    ok, code, out = run_cli('install_plugin.py', 'backend', os.path.join(work, 'risky.zip'),
+                            '--base', base, '--scan-mode', 'enforce', expect_code=1)
+    check("J3 --scan-mode enforce 拒绝高风险包", ok, f"code={code}")
+    check("J4 拒绝输出含可操作原因与 ignore 指引",
+          '拒绝原因' in out and 'scan:ignore' in out, out[-260:])
+    ok, code, out = run_cli('install_plugin.py', 'backend', os.path.join(work, 'risky.zip'),
+                            '--base', base, '--scan-mode', 'report')
+    check("J5 --scan-mode report 放行并提示 enforce 将拒绝",
+          ok and 'report 模式下放行' in out, f"code={code} out={out[-160:]}")
+    check("J6 输出打印生效模式与来源",
+          '模式=report' in out and '--scan-mode 显式指定' in out, out[:160])
 
     print(f'\n==== M6 脚手架 + 手动安装工具回归：共 {len(results)} 项，'
           f'通过 {sum(1 for _, c, _ in results if c)}，'

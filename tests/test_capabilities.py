@@ -161,6 +161,32 @@ check("C11 无声明全量 missing（fail-closed）",
 check("C12 声明未使用仅提示不阻断",
       'network:udp:discovery' in C.cross_validate('hr', SCAN, CAPS + ['network:udp:discovery'])['unused'])
 
+# v4.23.5：子进程按可执行名归因（process:exec:<bin>，与运行期 audit_hook basename 语义一致）
+_SCAN_EXEC = {
+    'findings': [
+        {'severity': 'high', 'category': 'import', 'message': '导入高风险模块 subprocess',
+         'file': 'x.py', 'line': 1},
+        {'severity': 'high', 'category': 'dangerous-call', 'message': '启动子进程',
+         'file': 'x.py', 'line': 9, 'ignored': True, 'exec_bin': 'ffmpeg'},
+    ],
+    'summary': {'high': 2, 'medium': 0, 'low': 0, 'info': 0},
+    'scope': {'paths_read': [], 'paths_written': [], 'network_endpoints': [],
+              'delete_paths': [], 'exec_bins': ['ffmpeg']},
+}
+_cv1 = C.cross_validate('km', _SCAN_EXEC, ['process:exec:ffmpeg'])
+check("C13 声明精确 bin → ok 且回写 process_observed",
+      _cv1['ok'] and _cv1['process_observed'] == ['ffmpeg'], f"missing={_cv1['missing']}")
+_cv2 = C.cross_validate('km', _SCAN_EXEC, ['process:exec:git'])
+check("C14 声明 bin 不匹配 → missing 指出实测 process:exec:ffmpeg",
+      'process:exec:ffmpeg' in _cv2['missing'], f"missing={_cv2['missing']}")
+_cv3 = C.cross_validate('km', _SCAN_EXEC, [])
+check("C15 未声明 process → 精确 bin 进 missing，建议也精确",
+      'process:exec:ffmpeg' in _cv3['missing']
+      and 'process:exec:ffmpeg' in (_cv3['suggested'] or []), f"sug={_cv3['suggested']}")
+_cv4 = C.cross_validate('km', _SCAN_EXEC, ['process:exec'])
+check("C16 裸 process:exec 视为覆盖任意可执行名（不 missing）",
+      _cv4['ok'], f"missing={_cv4['missing']}")
+
 # ============ D：运行时授权 API ============
 C.register_capabilities('hr', CAPS)
 check("D1 check_filesystem 声明命中", C.check_filesystem('hr', 'D:/shared/reports/r.xlsx', 'r')[0])

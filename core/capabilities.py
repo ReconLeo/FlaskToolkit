@@ -302,6 +302,12 @@ def suggest_for_action(domain, target):
             target = target.split('://', 1)[1]
         return f'{domain}:{target}'
     if domain == 'process:exec':
+        # v4.23.5：target 为扫描器/审计归因出的可执行名时生成精确声明（与运行期一致）；
+        # 无 target（未归因）时退回粗声明。
+        if target:
+            bin_name = str(target).replace('\\', '/').rsplit('/', 1)[-1].lower()
+            if bin_name:
+                return f'process:exec:{bin_name}'
         return 'process:exec'
     if domain == 'network:server':
         return 'network:server:0.0.0.0:<port>'
@@ -344,6 +350,8 @@ def cross_validate(plugin_name, scan_report, capabilities, base_dir=None):
         'unknown': parsed['unknown'],
         'missing': [], 'implicit_granted': [], 'unused': [], 'suggested': [],
         'high_exempt_paths': [], 'high_missing': [],
+        # v4.23.5：子进程归因（安装期与运行期 audit_hook basename 语义对齐）
+        'process_observed': [], 'process_declared': [], 'process_dynamic': 0,
     }
     used_raw = set()
     report = scan_report or {}
@@ -402,16 +410,33 @@ def cross_validate(plugin_name, scan_report, capabilities, base_dir=None):
             else:
                 res['missing'].append(f'network:{e["scheme"]}:{e["host"]}')
 
-    # 3. 子进程 / 网络服务端 / 数据库 / 设备（按 findings 类别）
+    # 3. 子进程：按扫描器归因出的可执行名逐个比对 process:exec[:<bin>]
+    #    （v4.23.5：与运行期 audit_hook 的 basename 归因语义对齐；此前只判「有没有 process 域」，
+    #     导致 process:exec:ffmpeg 与实际执行的二进制毫无关系）
     f_msgs = [f.get('message', '') for f in findings]
     f_cats = [f.get('category', '') for f in findings]
-    if (any('subprocess' in m for m in f_msgs)
-            or any('子进程' in m or '系统命令' in m for m in f_msgs)):
-        hit = [c for c in valid if c['domain'] == 'process']
-        if hit:
-            used_raw.update(c['raw'] for c in hit)
+    process_caps = [c for c in valid if c['domain'] == 'process']
+    bare_exec = any(c['sub'] == 'exec' and not c['param'] for c in process_caps)
+    declared_bins = {c['param'].replace('\\', '/').rsplit('/', 1)[-1].lower()
+                     for c in process_caps if c['sub'] == 'exec' and c['param']}
+    observed_bins = list(dict.fromkeys(scope.get('exec_bins') or []))
+    dynamic_exec = sum(1 for f in findings if f.get('exec_dynamic'))
+    res['process_observed'] = observed_bins
+    res['process_declared'] = sorted(declared_bins)
+    res['process_dynamic'] = dynamic_exec
+    if observed_bins or dynamic_exec or any(
+            'subprocess' in m or '子进程' in m or '系统命令' in m for m in f_msgs):
+        if not process_caps:
+            for b in observed_bins:
+                res['missing'].append(f'process:exec:{b}')
+            if not observed_bins:
+                res['missing'].append('process:exec')
         else:
-            res['missing'].append('process:exec')
+            used_raw.update(c['raw'] for c in process_caps)
+            if not bare_exec:
+                for b in observed_bins:
+                    if b not in declared_bins:
+                        res['missing'].append(f'process:exec:{b}')
     if 'network-server' in f_cats:
         hit = [c for c in valid if c['domain'] == 'network' and c['sub'] == 'server']
         if hit:
