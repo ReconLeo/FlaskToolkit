@@ -8,7 +8,7 @@
 ```
 python tools/run_all_tests.py
 ```
-- 串行遍历 `tests/test_*.py`（当前 **47 脚本**），汇总通过/失败/超时/耗时，退出码 0=全过。
+- 串行遍历 `tests/test_*.py`（当前 **49 脚本**），汇总通过/失败/超时/耗时，退出码 0=全过。
 - 常用参数：`-p theme`（只跑文件名含 theme）、`-t 300`（单测试超时秒数）、`--list`（仅列出不执行）、`-v`（失败打印完整日志）、`--keep`（保留历史日志）。
 - 日志默认到 `temp/regress/`。
 - 测试脚本均自包含（隔离目录），以当前 Python 解释器直接运行。
@@ -16,7 +16,7 @@ python tools/run_all_tests.py
 
 ## 新增测试脚本必须同步进 CI
 
-新增 `tests/test_*.py` 后，必须把它加进 `.github/workflows/ci.yml` 的 **TESTS 数组**（当前 47 个，勿漏）。漏加会导致 CI 不覆盖新脚本（假绿）。
+新增 `tests/test_*.py` 后，必须把它加进 `.github/workflows/ci.yml` 的 **TESTS 数组**（当前 49 个，勿漏）。漏加会导致 CI 不覆盖新脚本（假绿）。
 
 **测试清单四端点同步**（历次漏过 v4.8.0 的 test_update_checker 未入四处）：
 1. `.github/workflows/ci.yml` TESTS 数组与注释脚本数

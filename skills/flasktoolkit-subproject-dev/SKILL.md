@@ -66,6 +66,7 @@ disable-model-invocation: false
 - 全仓 LF；`.gitattributes` 强制 `* text=auto eol=lf`。
 - 类属性与 plugin.json 两处一致，`require_framework_version` ≤ 当前框架。
 - capabilities 白名单声明；自属路径隐式豁免；`eval/exec/pickle/subprocess/socket.bind` 不可约束恒阻断。
+- 调用外部二进制（ffmpeg 等）：`# scan:ignore` 是唯一通路，且必须**同时**声明精确 `process:exec:<bin>`、命令写成字面量（动态拼接无法归因 → enforce 拒绝）。见 [plugin-authoring.md](references/plugin-authoring.md) §7.1。
 - 发布工具与框架路径均由用户提供，不硬编码。
 - 附带任务：查找主框架 bug，找到写可复现协调清单（现象/根因/可复现场景/影响建议），沉淀 lessons。
 

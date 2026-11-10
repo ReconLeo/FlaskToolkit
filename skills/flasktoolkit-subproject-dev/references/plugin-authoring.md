@@ -139,6 +139,28 @@ class MyPlugin(BasePlugin):
 - `save_uploads` 落盘目录建议用相对路径并同步声明 `filesystem:write:<相对路径>`，否则 enforce 模式交叉校验报"未声明行为"拒绝。
 - `shutil.rmtree` 为可约束 high：路径命中 `filesystem:write` 声明或行上 `# scan:ignore` 可豁免；`eval`/`exec`/`pickle.loads`/`subprocess`/`socket.bind` 等不可约束恒阻断。
 
+### 7.1 调用外部二进制（ffmpeg / pandoc / git …）的正确写法（v4.23.5 起）
+
+`subprocess` 属**不可约束 high**：`capabilities` 不能为其背书，`# scan:ignore` 是**唯一通路**；且从 v4.23.5 起还要求**声明匹配的可执行名**（安装期按 AST 可见常量归因，与运行期 `audit_hook` 的 basename 语义一致）。三件事缺一不可：
+
+```python
+import subprocess           # scan:ignore   ← ① import 行也要标（它本身是一条 high）
+
+def decode(path):
+    # ② 调用行标 ignore；③ 命令写成字面量或字面量列表首元素，可执行名才能被归因
+    return subprocess.run(  # scan:ignore
+        ["ffmpeg", "-v", "error", "-i", path, "-f", "s16le", "-"],
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+```
+
+```json
+"capabilities": ["process:exec:ffmpeg"]   // ③ 精确到 basename；裸 process:exec = 任意可执行（粗声明，仍受 ignore 约束）
+```
+
+- **动态构造的命令会被拒绝**（`cmd.split()`、f-string、拼接、`sys.executable` 之类的变量首参）：静态无法归因 → enforce 下无安装通路。需要可执行名可写时才用变量，且务必在插件 README 说明。
+- 报错会直接告诉你缺什么：`子进程调用已 # scan:ignore，但缺少匹配的能力声明: x.py:9（ffmpeg）（在 plugin.json capabilities 增加 process:exec:ffmpeg）`。
+- 自查命令：`python tools/scan.py <插件包.zip>`（带 `plugin.json` 时按能力归因，报告行会标 `[已归因 process:exec]` / `[动态构造命令（不可归因）]`），与真实安装判定同源。
+
 ## 8. BasePlugin 常用能力
 
 | 方法/属性 | 说明 |

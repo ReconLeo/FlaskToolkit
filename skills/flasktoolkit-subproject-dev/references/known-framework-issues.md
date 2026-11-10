@@ -52,12 +52,29 @@
 - 现状：interceptor 增加插件级豁免，插件声明 `public_page=True` 时页面免登录。
 - 插件侧：公开型插件（免登录工具/落地页）须设 `self.public_page = not self.auth_required` 之类并联动；默认 False 不影响他人。
 
+### A10. `# scan:ignore` 对 `import` 永久失效 → subprocess 插件在 enforce 下装不上（FTK-XI-01，已修复 v4.23.5）
+- 现象：`PLUGIN_SCAN_MODE=enforce` 时任何 `import subprocess` 的插件都被拒；在 import 行与调用行都写 `# scan:ignore` 也只有调用行生效（`import` 那条 `ignored` 恒为 false）；声明 `capabilities: ["process:exec:ffmpeg"]` 也救不回来。作者只剩 `--no-scan`（整体跳过扫描）或把模式降级到 report。
+- 根因：import 类 finding 行号被写死为 `0`，而 `# scan:ignore` 是按行号匹配的 → 永不命中；安装期 capabilities 只判"有没有 process 域"，与真实可执行名无关（运行期 audit_hook 才按 basename 比对）。
+- 现状（v4.23.5）：import finding 记真实行号；子进程按可执行名归因，**必须声明匹配的 `process:exec:<bin>`** 才放行；动态构造命令拒绝；拒绝原因逐条可操作。
+- 插件侧：按 [plugin-authoring.md](plugin-authoring.md) §7.1 的"三件事"写（import 行 ignore + 调用行 ignore + 精确 `process:exec:<bin>` 声明 + 命令写成字面量）。
+
+### A11. `install_plugin.py --base` 不切换扫描模式（FTK-XI-03，已修复 v4.23.5）
+- 现象：把隔离运行时的 `PLUGIN_SCAN_MODE` 改成 `enforce` 后安装高风险插件仍 `[OK]`；只有改**工具所属框架**的配置才生效。隔离测试里据此得出"门禁形同虚设"的结论是错的。
+- 根因：CLI 通过 `sys.path` 引入**自身框架**的 `global_var`，`resolve_base()` 只 patch 路径常量，不读 `--base` 的配置。
+- 现状（v4.23.5）：新增 `--scan-mode off|report|enforce` 显式覆盖，并**始终打印「生效模式 + 来源」**；`--base` 语义保持"只切路径不切配置"。
+- 插件侧：隔离测试要验 enforce 就显式传 `--scan-mode enforce`，并看一眼首行打印的模式来源。
+
+### A12. `package.py pack` 不创建输出目录（FTK-XI-02，已修复 v4.23.5）
+- 现象：`pack src -o dist/x.zip` 在 `dist/` 不存在时抛 `FileNotFoundError` traceback（首次打包必踩）。
+- 现状（v4.23.5）：自动创建父目录（含交互重命名的分支）。
+- 插件侧：无需规避；老版本脚本里多余的 `mkdir -p dist` 可以留着。
+
 ## B. 未修复的框架缺陷（插件内 workaround + 上报协调清单）
 
-### B1. 插件安装不检查 pip 依赖
+### B1. 插件安装不检查 pip 依赖（**已修复**：v4.23.0 Web 硬拦截 / v4.23.5 CLI 警告）
 - 现象：声明 `pip_dependencies` 的插件在**未装依赖的机器**上上传返回 200"已安装"，但加载阶段 `check_dependencies` 检测缺失跳过加载（`dependency_missing`），前端/API 全不可用且无明确阻断。
-- 插件侧 workaround：README/SKILL 明确"先 `pip install <deps>` 再装"；隔离测试前先装依赖。
-- 上报：建议 `upload_new_plugin` 安装阶段做依赖存在性检查并阻断/警示。
+- 现状：Web/服务层安装解包前**硬拦截**缺 pip 依赖（preview 响应带 `pip_missing`，前端红字警示）；离线 CLI `install_plugin.py` 以 `[警告]` 输出未就绪原因 + `${python} -m pip install <pkg>`（不阻断，便于离线部署）；加载期把插件依赖与 pip 依赖**分开告警**并写明"已跳过加载（该插件不会出现在已加载插件中）"，`plugin_load_issues` 明细带修复命令（后台「未加载原因」照做即可）。
+- 插件侧：README 仍应写明依赖；隔离测试前先装依赖。见 [plugin-authoring.md](plugin-authoring.md) §3。
 
 ### B2. `plugins/temp/` 无自动清理
 - 现象：`_temp_files` 只记录无过期清理，上传临时文件只增不减。
@@ -69,7 +86,7 @@
 - 插件侧 workaround：`save_uploaded_file`/`save_uploads` 内做双层大小/类型校验。
 - 上报：可作为框架增强候选。
 
-### B4. 插件内 `from .base_plugin import ...` 必加载失败（文档误导，v4.23.2 实测）
+### B4. 插件内 `from .base_plugin import ...` 必加载失败（**已修复**：v4.23.3 文档纠正 + 定向提示 / v4.23.4）
 - 现象：按"相对导入"编写的新插件，**安装成功**（`[OK] 安装完成`），但服务启动时
   `ERROR - 导入插件 plugins.<name>.<name> 失败: No module named 'plugins.<name>.base_plugin'`，
   插件随后从全局注册表消失：后台插件列表看不到、`/plugin/<name>` 404。
@@ -77,11 +94,12 @@
 - 触发：主 .py 顶部写 `from .base_plugin import BasePlugin`。
 - 根因：插件安装为 `plugins/<name>/` 子包（框架自动生成其 `__init__.py`），
   而 `base_plugin.py` 在**上级包** `plugins/base_plugin.py` → 相对导入解析到不存在的子模块。
-- 插件侧 workaround（**必须**）：改绝对导入 `from plugins.base_plugin import BasePlugin`；
-  稳妥写法是 `try: 绝对导入 / except ImportError: 相对导入`。
-  同包辅助模块用 `from . import km_utils` 或 `from plugins.<name> import km_utils` 均可。
-- 上报：建议安装期静态扫描该错误导入并拒绝安装，或启动期捕获 `ModuleNotFoundError`
-  且缺失名为 `<plugin>.base_plugin` 时给出定向提示。
+- 现状（v4.23.3+）：
+  - 开发指南 5 处错误示例已改为绝对导入，并新增导入说明（4.2）与"内置 `auth.py` 不是范本"提示；
+  - **安装期**：主文件仅用相对导入 `base_plugin` 时立即 `warning` 告警（带绝对导入的 `try/except` 写法不误报）；
+  - **启动期**：`import_error_hint` 对缺失 `<plugin>.base_plugin` 给出"改用绝对导入"的定向提示，并登记 `plugin_load_issues`（后台插件列表显示「未加载原因」，不再静默消失）。
+- 插件侧：直接用绝对导入 `from plugins.base_plugin import BasePlugin`；同包辅助模块
+  `from . import km_utils` / `from plugins.<name> import km_utils` 均可。
 - 复现材料与完整分析：`KaleidoMini/docs/框架协调清单.md` FTK-KM-01。
 
 ## C. 框架侧缺陷（非插件触发，仅知悉）

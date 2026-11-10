@@ -19,7 +19,7 @@
 |------|------|
 | `framework_manifest.py` | **单一清单**：CORE_DIRS、USER_DATA_PATHS、RUNTIME_* 白名单等，供自检/升级/备份/重置/打包/Root 判定 |
 | `plugin_loader.py` / `plugin_pack.py` | 插件加载 / 插件包（.zip）解包 |
-| `plugin_scanner.py` / `capabilities.py` | 静态扫描 / capabilities 白名单 |
+| `plugin_scanner.py` / `capabilities.py` | 静态扫描 / capabilities 白名单（门禁统一判定入口 `evaluate_gate()`，v4.23.5） |
 | `audit.py` / `audit_hook.py` | 审计 / 运行时审计钩子 |
 | `plugin_admin.py` / `plugin_updates.py` | 程序化插件管理 / 插件级更新源 |
 | `events.py` | 自研事件总线（v4.16） |

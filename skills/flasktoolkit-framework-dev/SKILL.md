@@ -24,6 +24,7 @@ disable-model-invocation: false
 2. **新功能范围判定**：贴合个人/局域网/插件开发友好 → 评估实现；企业级越界（深层安全 / 平台生态 / 企业部署）→ 引导 Enterprise 讨论，Community 不实现、不深化既有越界能力（仅做必要 bug 修复）。判定清单见 [community-boundaries.md](references/community-boundaries.md)。
 3. **产品名称**：品牌名只能用 **FlaskToolkit**；界面/文档/词条中不得把 "Flask" 单独用作品牌（Flask 是 Pallets 的 BSD-3 项目）。技术性引用、文件名路径、Changelog 历史旧名可保留。
 4. **发布门禁**：未过版本治理门禁、**未经用户明确指示**不得发布、不得打 tag、不得提升/改写版本号。详见 [release-workflow.md](references/release-workflow.md)。
+5. **扫描门禁语义（v4.23.5 固化，改动前必读）**：不可约束 high（eval/exec/compile、pickle/marshal、混淆、动态导入、socket.bind/listen、syntax、subprocess…）**始终阻断**，`capabilities` 不能为其背书 —— `# scan:ignore`（行级知情声明）是唯一通路；可约束 high（rmtree 常量路径）按 `filesystem:write` 归因豁免；子进程另需 `process:exec[:<bin>]` 按可执行名（basename）归因，动态构造命令拒绝。判定只有一处：`core/plugin_scanner.evaluate_gate()`，不要在调用方复制分层逻辑。动态分析/签名者背书/管理员白名单属 Enterprise，Community 不实现。
 
 ## 核心工作流
 
