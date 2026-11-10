@@ -1,12 +1,13 @@
 {
-  "latest_version": "4.23.4",
-  "published_at": "2026-11-02",
-  "download_url": "https://github.com/ReconLeo/FlaskToolkit/releases/download/v4.23.4/FlaskToolkit-4.23.4-runtime.zip",
-  "sha256": "56d117c51adeff029bf5e95bf51843278afccd62c02e18d76afc5fc5c564819a",
+  "latest_version": "4.23.5",
+  "published_at": "2026-11-10",
+  "download_url": "https://github.com/ReconLeo/FlaskToolkit/releases/download/v4.23.5/FlaskToolkit-4.23.5-runtime.zip",
+  "sha256": "418c54b0f381da812997e84085441f9c523b93f43d5542a1c6001cc7cc196923",
   "changes": [
-    "openssl 默认配置缺失时自签名证书兜底：conda 等打包版 OPENSSLDIR 指向构建机路径导致 openssl req 读不到 openssl.cnf；gen_cert 识别该错误特征后注入临时空 OPENSSL_CONF 重试一次（-config 参数无效，实测只有环境变量生效）",
-    "证书生成失败报错改为带 openssl 路径与三条排查路径；桌面启动器 HTTPS 复选框失败改为弹窗提示，不再在 Tk 回调裸抛异常导致按钮无响应",
-    "影响面澄清：仅影响自签名证书生成，不影响框架运行（HTTP 默认无需证书，HTTPS 运行时走 Python ssl）",
-    "test_desktop_launcher 36->40 项（配置缺失重试/注入临时 OPENSSL_CONF/兜底成功/非配置类失败不重试），全量回归 49 脚本 1355 项断言，全绿"
+    "静态扫描门禁可用性修复：import 类 finding 记录真实行号，scan:ignore 不再对 import 永久失效（此前 enforce 下任何 import subprocess 的插件都装不上且无逃生舱）",
+    "子进程按可执行名归因：必须声明匹配的 process:exec:<bin> 才放行；动态构造的命令拒绝（与运行期 audit_hook 的 basename 语义对齐）",
+    "门禁判定收敛到 core/plugin_scanner.evaluate_gate（CLI/服务层/上传预览共用），拒绝时逐条给出文件行号、可执行名、缺失声明与该加 scan:ignore 的行",
+    "install_plugin 新增 --scan-mode off|report|enforce 并始终打印生效模式与来源；package.py 自动创建输出目录；pip 依赖缺失改为 [警告] 级报告（含 pip install 命令）",
+    "回归：test_plugin_scan 46->64、test_capabilities 73->77、test_scaffold_tools 53->61，全量 49 脚本 1385 项断言全绿"
   ]
 }

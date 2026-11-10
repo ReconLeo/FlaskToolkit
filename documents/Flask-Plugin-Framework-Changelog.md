@@ -73,7 +73,7 @@ Kaleido 同样开源（自托管题库系统）：[github.com/ReconLeo/Kaleido](
 | **v4.23.2（已发布）** | 2026-09-20 | 版本检查强制语义收紧：`check_for_update(force=True)` 网络/解析失败不再回退过期缓存（明确感知强制检查失败）+ `tools/update.py check --force` 忽略缓存有效期立即拉取（失败不回退缓存）+ 补 test_update_checker force 回归（52→55 项）；全量回归 49 脚本 1333 项 | tag `v4.23.2` |
 | **v4.23.3** | 2026-11-02 | 子插件协调清单缺陷修复（Kaleido Mini 上报 issue #1/#2/#3）：API 分发器 404/405 语义（未注册路径不再假 405）+ 页面分发器元组直通（权限拒绝 403 不再变 500）+ 开发指南 5 处相对导入示例纠正与 5.2 示例 NameError 修正 + 加载期/安装期导入失败定向提示；test_page_router 23→34、test_framework_fixes 12→15，全量回归 49 脚本 1351 项 | tag `v4.23.3`（仅 tag，无 runtime 制品） |
 | **v4.23.4** | 2026-11-02 | openssl 默认配置缺失时的自签名证书兜底（conda 等打包版 OPENSSLDIR 指向构建机路径 → `openssl req` 读不到 openssl.cnf）：gen_cert 识别该错误特征后注入临时空 `OPENSSL_CONF` 重试一次 + 错误信息给出排查路径 + 启动器证书失败弹窗而非静默；test_desktop_launcher 36→40，全量回归 49 脚本 1355 项 | tag `v4.23.4` + runtime 更新包 |
-| 待发布 | 2026-11-10 | 静态扫描门禁可用性修复（xfime_iat 协调清单 FTK-XI-01/02/03）：import 类 finding 记录真实行号（`# scan:ignore` 不再对 import 永久失效）+ 子进程按可执行名归因（须声明 `process:exec:<bin>`，动态构造命令拒绝）+ 门禁判定收敛到 `evaluate_gate` 并给出可操作原因 + `install_plugin --scan-mode` 与模式来源打印 + `package.py` 自动创建输出目录 + pip 依赖缺失改 `[警告]` 报告；test_plugin_scan 46→64、test_capabilities 73→77、test_scaffold_tools 53→61，全量回归 49 脚本 1385 项 | （未打 tag） |
+| **v4.23.5** | 2026-11-10 | 静态扫描门禁可用性修复（xfime_iat 协调清单 FTK-XI-01/02/03）：import 类 finding 记录真实行号（`# scan:ignore` 不再对 import 永久失效）+ 子进程按可执行名归因（须声明 `process:exec:<bin>`，动态构造命令拒绝）+ 门禁判定收敛到 `evaluate_gate` 并给出可操作原因 + `install_plugin --scan-mode` 与模式来源打印 + `package.py` 自动创建输出目录 + pip 依赖缺失改 `[警告]` 报告；test_plugin_scan 46→64、test_capabilities 73→77、test_scaffold_tools 53→61，全量回归 49 脚本 1385 项 | （未打 tag） |
 
 ## 3. 版本详情
 
@@ -672,7 +672,9 @@ pip 依赖安装拦截 + 统计实时刷新 + 打包工具增强 + 跨平台目�
 
 **版本**：`FRAMEWORK_VERSION` / `SYSTEM_VERSION_LABEL` 4.23.3 → 4.23.4；README 双版徽章同步；runtime 精简包 `FlaskToolkit-4.23.4-runtime.zip` + `changelog.json` 同步。
 
-### 3.51 待发布（v4.23.5）（2026-11-10，静态扫描门禁可用性修复）
+### 3.51 v4.23.5（2026-11-10，静态扫描门禁可用性修复）
+
+> 发布形态：**tag `v4.23.5` + runtime 精简更新包**（`FlaskToolkit-4.23.5-runtime.zip`），`changelog.json` 同步指向本版制品。
 
 来源：子项目 **xfime_iat** 上报的《框架协调清单》（FTK-XI-01/02/03，实测环境 v4.23.4 本地构建的隔离运行时）。三条均经复现后修复；本次同时按 Community 定位把门禁语义写成明确规则。
 
@@ -686,6 +688,8 @@ pip 依赖安装拦截 + 统计实时刷新 + 打包工具增强 + 跨平台目�
 - **`package.py` 自动创建输出目录**（FTK-XI-02，P2-F）：`_resolve_output()` 新增 `_ensure_parent_dir()`，`pack -o dist/x.zip` 在 `dist/` 不存在时自动创建（此前抛 `FileNotFoundError` traceback；重命名分支同样处理）。
 - **pip 依赖缺失改为醒目警告**（xfime_iat 附带反馈）：`tools/install_plugin.py` 复用 `core.plugin_deps.check_pip_dependencies`（支持 `name>=x` 与版本约束，修掉"拿原始 spec 查 distribution"的误报），缺失时以 `[警告]` 级别输出未就绪原因与 `${python} -m pip install <pkg>`（不阻断安装）；加载期把"插件依赖"与"pip 依赖"**分开告警**（后者提示"已跳过加载（该插件不会出现在已加载插件中）"），`plugin_load_issues` 明细带上修复命令，后台「未加载原因」可直接照做。
 - **测试与文档**：`test_plugin_scan` 46→64（新增 F1–F18：import 行号与 ignore 生效、归因闸门 12 种组合、动态命令拒绝、报告标记）；`test_capabilities` 73→77（C13–C16：精确 bin 归因 / 不匹配 / 缺声明建议 / 裸声明覆盖）；`test_scaffold_tools` 53→61（pack 自动建目录、`--scan-mode` 三态与来源打印、pip 缺失 `[警告]`）；dev guide 10.6/10.7/14.x 补"子进程归因闸门"与 CLI 说明，十二章与 README 双版断言数同步 **49 脚本 / 1385 项断言**。全量回归 49 脚本全部通过。
+
+**版本**：`FRAMEWORK_VERSION` / `SYSTEM_VERSION_LABEL` 4.23.4 → 4.23.5；README 双版徽章同步；runtime 精简包 `FlaskToolkit-4.23.5-runtime.zip` + `changelog.json` 同步。
 
 ## 4. 发布实践沉淀
 
